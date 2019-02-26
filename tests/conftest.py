@@ -38,3 +38,15 @@ async def cloud_mock(loop, aioclient_mock):
     yield cloud
 
     await cloud.websession.close()
+
+
+@pytest.fixture
+def cloud_client(cloud_mock):
+    """Return cloud client impl."""
+    yield cloud_mock.client
+
+
+@pytest.fixture
+def cloud_prefs(cloud_mock):
+    """Return cloud prefs impl."""
+    yield cloud_mock.prefs

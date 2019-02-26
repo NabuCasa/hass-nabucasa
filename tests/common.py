@@ -1,5 +1,6 @@
 """Test the helper method for writing tests."""
 from pathlib import Path
+import tempfile
 
 from hass_nabucasa.prefs import CloudPreferences
 from hass_nabucasa.client import CloudClient
@@ -87,9 +88,9 @@ class TestClient(CloudClient):
         self.mock_return = []
 
     @property
-    def base_dir(self):
+    def base_path(self):
         """Return path to base dir."""
-        Path("/tmp")
+        return Path(tempfile.gettempdir())
 
     @property
     def loop(self):

@@ -104,7 +104,7 @@ class Cloud:
 
         Async friendly.
         """
-        return Path(self.client.base_dir, CONFIG_DIR, *parts)
+        return Path(self.client.base_path, CONFIG_DIR, *parts)
 
     def run_task(self, coro: Coroutine) -> Coroutine:
         """Schedule a task.
@@ -150,14 +150,15 @@ class Cloud:
             )
         )
 
-    async def async_start(self, _):
+    async def login(self):
         """Start the cloud component."""
 
         def load_config():
             """Load config."""
             # Ensure config dir exists
-            if not self.client.base_path.exists():
-                self.client.base_path.mkdir()
+            base_path = self.path()
+            if not base_path.exists():
+                base_path.mkdir()
 
             if not self.user_info_path.exists():
                 return None

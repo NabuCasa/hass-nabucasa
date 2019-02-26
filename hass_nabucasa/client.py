@@ -10,7 +10,7 @@ class CloudClient:
     """Interface class for Home Assistant."""
 
     @property
-    def base_dir(self) -> Path:
+    def base_path(self) -> Path:
         """Return path to base dir."""
         raise NotImplementedError()
 
