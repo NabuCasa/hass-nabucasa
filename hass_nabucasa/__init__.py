@@ -10,7 +10,6 @@ import aiohttp
 from homeassistant.util import dt as dt_util
 
 from . import auth_api, cloudhooks, iot
-from .prefs import CloudPreferences
 from .client import CloudClient
 from .const import CONFIG_DIR, MODE_DEV, SERVERS
 
@@ -23,7 +22,6 @@ class Cloud:
     def __init__(
         self,
         client: CloudClient,
-        prefs: CloudPreferences,
         mode: str,
         cognito_client_id=None,
         user_pool_id=None,
@@ -37,7 +35,6 @@ class Cloud:
         """Create an instance of Cloud."""
         self.mode = mode
         self.client = client
-        self.prefs = prefs
         self.id_token = None
         self.access_token = None
         self.refresh_token = None
@@ -165,7 +162,6 @@ class Cloud:
             return json.loads(self.user_info_path.read_text())
 
         info = await self.run_executor(load_config)
-        await self.prefs.async_initialize()
 
         if info is None:
             return

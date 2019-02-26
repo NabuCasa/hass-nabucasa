@@ -14,7 +14,7 @@ class Cloudhooks:
 
     async def async_publish_cloudhooks(self):
         """Inform the Relayer of the cloudhooks that we support."""
-        cloudhooks = self.cloud.prefs.cloudhooks
+        cloudhooks = self.cloud.client.cloudhooks
         await self.cloud.iot.async_send_message(
             "webhook-register",
             {"cloudhook_ids": [info["cloudhook_id"] for info in cloudhooks.values()]},
@@ -23,7 +23,7 @@ class Cloudhooks:
 
     async def async_create(self, webhook_id):
         """Create a cloud webhook."""
-        cloudhooks = self.cloud.prefs.cloudhooks
+        cloudhooks = self.cloud.client.cloudhooks
 
         if webhook_id in cloudhooks:
             raise ValueError("Hook is already enabled for the cloud.")
@@ -46,14 +46,14 @@ class Cloudhooks:
             "cloudhook_id": cloudhook_id,
             "cloudhook_url": cloudhook_url,
         }
-        await self.cloud.prefs.async_update(cloudhooks=cloudhooks)
+        await self.cloud.client.async_cloudhooks_update(cloudhooks)
 
         await self.async_publish_cloudhooks()
         return hook
 
     async def async_delete(self, webhook_id):
         """Delete a cloud webhook."""
-        cloudhooks = self.cloud.prefs.cloudhooks
+        cloudhooks = self.cloud.client.cloudhooks
 
         if webhook_id not in cloudhooks:
             raise ValueError("Hook is not enabled for the cloud.")
@@ -61,6 +61,6 @@ class Cloudhooks:
         # Remove hook
         cloudhooks = dict(cloudhooks)
         cloudhooks.pop(webhook_id)
-        await self.cloud.prefs.async_update(cloudhooks=cloudhooks)
+        await self.cloud.client.async_cloudhooks_update(cloudhooks)
 
         await self.async_publish_cloudhooks()

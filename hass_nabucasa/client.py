@@ -29,6 +29,11 @@ class CloudClient:
         """Return client webinterface aiohttp application."""
         raise NotImplementedError()
 
+    @property
+    def cloudhooks(self) -> Dict[str, Dict[str, str]]:
+        """Return list of cloudhooks."""
+        raise NotImplementedError()
+
     async def async_user_message(
         self, identifier: str, title: str, message: str
     ) -> None:
@@ -45,4 +50,8 @@ class CloudClient:
 
     async def async_webhook_message(self, payload: Dict[Any, Any]) -> Dict[Any, Any]:
         """Process cloud webhook message to client."""
+        raise NotImplementedError()
+
+    async def async_cloudhooks_update(self, data: Dict[str, Dict[str, str]]) -> None:
+        """Update local list of cloudhooks."""
         raise NotImplementedError()

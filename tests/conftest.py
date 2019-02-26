@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from .utils.aiohttp import mock_aiohttp_client, AiohttpClientMocker
-from .common import TestPreferences, TestClient
+from .common import TestClient
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -29,9 +29,6 @@ async def cloud_mock(loop, aioclient_mock):
 
     cloud.run_executor = _executor
 
-    cloud.prefs = TestPreferences()
-    await cloud.prefs.async_initialize()
-
     cloud.websession = aioclient_mock.create_session(loop)
     cloud.client = TestClient(loop, cloud.websession)
 
@@ -44,9 +41,3 @@ async def cloud_mock(loop, aioclient_mock):
 def cloud_client(cloud_mock):
     """Return cloud client impl."""
     yield cloud_mock.client
-
-
-@pytest.fixture
-def cloud_prefs(cloud_mock):
-    """Return cloud prefs impl."""
-    yield cloud_mock.prefs

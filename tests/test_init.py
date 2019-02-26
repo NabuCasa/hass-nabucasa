@@ -11,7 +11,7 @@ from homeassistant.util.dt import utcnow
 from .common import mock_coro
 
 
-def test_constructor_loads_info_from_constant(cloud_client, cloud_prefs):
+def test_constructor_loads_info_from_constant(cloud_client):
     """Test non-dev mode loads info from SERVERS constant."""
     with patch.dict(
         cloud.SERVERS,
@@ -28,7 +28,7 @@ def test_constructor_loads_info_from_constant(cloud_client, cloud_prefs):
             }
         },
     ):
-        cl = cloud.Cloud(cloud_client, cloud_prefs, "beer")
+        cl = cloud.Cloud(cloud_client, "beer")
 
     assert cl.mode == "beer"
     assert cl.cognito_client_id == "test-cognito_client_id"
@@ -40,9 +40,9 @@ def test_constructor_loads_info_from_constant(cloud_client, cloud_prefs):
     assert cl.cloudhook_create_url == "test-cloudhook_create_url"
 
 
-async def test_initialize_loads_info(cloud_client, cloud_prefs):
+async def test_initialize_loads_info(cloud_client):
     """Test initialize will load info from config file."""
-    cl = cloud.Cloud(cloud_client, cloud_prefs, cloud.MODE_DEV)
+    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
     info_file = MagicMock(
         read_text=Mock(
@@ -72,9 +72,9 @@ async def test_initialize_loads_info(cloud_client, cloud_prefs):
     assert len(cl.iot.connect.mock_calls) == 1
 
 
-async def test_logout_clears_info(cloud_client, cloud_prefs):
+async def test_logout_clears_info(cloud_client):
     """Test logging out disconnects and removes info."""
-    cl = cloud.Cloud(cloud_client, cloud_prefs, cloud.MODE_DEV)
+    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
     info_file = MagicMock(
         exists=Mock(return_value=True), unlink=Mock(return_value=True)
@@ -96,9 +96,9 @@ async def test_logout_clears_info(cloud_client, cloud_prefs):
     assert info_file.unlink.called
 
 
-def test_write_user_info(cloud_client, cloud_prefs):
+def test_write_user_info(cloud_client):
     """Test writing user info works."""
-    cl = cloud.Cloud(cloud_client, cloud_prefs, cloud.MODE_DEV)
+    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
     info_file = MagicMock(
         exists=Mock(return_value=True), write_text=Mock(return_value=True)
@@ -123,9 +123,9 @@ def test_write_user_info(cloud_client, cloud_prefs):
     }
 
 
-def test_subscription_expired(cloud_client, cloud_prefs):
+def test_subscription_expired(cloud_client):
     """Test subscription being expired after 3 days of expiration."""
-    cl = cloud.Cloud(cloud_client, cloud_prefs, cloud.MODE_DEV)
+    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
     token_val = {"custom:sub-exp": "2017-11-13"}
     with patch.object(cl, "_decode_claims", return_value=token_val), patch(
@@ -151,9 +151,9 @@ def test_subscription_expired(cloud_client, cloud_prefs):
         assert cl.subscription_expired
 
 
-def test_subscription_not_expired(cloud_client, cloud_prefs):
+def test_subscription_not_expired(cloud_client):
     """Test subscription not being expired."""
-    cl = cloud.Cloud(cloud_client, cloud_prefs, cloud.MODE_DEV)
+    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
     token_val = {"custom:sub-exp": "2017-11-13"}
     with patch.object(cl, "_decode_claims", return_value=token_val), patch(

@@ -35,7 +35,7 @@ async def test_enable(mock_cloudhooks, aioclient_mock):
 
     assert hook == await mock_cloudhooks.async_create("mock-webhook-id")
 
-    assert mock_cloudhooks.cloud.prefs.cloudhooks == {"mock-webhook-id": hook}
+    assert mock_cloudhooks.cloud.client.cloudhooks == {"mock-webhook-id": hook}
 
     publish_calls = mock_cloudhooks.cloud.iot.async_send_message.mock_calls
     assert len(publish_calls) == 1
@@ -45,7 +45,7 @@ async def test_enable(mock_cloudhooks, aioclient_mock):
 
 async def test_disable(mock_cloudhooks):
     """Test disabling cloudhooks."""
-    mock_cloudhooks.cloud.prefs._prefs["cloudhooks"] = {
+    mock_cloudhooks.cloud.client._cloudhooks = {
         "mock-webhook-id": {
             "webhook_id": "mock-webhook-id",
             "cloudhook_id": "mock-cloud-id",
@@ -55,7 +55,7 @@ async def test_disable(mock_cloudhooks):
 
     await mock_cloudhooks.async_delete("mock-webhook-id")
 
-    assert mock_cloudhooks.cloud.prefs.cloudhooks == {}
+    assert mock_cloudhooks.cloud.client.cloudhooks == {}
 
     publish_calls = mock_cloudhooks.cloud.iot.async_send_message.mock_calls
     assert len(publish_calls) == 1
