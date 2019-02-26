@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from .utils.aiohttp import mock_aiohttp_client, AiohttpClientMocker
-from .common import TestPreferences
+from .common import TestPreferences, TestClient
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -33,6 +33,7 @@ async def cloud_mock(loop, aioclient_mock):
     await cloud.prefs.async_initialize()
 
     cloud.websession = aioclient_mock.create_session(loop)
+    cloud.client = TestClient(loop, cloud.websession)
 
     yield cloud
 

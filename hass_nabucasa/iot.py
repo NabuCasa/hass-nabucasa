@@ -105,8 +105,7 @@ class CloudIoT:
                 # Sleep 2^tries + 0…tries*3 seconds between retries
                 self.retry_task = self.cloud.run_task(
                     asyncio.sleep(
-                        2 ** min(9, self.tries) + random.randint(0, self.tries * 3),
-                        loop=self.cloud.client.loop,
+                        2 ** min(9, self.tries) + random.randint(0, self.tries * 3)
                     )
                 )
                 await self.retry_task

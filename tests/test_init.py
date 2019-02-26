@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock, mock_open
 
 import pytest
 
-from homeassistant.components import cloud
+from hass_nabucasa import cloud
 from homeassistant.util.dt import utcnow
 
 from tests.common import mock_coro
@@ -14,7 +14,7 @@ from tests.common import mock_coro
 @pytest.fixture
 def mock_os():
     """Mock os module."""
-    with patch('homeassistant.components.cloud.os') as os:
+    with patch("ts.cloud.os") as os:
         os.path.isdir.return_value = True
         yield os
 
@@ -23,31 +23,34 @@ def mock_os():
 def test_constructor_loads_info_from_constant():
     """Test non-dev mode loads info from SERVERS constant."""
     hass = MagicMock(data={})
-    with patch.dict(cloud.SERVERS, {
-        'beer': {
-            'cognito_client_id': 'test-cognito_client_id',
-            'user_pool_id': 'test-user_pool_id',
-            'region': 'test-region',
-            'relayer': 'test-relayer',
-            'google_actions_sync_url': 'test-google_actions_sync_url',
-            'subscription_info_url': 'test-subscription-info-url',
-            'cloudhook_create_url': 'test-cloudhook_create_url',
-        }
-    }):
-        result = yield from cloud.async_setup(hass, {
-            'cloud': {cloud.CONF_MODE: 'beer'}
-        })
+    with patch.dict(
+        cloud.SERVERS,
+        {
+            "beer": {
+                "cognito_client_id": "test-cognito_client_id",
+                "user_pool_id": "test-user_pool_id",
+                "region": "test-region",
+                "relayer": "test-relayer",
+                "google_actions_sync_url": "test-google_actions_sync_url",
+                "subscription_info_url": "test-subscription-info-url",
+                "cloudhook_create_url": "test-cloudhook_create_url",
+            }
+        },
+    ):
+        result = yield from cloud.async_setup(
+            hass, {"cloud": {cloud.CONF_MODE: "beer"}}
+        )
         assert result
 
-    cl = hass.data['cloud']
-    assert cl.mode == 'beer'
-    assert cl.cognito_client_id == 'test-cognito_client_id'
-    assert cl.user_pool_id == 'test-user_pool_id'
-    assert cl.region == 'test-region'
-    assert cl.relayer == 'test-relayer'
-    assert cl.google_actions_sync_url == 'test-google_actions_sync_url'
-    assert cl.subscription_info_url == 'test-subscription-info-url'
-    assert cl.cloudhook_create_url == 'test-cloudhook_create_url'
+    cl = hass.data["cloud"]
+    assert cl.mode == "beer"
+    assert cl.cognito_client_id == "test-cognito_client_id"
+    assert cl.user_pool_id == "test-user_pool_id"
+    assert cl.region == "test-region"
+    assert cl.relayer == "test-relayer"
+    assert cl.google_actions_sync_url == "test-google_actions_sync_url"
+    assert cl.subscription_info_url == "test-subscription-info-url"
+    assert cl.cloudhook_create_url == "test-cloudhook_create_url"
 
 
 @asyncio.coroutine
@@ -55,45 +58,53 @@ def test_constructor_loads_info_from_config():
     """Test non-dev mode loads info from SERVERS constant."""
     hass = MagicMock(data={})
 
-    result = yield from cloud.async_setup(hass, {
-        'cloud': {
-            cloud.CONF_MODE: cloud.MODE_DEV,
-            'cognito_client_id': 'test-cognito_client_id',
-            'user_pool_id': 'test-user_pool_id',
-            'region': 'test-region',
-            'relayer': 'test-relayer',
-        }
-    })
+    result = yield from cloud.async_setup(
+        hass,
+        {
+            "cloud": {
+                cloud.CONF_MODE: cloud.MODE_DEV,
+                "cognito_client_id": "test-cognito_client_id",
+                "user_pool_id": "test-user_pool_id",
+                "region": "test-region",
+                "relayer": "test-relayer",
+            }
+        },
+    )
     assert result
 
-    cl = hass.data['cloud']
+    cl = hass.data["cloud"]
     assert cl.mode == cloud.MODE_DEV
-    assert cl.cognito_client_id == 'test-cognito_client_id'
-    assert cl.user_pool_id == 'test-user_pool_id'
-    assert cl.region == 'test-region'
-    assert cl.relayer == 'test-relayer'
+    assert cl.cognito_client_id == "test-cognito_client_id"
+    assert cl.user_pool_id == "test-user_pool_id"
+    assert cl.region == "test-region"
+    assert cl.relayer == "test-relayer"
 
 
 async def test_initialize_loads_info(mock_os, hass):
     """Test initialize will load info from config file."""
     mock_os.path.isfile.return_value = True
-    mopen = mock_open(read_data=json.dumps({
-        'id_token': 'test-id-token',
-        'access_token': 'test-access-token',
-        'refresh_token': 'test-refresh-token',
-    }))
+    mopen = mock_open(
+        read_data=json.dumps(
+            {
+                "id_token": "test-id-token",
+                "access_token": "test-access-token",
+                "refresh_token": "test-refresh-token",
+            }
+        )
+    )
 
     cl = cloud.Cloud(hass, cloud.MODE_DEV, None, None)
     cl.iot = MagicMock()
     cl.iot.connect.return_value = mock_coro()
 
-    with patch('homeassistant.components.cloud.open', mopen, create=True), \
-            patch('homeassistant.components.cloud.Cloud._decode_claims'):
+    with patch("homeassistant.components.cloud.open", mopen, create=True), patch(
+        "homeassistant.components.cloud.Cloud._decode_claims"
+    ):
         await cl.async_start(None)
 
-    assert cl.id_token == 'test-id-token'
-    assert cl.access_token == 'test-access-token'
-    assert cl.refresh_token == 'test-refresh-token'
+    assert cl.id_token == "test-id-token"
+    assert cl.access_token == "test-access-token"
+    assert cl.refresh_token == "test-refresh-token"
     assert len(cl.iot.connect.mock_calls) == 1
 
 
@@ -119,11 +130,11 @@ def test_write_user_info():
     mopen = mock_open()
 
     cl = cloud.Cloud(MagicMock(), cloud.MODE_DEV, None, None)
-    cl.id_token = 'test-id-token'
-    cl.access_token = 'test-access-token'
-    cl.refresh_token = 'test-refresh-token'
+    cl.id_token = "test-id-token"
+    cl.access_token = "test-access-token"
+    cl.refresh_token = "test-refresh-token"
 
-    with patch('homeassistant.components.cloud.open', mopen, create=True):
+    with patch("homeassistant.components.cloud.open", mopen, create=True):
         cl.write_user_info()
 
     handle = mopen()
@@ -131,9 +142,9 @@ def test_write_user_info():
     assert len(handle.write.mock_calls) == 1
     data = json.loads(handle.write.mock_calls[0][1][0])
     assert data == {
-        'access_token': 'test-access-token',
-        'id_token': 'test-id-token',
-        'refresh_token': 'test-refresh-token',
+        "access_token": "test-access-token",
+        "id_token": "test-id-token",
+        "refresh_token": "test-refresh-token",
     }
 
 
@@ -141,26 +152,27 @@ def test_write_user_info():
 def test_subscription_expired(hass):
     """Test subscription being expired after 3 days of expiration."""
     cl = cloud.Cloud(hass, cloud.MODE_DEV, None, None)
-    token_val = {
-        'custom:sub-exp': '2017-11-13'
-    }
-    with patch.object(cl, '_decode_claims', return_value=token_val), \
-            patch('homeassistant.util.dt.utcnow',
-                  return_value=utcnow().replace(year=2017, month=11, day=13)):
+    token_val = {"custom:sub-exp": "2017-11-13"}
+    with patch.object(cl, "_decode_claims", return_value=token_val), patch(
+        "homeassistant.util.dt.utcnow",
+        return_value=utcnow().replace(year=2017, month=11, day=13),
+    ):
         assert not cl.subscription_expired
 
-    with patch.object(cl, '_decode_claims', return_value=token_val), \
-            patch('homeassistant.util.dt.utcnow',
-                  return_value=utcnow().replace(
-                      year=2017, month=11, day=19, hour=23, minute=59,
-                      second=59)):
+    with patch.object(cl, "_decode_claims", return_value=token_val), patch(
+        "homeassistant.util.dt.utcnow",
+        return_value=utcnow().replace(
+            year=2017, month=11, day=19, hour=23, minute=59, second=59
+        ),
+    ):
         assert not cl.subscription_expired
 
-    with patch.object(cl, '_decode_claims', return_value=token_val), \
-            patch('homeassistant.util.dt.utcnow',
-                  return_value=utcnow().replace(
-                      year=2017, month=11, day=20, hour=0, minute=0,
-                      second=0)):
+    with patch.object(cl, "_decode_claims", return_value=token_val), patch(
+        "homeassistant.util.dt.utcnow",
+        return_value=utcnow().replace(
+            year=2017, month=11, day=20, hour=0, minute=0, second=0
+        ),
+    ):
         assert cl.subscription_expired
 
 
@@ -168,10 +180,9 @@ def test_subscription_expired(hass):
 def test_subscription_not_expired(hass):
     """Test subscription not being expired."""
     cl = cloud.Cloud(hass, cloud.MODE_DEV, None, None)
-    token_val = {
-        'custom:sub-exp': '2017-11-13'
-    }
-    with patch.object(cl, '_decode_claims', return_value=token_val), \
-            patch('homeassistant.util.dt.utcnow',
-                  return_value=utcnow().replace(year=2017, month=11, day=9)):
+    token_val = {"custom:sub-exp": "2017-11-13"}
+    with patch.object(cl, "_decode_claims", return_value=token_val), patch(
+        "homeassistant.util.dt.utcnow",
+        return_value=utcnow().replace(year=2017, month=11, day=9),
+    ):
         assert not cl.subscription_expired

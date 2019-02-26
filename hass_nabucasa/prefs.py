@@ -30,11 +30,6 @@ class CloudPreferences:
         raise NotImplementedError()
 
     @property
-    def google_allow_unlock(self):
-        """Return if Google is allowed to unlock locks."""
-        raise NotImplementedError()
-
-    @property
     def cloudhooks(self):
         """Return the published cloud webhooks."""
         raise NotImplementedError()
