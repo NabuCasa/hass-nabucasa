@@ -15,7 +15,7 @@ def _check_token(func):
     @wraps(func)
     async def check_token(cloud, *args):
         """Validate token, then call func."""
-        await cloud.async_add_executor_job(auth_api.check_token, cloud)
+        await cloud.run_executor(auth_api.check_token, cloud)
         return await func(cloud, *args)
 
     return check_token

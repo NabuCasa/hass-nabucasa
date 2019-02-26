@@ -250,9 +250,9 @@ def mock_aiohttp_client(loop):
     """Context manager to mock aiohttp client."""
     mocker = AiohttpClientMocker()
 
-    with mock.patch("hass_nabucasa.Cloud.websession", new_callable=mock.PropertyMock) as mock_websession:
+    with mock.patch(
+        "hass_nabucasa.Cloud.websession", new_callable=mock.PropertyMock
+    ) as mock_websession:
         session = mocker.create_session(loop)
         mock_websession.return_value = session
         yield mocker
-
-    loop.run_until_complete(session.close())

@@ -4,20 +4,21 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from .utils.aiohttp import mock_aiohttp_client
+from .utils.aiohttp import mock_aiohttp_client, AiohttpClientMocker
+from .common import TestPreferences
 
 logging.basicConfig(level=logging.DEBUG)
 
 
 @pytest.fixture
-def aioclient_mock():
+async def aioclient_mock(loop):
     """Fixture to mock aioclient calls."""
-    with mock_aiohttp_client() as mock_session:
+    with mock_aiohttp_client(loop) as mock_session:
         yield mock_session
 
 
 @pytest.fixture
-def cloud_mock(loop):
+async def cloud_mock(loop, aioclient_mock):
     """Simple cloud mock."""
     cloud = MagicMock()
     cloud.run_task = loop.create_task
@@ -28,4 +29,11 @@ def cloud_mock(loop):
 
     cloud.run_executor = _executor
 
+    cloud.prefs = TestPreferences()
+    await cloud.prefs.async_initialize()
+
+    cloud.websession = aioclient_mock.create_session(loop)
+
     yield cloud
+
+    await cloud.websession.close()
