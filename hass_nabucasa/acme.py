@@ -1,25 +1,32 @@
 """Handle ACME and local certificates."""
-from pathlib import Path
 import logging
+from pathlib import Path
+import urllib
 
-import acme.client
-import acme.messages
-import acme.challenges
-from acme import jose
+import OpenSSL
+from acme import challenges, client, errors, messages
 import async_timeout
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+import josepy as jose
 
 from . import cloud_api
 
-FILE_PRIVATE_KEY = "ssl_key.pem"
+FILE_ACCOUNT_KEY = "acme_account.pem"
+FILE_PRIVATE_KEY = "private.pem"
 FILE_REGISTRATION = "acme_reg.json"
 
-ACME_SERVER = "https://acme-v01.api.letsencrypt.org/directory"
+ACME_SERVER = "https://acme-staging-v02.api.letsencrypt.org/directory"
 ACCOUNT_KEY_SIZE = 2048
+PRIVATE_KEY_SIZE = 2048
+USER_AGENT = "home-assistant"
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class AcmeClientError(Exception):
+    """Raise if a acme client error raise."""
 
 
 class AcmeHandler:
@@ -28,10 +35,16 @@ class AcmeHandler:
     def __init__(self, cloud):
         """Initialize local ACME Handler."""
         self.cloud = cloud
-        self._private_jwk = None
+        self._account_jwk = None
         self._acme_client = None
-        self._acme_regr = None
-        self._acme_challg = None
+
+        self._domain = None
+        self._email = None
+
+    @property
+    def path_account_key(self) -> Path:
+        """Return path of account key."""
+        return Path(self.cloud.path(FILE_ACCOUNT_KEY))
 
     @property
     def path_private_key(self) -> Path:
@@ -43,25 +56,37 @@ class AcmeHandler:
         """Return path of acme client registration file."""
         return Path(self.cloud.path(FILE_REGISTRATION))
 
-    def _load_private_key(self):
-        """Load keys from store."""
-        if self._private_jwk:
-            return
-
-        # Load or create a new
-        key = None
+    def _generate_csr(self):
+        """Load or create private key."""
         if self.path_private_key.exists():
-            _LOGGER.debug("Load RSA keyfile: %s", self.path_private_key)
-            pem = self.path_private_key.read_bytes()
+            _LOGGER.debug("Load private keyfile: %s", self.path_private_key)
+            pkey_pem = self.path_account_key.read_bytes()
+        else:
+            _LOGGER.debug("create private keyfile: %s", self.path_private_key)
+            pkey = OpenSSL.crypto.PKey()
+            pkey.generate_key(OpenSSL.crypto.TYPE_RSA, PRIVATE_KEY_SIZE)
+            pkey_pem = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, pkey)
+
+            self.path_private_key.write_bytes(pkey_pem)
+
+        return crypto_util.make_csr(pkey_pem, [self._domain])
+
+    def _load_account_key(self):
+        """Load or create account key."""
+        key = None
+        if self.path_account_key.exists():
+            _LOGGER.debug("Load account keyfile: %s", self.path_account_key)
+            pem = self.path_account_key.read_bytes()
             key = serialization.load_pem_private_key(
-                pem, password=None, backend=default_backend())
+                pem, password=None, backend=default_backend()
+            )
 
         else:
-            _LOGGER.debug("Create new RSA keyfile: %s", self.path_private_key)
+            _LOGGER.debug("Create new RSA keyfile: %s", self.path_account_key)
             key = rsa.generate_private_key(
                 public_exponent=65537,
                 key_size=ACCOUNT_KEY_SIZE,
-                backend=default_backend()
+                backend=default_backend(),
             )
 
             # Store it to file
@@ -70,37 +95,67 @@ class AcmeHandler:
                 format=serialization.PrivateFormat.PKCS8,
                 encryption_algorithm=serialization.NoEncryption(),
             )
-            self.path_private_key.write_bytes(pem)
-            self.path_private_key.chmod(0o600)
+            self.path_account_key.write_bytes(pem)
+            self.path_account_key.chmod(0o600)
 
-        self._private_jwk = jose.JWKRSA(key=jose.ComparableRSAKey(key))
+        self._account_jwk = jose.JWKRSA(key=jose.ComparableRSAKey(key))
 
-    def _register_client(self):
-        """Register or validate a acme client."""
-
+    def _create_client(self, email):
+        """Create new ACME client."""
         if self.path_registration_info.exists():
-            _LOGGER.debug("Update exists ACME registration")
-            regr = acme.messages.RegistrationResource.json_loads(
-                self.path_registration_info.read_text())
+            _LOGGER.info("Load exists ACME registration")
+            regr = messages.RegistrationResource.json_loads(
+                self.path_registration_info.read_text()
+            )
 
+            acme_url = urllib.parse.urlparse(ACME_SERVER)
+            regr_url = urllib.parse.urlparse(regr.uri)
+
+            if acme_url[0] != regr_url[0] or acme_url[1] != regr_url[1]:
+                _LOGGER.info("Reset new ACME registration")
+                self.path_registration_info.unlink()
+                self.path_account_key.unlink()
+
+        # Make sure that account key is loaded
+        self._load_account_key()
+
+        # Load a exists registration
+        if self.path_registration_info.exists():
             try:
-                regr = self._acme_client.query_registration(regr)
-            except acme.messages.Error as err:
-                _LOGGER.error("Can't validate exists validation: %s", err)
-                raise
+                network = client.ClientNetwork(
+                    self._account_jwk, account=regr, user_agent=USER_AGENT
+                )
+                self._acme_client = client.ClientV2(ACME_SERVER, net=network)
+            except errors.Error as err:
+                _LOGGER.error("Can't connect to ACME server: %s", err)
+                raise AcmeClientError() from None
+            return
 
-        else:
-            _LOGGER.debug("Create new ACME registration")
-            regr = self._acme_client.register()
+        # Create a new registration
+        try:
+            network = client.ClientNetwork(self._account_jwk, user_agent=USER_AGENT)
+            self._acme_client = client.ClientV2(ACME_SERVER, net=network)
+        except errors.Error as err:
+            _LOGGER.error("Can't connect to ACME server: %s", err)
+            raise AcmeClientError() from None
 
-        # Register/Update ACME registration
-        self._acme_regr = self._acme_client.update_registration(
-            regr.update(body=regr.body.update(agreement=regr.terms_of_service))
-        )
+        try:
+            _LOGGER.info(
+                "Register a ACME account with TOS: %s",
+                self._acme_client.directory.meta.terms_of_service,
+            )
+            regr = self._acme_client.new_account(
+                messages.NewRegistration.from_data(
+                    email=email, terms_of_service_agreed=True
+                )
+            )
+        except errors.Error as err:
+            _LOGGER.error("Can't register to ACME server: %s", err)
+            raise AcmeClientError() from None
 
-        # Store registration
-        self.path_registration_info.write_text(
-            self._acme_regr.json_dumps_pretty())
+        # Store registration info
+        self.path_registration_info.write_text(regr.json_dumps_pretty())
+        self.path_registration_info.chmod(0o600)
 
     def _init_challenge(self, domain: str):
         """Initialize domain challenge."""
@@ -117,31 +172,21 @@ class AcmeHandler:
             _LOGGER.debug("Start new ACME challenge")
             try:
                 self._acme_challg = self._acme_client.request_domain_challenges(
-                    domain, self._acme_regr.new_authzr_uri)
+                    domain, self._acme_regr.new_authzr_uri
+                )
             except acme.messages.Error as err:
-                _LOGGER.error(
-                    "Can't initialize ACME challenge for %s: %s", domain, err)
+                _LOGGER.error("Can't initialize ACME challenge for %s: %s", domain, err)
                 raise
 
-    async def async_init_client(self):
-        """Create an account by ACME provider."""
-        # Get private key
-        await self.cloud.hass.async_add_executor_job(self._load_private_key)
-
-        # Create acme client
-        self._acme_client = acme.client.Client(ACME_SERVER, self._private_jwk)
-
-        # Register client
-        await self.cloud.hass.async_add_executor_job(self._register_client)
-
-    async def async_issue_certificate(self):
-        """Create or update certificate."""
+    async def async_instance_details(self):
+        """Load user information."""
         async with async_timeout.timeout(10):
             resp = await cloud_api.async_remote_register(self.cloud)
             data = await resp.json()
-        domain = data["domain"]
 
-        # Start challenge
-        await self.cloud.hass.async_add_executor_job(
-            self._init_challenge, domain)
+        self._domain = data["domain"]
+        self._email = data["email"]
+
+    async def async_issue_certificate(self):
+        """Create/Update certificate."""
 
