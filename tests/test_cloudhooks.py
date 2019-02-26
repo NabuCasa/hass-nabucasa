@@ -3,20 +3,17 @@ from unittest.mock import Mock
 
 import pytest
 
-from homeassistant.components.cloud import prefs, cloudhooks
+from hass_nabucasa import cloudhooks
 
 from tests.common import mock_coro
 
 
 @pytest.fixture
-def mock_cloudhooks(hass):
+def mock_cloudhooks(cloud_mock):
     """Mock cloudhooks class."""
-    cloud = Mock()
-    cloud.hass = hass
-    cloud.hass.async_add_executor_job = Mock(return_value=mock_coro())
-    cloud.iot = Mock(async_send_message=Mock(return_value=mock_coro()))
-    cloud.cloudhook_create_url = 'https://webhook-create.url'
-    cloud.prefs = prefs.CloudPreferences(hass)
+    cloud_mock.iot = Mock(async_send_message=Mock(return_value=mock_coro()))
+    cloud_mock.cloudhook_create_url = 'https://webhook-create.url'
+    cloud_mock.prefs = prefs.CloudPreferences(hass)
     hass.loop.run_until_complete(cloud.prefs.async_initialize())
     return cloudhooks.Cloudhooks(cloud)
 

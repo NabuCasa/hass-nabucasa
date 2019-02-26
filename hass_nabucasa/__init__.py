@@ -11,7 +11,7 @@ from homeassistant.util import dt as dt_util
 
 from . import auth_api, cloudhooks, iot
 from .prefs import CloudPreferences
-from .cloudinterface import CloudInterface
+from .client import CloudClient
 from .const import CONFIG_DIR, MODE_DEV, SERVERS
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class Cloud:
 
     def __init__(
         self,
-        client: CloudInterface,
+        client: CloudClient,
         prefs: CloudPreferences,
         mode: str,
         cognito_client_id=None,

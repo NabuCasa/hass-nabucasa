@@ -1,5 +1,7 @@
 """Test the helper method for writing tests."""
 
+from hass_nabucasa.prefs import CloudPreferences
+
 
 def mock_coro(return_value=None, exception=None):
     """Return a coro that returns a value or raise an exception."""
