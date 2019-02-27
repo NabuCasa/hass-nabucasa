@@ -33,6 +33,7 @@ setup(
         "snitun==0.3",
         "acme==0.31.0",
         "cryptography>=2.5",
+        "attrs>=18.2.0",
     ],
     include_package_data=True,
 )

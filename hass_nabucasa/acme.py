@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 import urllib
 
+import attr
 import OpenSSL
 from acme import challenges, client, errors, messages
 import async_timeout
@@ -14,7 +15,8 @@ import josepy as jose
 from . import cloud_api
 
 FILE_ACCOUNT_KEY = "acme_account.pem"
-FILE_PRIVATE_KEY = "private.pem"
+FILE_PRIVATE_KEY = "remote_private.pem"
+FILE_FULLCHAIN = "remote_fullchain.pem"
 FILE_REGISTRATION = "acme_reg.json"
 
 ACME_SERVER = "https://acme-staging-v02.api.letsencrypt.org/directory"
@@ -27,6 +29,20 @@ _LOGGER = logging.getLogger(__name__)
 
 class AcmeClientError(Exception):
     """Raise if a acme client error raise."""
+
+
+class AcmeChallengeError(AcmeClientError):
+    """Raise if a challenge fails."""
+
+
+@attr.s
+class ChallengeHandler:
+    """Handle ACME data over a challenge."""
+
+    challenge = attr.ib(type=messages.ChallengeResource)
+    order = attr.ib(type=messages.OrderResource)
+    response = attr.ib(type=challenges.ChallengeResponse)
+    validation = attr.ib(type=str)
 
 
 class AcmeHandler:
@@ -52,11 +68,16 @@ class AcmeHandler:
         return Path(self.cloud.path(FILE_PRIVATE_KEY))
 
     @property
+    def path_fullchain(self) -> Path:
+        """Return path of cert fullchain."""
+        return Path(self.cloud.path(FILE_FULLCHAIN))
+
+    @property
     def path_registration_info(self) -> Path:
         """Return path of acme client registration file."""
         return Path(self.cloud.path(FILE_REGISTRATION))
 
-    def _generate_csr(self):
+    def _generate_csr(self) -> bytes:
         """Load or create private key."""
         if self.path_private_key.exists():
             _LOGGER.debug("Load private keyfile: %s", self.path_private_key)
@@ -157,26 +178,58 @@ class AcmeHandler:
         self.path_registration_info.write_text(regr.json_dumps_pretty())
         self.path_registration_info.chmod(0o600)
 
-    def _init_challenge(self, domain: str):
-        """Initialize domain challenge."""
-        if self._acme_challg:
-            _LOGGER.debug("Update exists ACME challenge")
-            try:
-                self._acme_client.poll(self._acme_challg)
-            except acme.messages.Error as err:
-                _LOGGER.error("Can't update ACME challenge!")
-                self._acme_challg = None
-                raise
+    def _start_challenge(self, csr_pem) -> ChallengeHandler:
+        """Initialize domain challenge and return token."""
+        _LOGGER.info("Initialize challenge for a new ACME certificate")
+        try:
+            order = self._acme_client.new_order(csr_pem)
+        except errors.Error as err:
+            _LOGGER.error("Can't order a new ACME challenge: %s", err)
+            raise AcmeChallengeError() from None
 
+        # Find DNS challenge
+        # pylint: disable=not-an-iterable
+        dns_challenge = None
+        for auth in order.authorizations:
+            for challenge in auth.body.challenges:
+                if challenge.typ != "dns-01":
+                    continue
+                dns_challenge = challenge
+
+        try:
+            response, validation = dns_challenge.response_and_validation(
+                self._account_jwk
+            )
+        except errors.Error as err:
+            _LOGGER.error("Can't validate the new ACME challenge: %s", err)
+            raise AcmeChallengeError() from None
+
+        return ChallengeHandler(dns_challenge, order, response, validation)
+
+    def _finish_challenge(self, handler: ChallengeHandler) -> None:
+        """Wait until challenge is finished."""
+        _LOGGER.info("Finishing challenge for the new ACME certificate")
+        try:
+            self._acme_client.answer_challenge(handler.challenge, handler.response)
+        except errors.Error as err:
+            _LOGGER.error("Can't accept ACME challenge: %s", err)
+            raise AcmeChallengeError() from None
+
+        try:
+            order = self._acme_client.poll_and_finalize(handler.order)
+        except errors.Error as err:
+            _LOGGER.error("Wait of ACME challenge fails: %s", err)
+            raise AcmeChallengeError() from None
+
+        # Cleanup the old stuff
+        if self.path_fullchain.exists():
+            _LOGGER.info("Renew old certificate: %s", self.path_fullchain)
+            self.path_fullchain.unlink()
         else:
-            _LOGGER.debug("Start new ACME challenge")
-            try:
-                self._acme_challg = self._acme_client.request_domain_challenges(
-                    domain, self._acme_regr.new_authzr_uri
-                )
-            except acme.messages.Error as err:
-                _LOGGER.error("Can't initialize ACME challenge for %s: %s", domain, err)
-                raise
+            _LOGGER.info("Create new certificate: %s", self.path_fullchain)
+
+        self.path_fullchain.write_bytes(order.fullchain_pem)
+        self.path_fullchain.chmod(0o600)
 
     async def async_instance_details(self):
         """Load user information."""
@@ -189,4 +242,22 @@ class AcmeHandler:
 
     async def async_issue_certificate(self):
         """Create/Update certificate."""
+        if not self._acme_client:
+            await self.cloud.run_executor(self._create_client)
 
+        # Initialize challenge / new certificate
+        csr = await self.cloud.run_executor(self._generate_csr)
+        challenge = await self.cloud.run_executor(self._start_challenge, csr)
+
+        # Update DNS
+        async with async_timeout.timeout(10):
+            resp = await cloud_api.async_remote_challenge(
+                self.cloud, challenge.validation
+            )
+
+        if resp.status != 200:
+            _LOGGER.error("Can't set challenge token to NabuCasa DNS!")
+            raise AcmeChallengeError()
+
+        # Finish validation
+        await self.cloud.run_executor(self._finish_challenge, challenge)
