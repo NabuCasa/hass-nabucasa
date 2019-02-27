@@ -5,7 +5,7 @@ import urllib
 
 import attr
 import OpenSSL
-from acme import challenges, client, errors, messages
+from acme import challenges, client, errors, messages, crypto_util
 import async_timeout
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
