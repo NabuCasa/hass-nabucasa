@@ -237,19 +237,19 @@ class AcmeHandler:
 
     async def is_valid_certificate(self) -> bool:
         """Validate date of a certificate and return True is valid."""
-        def check_cert():
+        def _check_cert():
             """Check cert in thread."""
             if not self.path_fullchain.exists():
                 _LOGGER.warning("Can't revoke not exists certificate")
                 return False
 
             x509 = OpenSSL.crypto.load_certificate(
-                    OpenSSL.crypto.FILETYPE_PEM, self.path_fullchain.read_bytes()
-                )
+                OpenSSL.crypto.FILETYPE_PEM, self.path_fullchain.read_bytes()
+            )
 
             return not x509.has_expired()
 
-        return await self.cloud.run_executor(check_cert)
+        return await self.cloud.run_executor(_check_cert)
 
     def _revoke_certificate(self):
         """Revoke certificate."""

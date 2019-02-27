@@ -22,6 +22,10 @@ class RemoteBackendError(RemoteError):
     """Backend problem with nabucasa API."""
 
 
+class RemoteNotConnected(RemoteError):
+    """Raise if a request need connection and we are not ready."""
+
+
 class RemoteUI:
     """Class to help manage remote connections."""
 
@@ -32,6 +36,10 @@ class RemoteUI:
         self._snitun = None
         self._token = None
         self._snitun_server = None
+
+        # Register start/stop
+        cloud.iot.register_on_connect(self.load_backend)
+        cloud.iot.register_on_disconnect(self.close_backend)
 
     @property
     def snitun_server(self) -> Optional[str]:
@@ -50,8 +58,12 @@ class RemoteUI:
 
         return context
 
-    async def load_backend(self):
+    async def load_backend(self) -> None:
         """Load backend details."""
+        if self._snitun:
+            return
+
+        # Load instance data from backend
         async with async_timeout.timeout(10):
             resp = await cloud_api.async_remote_register(self.cloud)
 
@@ -76,16 +88,18 @@ class RemoteUI:
         )
         self._snitun_server = data["server"]
 
-    async def close_backend(self):
+    async def close_backend(self) -> None:
         """Close connections and shutdown backend."""
-        if not self._snitun:
-            return
-        await self._snitun.stop()
+        if self._snitun:
+            await self._snitun.stop()
+
+        self._snitun = None
+        self._acme = None
 
     async def handle_connection_requests(self, caller_ip):
         """Handle connection requests."""
         if not self._snitun or self._token:
-            return
+            raise RemoteNotConnected()
 
         # Generate session token
         aes_key, aes_iv = generate_aes_keyset()

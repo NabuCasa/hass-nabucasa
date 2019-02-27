@@ -35,5 +35,4 @@ setup(
         "cryptography>=2.5",
         "attrs>=18.2.0",
     ],
-    include_package_data=True,
 )

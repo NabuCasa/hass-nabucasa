@@ -264,6 +264,17 @@ async def test_handler_webhook(cloud_mock):
     assert resp == {"test": 5}
 
 
+async def test_handler_remote_sni(cloud_mock):
+    """Test handler Webhook."""
+    cloud_mock.remote.handle_connection_requests = Mock(return_value=mock_coro())
+    cloud_mock.remote.snitun_server = "1.1.1.1"
+    resp = await iot.async_handle_remote_sni(cloud_mock, {"ip_address": "8.8.8.8"})
+
+    assert cloud_mock.remote.handle_connection_requests.called
+    assert cloud_mock.remote.handle_connection_requests.mock_calls[0][1][0] == "8.8.8.8"
+    assert resp == {"server": "1.1.1.1"}
+
+
 async def test_refresh_token_expired(cloud_mock):
     """Test handling Unauthenticated error raised if refresh token expired."""
     cloud_mock.subscription_expired = True

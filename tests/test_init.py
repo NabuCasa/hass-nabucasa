@@ -25,6 +25,7 @@ def test_constructor_loads_info_from_constant(cloud_client):
                 "subscription_info_url": "test-subscription-info-url",
                 "cloudhook_create_url": "test-cloudhook_create_url",
                 "remote_api_url": "test-remote_api_url",
+                "acme_directory_server": "test-acme-directory-server",
             }
         },
     ):
@@ -38,6 +39,7 @@ def test_constructor_loads_info_from_constant(cloud_client):
     assert cl.google_actions_sync_url == "test-google_actions_sync_url"
     assert cl.subscription_info_url == "test-subscription-info-url"
     assert cl.cloudhook_create_url == "test-cloudhook_create_url"
+    assert cl.acme_directory_server == "test-acme-directory-server"
 
 
 async def test_initialize_loads_info(cloud_client):
