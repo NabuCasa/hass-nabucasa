@@ -56,7 +56,7 @@ class TestClient(CloudClient):
     @property
     def app(self):
         """Return client webinterface aiohttp application."""
-        raise NotImplementedError()
+        return None
 
     @property
     def cloudhooks(self):
@@ -87,3 +87,54 @@ class TestClient(CloudClient):
     async def async_cloudhooks_update(self, data):
         """Update internal cloudhooks data."""
         self._cloudhooks = data
+
+
+class MockAcme:
+    """Mock AcmeHandler."""
+
+    def __init__(self):
+        """Initialize MockAcme."""
+        self.is_valid = True
+        self.call_issue = False
+        self.init_args = None
+
+    def set_false(self):
+        self.is_valid = False
+
+    async def is_valid_certificate(self) -> bool:
+        """Return valid certificate."""
+        return self.is_valid
+
+    async def issue_certificate(self):
+        """Issue a certificate."""
+        self.call_issue = True
+
+    def __call__(self, *args):
+        """Init."""
+        self.init_args = args
+        return self
+
+
+class MockSnitun:
+    """Mock Snitun client."""
+
+    def __init__(self):
+        """Initialize MockAcme."""
+        self.call_start = False
+        self.call_stop = False
+        self.init_args = None
+        self.init_kwarg = None
+
+    async def start(self):
+        """Start snitun."""
+        self.call_start = True
+
+    async def stop(self):
+        """Stop snitun."""
+        self.call_stop = True
+
+    def __call__(self, *args, **kwarg):
+        """Init."""
+        self.init_args = args
+        self.init_kwarg = kwarg
+        return self

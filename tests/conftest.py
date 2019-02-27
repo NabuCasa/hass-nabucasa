@@ -41,3 +41,10 @@ async def cloud_mock(loop, aioclient_mock):
 def cloud_client(cloud_mock):
     """Return cloud client impl."""
     yield cloud_mock.client
+
+
+@pytest.fixture
+def mock_cognito():
+    """Mock warrant."""
+    with patch("hass_nabucasa.auth_api._cognito") as mock_cog:
+        yield mock_cog()

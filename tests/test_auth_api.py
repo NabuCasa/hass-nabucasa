@@ -8,13 +8,6 @@ import pytest
 from hass_nabucasa import auth_api
 
 
-@pytest.fixture
-def mock_cognito():
-    """Mock warrant."""
-    with patch("hass_nabucasa.auth_api._cognito") as mock_cog:
-        yield mock_cog()
-
-
 def aws_error(code, message="Unknown", operation_name="fake_operation_name"):
     """Generate AWS error response."""
     response = {"Error": {"Code": code, "Message": message}}

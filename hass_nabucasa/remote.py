@@ -78,8 +78,8 @@ class RemoteUI:
         # Issue a certificate
         if not await self._acme.is_valid_certificate():
             await self._acme.issue_certificate()
-        context = await self._create_context()
 
+        context = await self._create_context()
         self._snitun = SniTunClientAioHttp(
             self.cloud.client.app,
             context,
@@ -87,6 +87,8 @@ class RemoteUI:
             snitun_port=443,
         )
         self._snitun_server = data["server"]
+
+        await self._snitun.start()
 
     async def close_backend(self) -> None:
         """Close connections and shutdown backend."""
