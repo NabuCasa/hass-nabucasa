@@ -48,11 +48,12 @@ class ChallengeHandler:
 class AcmeHandler:
     """Class handle a local certification."""
 
-    def __init__(self, cloud):
+    def __init__(self, cloud, acme_server=None):
         """Initialize local ACME Handler."""
         self.cloud = cloud
         self._account_jwk = None
         self._acme_client = None
+        self._acme_server = acme_server or ACME_SERVER
 
         self._domain = None
         self._email = None
@@ -81,16 +82,16 @@ class AcmeHandler:
         """Load or create private key."""
         if self.path_private_key.exists():
             _LOGGER.debug("Load private keyfile: %s", self.path_private_key)
-            pkey_pem = self.path_account_key.read_bytes()
+            key_pem = self.path_account_key.read_bytes()
         else:
             _LOGGER.debug("create private keyfile: %s", self.path_private_key)
-            pkey = OpenSSL.crypto.PKey()
-            pkey.generate_key(OpenSSL.crypto.TYPE_RSA, PRIVATE_KEY_SIZE)
-            pkey_pem = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, pkey)
+            key = OpenSSL.crypto.PKey()
+            key.generate_key(OpenSSL.crypto.TYPE_RSA, PRIVATE_KEY_SIZE)
+            key_pem = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, key)
 
-            self.path_private_key.write_bytes(pkey_pem)
+            self.path_private_key.write_bytes(key_pem)
 
-        return crypto_util.make_csr(pkey_pem, [self._domain])
+        return crypto_util.make_csr(key_pem, [self._domain])
 
     def _load_account_key(self):
         """Load or create account key."""
@@ -146,7 +147,7 @@ class AcmeHandler:
                 network = client.ClientNetwork(
                     self._account_jwk, account=regr, user_agent=USER_AGENT
                 )
-                self._acme_client = client.ClientV2(ACME_SERVER, net=network)
+                self._acme_client = client.ClientV2(self._acme_server, net=network)
             except errors.Error as err:
                 _LOGGER.error("Can't connect to ACME server: %s", err)
                 raise AcmeClientError() from None
@@ -155,7 +156,7 @@ class AcmeHandler:
         # Create a new registration
         try:
             network = client.ClientNetwork(self._account_jwk, user_agent=USER_AGENT)
-            self._acme_client = client.ClientV2(ACME_SERVER, net=network)
+            self._acme_client = client.ClientV2(self._acme_server, net=network)
         except errors.Error as err:
             _LOGGER.error("Can't connect to ACME server: %s", err)
             raise AcmeClientError() from None
@@ -231,6 +232,49 @@ class AcmeHandler:
         self.path_fullchain.write_bytes(order.fullchain_pem)
         self.path_fullchain.chmod(0o600)
 
+    def _revoke_certificate(self):
+        """Revoke certificate."""
+        if not self.path_fullchain.exists():
+            _LOGGER.warning("Can't revoke not exists certificate")
+            return
+
+        fullchain = jose.ComparableX509(
+            OpenSSL.crypto.load_certificate(
+                OpenSSL.crypto.FILETYPE_PEM, self.path_fullchain.read_bytes()
+            )
+        )
+
+        _LOGGER.info("Revoke certificate")
+        try:
+            self._acme_client.revoke(fullchain, 0)
+        except errors.ConflictError:
+            pass
+        except errors.Error as err:
+            _LOGGER.error("Can't revoke certificate: %s", err)
+            raise AcmeClientError() from None
+
+        self.path_fullchain.unlink()
+        self.path_private_key.unlink()
+
+    def _deactivate_account():
+        """Deactivate account."""
+        if not self.path_registration_info.exists():
+            return
+
+        _LOGGER.info("Load exists ACME registration")
+        regr = messages.RegistrationResource.json_loads(
+            self.path_registration_info.read_text()
+        )
+
+        try:
+            self._acme_client.deactivate_registration(regr)
+        except errors.Error as err:
+            _LOGGER.error("Can't deactivate account: %s", err)
+            raise AcmeClientError() from None
+
+        self.path_registration_info.unlink()
+        self.path_account_key.unlink()
+
     async def async_instance_details(self):
         """Load user information."""
         async with async_timeout.timeout(10):
@@ -261,3 +305,11 @@ class AcmeHandler:
 
         # Finish validation
         await self.cloud.run_executor(self._finish_challenge, challenge)
+
+    async def async_remove_acme(self):
+        """Revoke and deactivate acme certificate/account."""
+        if not self._acme_client:
+            await self.cloud.run_executor(self._create_client)
+
+        await self.cloud.run_executor(self._revoke_certificate)
+        await self.cloud.run_executor(self._deactivate_account)
