@@ -299,6 +299,15 @@ async def async_handle_cloud(cloud, payload):
         _LOGGER.warning("Received unknown cloud action: %s", action)
 
 
+@HANDLERS.register("remote_sni")
+async def async_handle_remote_sni(cloud, payload):
+    """Handle remote UI requests for cloud."""
+    caller_ip = payload["ip_address"]
+
+    await cloud.remote.handle_connection_requests(caller_ip)
+    return {"server": cloud.remote.snitun_server}
+
+
 @HANDLERS.register("webhook")
 async def async_handle_webhook(cloud, payload):
     """Handle an incoming IoT message for cloud webhooks."""

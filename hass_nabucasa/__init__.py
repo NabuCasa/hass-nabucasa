@@ -9,8 +9,11 @@ from pathlib import Path
 import aiohttp
 from homeassistant.util import dt as dt_util
 
-from . import auth_api, cloudhooks, iot
+from . import auth_api
 from .client import CloudClient
+from .cloudhooks import Cloudhooks
+from .iot import CloudIoT
+from .remote import RemoteUI
 from .const import CONFIG_DIR, MODE_DEV, SERVERS
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,6 +34,7 @@ class Cloud:
         subscription_info_url=None,
         cloudhook_create_url=None,
         remote_api_url=None,
+        acme_directory_server=None,
     ):
         """Create an instance of Cloud."""
         self.mode = mode
@@ -38,9 +42,9 @@ class Cloud:
         self.id_token = None
         self.access_token = None
         self.refresh_token = None
-        self.iot = iot.CloudIoT(self)
-        self.cloudhooks = cloudhooks.Cloudhooks(self)
-        # self.remote_ui = remote_ui.RemoteUI(self)
+        self.iot = CloudIoT(self)
+        self.cloudhooks = Cloudhooks(self)
+        self.remote = RemoteUI(self)
 
         if mode == MODE_DEV:
             self.cognito_client_id = cognito_client_id
@@ -51,6 +55,7 @@ class Cloud:
             self.subscription_info_url = subscription_info_url
             self.cloudhook_create_url = cloudhook_create_url
             self.remote_api_url = remote_api_url
+            self.acme_directory_server = acme_directory_server
 
         else:
             info = SERVERS[mode]
@@ -63,6 +68,7 @@ class Cloud:
             self.subscription_info_url = info["subscription_info_url"]
             self.cloudhook_create_url = info["cloudhook_create_url"]
             self.remote_api_url = info["remote_api_url"]
+            self.acme_directory_server = info["acme_directory_server"]
 
     @property
     def is_logged_in(self) -> bool:

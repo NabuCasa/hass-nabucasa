@@ -19,10 +19,9 @@ FILE_PRIVATE_KEY = "remote_private.pem"
 FILE_FULLCHAIN = "remote_fullchain.pem"
 FILE_REGISTRATION = "acme_reg.json"
 
-ACME_SERVER = "https://acme-staging-v02.api.letsencrypt.org/directory"
 ACCOUNT_KEY_SIZE = 2048
 PRIVATE_KEY_SIZE = 2048
-USER_AGENT = "home-assistant"
+USER_AGENT = "home-assistant-cloud"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,6 +32,10 @@ class AcmeClientError(Exception):
 
 class AcmeChallengeError(AcmeClientError):
     """Raise if a challenge fails."""
+
+
+class AcmeNabuCasaError(AcmeClientError):
+    """Raise erros on nabucasa API."""
 
 
 @attr.s
@@ -48,15 +51,15 @@ class ChallengeHandler:
 class AcmeHandler:
     """Class handle a local certification."""
 
-    def __init__(self, cloud, acme_server=None):
+    def __init__(self, cloud, domain: str, email: str):
         """Initialize local ACME Handler."""
         self.cloud = cloud
+        self._acme_server = cloud.acme_directory_server
         self._account_jwk = None
         self._acme_client = None
-        self._acme_server = acme_server or ACME_SERVER
 
-        self._domain = None
-        self._email = None
+        self._domain = domain
+        self._email = email
 
     @property
     def path_account_key(self) -> Path:
@@ -130,7 +133,7 @@ class AcmeHandler:
                 self.path_registration_info.read_text()
             )
 
-            acme_url = urllib.parse.urlparse(ACME_SERVER)
+            acme_url = urllib.parse.urlparse(self._acme_server)
             regr_url = urllib.parse.urlparse(regr.uri)
 
             if acme_url[0] != regr_url[0] or acme_url[1] != regr_url[1]:
@@ -232,6 +235,22 @@ class AcmeHandler:
         self.path_fullchain.write_bytes(order.fullchain_pem)
         self.path_fullchain.chmod(0o600)
 
+    async def is_valid_certificate(self) -> bool:
+        """Validate date of a certificate and return True is valid."""
+        def check_cert():
+            """Check cert in thread."""
+            if not self.path_fullchain.exists():
+                _LOGGER.warning("Can't revoke not exists certificate")
+                return False
+
+            x509 = OpenSSL.crypto.load_certificate(
+                    OpenSSL.crypto.FILETYPE_PEM, self.path_fullchain.read_bytes()
+                )
+
+            return not x509.has_expired()
+
+        return await self.cloud.run_executor(check_cert)
+
     def _revoke_certificate(self):
         """Revoke certificate."""
         if not self.path_fullchain.exists():
@@ -256,7 +275,7 @@ class AcmeHandler:
         self.path_fullchain.unlink()
         self.path_private_key.unlink()
 
-    def _deactivate_account():
+    def _deactivate_account(self):
         """Deactivate account."""
         if not self.path_registration_info.exists():
             return
@@ -275,16 +294,7 @@ class AcmeHandler:
         self.path_registration_info.unlink()
         self.path_account_key.unlink()
 
-    async def async_instance_details(self):
-        """Load user information."""
-        async with async_timeout.timeout(10):
-            resp = await cloud_api.async_remote_register(self.cloud)
-            data = await resp.json()
-
-        self._domain = data["domain"]
-        self._email = data["email"]
-
-    async def async_issue_certificate(self):
+    async def issue_certificate(self):
         """Create/Update certificate."""
         if not self._acme_client:
             await self.cloud.run_executor(self._create_client)
@@ -301,12 +311,12 @@ class AcmeHandler:
 
         if resp.status != 200:
             _LOGGER.error("Can't set challenge token to NabuCasa DNS!")
-            raise AcmeChallengeError()
+            raise AcmeNabuCasaError()
 
         # Finish validation
         await self.cloud.run_executor(self._finish_challenge, challenge)
 
-    async def async_remove_acme(self):
+    async def remove_acme(self):
         """Revoke and deactivate acme certificate/account."""
         if not self._acme_client:
             await self.cloud.run_executor(self._create_client)
