@@ -9,7 +9,7 @@ from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
 from . import cloud_api
-from .acme import AcmeHandler
+from .acme import AcmeHandler, AcmeClientError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,7 +79,11 @@ class RemoteUI:
 
         # Issue a certificate
         if not await self._acme.is_valid_certificate():
-            await self._acme.issue_certificate()
+            try:
+                await self._acme.issue_certificate()
+            except AcmeClientError:
+                _LOGGER.error("ACME certification fails. Please try later.")
+                return
 
         context = await self._create_context()
         self._snitun = SniTunClientAioHttp(
