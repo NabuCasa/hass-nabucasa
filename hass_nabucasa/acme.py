@@ -156,7 +156,7 @@ class AcmeHandler:
                 self._acme_client = client.ClientV2(directory, net=network)
             except errors.Error as err:
                 _LOGGER.error("Can't connect to ACME server: %s", err)
-                raise AcmeClientError() from None
+                raise AcmeClientError()
             return
 
         # Create a new registration
@@ -166,7 +166,7 @@ class AcmeHandler:
             self._acme_client = client.ClientV2(directory, net=network)
         except errors.Error as err:
             _LOGGER.error("Can't connect to ACME server: %s", err)
-            raise AcmeClientError() from None
+            raise AcmeClientError()
 
         try:
             _LOGGER.info(
@@ -180,7 +180,7 @@ class AcmeHandler:
             )
         except errors.Error as err:
             _LOGGER.error("Can't register to ACME server: %s", err)
-            raise AcmeClientError() from None
+            raise AcmeClientError()
 
         # Store registration info
         self.path_registration_info.write_text(regr.json_dumps_pretty())
@@ -221,13 +221,13 @@ class AcmeHandler:
             self._acme_client.answer_challenge(handler.challenge, handler.response)
         except errors.Error as err:
             _LOGGER.error("Can't accept ACME challenge: %s", err)
-            raise AcmeChallengeError() from None
+            raise AcmeChallengeError()
 
         try:
             order = self._acme_client.poll_and_finalize(handler.order)
         except errors.Error as err:
             _LOGGER.error("Wait of ACME challenge fails")
-            raise AcmeChallengeError() from None
+            raise AcmeChallengeError()
 
         # Cleanup the old stuff
         if self.path_fullchain.exists():
@@ -292,7 +292,7 @@ class AcmeHandler:
             self._acme_client.deactivate_registration(regr)
         except errors.Error as err:
             _LOGGER.error("Can't deactivate account: %s", err)
-            raise AcmeClientError() from None
+            raise AcmeClientError()
 
         self.path_registration_info.unlink()
         self.path_account_key.unlink()
