@@ -138,8 +138,11 @@ class Cloud:
         self.access_token = None
         self.refresh_token = None
 
+        # Cleanup auth data
+        if self.user_info_path.exists():
+            await self.run_executor(self.user_info_path.unlink)
+
         await self.client.cleanups()
-        await self.run_executor(self.user_info_path.unlink)
 
     def write_user_info(self) -> None:
         """Write user info to a file."""
