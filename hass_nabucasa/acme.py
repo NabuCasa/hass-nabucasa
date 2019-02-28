@@ -308,7 +308,7 @@ class AcmeHandler:
 
         # Update DNS
         async with async_timeout.timeout(10):
-            resp = await cloud_api.async_remote_challenge(
+            resp = await cloud_api.async_remote_challenge_txt(
                 self.cloud, challenge.validation
             )
 
@@ -317,8 +317,11 @@ class AcmeHandler:
             raise AcmeNabuCasaError()
 
         # Finish validation
-        await self._wait_dns(challenge.validation)
-        await self.cloud.run_executor(self._finish_challenge, challenge)
+        try:
+            await self._wait_dns(challenge.validation)
+            await self.cloud.run_executor(self._finish_challenge, challenge)
+        finally:
+            await cloud_api.async_remote_challenge_cleanup(self.cloud)
 
     async def remove_acme(self):
         """Revoke and deactivate acme certificate/account."""

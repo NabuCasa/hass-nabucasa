@@ -67,12 +67,22 @@ async def test_remote_token(cloud_mock, aioclient_mock):
     assert aioclient_mock.mock_calls[0][2] == {"aes_iv": "6976", "aes_key": "616573"}
 
 
-async def test_remote_challenge(cloud_mock, aioclient_mock):
+async def test_remote_challenge_txt(cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post("https://example.com/bla/challenge_txt")
     cloud_mock.id_token = "mock-id-token"
     cloud_mock.remote_api_url = "https://example.com/bla"
 
-    resp = await cloud_api.async_remote_challenge(cloud_mock, "123456")
+    resp = await cloud_api.async_remote_challenge_txt(cloud_mock, "123456")
     assert len(aioclient_mock.mock_calls) == 1
     assert aioclient_mock.mock_calls[0][2] == {"txt": "123456"}
+
+
+async def test_remote_challenge_cleanup(cloud_mock, aioclient_mock):
+    """Test creating a cloudhook."""
+    aioclient_mock.post("https://example.com/bla/challenge_cleanup")
+    cloud_mock.id_token = "mock-id-token"
+    cloud_mock.remote_api_url = "https://example.com/bla"
+
+    resp = await cloud_api.async_remote_challenge_cleanup(cloud_mock)
+    assert len(aioclient_mock.mock_calls) == 1
