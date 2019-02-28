@@ -87,7 +87,7 @@ class AcmeHandler:
         """Load or create private key."""
         if self.path_private_key.exists():
             _LOGGER.debug("Load private keyfile: %s", self.path_private_key)
-            key_pem = self.path_account_key.read_bytes()
+            key_pem = self.path_private_key.read_bytes()
         else:
             _LOGGER.debug("create private keyfile: %s", self.path_private_key)
             key = OpenSSL.crypto.PKey()
