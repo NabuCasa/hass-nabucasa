@@ -236,7 +236,7 @@ class AcmeHandler:
         else:
             _LOGGER.info("Create new certificate: %s", self.path_fullchain)
 
-        self.path_fullchain.write_bytes(order.fullchain_pem)
+        self.path_fullchain.write_text(order.fullchain_pem)
         self.path_fullchain.chmod(0o600)
 
     async def is_valid_certificate(self) -> bool:
