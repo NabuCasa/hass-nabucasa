@@ -349,5 +349,5 @@ class AcmeHandler:
                 _LOGGER.debug("No DNS found for %s", domain)
                 pass
 
-        await asyncio.sleep(10)
         _LOGGER.info("Found ACME token in DNS")
+        await asyncio.sleep(60)
