@@ -338,7 +338,6 @@ class AcmeHandler:
 
         while True:
             await asyncio.sleep(5)
-
             try:
                 txt = await resolver.query(domain, "TXT")
 
@@ -347,7 +346,6 @@ class AcmeHandler:
                 _LOGGER.debug("%s: %s as %s", domain, txt, token)
             except aiodns.error.DNSError:
                 _LOGGER.debug("No DNS found for %s", domain)
-                pass
 
         _LOGGER.info("Found ACME token in DNS")
         await asyncio.sleep(60)
