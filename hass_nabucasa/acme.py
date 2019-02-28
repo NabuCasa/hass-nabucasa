@@ -1,12 +1,14 @@
 """Handle ACME and local certificates."""
+import asyncio
 import logging
 from pathlib import Path
 import urllib
 
-import attr
+import aiodns
 import OpenSSL
-from acme import challenges, client, errors, messages, crypto_util
+from acme import challenges, client, crypto_util, errors, messages
 import async_timeout
+import attr
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -125,7 +127,7 @@ class AcmeHandler:
 
         self._account_jwk = jose.JWKRSA(key=jose.ComparableRSAKey(key))
 
-    def _create_client(self, email):
+    def _create_client(self):
         """Create new ACME client."""
         if self.path_registration_info.exists():
             _LOGGER.info("Load exists ACME registration")
@@ -150,7 +152,8 @@ class AcmeHandler:
                 network = client.ClientNetwork(
                     self._account_jwk, account=regr, user_agent=USER_AGENT
                 )
-                self._acme_client = client.ClientV2(self._acme_server, net=network)
+                directory = messages.Directory.from_json(network.get(self._acme_server).json())
+                self._acme_client = client.ClientV2(directory, net=network)
             except errors.Error as err:
                 _LOGGER.error("Can't connect to ACME server: %s", err)
                 raise AcmeClientError() from None
@@ -159,7 +162,8 @@ class AcmeHandler:
         # Create a new registration
         try:
             network = client.ClientNetwork(self._account_jwk, user_agent=USER_AGENT)
-            self._acme_client = client.ClientV2(self._acme_server, net=network)
+            directory = messages.Directory.from_json(network.get(self._acme_server).json())
+            self._acme_client = client.ClientV2(directory, net=network)
         except errors.Error as err:
             _LOGGER.error("Can't connect to ACME server: %s", err)
             raise AcmeClientError() from None
@@ -171,7 +175,7 @@ class AcmeHandler:
             )
             regr = self._acme_client.new_account(
                 messages.NewRegistration.from_data(
-                    email=email, terms_of_service_agreed=True
+                    email=self._email, terms_of_service_agreed=True
                 )
             )
         except errors.Error as err:
@@ -222,7 +226,7 @@ class AcmeHandler:
         try:
             order = self._acme_client.poll_and_finalize(handler.order)
         except errors.Error as err:
-            _LOGGER.error("Wait of ACME challenge fails: %s", err)
+            _LOGGER.error("Wait of ACME challenge fails")
             raise AcmeChallengeError() from None
 
         # Cleanup the old stuff
@@ -240,7 +244,6 @@ class AcmeHandler:
         def _check_cert():
             """Check cert in thread."""
             if not self.path_fullchain.exists():
-                _LOGGER.warning("Can't revoke not exists certificate")
                 return False
 
             x509 = OpenSSL.crypto.load_certificate(
@@ -314,6 +317,7 @@ class AcmeHandler:
             raise AcmeNabuCasaError()
 
         # Finish validation
+        await self._wait_dns(challenge.validation)
         await self.cloud.run_executor(self._finish_challenge, challenge)
 
     async def remove_acme(self):
@@ -323,3 +327,23 @@ class AcmeHandler:
 
         await self.cloud.run_executor(self._revoke_certificate)
         await self.cloud.run_executor(self._deactivate_account)
+
+    async def _wait_dns(self, token):
+        """Wait until dns have the correct txt set."""
+        resolver = aiodns.DNSResolver(loop=self.cloud.client.loop)
+        domain = "_acme-challenge.{}".format(self._domain)
+
+        while True:
+            await asyncio.sleep(5)
+
+            try:
+                txt = await resolver.query(domain, "TXT")
+
+                if txt[0].text.decode() == token:
+                    break
+                _LOGGER.debug("%s: %s as %s", domain, txt, token)
+            except aiodns.error.DNSError:
+                _LOGGER.debug("no DNS found")
+                pass
+
+        _LOGGER.info("Found ACME token in DNS")

@@ -32,6 +32,7 @@ setup(
         "warrant==0.6.1",
         "snitun==0.4",
         "acme==0.31.0",
+        "aiodns==1.2.0",
         "cryptography>=2.5",
         "attrs>=18.2.0",
     ],

@@ -72,6 +72,8 @@ class RemoteUI:
             raise RemoteBackendError()
         data = await resp.json()
 
+        _LOGGER.debug("Retrieve instance data: %s", data)
+
         # Set instance details for certificate
         self._acme = AcmeHandler(self.cloud, data["domain"], data["email"])
 
