@@ -157,7 +157,7 @@ class Cloud:
             )
         )
 
-    async def login(self):
+    async def start(self):
         """Start the cloud component."""
 
         def load_config():
@@ -181,6 +181,10 @@ class Cloud:
         self.refresh_token = info["refresh_token"]
 
         self.run_task(self.iot.connect())
+
+    async def stop(self):
+        """Stop the cloud component."""
+        await self.iot.disconnect()
 
     def _decode_claims(self, token):  # pylint: disable=no-self-use
         """Decode the claims in a token."""

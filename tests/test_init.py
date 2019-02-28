@@ -66,7 +66,7 @@ async def test_initialize_loads_info(cloud_client):
         "hass_nabucasa.Cloud.user_info_path",
         new_callable=PropertyMock(return_value=info_file),
     ):
-        await cl.login()
+        await cl.start()
 
     assert cl.id_token == "test-id-token"
     assert cl.access_token == "test-access-token"
