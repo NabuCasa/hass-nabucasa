@@ -81,7 +81,7 @@ class RemoteUI:
 
         context = await self._create_context()
         self._snitun = SniTunClientAioHttp(
-            self.cloud.client.app,
+            self.cloud.client.aiohttp_runner,
             context,
             snitun_server=data["server"],
             snitun_port=443,

@@ -54,7 +54,7 @@ class TestClient(CloudClient):
         raise self._websession
 
     @property
-    def app(self):
+    def aiohttp_runner(self):
         """Return client webinterface aiohttp application."""
         return None
 

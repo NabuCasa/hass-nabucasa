@@ -25,7 +25,7 @@ class CloudClient:
         raise NotImplementedError()
 
     @property
-    def app(self) -> aiohttp.web.Application:
+    def aiohttp_runner(self) -> aiohttp.web.AppRunner:
         """Return client webinterface aiohttp application."""
         raise NotImplementedError()
 
