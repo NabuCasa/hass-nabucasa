@@ -34,6 +34,10 @@ class CloudClient:
         """Return list of cloudhooks."""
         raise NotImplementedError()
 
+    async def cleanups(self) -> None:
+        """Called on logout."""
+        raise NotImplementedError()
+
     async def async_user_message(
         self, identifier: str, title: str, message: str
     ) -> None:

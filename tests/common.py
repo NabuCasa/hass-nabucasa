@@ -63,6 +63,9 @@ class TestClient(CloudClient):
         """Return list of cloudhooks."""
         return self._cloudhooks
 
+    async def cleanups(self):
+        """Need nothing to do."""
+
     async def async_user_message(
         self, identifier: str, title: str, message: str
     ) -> None:
