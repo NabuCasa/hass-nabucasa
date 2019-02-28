@@ -321,7 +321,7 @@ class AcmeHandler:
             await self._wait_dns(challenge.validation)
             await self.cloud.run_executor(self._finish_challenge, challenge)
         finally:
-            await cloud_api.async_remote_challenge_cleanup(self.cloud)
+            await cloud_api.async_remote_challenge_cleanup(self.cloud, challenge.validation)
 
     async def remove_acme(self):
         """Revoke and deactivate acme certificate/account."""
@@ -346,7 +346,8 @@ class AcmeHandler:
                     break
                 _LOGGER.debug("%s: %s as %s", domain, txt, token)
             except aiodns.error.DNSError:
-                _LOGGER.debug("no DNS found")
+                _LOGGER.debug("No DNS found for %s", domain)
                 pass
 
+        await asyncio.sleep(10)
         _LOGGER.info("Found ACME token in DNS")

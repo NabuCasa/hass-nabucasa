@@ -84,5 +84,6 @@ async def test_remote_challenge_cleanup(cloud_mock, aioclient_mock):
     cloud_mock.id_token = "mock-id-token"
     cloud_mock.remote_api_url = "https://example.com/bla"
 
-    resp = await cloud_api.async_remote_challenge_cleanup(cloud_mock)
+    resp = await cloud_api.async_remote_challenge_cleanup(cloud_mock, "123456")
     assert len(aioclient_mock.mock_calls) == 1
+    assert aioclient_mock.mock_calls[0][2] == {"txt": "123456"}

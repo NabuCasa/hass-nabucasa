@@ -67,7 +67,7 @@ async def async_remote_token(cloud, aes_key: bytes, aes_iv: bytes):
 @_check_token
 @_log_response
 async def async_remote_challenge_txt(cloud, txt: str):
-    """Create a remote snitun token."""
+    """Set DNS challenge."""
     url = "{}/challenge_txt".format(cloud.remote_api_url)
     return await cloud.websession.post(
         url, headers={AUTHORIZATION: cloud.id_token}, json={"txt": txt}
@@ -76,9 +76,9 @@ async def async_remote_challenge_txt(cloud, txt: str):
 
 @_check_token
 @_log_response
-async def async_remote_challenge_cleanup(cloud):
-    """Create a remote snitun token."""
+async def async_remote_challenge_cleanup(cloud, txt: str):
+    """Remove DNS challenge."""
     url = "{}/challenge_cleanup".format(cloud.remote_api_url)
     return await cloud.websession.post(
-        url, headers={AUTHORIZATION: cloud.id_token}
+        url, headers={AUTHORIZATION: cloud.id_token}, json={"txt": txt}
     )
