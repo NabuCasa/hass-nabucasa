@@ -4,7 +4,6 @@ import logging
 from pathlib import Path
 import urllib
 
-import aiodns
 import OpenSSL
 from acme import challenges, client, crypto_util, errors, messages
 import async_timeout
@@ -318,7 +317,8 @@ class AcmeHandler:
 
         # Finish validation
         try:
-            await self._wait_dns(challenge.validation)
+            _LOGGER.info("Wait 90sec for publishing DNS to ACME provider")
+            await asyncio.sleep(90)
             await self.cloud.run_executor(self._finish_challenge, challenge)
         finally:
             await cloud_api.async_remote_challenge_cleanup(self.cloud, challenge.validation)
@@ -330,22 +330,3 @@ class AcmeHandler:
 
         await self.cloud.run_executor(self._revoke_certificate)
         await self.cloud.run_executor(self._deactivate_account)
-
-    async def _wait_dns(self, token):
-        """Wait until dns have the correct txt set."""
-        resolver = aiodns.DNSResolver(loop=self.cloud.client.loop)
-        domain = "_acme-challenge.{}".format(self._domain)
-
-        while True:
-            await asyncio.sleep(5)
-            try:
-                txt = await resolver.query(domain, "TXT")
-
-                if txt[0].text.decode() == token:
-                    break
-                _LOGGER.debug("%s: %s as %s", domain, txt, token)
-            except aiodns.error.DNSError:
-                _LOGGER.debug("No DNS found for %s", domain)
-
-        _LOGGER.info("Found ACME token in DNS")
-        await asyncio.sleep(60)
