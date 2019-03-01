@@ -50,7 +50,6 @@ async def async_setup(cloud):
 
     async def handle_token_refresh():
         """Handle Cloud access token refresh."""
-        sleep_time = 5
         sleep_time = random.randint(2400, 3600)
         while True:
             try:

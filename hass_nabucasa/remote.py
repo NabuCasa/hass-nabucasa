@@ -1,5 +1,8 @@
 """Manage remote UI connections."""
+import asyncio
+from contextlib import suppress
 import logging
+import random
 import ssl
 from typing import Optional
 
@@ -9,7 +12,7 @@ from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
 from . import cloud_api
-from .acme import AcmeHandler, AcmeClientError
+from .acme import AcmeClientError, AcmeHandler
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,6 +38,7 @@ class RemoteUI:
         self._acme = None
         self._snitun = None
         self._snitun_server = None
+        self._reconnect_task = None
 
         # Register start/stop
         cloud.iot.register_on_connect(self.load_backend)
@@ -105,8 +109,13 @@ class RemoteUI:
 
     async def close_backend(self) -> None:
         """Close connections and shutdown backend."""
+        if self._reconnect_task:
+            self._reconnect_task.cancel()
+
+        # Disconnect snitun
         if self._snitun:
-            await self._snitun.stop()
+            with suppress(RuntimeError):
+                await self._snitun.stop()
 
         self._snitun = None
         self._acme = None
@@ -135,3 +144,20 @@ class RemoteUI:
         data = await resp.json()
 
         await self._snitun.connect(data["token"].encode(), aes_key, aes_iv)
+
+        # start retry task
+        if self._reconnect_task:
+            return
+        self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
+
+    async def _reconnect_snitun(self):
+        """Reconnect after disconnect."""
+        try:
+            while True:
+                await self._snitun.wait()
+                await asyncio.sleep(random.randint(1, 10))
+                await self._connect_snitun()
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._reconnect_task = None

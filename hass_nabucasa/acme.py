@@ -337,8 +337,8 @@ class AcmeHandler:
 
         # Finish validation
         try:
-            _LOGGER.info("Wait 90sec for publishing DNS to ACME provider")
-            await asyncio.sleep(90)
+            _LOGGER.info("Wait 60sec for publishing DNS to ACME provider")
+            await asyncio.sleep(60)
             await self.cloud.run_executor(self._finish_challenge, challenge)
         finally:
             await cloud_api.async_remote_challenge_cleanup(self.cloud, challenge.validation)
