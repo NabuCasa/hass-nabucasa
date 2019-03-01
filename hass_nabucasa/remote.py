@@ -34,7 +34,6 @@ class RemoteUI:
         self.cloud = cloud
         self._acme = None
         self._snitun = None
-        self._token = None
         self._snitun_server = None
 
         # Register start/stop
@@ -106,9 +105,17 @@ class RemoteUI:
 
     async def handle_connection_requests(self, caller_ip):
         """Handle connection requests."""
-        if not self._snitun or self._token:
+        if not self._snitun:
+            _LOGGER.error("Can't handle request-connection without backend")
             raise RemoteNotConnected()
 
+        if self._snitun.is_connected:
+            return
+
+        await self._connect_snitun()
+
+    async def _connect_snitun(self):
+        """Connect to snitun server."""
         # Generate session token
         aes_key, aes_iv = generate_aes_keyset()
         async with async_timeout.timeout(10):

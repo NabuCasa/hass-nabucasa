@@ -225,7 +225,7 @@ class AcmeHandler:
         try:
             order = self._acme_client.poll_and_finalize(handler.order)
         except errors.Error as err:
-            _LOGGER.error("Wait of ACME challenge fails")
+            _LOGGER.error("Wait of ACME challenge fails: %s", err)
             raise AcmeChallengeError()
 
         # Cleanup the old stuff
