@@ -257,7 +257,7 @@ class AcmeHandler:
         cert = await self.cloud.run_executor(self._get_cert)
         if not cert:
             return False
-        return cert.not_valid_after < datetime.utcnow()
+        return cert.not_valid_after > datetime.utcnow()
 
     async def get_expire_date(self) -> Optional[datetime]:
         """Return datetime of expire date for certificate."""
