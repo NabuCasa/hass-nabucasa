@@ -76,6 +76,12 @@ class RemoteUI:
         # Set instance details for certificate
         self._acme = AcmeHandler(self.cloud, data["domain"], data["email"])
 
+        # Domain changed / revoke CA
+        ca_domain = await self._acme.get_common_name()
+        if ca_domain is not None and ca_domain != data["domain"]:
+            _LOGGER.warning("Invalid certificate found")
+            await self._acme.reset_acme()
+
         # Issue a certificate
         if not await self._acme.is_valid_certificate():
             try:
@@ -84,6 +90,7 @@ class RemoteUI:
                 _LOGGER.error("ACME certification fails. Please try later.")
                 return
 
+        # Setup snitun / aiohttp wrapper
         context = await self._create_context()
         self._snitun = SniTunClientAioHttp(
             self.cloud.client.aiohttp_runner,

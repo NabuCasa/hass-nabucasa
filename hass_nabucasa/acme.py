@@ -343,7 +343,7 @@ class AcmeHandler:
         finally:
             await cloud_api.async_remote_challenge_cleanup(self.cloud, challenge.validation)
 
-    async def remove_acme(self) -> None:
+    async def reset_acme(self) -> None:
         """Revoke and deactivate acme certificate/account."""
         if not self._acme_client:
             await self.cloud.run_executor(self._create_client)
