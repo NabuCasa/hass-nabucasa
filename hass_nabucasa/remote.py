@@ -94,6 +94,7 @@ class RemoteUI:
         self._snitun_server = data["server"]
 
         await self._snitun.start()
+        await self._connect_snitun()
 
     async def close_backend(self) -> None:
         """Close connections and shutdown backend."""
@@ -126,4 +127,4 @@ class RemoteUI:
             raise RemoteBackendError()
         data = await resp.json()
 
-        await self._snitun.connect(data["token"], aes_key, aes_iv)
+        await self._snitun.connect(data["token"].encode(), aes_key, aes_iv)
