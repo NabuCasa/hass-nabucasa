@@ -1,16 +1,20 @@
 """Handle ACME and local certificates."""
 import asyncio
+from datetime import datetime
 import logging
 from pathlib import Path
+from typing import Optional
 import urllib
 
 import OpenSSL
 from acme import challenges, client, crypto_util, errors, messages
 import async_timeout
 import attr
+from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
 import josepy as jose
 
 from . import cloud_api
@@ -52,7 +56,7 @@ class ChallengeHandler:
 class AcmeHandler:
     """Class handle a local certification."""
 
-    def __init__(self, cloud, domain: str, email: str):
+    def __init__(self, cloud, domain: str, email: str) -> None:
         """Initialize local ACME Handler."""
         self.cloud = cloud
         self._acme_server = cloud.acme_directory_server
@@ -97,7 +101,7 @@ class AcmeHandler:
 
         return crypto_util.make_csr(key_pem, [self._domain])
 
-    def _load_account_key(self):
+    def _load_account_key(self) -> None:
         """Load or create account key."""
         key = None
         if self.path_account_key.exists():
@@ -126,7 +130,7 @@ class AcmeHandler:
 
         self._account_jwk = jose.JWKRSA(key=jose.ComparableRSAKey(key))
 
-    def _create_client(self):
+    def _create_client(self) -> None:
         """Create new ACME client."""
         if self.path_registration_info.exists():
             _LOGGER.info("Load exists ACME registration")
@@ -185,7 +189,7 @@ class AcmeHandler:
         self.path_registration_info.write_text(regr.json_dumps_pretty())
         self.path_registration_info.chmod(0o600)
 
-    def _start_challenge(self, csr_pem) -> ChallengeHandler:
+    def _start_challenge(self, csr_pem: str) -> ChallengeHandler:
         """Initialize domain challenge and return token."""
         _LOGGER.info("Initialize challenge for a new ACME certificate")
         try:
@@ -238,22 +242,38 @@ class AcmeHandler:
         self.path_fullchain.write_text(order.fullchain_pem)
         self.path_fullchain.chmod(0o600)
 
+    def _get_cert(self) -> Optional[x509.Certificate]:
+        """Get x509 Cert-Object."""
+        if not self.path_fullchain.exists():
+            return None
+
+        return x509.load_pem_x509_certificate(
+            self.path_fullchain.read_bytes(),
+            default_backend()
+        )
+
     async def is_valid_certificate(self) -> bool:
         """Validate date of a certificate and return True is valid."""
-        def _check_cert():
-            """Check cert in thread."""
-            if not self.path_fullchain.exists():
-                return False
+        cert = await self.cloud.run_executor(self._get_cert)
+        if not cert:
+            return False
+        return cert.not_valid_after < datetime.utcnow()
 
-            x509 = OpenSSL.crypto.load_certificate(
-                OpenSSL.crypto.FILETYPE_PEM, self.path_fullchain.read_bytes()
-            )
+    async def get_expire_date(self) -> Optional[datetime]:
+        """Return datetime of expire date for certificate."""
+        cert = await self.cloud.run_executor(self._get_cert)
+        if not cert:
+            return
+        return cert.not_valid_after
 
-            return not x509.has_expired()
+    async def get_common_name(self) -> Optional[str]:
+        """Return CommonName of certificate."""
+        cert = await self.cloud.run_executor(self._get_cert)
+        if not cert:
+            return
+        return cert.commonName.get_attributes_for_oid(NameOID.COMMON_NAME)
 
-        return await self.cloud.run_executor(_check_cert)
-
-    def _revoke_certificate(self):
+    def _revoke_certificate(self) -> None:
         """Revoke certificate."""
         if not self.path_fullchain.exists():
             _LOGGER.warning("Can't revoke not exists certificate")
@@ -277,7 +297,7 @@ class AcmeHandler:
         self.path_fullchain.unlink()
         self.path_private_key.unlink()
 
-    def _deactivate_account(self):
+    def _deactivate_account(self) -> None:
         """Deactivate account."""
         if not self.path_registration_info.exists():
             return
@@ -296,7 +316,7 @@ class AcmeHandler:
         self.path_registration_info.unlink()
         self.path_account_key.unlink()
 
-    async def issue_certificate(self):
+    async def issue_certificate(self) -> None:
         """Create/Update certificate."""
         if not self._acme_client:
             await self.cloud.run_executor(self._create_client)
@@ -323,7 +343,7 @@ class AcmeHandler:
         finally:
             await cloud_api.async_remote_challenge_cleanup(self.cloud, challenge.validation)
 
-    async def remove_acme(self):
+    async def remove_acme(self) -> None:
         """Revoke and deactivate acme certificate/account."""
         if not self._acme_client:
             await self.cloud.run_executor(self._create_client)
