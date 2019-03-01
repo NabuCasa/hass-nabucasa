@@ -271,7 +271,7 @@ class AcmeHandler:
         cert = await self.cloud.run_executor(self._get_cert)
         if not cert:
             return
-        return cert.commonName.get_attributes_for_oid(NameOID.COMMON_NAME)
+        return cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
 
     def _revoke_certificate(self) -> None:
         """Revoke certificate."""
@@ -345,8 +345,13 @@ class AcmeHandler:
 
     async def reset_acme(self) -> None:
         """Revoke and deactivate acme certificate/account."""
+        _LOGGER.info("Revoke and deactivate ACME user/certificate")
         if not self._acme_client:
             await self.cloud.run_executor(self._create_client)
 
-        await self.cloud.run_executor(self._revoke_certificate)
-        await self.cloud.run_executor(self._deactivate_account)
+        try:
+            await self.cloud.run_executor(self._revoke_certificate)
+            await self.cloud.run_executor(self._deactivate_account)
+        finally:
+            self._acme_client = None
+            self._account_jwk = None
