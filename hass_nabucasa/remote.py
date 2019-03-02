@@ -55,8 +55,8 @@ class RemoteUI:
 
         await self.cloud.run_executor(
             context.load_cert_chain,
-            self._acme.path_fullchain,
-            self._acme.path_private_key,
+            str(self._acme.path_fullchain),
+            str(self._acme.path_private_key),
         )
 
         return context
