@@ -1,6 +1,5 @@
 """Manage remote UI connections."""
 import asyncio
-from contextlib import suppress
 import logging
 import random
 import ssl
@@ -114,8 +113,7 @@ class RemoteUI:
 
         # Disconnect snitun
         if self._snitun:
-            with suppress(RuntimeError):
-                await self._snitun.stop()
+            await self._snitun.stop()
 
         self._snitun = None
         self._acme = None
