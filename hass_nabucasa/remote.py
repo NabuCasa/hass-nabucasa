@@ -7,6 +7,7 @@ from typing import Optional
 
 import async_timeout
 from homeassistant.util.ssl import server_context_modern
+from snitun.exceptions import SniTunConnectionError
 from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
@@ -137,22 +138,26 @@ class RemoteUI:
             resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
 
         if resp.status != 200:
-            _LOGGER.error("Can't register a snitun token by server")
+            _LOGGER.error("Can't register a snitun token by NabuCasa")
             raise RemoteBackendError()
         data = await resp.json()
 
-        await self._snitun.connect(data["token"].encode(), aes_key, aes_iv)
-
-        # start retry task
-        if self._reconnect_task:
-            return
-        self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
+        try:
+            await self._snitun.connect(data["token"].encode(), aes_key, aes_iv)
+        except SniTunConnectionError:
+            _LOGGER.error("Connection problem to snitun server.")
+        finally:
+            # start retry task
+            if not self._reconnect_task:
+                self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
 
     async def _reconnect_snitun(self):
         """Reconnect after disconnect."""
         try:
             while True:
-                await self._snitun.wait()
+                if self._snitun.is_connected:
+                    await self._snitun.wait()
+
                 await asyncio.sleep(random.randint(1, 10))
                 await self._connect_snitun()
         except asyncio.CancelledError:
