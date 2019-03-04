@@ -14,6 +14,11 @@ def utcnow() -> dt.datetime:
     return dt.datetime.now(UTC)
 
 
+def utc_from_timestamp(timestamp: float) -> dt.datetime:
+    """Return a UTC time from a timestamp."""
+    return UTC.localize(dt.datetime.utcfromtimestamp(timestamp))
+
+
 def parse_date(dt_str: str) -> Optional[dt.date]:
     """Convert a date string to a date object."""
     try:
