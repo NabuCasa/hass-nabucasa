@@ -6,6 +6,10 @@ REQUEST_TIMEOUT = 10
 MODE_PROD = "production"
 MODE_DEV = "development"
 
+STATE_CONNECTING = "connecting"
+STATE_CONNECTED = "connected"
+STATE_DISCONNECTED = "disconnected"
+
 SERVERS = {
     "production": {
         "cognito_client_id": "60i2uvhvbiref2mftj7rgcrt9u",

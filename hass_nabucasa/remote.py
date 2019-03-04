@@ -6,13 +6,13 @@ import ssl
 from typing import Optional
 
 import async_timeout
-from homeassistant.util.ssl import server_context_modern
 from snitun.exceptions import SniTunConnectionError
 from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
 from . import cloud_api
 from .acme import AcmeClientError, AcmeHandler
+from .utils import server_context_modern
 
 _LOGGER = logging.getLogger(__name__)
 
