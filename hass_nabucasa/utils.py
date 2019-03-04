@@ -1,10 +1,11 @@
 """Helper methods to handle the time in Home Assistant."""
 import datetime as dt
 import ssl
-from typing import Optional
+from typing import Optional, Callable, TypeVar
 
 import pytz
 
+CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # noqa pylint: disable=invalid-name
 DATE_STR_FORMAT = "%Y-%m-%d"
 UTC = pytz.utc
 
@@ -54,3 +55,17 @@ def server_context_modern() -> ssl.SSLContext:
     )
 
     return context
+
+
+class Registry(dict):
+    """Registry of items."""
+
+    def register(self, name: str) -> Callable[[CALLABLE_T], CALLABLE_T]:
+        """Return decorator to register item with a specific name."""
+
+        def decorator(func: CALLABLE_T) -> CALLABLE_T:
+            """Register decorated function."""
+            self[name] = func
+            return func
+
+        return decorator
