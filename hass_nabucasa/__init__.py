@@ -1,20 +1,20 @@
 """Component to integrate the Home Assistant cloud."""
 import asyncio
+from datetime import datetime, timedelta
 import json
 import logging
-from typing import Coroutine, Callable
-from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Callable, Coroutine
 
 import aiohttp
-from homeassistant.util import dt as dt_util
 
 from . import auth_api
 from .client import CloudClient
 from .cloudhooks import Cloudhooks
+from .const import CONFIG_DIR, MODE_DEV, SERVERS, STATE_CONNECTED
 from .iot import CloudIoT
 from .remote import RemoteUI
-from .const import CONFIG_DIR, MODE_DEV, SERVERS
+from .utils import parse_date, utcnow, UTC
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,6 +76,11 @@ class Cloud:
         return self.id_token is not None
 
     @property
+    def is_connected(self) -> bool:
+        """Return True if we are connected."""
+        return self.iot.state == STATE_CONNECTED
+
+    @property
     def websession(self) -> aiohttp.ClientSession:
         """Return websession for connections."""
         return self.client.websession
@@ -83,14 +88,14 @@ class Cloud:
     @property
     def subscription_expired(self) -> bool:
         """Return a boolean if the subscription has expired."""
-        return dt_util.utcnow() > self.expiration_date + timedelta(days=7)
+        return utcnow() > self.expiration_date + timedelta(days=7)
 
     @property
     def expiration_date(self) -> datetime:
         """Return the subscription expiration as a UTC datetime object."""
         return datetime.combine(
-            dt_util.parse_date(self.claims["custom:sub-exp"]), datetime.min.time()
-        ).replace(tzinfo=dt_util.UTC)
+            parse_date(self.claims["custom:sub-exp"]), datetime.min.time()
+        ).replace(tzinfo=UTC)
 
     @property
     def claims(self):

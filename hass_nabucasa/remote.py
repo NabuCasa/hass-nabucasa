@@ -1,18 +1,20 @@
 """Manage remote UI connections."""
 import asyncio
-from contextlib import suppress
+from datetime import datetime
 import logging
 import random
 import ssl
 from typing import Optional
 
 import async_timeout
-from homeassistant.util.ssl import server_context_modern
+import attr
+from snitun.exceptions import SniTunConnectionError
 from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
 from . import cloud_api
 from .acme import AcmeClientError, AcmeHandler
+from .utils import server_context_modern, utcnow, utc_from_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,6 +31,16 @@ class RemoteNotConnected(RemoteError):
     """Raise if a request need connection and we are not ready."""
 
 
+@attr.s
+class SniTunToken:
+    """Handle snitun token."""
+
+    fernet = attr.ib(type=bytes)
+    aes_key = attr.ib(type=bytes)
+    aes_iv = attr.ib(type=bytes)
+    valid = attr.ib(type=datetime)
+
+
 class RemoteUI:
     """Class to help manage remote connections."""
 
@@ -39,6 +51,7 @@ class RemoteUI:
         self._snitun = None
         self._snitun_server = None
         self._reconnect_task = None
+        self._token = None
 
         # Register start/stop
         cloud.iot.register_on_connect(self.load_backend)
@@ -55,8 +68,8 @@ class RemoteUI:
 
         await self.cloud.run_executor(
             context.load_cert_chain,
-            self._acme.path_fullchain,
-            self._acme.path_private_key,
+            str(self._acme.path_fullchain),
+            str(self._acme.path_private_key),
         )
 
         return context
@@ -105,7 +118,7 @@ class RemoteUI:
         self._snitun_server = data["server"]
 
         await self._snitun.start()
-        await self._connect_snitun()
+        self.cloud.run_task(self.connect())
 
     async def close_backend(self) -> None:
         """Close connections and shutdown backend."""
@@ -114,8 +127,7 @@ class RemoteUI:
 
         # Disconnect snitun
         if self._snitun:
-            with suppress(RuntimeError):
-                await self._snitun.stop()
+            await self._snitun.stop()
 
         self._snitun = None
         self._acme = None
@@ -128,35 +140,75 @@ class RemoteUI:
 
         if self._snitun.is_connected:
             return
+        await self.connect()
 
-        await self._connect_snitun()
+    async def _refresh_snitun_token(self):
+        """Handle snitun token."""
+        if self._token and self._token.valid > utcnow():
+            _LOGGER.debug("Don't need refresh snitun token")
+            return
 
-    async def _connect_snitun(self):
-        """Connect to snitun server."""
         # Generate session token
         aes_key, aes_iv = generate_aes_keyset()
         async with async_timeout.timeout(10):
             resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
 
         if resp.status != 200:
-            _LOGGER.error("Can't register a snitun token by server")
             raise RemoteBackendError()
         data = await resp.json()
 
-        await self._snitun.connect(data["token"].encode(), aes_key, aes_iv)
+        self._token = SniTunToken(
+            data["token"].encode(), aes_key, aes_iv, utc_from_timestamp(data["valid"])
+        )
 
-        # start retry task
-        if self._reconnect_task:
+    async def connect(self):
+        """Connect to snitun server."""
+        if not self._snitun:
+            _LOGGER.error("Can't handle request-connection without backend")
+            raise RemoteNotConnected()
+
+        # Check if we already connected
+        if self._snitun.is_connected:
             return
-        self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
+
+        try:
+            await self._refresh_snitun_token()
+            await self._snitun.connect(
+                self._token.fernet, self._token.aes_key, self._token.aes_iv
+            )
+        except SniTunConnectionError:
+            _LOGGER.error("Connection problem to snitun server")
+        except RemoteBackendError:
+            _LOGGER.error("Can't refresh the snitun token")
+        finally:
+            # start retry task
+            if not self._reconnect_task:
+                self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
+
+    async def disconnect(self):
+        """Disconnect from snitun server."""
+        if not self._snitun:
+            _LOGGER.error("Can't handle request-connection without backend")
+            raise RemoteNotConnected()
+
+        # Stop reconnect task
+        if self._reconnect_task:
+            self._reconnect_task.cancel()
+
+        # Check if we already connected
+        if not self._snitun.is_connected:
+            return
+        await self._snitun.disconnect()
 
     async def _reconnect_snitun(self):
         """Reconnect after disconnect."""
         try:
             while True:
-                await self._snitun.wait()
-                await asyncio.sleep(random.randint(1, 10))
-                await self._connect_snitun()
+                if self._snitun.is_connected:
+                    await self._snitun.wait()
+
+                await asyncio.sleep(random.randint(1, 15))
+                await self.connect()
         except asyncio.CancelledError:
             pass
         finally:
