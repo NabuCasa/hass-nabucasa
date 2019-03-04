@@ -118,7 +118,7 @@ class RemoteUI:
         self._snitun_server = data["server"]
 
         await self._snitun.start()
-        await self._connect_snitun()
+        self.cloud.run_task(self.connect())
 
     async def close_backend(self) -> None:
         """Close connections and shutdown backend."""
@@ -140,8 +140,7 @@ class RemoteUI:
 
         if self._snitun.is_connected:
             return
-
-        await self._connect_snitun()
+        await self.connect()
 
     async def _refresh_snitun_token(self):
         """Handle snitun token."""
@@ -162,8 +161,16 @@ class RemoteUI:
             data["token"].encode(), aes_key, aes_iv, utc_from_timestamp(data["valid"])
         )
 
-    async def _connect_snitun(self):
+    async def connect(self):
         """Connect to snitun server."""
+        if not self._snitun:
+            _LOGGER.error("Can't handle request-connection without backend")
+            raise RemoteNotConnected()
+
+        # Check if we already connected
+        if self._snitun.is_connected:
+            return
+
         try:
             await self._refresh_snitun_token()
             await self._snitun.connect(
@@ -178,6 +185,21 @@ class RemoteUI:
             if not self._reconnect_task:
                 self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
 
+    async def disconnect(self):
+        """Disconnect from snitun server."""
+        if not self._snitun:
+            _LOGGER.error("Can't handle request-connection without backend")
+            raise RemoteNotConnected()
+
+        # Stop reconnect task
+        if self._reconnect_task:
+            self._reconnect_task.cancel()
+
+        # Check if we already connected
+        if not self._snitun.is_connected:
+            return
+        await self._snitun.disconnect()
+
     async def _reconnect_snitun(self):
         """Reconnect after disconnect."""
         try:
@@ -186,7 +208,7 @@ class RemoteUI:
                     await self._snitun.wait()
 
                 await asyncio.sleep(random.randint(1, 15))
-                await self._connect_snitun()
+                await self.connect()
         except asyncio.CancelledError:
             pass
         finally:

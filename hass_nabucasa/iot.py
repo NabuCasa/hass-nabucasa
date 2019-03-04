@@ -5,17 +5,17 @@ import pprint
 import random
 import uuid
 
-from aiohttp import hdrs, client_exceptions, WSMsgType
-from homeassistant.util.decorator import Registry
+from aiohttp import WSMsgType, client_exceptions, hdrs
 
 from . import auth_api
 from .const import (
-    MESSAGE_EXPIRATION,
     MESSAGE_AUTH_FAIL,
+    MESSAGE_EXPIRATION,
     STATE_CONNECTED,
     STATE_CONNECTING,
     STATE_DISCONNECTED,
 )
+from .utils import Registry
 
 HANDLERS = Registry()
 _LOGGER = logging.getLogger(__name__)
