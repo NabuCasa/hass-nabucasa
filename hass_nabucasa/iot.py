@@ -9,14 +9,16 @@ from aiohttp import hdrs, client_exceptions, WSMsgType
 from homeassistant.util.decorator import Registry
 
 from . import auth_api
-from .const import MESSAGE_EXPIRATION, MESSAGE_AUTH_FAIL
+from .const import (
+    MESSAGE_EXPIRATION,
+    MESSAGE_AUTH_FAIL,
+    STATE_CONNECTED,
+    STATE_CONNECTING,
+    STATE_DISCONNECTED,
+)
 
 HANDLERS = Registry()
 _LOGGER = logging.getLogger(__name__)
-
-STATE_CONNECTING = "connecting"
-STATE_CONNECTED = "connected"
-STATE_DISCONNECTED = "disconnected"
 
 
 class UnknownHandler(Exception):
