@@ -50,6 +50,7 @@ class RemoteUI:
         self._acme = None
         self._snitun = None
         self._snitun_server = None
+        self._instance_domain = None
         self._reconnect_task = None
         self._token = None
 
@@ -61,6 +62,11 @@ class RemoteUI:
     def snitun_server(self) -> Optional[str]:
         """Return connected snitun server."""
         return self._snitun_server
+
+    @property
+    def instance_domain(self) -> Optional[str]:
+        """Return instance domain."""
+        return self._instance_domain
 
     async def _create_context(self) -> ssl.SSLContext:
         """Create SSL context with acme certificate."""
@@ -84,19 +90,28 @@ class RemoteUI:
             resp = await cloud_api.async_remote_register(self.cloud)
 
         if resp.status != 200:
-            _LOGGER.error("Can't update remote details from Home Assistant cloud")
+            if resp.status == 423:
+                _LOGGER.error(
+                    "Weekly certification rate-limit is reached, please try it again in few days"
+                )
+            else:
+                _LOGGER.error("Can't update remote details from Home Assistant cloud")
             raise RemoteBackendError()
         data = await resp.json()
 
+        # Extract data
         _LOGGER.debug("Retrieve instance data: %s", data)
+        domain = data["domain"]
+        email = data["email"]
+        server = data["server"]
 
         # Set instance details for certificate
-        self._acme = AcmeHandler(self.cloud, data["domain"], data["email"])
+        self._acme = AcmeHandler(self.cloud, domain, email)
 
         # Domain changed / revoke CA
         ca_domain = await self._acme.get_common_name()
-        if ca_domain is not None and ca_domain != data["domain"]:
-            _LOGGER.warning("Invalid certificate found")
+        if ca_domain is not None and ca_domain != domain:
+            _LOGGER.warning("Invalid certificate found: %s", ca_domain)
             await self._acme.reset_acme()
 
         # Issue a certificate
@@ -106,16 +121,17 @@ class RemoteUI:
             except AcmeClientError:
                 _LOGGER.error("ACME certification fails. Please try later.")
                 return
+        self._instance_domain = domain
 
         # Setup snitun / aiohttp wrapper
         context = await self._create_context()
         self._snitun = SniTunClientAioHttp(
             self.cloud.client.aiohttp_runner,
             context,
-            snitun_server=data["server"],
+            snitun_server=server,
             snitun_port=443,
         )
-        self._snitun_server = data["server"]
+        self._snitun_server = server
 
         await self._snitun.start()
         self.cloud.run_task(self.connect())
@@ -129,8 +145,11 @@ class RemoteUI:
         if self._snitun:
             await self._snitun.stop()
 
+        # Cleanup
         self._snitun = None
         self._acme = None
+        self._instance_domain = None
+        self._snitun_server = None
 
     async def handle_connection_requests(self, caller_ip):
         """Handle connection requests."""
