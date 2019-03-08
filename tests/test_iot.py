@@ -318,7 +318,7 @@ async def test_send_message_answer(loop, cloud_mock_iot):
 
     uuid = 5
 
-    with patch('homeassistant.components.cloud.iot.uuid.uuid4',
+    with patch('hass_nabucasa.iot.uuid.uuid4',
                return_value=MagicMock(hex=uuid)):
         send_task = loop.create_task(cloud_iot.async_send_message(
             'webhook', {'msg': 'yo'}))

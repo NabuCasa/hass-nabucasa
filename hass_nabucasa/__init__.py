@@ -45,6 +45,7 @@ class Cloud:
         self.iot = CloudIoT(self)
         self.cloudhooks = Cloudhooks(self)
         self.remote = RemoteUI(self)
+        self.auth = auth_api
 
         if mode == MODE_DEV:
             self.cognito_client_id = cognito_client_id
@@ -130,7 +131,7 @@ class Cloud:
 
     async def fetch_subscription_info(self):
         """Fetch subscription info."""
-        await self.run_executor(auth_api.check_token, self)
+        await self.run_executor(self.auth.check_token, self)
         return await self.websession.get(
             self.subscription_info_url, headers={"authorization": self.id_token}
         )
