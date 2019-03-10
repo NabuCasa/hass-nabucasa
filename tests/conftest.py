@@ -46,5 +46,5 @@ def cloud_client(cloud_mock):
 @pytest.fixture
 def mock_cognito():
     """Mock warrant."""
-    with patch("hass_nabucasa.auth_api._cognito") as mock_cog:
+    with patch("hass_nabucasa.auth.CognitoAuth._cognito") as mock_cog:
         yield mock_cog()

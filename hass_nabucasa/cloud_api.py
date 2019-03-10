@@ -4,8 +4,6 @@ import logging
 
 from aiohttp.hdrs import AUTHORIZATION
 
-from . import auth_api
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -15,7 +13,7 @@ def _check_token(func):
     @wraps(func)
     async def check_token(cloud, *args):
         """Validate token, then call func."""
-        await cloud.run_executor(auth_api.check_token, cloud)
+        await cloud.run_executor(cloud.auth.check_token)
         return await func(cloud, *args)
 
     return check_token

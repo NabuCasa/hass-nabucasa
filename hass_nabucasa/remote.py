@@ -90,12 +90,7 @@ class RemoteUI:
             resp = await cloud_api.async_remote_register(self.cloud)
 
         if resp.status != 200:
-            if resp.status == 423:
-                _LOGGER.error(
-                    "Weekly certification rate-limit is reached, please try it again in few days"
-                )
-            else:
-                _LOGGER.error("Can't update remote details from Home Assistant cloud")
+            _LOGGER.error("Can't update remote details from Home Assistant cloud")
             raise RemoteBackendError()
         data = await resp.json()
 
@@ -120,7 +115,7 @@ class RemoteUI:
                 await self._acme.issue_certificate()
             except AcmeClientError:
                 _LOGGER.error("ACME certification fails. Please try later.")
-                return
+                raise RemoteBackendError()
         self._instance_domain = domain
 
         # Setup snitun / aiohttp wrapper
