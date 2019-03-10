@@ -9,7 +9,7 @@ from hass_nabucasa import cloud_api
 @pytest.fixture(autouse=True)
 def mock_check_token():
     """Mock check token."""
-    with patch("hass_nabucasa.auth_api." "check_token"):
+    with patch("hass_nabucasa.auth.CognitoAuth.check_token"):
         yield
 
 

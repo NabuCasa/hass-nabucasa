@@ -7,7 +7,7 @@ import uuid
 
 from aiohttp import WSMsgType, client_exceptions, hdrs
 
-from . import auth_api
+from .auth import Unauthenticated, CloudError
 from .const import (
     MESSAGE_AUTH_FAIL,
     MESSAGE_EXPIRATION,
@@ -139,8 +139,8 @@ class CloudIoT:
     async def _handle_connection(self):
         """Connect to the IoT broker."""
         try:
-            await self.cloud.run_executor(auth_api.check_token, self.cloud)
-        except auth_api.Unauthenticated as err:
+            await self.cloud.run_executor(self.cloud.auth.check_token)
+        except Unauthenticated as err:
             _LOGGER.error("Unable to refresh token: %s", err)
 
             await self.cloud.client.async_user_message(
@@ -150,7 +150,7 @@ class CloudIoT:
             # Don't await it because it will cancel this task
             self.cloud.run_task(self.cloud.logout())
             return
-        except auth_api.CloudError as err:
+        except CloudError as err:
             _LOGGER.warning("Unable to refresh token: %s", err)
             return
 
