@@ -143,6 +143,7 @@ class RemoteUI:
         # Cleanup
         self._snitun = None
         self._acme = None
+        self._token = None
         self._instance_domain = None
         self._snitun_server = None
 
