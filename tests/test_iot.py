@@ -20,7 +20,7 @@ def mock_client(cloud_mock):
     # Trigger cancelled error to avoid reconnect.
     org_websession = cloud_mock.websession
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
-        websession.ws_connect.return_value = mock_coro(client)
+        websession.ws_connect.side_effect = lambda *a, **kw: mock_coro(client)
         cloud_mock.websession = websession
         yield client
 

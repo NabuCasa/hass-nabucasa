@@ -11,8 +11,10 @@ from .common import mock_coro
 @pytest.fixture
 def mock_cloudhooks(cloud_mock):
     """Mock cloudhooks class."""
-    cloud_mock.run_executor = Mock(return_value=mock_coro())
-    cloud_mock.iot = Mock(async_send_message=Mock(return_value=mock_coro()))
+    cloud_mock.run_executor = Mock(side_effect=lambda *a, **kw: mock_coro())
+    cloud_mock.iot = Mock(
+        async_send_message=Mock(side_effect=lambda *a, **kw: mock_coro())
+    )
     cloud_mock.cloudhook_create_url = "https://webhook-create.url"
     return cloudhooks.Cloudhooks(cloud_mock)
 
