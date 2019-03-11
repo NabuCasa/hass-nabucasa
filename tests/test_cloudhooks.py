@@ -11,8 +11,10 @@ from .common import mock_coro
 @pytest.fixture
 def mock_cloudhooks(cloud_mock):
     """Mock cloudhooks class."""
-    cloud_mock.run_executor = Mock(return_value=mock_coro())
-    cloud_mock.iot = Mock(async_send_message=Mock(return_value=mock_coro()))
+    cloud_mock.run_executor = Mock(side_effect=lambda *a, **kw: mock_coro())
+    cloud_mock.iot = Mock(
+        async_send_message=Mock(side_effect=lambda *a, **kw: mock_coro())
+    )
     cloud_mock.cloudhook_create_url = "https://webhook-create.url"
     return cloudhooks.Cloudhooks(cloud_mock)
 
@@ -31,9 +33,10 @@ async def test_enable(mock_cloudhooks, aioclient_mock):
         "webhook_id": "mock-webhook-id",
         "cloudhook_id": "mock-cloud-id",
         "cloudhook_url": "https://hooks.nabu.casa/ZXCZCXZ",
+        "managed": False,
     }
 
-    assert hook == await mock_cloudhooks.async_create("mock-webhook-id")
+    assert hook == await mock_cloudhooks.async_create("mock-webhook-id", False)
 
     assert mock_cloudhooks.cloud.client.cloudhooks == {"mock-webhook-id": hook}
 
@@ -61,3 +64,31 @@ async def test_disable(mock_cloudhooks):
     assert len(publish_calls) == 1
     assert publish_calls[0][1][0] == "webhook-register"
     assert publish_calls[0][1][1] == {"cloudhook_ids": []}
+
+
+async def test_create_without_connected(mock_cloudhooks, aioclient_mock):
+    """Test we don't publish a hook if not connected."""
+    mock_cloudhooks.cloud.is_connected = False
+    # Make sure we fail test when we send a message.
+    mock_cloudhooks.cloud.iot.async_send_message.side_effect = ValueError
+
+    aioclient_mock.post(
+        "https://webhook-create.url",
+        json={
+            "cloudhook_id": "mock-cloud-id",
+            "url": "https://hooks.nabu.casa/ZXCZCXZ",
+        },
+    )
+
+    hook = {
+        "webhook_id": "mock-webhook-id",
+        "cloudhook_id": "mock-cloud-id",
+        "cloudhook_url": "https://hooks.nabu.casa/ZXCZCXZ",
+        "managed": True,
+    }
+
+    assert hook == await mock_cloudhooks.async_create("mock-webhook-id", True)
+
+    assert mock_cloudhooks.cloud.client.cloudhooks == {"mock-webhook-id": hook}
+
+    assert len(mock_cloudhooks.cloud.iot.async_send_message.mock_calls) == 0

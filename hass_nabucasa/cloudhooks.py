@@ -1,4 +1,6 @@
 """Manage cloud cloudhooks."""
+from typing import Dict, Any
+
 import async_timeout
 
 from . import cloud_api
@@ -12,8 +14,11 @@ class Cloudhooks:
         self.cloud = cloud
         self.cloud.iot.register_on_connect(self.async_publish_cloudhooks)
 
-    async def async_publish_cloudhooks(self):
+    async def async_publish_cloudhooks(self) -> None:
         """Inform the Relayer of the cloudhooks that we support."""
+        if not self.cloud.is_connected:
+            return
+
         cloudhooks = self.cloud.client.cloudhooks
         await self.cloud.iot.async_send_message(
             "webhook-register",
@@ -21,7 +26,7 @@ class Cloudhooks:
             expect_answer=False,
         )
 
-    async def async_create(self, webhook_id):
+    async def async_create(self, webhook_id: str, managed: bool) -> Dict[str, Any]:
         """Create a cloud webhook."""
         cloudhooks = self.cloud.client.cloudhooks
 
@@ -45,13 +50,14 @@ class Cloudhooks:
             "webhook_id": webhook_id,
             "cloudhook_id": cloudhook_id,
             "cloudhook_url": cloudhook_url,
+            "managed": managed,
         }
         await self.cloud.client.async_cloudhooks_update(cloudhooks)
 
         await self.async_publish_cloudhooks()
         return hook
 
-    async def async_delete(self, webhook_id):
+    async def async_delete(self, webhook_id: str) -> None:
         """Delete a cloud webhook."""
         cloudhooks = self.cloud.client.cloudhooks
 

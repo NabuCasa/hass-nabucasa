@@ -15,7 +15,8 @@ from .common import mock_coro, MockAcme, MockSnitun
 def ignore_context():
     """Ignore ssl context."""
     with patch(
-        "hass_nabucasa.remote.RemoteUI._create_context", return_value=mock_coro()
+        "hass_nabucasa.remote.RemoteUI._create_context",
+        side_effect=lambda *a, **lw: mock_coro(),
     ) as context:
         yield context
 
