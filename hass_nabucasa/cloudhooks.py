@@ -1,4 +1,6 @@
 """Manage cloud cloudhooks."""
+from typing import Dict, Any
+
 import async_timeout
 
 from . import cloud_api
@@ -24,7 +26,7 @@ class Cloudhooks:
             expect_answer=False,
         )
 
-    async def async_create(self, webhook_id, managed):
+    async def async_create(self, webhook_id: str, managed: bool) -> Dict[str, Any]:
         """Create a cloud webhook."""
         cloudhooks = self.cloud.client.cloudhooks
 
@@ -53,10 +55,9 @@ class Cloudhooks:
         await self.cloud.client.async_cloudhooks_update(cloudhooks)
 
         await self.async_publish_cloudhooks()
-
         return hook
 
-    async def async_delete(self, webhook_id):
+    async def async_delete(self, webhook_id: str) -> None:
         """Delete a cloud webhook."""
         cloudhooks = self.cloud.client.cloudhooks
 
