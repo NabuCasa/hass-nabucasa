@@ -1,6 +1,8 @@
 """Test the helper method for writing tests."""
+import asyncio
 from pathlib import Path
 import tempfile
+from typing import Optional
 
 from hass_nabucasa.client import CloudClient
 
@@ -99,10 +101,16 @@ class MockAcme:
         """Initialize MockAcme."""
         self.is_valid = True
         self.call_issue = False
+        self.call_reset = False
         self.init_args = None
+        self.common_name = None
 
     def set_false(self):
         self.is_valid = False
+
+    async def get_common_name(self) -> Optional[str]:
+        """Return common name."""
+        return self.common_name
 
     async def is_valid_certificate(self) -> bool:
         """Return valid certificate."""
@@ -111,6 +119,10 @@ class MockAcme:
     async def issue_certificate(self):
         """Issue a certificate."""
         self.call_issue = True
+
+    async def reset_acme(self):
+        """Issue a certificate."""
+        self.call_reset = True
 
     def __call__(self, *args):
         """Init."""
@@ -125,8 +137,21 @@ class MockSnitun:
         """Initialize MockAcme."""
         self.call_start = False
         self.call_stop = False
+        self.call_connect = False
+        self.call_disconnect = False
         self.init_args = None
+        self.connect_args = None
         self.init_kwarg = None
+        self.wait_task = asyncio.Event()
+
+    @property
+    def is_connected(self):
+        """Return if it is connected."""
+        return self.call_connect and not self.call_disconnect
+
+    def wait(self):
+        """Return waitable object."""
+        return self.wait_task.wait()
 
     async def start(self):
         """Start snitun."""
@@ -135,6 +160,16 @@ class MockSnitun:
     async def stop(self):
         """Stop snitun."""
         self.call_stop = True
+
+    async def connect(self, token: bytes, aes_key: bytes, aes_iv: bytes):
+        """Connect snitun."""
+        self.call_connect = True
+        self.connect_args = [token, aes_key, aes_iv]
+
+    async def disconnect(self):
+        """Disconnect snitun."""
+        self.wait_task.set()
+        self.call_disconnect = True
 
     def __call__(self, *args, **kwarg):
         """Init."""

@@ -6,7 +6,7 @@ from unittest.mock import patch, MagicMock, Mock, PropertyMock
 import pytest
 
 import hass_nabucasa as cloud
-from homeassistant.util.dt import utcnow
+from hass_nabucasa.utils import utcnow
 
 from .common import mock_coro
 
@@ -131,13 +131,13 @@ def test_subscription_expired(cloud_client):
 
     token_val = {"custom:sub-exp": "2017-11-13"}
     with patch.object(cl, "_decode_claims", return_value=token_val), patch(
-        "homeassistant.util.dt.utcnow",
+        "hass_nabucasa.utcnow",
         return_value=utcnow().replace(year=2017, month=11, day=13),
     ):
         assert not cl.subscription_expired
 
     with patch.object(cl, "_decode_claims", return_value=token_val), patch(
-        "homeassistant.util.dt.utcnow",
+        "hass_nabucasa.utcnow",
         return_value=utcnow().replace(
             year=2017, month=11, day=19, hour=23, minute=59, second=59
         ),
@@ -145,7 +145,7 @@ def test_subscription_expired(cloud_client):
         assert not cl.subscription_expired
 
     with patch.object(cl, "_decode_claims", return_value=token_val), patch(
-        "homeassistant.util.dt.utcnow",
+        "hass_nabucasa.utcnow",
         return_value=utcnow().replace(
             year=2017, month=11, day=20, hour=0, minute=0, second=0
         ),
@@ -159,7 +159,7 @@ def test_subscription_not_expired(cloud_client):
 
     token_val = {"custom:sub-exp": "2017-11-13"}
     with patch.object(cl, "_decode_claims", return_value=token_val), patch(
-        "homeassistant.util.dt.utcnow",
+        "hass_nabucasa.utcnow",
         return_value=utcnow().replace(year=2017, month=11, day=9),
     ):
         assert not cl.subscription_expired

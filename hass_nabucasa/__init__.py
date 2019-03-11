@@ -8,9 +8,9 @@ from typing import Callable, Coroutine
 
 import aiohttp
 
-from . import auth_api
 from .client import CloudClient
 from .cloudhooks import Cloudhooks
+from .auth import CognitoAuth
 from .const import CONFIG_DIR, MODE_DEV, SERVERS, STATE_CONNECTED
 from .iot import CloudIoT
 from .remote import RemoteUI
@@ -45,6 +45,7 @@ class Cloud:
         self.iot = CloudIoT(self)
         self.cloudhooks = Cloudhooks(self)
         self.remote = RemoteUI(self)
+        self.auth = CognitoAuth(self)
 
         if mode == MODE_DEV:
             self.cognito_client_id = cognito_client_id
@@ -130,7 +131,7 @@ class Cloud:
 
     async def fetch_subscription_info(self):
         """Fetch subscription info."""
-        await self.run_executor(auth_api.check_token, self)
+        await self.run_executor(self.auth.check_token)
         return await self.websession.get(
             self.subscription_info_url, headers={"authorization": self.id_token}
         )
