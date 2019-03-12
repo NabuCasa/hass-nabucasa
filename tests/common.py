@@ -1,5 +1,6 @@
 """Test the helper method for writing tests."""
 import asyncio
+from datetime import datetime
 from pathlib import Path
 import tempfile
 from typing import Optional
@@ -32,6 +33,7 @@ class TestClient(CloudClient):
         self._loop = loop
         self._websession = websession
         self._cloudhooks = {}
+        self.prop_remote_autostart = True
 
         self.mock_user = []
         self.mock_alexa = []
@@ -64,6 +66,11 @@ class TestClient(CloudClient):
     def cloudhooks(self):
         """Return list of cloudhooks."""
         return self._cloudhooks
+
+    @property
+    def remote_autostart(self) -> bool:
+        """Return true if we want start a remote connection."""
+        return self.prop_remote_autostart
 
     async def cleanups(self):
         """Need nothing to do."""
@@ -102,17 +109,23 @@ class MockAcme:
         self.is_valid = True
         self.call_issue = False
         self.call_reset = False
+        self.call_load = False
         self.init_args = None
+
         self.common_name = None
+        self.expire_date = None
+        self.fingerprint = None
 
     def set_false(self):
         self.is_valid = False
 
-    async def get_common_name(self) -> Optional[str]:
-        """Return common name."""
-        return self.common_name
+    @property
+    def certificate_available(self) -> bool:
+        """Return true if certificate is available."""
+        return self.common_name is not None
 
-    async def is_valid_certificate(self) -> bool:
+    @property
+    def is_valid_certificate(self) -> bool:
         """Return valid certificate."""
         return self.is_valid
 
@@ -123,6 +136,10 @@ class MockAcme:
     async def reset_acme(self):
         """Issue a certificate."""
         self.call_reset = True
+
+    async def load_certificate(self):
+        """Load certificate."""
+        self.call_load = True
 
     def __call__(self, *args):
         """Init."""

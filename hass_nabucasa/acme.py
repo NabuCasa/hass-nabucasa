@@ -12,7 +12,7 @@ import async_timeout
 import attr
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 import josepy as jose
@@ -62,6 +62,7 @@ class AcmeHandler:
         self._acme_server = cloud.acme_directory_server
         self._account_jwk = None
         self._acme_client = None
+        self._x509 = None
 
         self._domain = domain
         self._email = email
@@ -85,6 +86,40 @@ class AcmeHandler:
     def path_registration_info(self) -> Path:
         """Return path of acme client registration file."""
         return Path(self.cloud.path(FILE_REGISTRATION))
+
+    @property
+    def certificate_available(self) -> bool:
+        """Return True if a certificate is loaded."""
+        return self._x509 is not None
+
+    @property
+    def is_valid_certificate(self) -> bool:
+        """Validate date of a certificate and return True is valid."""
+        if not self._x509:
+            return False
+        return self._x509.not_valid_after > datetime.utcnow()
+
+    @property
+    def expire_date(self) -> Optional[datetime]:
+        """Return datetime of expire date for certificate."""
+        if not self._x509:
+            return None
+        return self._x509.not_valid_after
+
+    @property
+    def common_name(self) -> Optional[str]:
+        """Return CommonName of certificate."""
+        if not self._x509:
+            return None
+        return self._x509.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+
+    @property
+    def fingerprint(self) -> Optional[str]:
+        """Return SHA1 hex string as fingerprint."""
+        if not self._x509:
+            return None
+        fingerprint = self._x509.fingerprint(hashes.SHA1())
+        return fingerprint.hex()
 
     def _generate_csr(self) -> bytes:
         """Load or create private key."""
@@ -242,36 +277,19 @@ class AcmeHandler:
         self.path_fullchain.write_text(order.fullchain_pem)
         self.path_fullchain.chmod(0o600)
 
-    def _get_cert(self) -> Optional[x509.Certificate]:
+    async def load_certificate(self) -> None:
         """Get x509 Cert-Object."""
-        if not self.path_fullchain.exists():
-            return None
-
-        return x509.load_pem_x509_certificate(
-            self.path_fullchain.read_bytes(),
-            default_backend()
-        )
-
-    async def is_valid_certificate(self) -> bool:
-        """Validate date of a certificate and return True is valid."""
-        cert = await self.cloud.run_executor(self._get_cert)
-        if not cert:
-            return False
-        return cert.not_valid_after > datetime.utcnow()
-
-    async def get_expire_date(self) -> Optional[datetime]:
-        """Return datetime of expire date for certificate."""
-        cert = await self.cloud.run_executor(self._get_cert)
-        if not cert:
+        if self._x509 or not self.path_fullchain.exists():
             return
-        return cert.not_valid_after
 
-    async def get_common_name(self) -> Optional[str]:
-        """Return CommonName of certificate."""
-        cert = await self.cloud.run_executor(self._get_cert)
-        if not cert:
-            return
-        return cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+        def _load_cert():
+            """Load certificate in a thread."""
+            return x509.load_pem_x509_certificate(
+                self.path_fullchain.read_bytes(),
+                default_backend()
+            )
+
+        self._x509 = await self.cloud.run_executor(_load_cert)
 
     def _revoke_certificate(self) -> None:
         """Revoke certificate."""
@@ -340,6 +358,7 @@ class AcmeHandler:
             _LOGGER.info("Wait 60sec for publishing DNS to ACME provider")
             await asyncio.sleep(60)
             await self.cloud.run_executor(self._finish_challenge, challenge)
+            await self.load_certificate()
         finally:
             await cloud_api.async_remote_challenge_cleanup(self.cloud, challenge.validation)
 
@@ -355,3 +374,4 @@ class AcmeHandler:
         finally:
             self._acme_client = None
             self._account_jwk = None
+            self._x509 = None

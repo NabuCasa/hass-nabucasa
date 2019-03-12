@@ -34,6 +34,11 @@ class CloudClient:
         """Return list of cloudhooks."""
         raise NotImplementedError()
 
+    @property
+    def remote_autostart(self) -> bool:
+        """Return true if we want start a remote connection."""
+        raise NotImplementedError()
+
     async def cleanups(self) -> None:
         """Called on logout."""
         raise NotImplementedError()
