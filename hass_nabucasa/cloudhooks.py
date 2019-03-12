@@ -12,7 +12,8 @@ class Cloudhooks:
     def __init__(self, cloud):
         """Initialize cloudhooks."""
         self.cloud = cloud
-        self.cloud.iot.register_on_connect(self.async_publish_cloudhooks)
+
+        cloud.iot.register_on_connect(self.async_publish_cloudhooks)
 
     async def async_publish_cloudhooks(self) -> None:
         """Inform the Relayer of the cloudhooks that we support."""

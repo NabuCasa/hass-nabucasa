@@ -41,6 +41,15 @@ class SniTunToken:
     valid = attr.ib(type=datetime)
 
 
+@attr.s
+class Certificate:
+    """Handle certificate details."""
+
+    common_name = attr.ib(type=str)
+    expire_date = attr.ib(type=datetime)
+    fingerprint = attr.ib(type=str)
+
+
 class RemoteUI:
     """Class to help manage remote connections."""
 
@@ -67,6 +76,23 @@ class RemoteUI:
     def instance_domain(self) -> Optional[str]:
         """Return instance domain."""
         return self._instance_domain
+
+    @property
+    def is_connected(self) -> bool:
+        """Return true if we are ready to connect."""
+        if not self._snitun:
+            return False
+        return self._snitun.is_connected
+
+    @property
+    def certificate(self) -> Optional[Certificate]:
+        """Return certificate details."""
+        if not self._acme or not self._acme.certificate_available:
+            return None
+
+        return Certificate(
+            self._acme.common_name, self._acme.expire_date, self._acme.fingerprint
+        )
 
     async def _create_context(self) -> ssl.SSLContext:
         """Create SSL context with acme certificate."""
@@ -103,14 +129,17 @@ class RemoteUI:
         # Set instance details for certificate
         self._acme = AcmeHandler(self.cloud, domain, email)
 
+        # Load exists certificate
+        await self._acme.load_certificate()
+
         # Domain changed / revoke CA
-        ca_domain = await self._acme.get_common_name()
+        ca_domain = self._acme.common_name
         if ca_domain is not None and ca_domain != domain:
             _LOGGER.warning("Invalid certificate found: %s", ca_domain)
             await self._acme.reset_acme()
 
         # Issue a certificate
-        if not await self._acme.is_valid_certificate():
+        if not self._acme.is_valid_certificate:
             try:
                 await self._acme.issue_certificate()
             except AcmeClientError:
@@ -129,7 +158,10 @@ class RemoteUI:
         self._snitun_server = server
 
         await self._snitun.start()
-        self.cloud.run_task(self.connect())
+
+        # Connect to remote is autostart enabled
+        if self.cloud.client.remote_autostart:
+            self.cloud.run_task(self.connect())
 
     async def close_backend(self) -> None:
         """Close connections and shutdown backend."""
@@ -147,7 +179,7 @@ class RemoteUI:
         self._instance_domain = None
         self._snitun_server = None
 
-    async def handle_connection_requests(self, caller_ip):
+    async def handle_connection_requests(self, caller_ip: str) -> None:
         """Handle connection requests."""
         if not self._snitun:
             _LOGGER.error("Can't handle request-connection without backend")
@@ -157,7 +189,7 @@ class RemoteUI:
             return
         await self.connect()
 
-    async def _refresh_snitun_token(self):
+    async def _refresh_snitun_token(self) -> None:
         """Handle snitun token."""
         if self._token and self._token.valid > utcnow():
             _LOGGER.debug("Don't need refresh snitun token")
@@ -176,7 +208,7 @@ class RemoteUI:
             data["token"].encode(), aes_key, aes_iv, utc_from_timestamp(data["valid"])
         )
 
-    async def connect(self):
+    async def connect(self) -> None:
         """Connect to snitun server."""
         if not self._snitun:
             _LOGGER.error("Can't handle request-connection without backend")
@@ -200,7 +232,7 @@ class RemoteUI:
             if not self._reconnect_task:
                 self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Disconnect from snitun server."""
         if not self._snitun:
             _LOGGER.error("Can't handle request-connection without backend")
@@ -215,7 +247,7 @@ class RemoteUI:
             return
         await self._snitun.disconnect()
 
-    async def _reconnect_snitun(self):
+    async def _reconnect_snitun(self) -> None:
         """Reconnect after disconnect."""
         try:
             while True:
