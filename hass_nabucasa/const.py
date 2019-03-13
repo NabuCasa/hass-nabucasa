@@ -41,11 +41,9 @@ using the service.
 """
 
 MESSAGE_REMOTE_READY = """
-You remote access is now available. You can manage your connectivity on the
-[Cloud Panel](/config/cloud) or with our [Portal](https://remote.nabucasa.com/).
+You remote access is now available. You can manage your connectivity on the [Cloud Panel](/config/cloud) or with our [Portal](https://remote.nabucasa.com/).
 """
 
 MESSAGE_REMOTE_SETUP = """
-Unable to create a certificate. We will automatically retry it and notify you
-when it's available.
+Unable to create a certificate. We will automatically retry it and notify you when it's available.
 """
