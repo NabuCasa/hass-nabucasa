@@ -39,3 +39,12 @@ You have been logged out of Home Assistant Cloud because we have been unable
 to verify your credentials. Please [log in](/config/cloud) again to continue
 using the service.
 """
+
+MESSAGE_REMOTE_READY = """
+You remote access is now available.
+You can manage your connectivity on the [Cloud Panel](/config/cloud) or with our [Portal](https://remote.nabucasa.com/).
+"""
+
+MESSAGE_REMOTE_SETUP = """
+Unable to create a certificate. We will automatically retry it and notify you when it's available.
+"""
