@@ -14,7 +14,7 @@ from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
 from . import cloud_api, utils
 from .acme import AcmeClientError, AcmeHandler
-from .const import MESSAGE_REMOTE_ACME, MESSAGE_REMOTE_READY
+from .const import MESSAGE_REMOTE_SETUP, MESSAGE_REMOTE_READY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -149,12 +149,14 @@ class RemoteUI:
                 await self._acme.issue_certificate()
             except AcmeClientError:
                 await self.cloud.client.async_user_message(
-                    "cloud_remote_acme", "Home Assistant Cloud", MESSAGE_REMOTE_ACME
+                    "cloud_remote_acme",
+                    "Home Assistant Cloud",
+                    MESSAGE_REMOTE_SETUP
                 )
                 return
             else:
                 await self.cloud.client.async_user_message(
-                    "cloud_remote_available",
+                    "cloud_remote_acme",
                     "Home Assistant Cloud",
                     MESSAGE_REMOTE_READY,
                 )
