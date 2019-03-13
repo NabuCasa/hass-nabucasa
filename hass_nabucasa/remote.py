@@ -112,6 +112,10 @@ class RemoteUI:
         if self._snitun:
             return
 
+        # Setup background task for ACME certification handler
+        if not self._acme_task:
+            self._acme_task = self.cloud.run_task(self._certificate_handler())
+
         # Load instance data from backend
         async with async_timeout.timeout(10):
             resp = await cloud_api.async_remote_register(self.cloud)
@@ -154,9 +158,6 @@ class RemoteUI:
                     "Home Assistant Cloud",
                     MESSAGE_REMOTE_READY,
                 )
-            finally:
-                if not self._acme_task:
-                    self._acme_task = self.cloud.run_task(self._certificate_handler())
 
         # Setup snitun / aiohttp wrapper
         context = await self._create_context()
