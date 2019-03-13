@@ -156,7 +156,7 @@ class RemoteUI:
                 )
             finally:
                 if not self._acme_task:
-                    self._acme_task = self.cloud.run_task(self._acme_task())
+                    self._acme_task = self.cloud.run_task(self._certificate_handler())
 
         # Setup snitun / aiohttp wrapper
         context = await self._create_context()
