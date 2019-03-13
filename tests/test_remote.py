@@ -322,7 +322,8 @@ async def test_load_backend_no_autostart(
 
 
 async def test_get_certificate_details(
-    cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock):
+    cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
     cloud_mock.remote_api_url = "https://test.local/api"
@@ -362,3 +363,72 @@ async def test_get_certificate_details(
     assert certificate.fingerprint == "ffff"
 
 
+async def test_certificate_task_no_backend(
+    loop, cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+):
+    """Initialize backend."""
+    valid = utcnow() + timedelta(days=1)
+    cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(cloud_mock)
+
+    aioclient_mock.post(
+        "https://test.local/api/register_instance",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        "https://test.local/api/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+        },
+    )
+
+    acme_mock.expire_date = valid
+
+    with patch("hass_nabucasa.utils.next_midnight", return_value=0) as mock_midnight:
+        remote._acme_task = loop.create_task(remote._certificate_handler())
+
+        await asyncio.sleep(0.1)
+        assert mock_midnight.called
+        assert acme_mock.call_issue
+        assert snitun_mock.call_start
+
+
+async def test_certificate_task_renew_cert(
+    loop, cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+):
+    """Initialize backend."""
+    valid = utcnow() + timedelta(days=1)
+    cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(cloud_mock)
+
+    aioclient_mock.post(
+        "https://test.local/api/register_instance",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        "https://test.local/api/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+        },
+    )
+
+    acme_mock.expire_date = utcnow() + timedelta(days=-40)
+
+    with patch("hass_nabucasa.utils.next_midnight", return_value=0) as mock_midnight:
+        remote._acme_task = loop.create_task(remote._certificate_handler())
+
+        await remote.load_backend()
+        await asyncio.sleep(0.1)
+        assert acme_mock.call_issue
