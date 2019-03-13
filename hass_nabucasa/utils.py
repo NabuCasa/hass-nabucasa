@@ -57,6 +57,14 @@ def server_context_modern() -> ssl.SSLContext:
     return context
 
 
+def next_midnight() -> int:
+    """Return the seconds till next midnight."""
+    midnight = dt.datetime.utcnow().replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ) + dt.timedelta(days=1)
+    return (midnight - dt.datetime.utcnow()).total_seconds()
+
+
 class Registry(dict):
     """Registry of items."""
 

@@ -1,6 +1,6 @@
 """Manage remote UI connections."""
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import random
 import ssl
@@ -12,9 +12,9 @@ from snitun.exceptions import SniTunConnectionError
 from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
-from . import cloud_api
+from . import cloud_api, utils
 from .acme import AcmeClientError, AcmeHandler
-from .utils import server_context_modern, utcnow, utc_from_timestamp
+from .const import MESSAGE_REMOTE_ACME, MESSAGE_REMOTE_READY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,6 +61,7 @@ class RemoteUI:
         self._snitun_server = None
         self._instance_domain = None
         self._reconnect_task = None
+        self._acme_task = None
         self._token = None
 
         # Register start/stop
@@ -96,7 +97,7 @@ class RemoteUI:
 
     async def _create_context(self) -> ssl.SSLContext:
         """Create SSL context with acme certificate."""
-        context = server_context_modern()
+        context = utils.server_context_modern()
 
         await self.cloud.run_executor(
             context.load_cert_chain,
@@ -117,7 +118,7 @@ class RemoteUI:
 
         if resp.status != 200:
             _LOGGER.error("Can't update remote details from Home Assistant cloud")
-            raise RemoteBackendError()
+            return
         data = await resp.json()
 
         # Extract data
@@ -143,9 +144,19 @@ class RemoteUI:
             try:
                 await self._acme.issue_certificate()
             except AcmeClientError:
-                _LOGGER.error("ACME certification fails. Please try later.")
-                raise RemoteBackendError()
-        self._instance_domain = domain
+                await self.cloud.client.async_user_message(
+                    "cloud_remote_acme", "Home Assistant Cloud", MESSAGE_REMOTE_ACME
+                )
+                return
+            else:
+                await self.cloud.client.async_user_message(
+                    "cloud_remote_available",
+                    "Home Assistant Cloud",
+                    MESSAGE_REMOTE_READY,
+                )
+            finally:
+                if not self._acme_task:
+                    self._acme_task = self.cloud.run_task(self._acme_task())
 
         # Setup snitun / aiohttp wrapper
         context = await self._create_context()
@@ -155,6 +166,9 @@ class RemoteUI:
             snitun_server=server,
             snitun_port=443,
         )
+
+        # Cache data
+        self._instance_domain = domain
         self._snitun_server = server
 
         await self._snitun.start()
@@ -165,8 +179,13 @@ class RemoteUI:
 
     async def close_backend(self) -> None:
         """Close connections and shutdown backend."""
+        # Close reconnect task
         if self._reconnect_task:
             self._reconnect_task.cancel()
+
+        # Close ACME certificate handler
+        if self._acme_task:
+            self._acme_task.cancel()
 
         # Disconnect snitun
         if self._snitun:
@@ -191,7 +210,7 @@ class RemoteUI:
 
     async def _refresh_snitun_token(self) -> None:
         """Handle snitun token."""
-        if self._token and self._token.valid > utcnow():
+        if self._token and self._token.valid > utils.utcnow():
             _LOGGER.debug("Don't need refresh snitun token")
             return
 
@@ -205,7 +224,10 @@ class RemoteUI:
         data = await resp.json()
 
         self._token = SniTunToken(
-            data["token"].encode(), aes_key, aes_iv, utc_from_timestamp(data["valid"])
+            data["token"].encode(),
+            aes_key,
+            aes_iv,
+            utils.utc_from_timestamp(data["valid"]),
         )
 
     async def connect(self) -> None:
@@ -260,3 +282,33 @@ class RemoteUI:
             pass
         finally:
             self._reconnect_task = None
+
+    async def _certificate_handler(self) -> None:
+        """Handle certification ACME Tasks."""
+        try:
+            while True:
+                await asyncio.sleep(utils.next_midnight())
+
+                # Backend not initialize / No certificate issue now
+                if not self._snitun:
+                    await self.load_backend()
+                    continue
+
+                # Renew certificate?
+                if self._acme.expire_date > utils.utcnow() + timedelta(days=14):
+                    continue
+
+                # Renew certificate
+                try:
+                    await self._acme.issue_certificate()
+                    await self.close_backend()
+                    await self.load_backend()
+                except AcmeClientError:
+                    _LOGGER.warning(
+                        "Renew of ACME certificate fails. Try it lager again"
+                    )
+
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._acme_task = None
