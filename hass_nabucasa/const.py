@@ -10,6 +10,9 @@ STATE_CONNECTING = "connecting"
 STATE_CONNECTED = "connected"
 STATE_DISCONNECTED = "disconnected"
 
+DISPATCH_REMOTE_CONNECT = "remote_connect"
+DISPATCH_REMOTE_DISCONNECT = "remote_disconnect"
+
 SERVERS = {
     "production": {
         "cognito_client_id": "60i2uvhvbiref2mftj7rgcrt9u",

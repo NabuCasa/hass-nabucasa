@@ -3,7 +3,7 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 import tempfile
-from typing import Optional
+from typing import Optional, Any
 
 from hass_nabucasa.client import CloudClient
 
@@ -36,6 +36,7 @@ class TestClient(CloudClient):
         self.prop_remote_autostart = True
 
         self.mock_user = []
+        self.mock_dispatcher = []
         self.mock_alexa = []
         self.mock_google = []
         self.mock_webhooks = []
@@ -75,11 +76,13 @@ class TestClient(CloudClient):
     async def cleanups(self):
         """Need nothing to do."""
 
-    async def async_user_message(
-        self, identifier: str, title: str, message: str
-    ) -> None:
+    def user_message(self, identifier: str, title: str, message: str) -> None:
         """Create a message for user to UI."""
         self.mock_user.append((identifier, title, message))
+
+    def dispatcher_message(self, identifier: str, data: Any = None) -> None:
+        """Send data to dispatcher."""
+        self.mock_dispatcher.append((identifier, data))
 
     async def async_alexa_message(self, payload):
         """process cloud alexa message to client."""

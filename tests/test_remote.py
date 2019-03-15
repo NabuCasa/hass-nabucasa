@@ -7,6 +7,7 @@ import pytest
 
 from hass_nabucasa.remote import RemoteUI
 from hass_nabucasa.utils import utcnow
+from hass_nabucasa.const import DISPATCH_REMOTE_CONNECT, DISPATCH_REMOTE_DISCONNECT
 
 from .common import mock_coro, MockAcme, MockSnitun
 
@@ -278,6 +279,7 @@ async def test_call_disconnect(
     await remote.disconnect()
     assert snitun_mock.call_disconnect
     assert not remote.is_connected
+    assert cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_DISCONNECT
 
 
 async def test_load_backend_no_autostart(
@@ -319,6 +321,7 @@ async def test_load_backend_no_autostart(
 
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
+    assert cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_CONNECT
 
 
 async def test_get_certificate_details(

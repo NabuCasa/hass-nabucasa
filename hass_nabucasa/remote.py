@@ -12,9 +12,8 @@ from snitun.exceptions import SniTunConnectionError
 from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
-from . import cloud_api, utils
+from . import cloud_api, utils, const
 from .acme import AcmeClientError, AcmeHandler
-from .const import MESSAGE_REMOTE_SETUP, MESSAGE_REMOTE_READY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -149,13 +148,17 @@ class RemoteUI:
             try:
                 await self._acme.issue_certificate()
             except AcmeClientError:
-                await self.cloud.client.async_user_message(
-                    "cloud_remote_acme", "Home Assistant Cloud", MESSAGE_REMOTE_SETUP
+                self.cloud.client.user_message(
+                    "cloud_remote_acme",
+                    "Home Assistant Cloud",
+                    const.MESSAGE_REMOTE_SETUP,
                 )
                 return
             else:
-                await self.cloud.client.async_user_message(
-                    "cloud_remote_acme", "Home Assistant Cloud", MESSAGE_REMOTE_READY
+                self.cloud.client.user_message(
+                    "cloud_remote_acme",
+                    "Home Assistant Cloud",
+                    const.MESSAGE_REMOTE_READY,
                 )
 
         # Setup snitun / aiohttp wrapper
@@ -246,6 +249,8 @@ class RemoteUI:
             await self._snitun.connect(
                 self._token.fernet, self._token.aes_key, self._token.aes_iv
             )
+
+            self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
         except SniTunConnectionError:
             _LOGGER.error("Connection problem to snitun server")
         except RemoteBackendError:
@@ -269,6 +274,7 @@ class RemoteUI:
         if not self._snitun.is_connected:
             return
         await self._snitun.disconnect()
+        self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_DISCONNECT)
 
     async def _reconnect_snitun(self) -> None:
         """Reconnect after disconnect."""
@@ -277,6 +283,7 @@ class RemoteUI:
                 if self._snitun.is_connected:
                     await self._snitun.wait()
 
+                self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_DISCONNECT)
                 await asyncio.sleep(random.randint(1, 15))
                 await self.connect()
         except asyncio.CancelledError:
