@@ -18,6 +18,7 @@ from cryptography.x509.oid import NameOID
 import josepy as jose
 
 from . import cloud_api
+from .utils import UTC
 
 FILE_ACCOUNT_KEY = "acme_account.pem"
 FILE_PRIVATE_KEY = "remote_private.pem"
@@ -104,7 +105,7 @@ class AcmeHandler:
         """Return datetime of expire date for certificate."""
         if not self._x509:
             return None
-        return self._x509.not_valid_after
+        return self._x509.not_valid_after.replace(tzinfo=UTC)
 
     @property
     def common_name(self) -> Optional[str]:
