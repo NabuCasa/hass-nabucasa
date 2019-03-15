@@ -143,7 +143,7 @@ class CloudIoT:
         except Unauthenticated as err:
             _LOGGER.error("Unable to refresh token: %s", err)
 
-            await self.cloud.client.async_user_message(
+            self.cloud.client.user_message(
                 "cloud_subscription_expired", "Home Assistant Cloud", MESSAGE_AUTH_FAIL
             )
 
@@ -155,7 +155,7 @@ class CloudIoT:
             return
 
         if self.cloud.subscription_expired:
-            await self.cloud.client.async_user_message(
+            self.cloud.client.user_message(
                 "cloud_subscription_expired", "Home Assistant Cloud", MESSAGE_EXPIRATION
             )
             self.close_requested = True

@@ -12,9 +12,8 @@ from snitun.exceptions import SniTunConnectionError
 from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
-from . import cloud_api, utils
+from . import cloud_api, utils, const
 from .acme import AcmeClientError, AcmeHandler
-from .const import MESSAGE_REMOTE_SETUP, MESSAGE_REMOTE_READY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -149,13 +148,17 @@ class RemoteUI:
             try:
                 await self._acme.issue_certificate()
             except AcmeClientError:
-                await self.cloud.client.async_user_message(
-                    "cloud_remote_acme", "Home Assistant Cloud", MESSAGE_REMOTE_SETUP
+                self.cloud.client.user_message(
+                    "cloud_remote_acme",
+                    "Home Assistant Cloud",
+                    const.MESSAGE_REMOTE_SETUP,
                 )
                 return
             else:
-                await self.cloud.client.async_user_message(
-                    "cloud_remote_acme", "Home Assistant Cloud", MESSAGE_REMOTE_READY
+                self.cloud.client.user_message(
+                    "cloud_remote_acme",
+                    "Home Assistant Cloud",
+                    const.MESSAGE_REMOTE_READY,
                 )
 
         # Setup snitun / aiohttp wrapper
@@ -273,6 +276,7 @@ class RemoteUI:
     async def _reconnect_snitun(self) -> None:
         """Reconnect after disconnect."""
         try:
+            self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
             while True:
                 if self._snitun.is_connected:
                     await self._snitun.wait()
@@ -282,6 +286,7 @@ class RemoteUI:
         except asyncio.CancelledError:
             pass
         finally:
+            self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_DISCONNECT)
             self._reconnect_task = None
 
     async def _certificate_handler(self) -> None:
