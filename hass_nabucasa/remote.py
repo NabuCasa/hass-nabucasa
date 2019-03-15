@@ -175,6 +175,7 @@ class RemoteUI:
         self._snitun_server = server
 
         await self._snitun.start()
+        self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_UP)
 
         # Connect to remote is autostart enabled
         if self.cloud.client.remote_autostart:
@@ -200,6 +201,8 @@ class RemoteUI:
         self._token = None
         self._instance_domain = None
         self._snitun_server = None
+
+        self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_DOWN)
 
     async def handle_connection_requests(self, caller_ip: str) -> None:
         """Handle connection requests."""
