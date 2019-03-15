@@ -249,6 +249,8 @@ class RemoteUI:
             await self._snitun.connect(
                 self._token.fernet, self._token.aes_key, self._token.aes_iv
             )
+
+            self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
         except SniTunConnectionError:
             _LOGGER.error("Connection problem to snitun server")
         except RemoteBackendError:
@@ -272,21 +274,21 @@ class RemoteUI:
         if not self._snitun.is_connected:
             return
         await self._snitun.disconnect()
+        self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_DISCONNECT)
 
     async def _reconnect_snitun(self) -> None:
         """Reconnect after disconnect."""
         try:
-            self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
             while True:
                 if self._snitun.is_connected:
                     await self._snitun.wait()
 
+                self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_DISCONNECT)
                 await asyncio.sleep(random.randint(1, 15))
                 await self.connect()
         except asyncio.CancelledError:
             pass
         finally:
-            self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_DISCONNECT)
             self._reconnect_task = None
 
     async def _certificate_handler(self) -> None:
