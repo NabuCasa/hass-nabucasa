@@ -1,15 +1,20 @@
 """Test remote sni handler."""
 import asyncio
-from unittest.mock import patch, MagicMock, Mock
 from datetime import timedelta
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from hass_nabucasa.const import (
+    DISPATCH_REMOTE_BACKEND_DOWN,
+    DISPATCH_REMOTE_BACKEND_UP,
+    DISPATCH_REMOTE_CONNECT,
+    DISPATCH_REMOTE_DISCONNECT,
+)
 from hass_nabucasa.remote import RemoteUI
 from hass_nabucasa.utils import utcnow
-from hass_nabucasa.const import DISPATCH_REMOTE_CONNECT, DISPATCH_REMOTE_DISCONNECT
 
-from .common import mock_coro, MockAcme, MockSnitun
+from .common import MockAcme, MockSnitun, mock_coro
 
 
 @pytest.fixture(autouse=True)
@@ -92,6 +97,9 @@ async def test_load_backend_exists_cert(
 
     assert remote._acme_task
     assert remote._reconnect_task
+
+    assert cloud_mock.client.mock_dispatcher[0][0] == DISPATCH_REMOTE_BACKEND_UP
+    assert cloud_mock.client.mock_dispatcher[1][0] == DISPATCH_REMOTE_CONNECT
 
 
 async def test_load_backend_not_exists_cert(
@@ -197,6 +205,8 @@ async def test_load_and_unload_backend(
 
     assert not remote._acme_task
     assert not remote._reconnect_task
+
+    assert cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_BACKEND_DOWN
 
 
 async def test_load_backend_exists_wrong_cert(
