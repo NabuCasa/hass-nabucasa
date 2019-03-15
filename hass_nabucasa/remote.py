@@ -117,10 +117,11 @@ class RemoteUI:
             self._acme_task = self.cloud.run_task(self._certificate_handler())
 
         # Load instance data from backend
-        async with async_timeout.timeout(10):
-            resp = await cloud_api.async_remote_register(self.cloud)
-
-        if resp.status != 200:
+        try:
+            async with async_timeout.timeout(15):
+                resp = await cloud_api.async_remote_register(self.cloud)
+            assert resp.status == 200
+        except (asyncio.TimeoutError, AssertionError):
             _LOGGER.error("Can't update remote details from Home Assistant cloud")
             return
         data = await resp.json()
@@ -149,16 +150,12 @@ class RemoteUI:
                 await self._acme.issue_certificate()
             except AcmeClientError:
                 await self.cloud.client.async_user_message(
-                    "cloud_remote_acme",
-                    "Home Assistant Cloud",
-                    MESSAGE_REMOTE_SETUP
+                    "cloud_remote_acme", "Home Assistant Cloud", MESSAGE_REMOTE_SETUP
                 )
                 return
             else:
                 await self.cloud.client.async_user_message(
-                    "cloud_remote_acme",
-                    "Home Assistant Cloud",
-                    MESSAGE_REMOTE_READY,
+                    "cloud_remote_acme", "Home Assistant Cloud", MESSAGE_REMOTE_READY
                 )
 
         # Setup snitun / aiohttp wrapper
@@ -219,13 +216,14 @@ class RemoteUI:
 
         # Generate session token
         aes_key, aes_iv = generate_aes_keyset()
-        async with async_timeout.timeout(10):
-            resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
+        try:
+            async with async_timeout.timeout(15):
+                resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
+            assert resp.status == 200
+        except (asyncio.TimeoutError, AssertionError):
+            raise RemoteBackendError() from None
 
-        if resp.status != 200:
-            raise RemoteBackendError()
         data = await resp.json()
-
         self._token = SniTunToken(
             data["token"].encode(),
             aes_key,
