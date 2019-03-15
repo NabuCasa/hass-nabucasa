@@ -345,14 +345,15 @@ class AcmeHandler:
         challenge = await self.cloud.run_executor(self._start_challenge, csr)
 
         # Update DNS
-        async with async_timeout.timeout(10):
-            resp = await cloud_api.async_remote_challenge_txt(
-                self.cloud, challenge.validation
-            )
-
-        if resp.status != 200:
+        try:
+            async with async_timeout.timeout(15):
+                resp = await cloud_api.async_remote_challenge_txt(
+                    self.cloud, challenge.validation
+                )
+            assert resp.status == 200
+        except (asyncio.TimeoutError, AssertionError):
             _LOGGER.error("Can't set challenge token to NabuCasa DNS!")
-            raise AcmeNabuCasaError()
+            raise AcmeNabuCasaError() from None
 
         # Finish validation
         try:
