@@ -12,9 +12,8 @@ from snitun.exceptions import SniTunConnectionError
 from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
-from . import cloud_api, utils
+from . import cloud_api, utils, const
 from .acme import AcmeClientError, AcmeHandler
-from .const import MESSAGE_REMOTE_SETUP, MESSAGE_REMOTE_READY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -117,10 +116,11 @@ class RemoteUI:
             self._acme_task = self.cloud.run_task(self._certificate_handler())
 
         # Load instance data from backend
-        async with async_timeout.timeout(10):
-            resp = await cloud_api.async_remote_register(self.cloud)
-
-        if resp.status != 200:
+        try:
+            async with async_timeout.timeout(15):
+                resp = await cloud_api.async_remote_register(self.cloud)
+            assert resp.status == 200
+        except (asyncio.TimeoutError, AssertionError):
             _LOGGER.error("Can't update remote details from Home Assistant cloud")
             return
         data = await resp.json()
@@ -148,17 +148,17 @@ class RemoteUI:
             try:
                 await self._acme.issue_certificate()
             except AcmeClientError:
-                await self.cloud.client.async_user_message(
+                self.cloud.client.user_message(
                     "cloud_remote_acme",
                     "Home Assistant Cloud",
-                    MESSAGE_REMOTE_SETUP
+                    const.MESSAGE_REMOTE_SETUP,
                 )
                 return
             else:
-                await self.cloud.client.async_user_message(
+                self.cloud.client.user_message(
                     "cloud_remote_acme",
                     "Home Assistant Cloud",
-                    MESSAGE_REMOTE_READY,
+                    const.MESSAGE_REMOTE_READY,
                 )
 
         # Setup snitun / aiohttp wrapper
@@ -219,13 +219,14 @@ class RemoteUI:
 
         # Generate session token
         aes_key, aes_iv = generate_aes_keyset()
-        async with async_timeout.timeout(10):
-            resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
+        try:
+            async with async_timeout.timeout(15):
+                resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
+            assert resp.status == 200
+        except (asyncio.TimeoutError, AssertionError):
+            raise RemoteBackendError() from None
 
-        if resp.status != 200:
-            raise RemoteBackendError()
         data = await resp.json()
-
         self._token = SniTunToken(
             data["token"].encode(),
             aes_key,
@@ -248,6 +249,8 @@ class RemoteUI:
             await self._snitun.connect(
                 self._token.fernet, self._token.aes_key, self._token.aes_iv
             )
+
+            self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
         except SniTunConnectionError:
             _LOGGER.error("Connection problem to snitun server")
         except RemoteBackendError:
@@ -271,6 +274,7 @@ class RemoteUI:
         if not self._snitun.is_connected:
             return
         await self._snitun.disconnect()
+        self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_DISCONNECT)
 
     async def _reconnect_snitun(self) -> None:
         """Reconnect after disconnect."""
@@ -279,6 +283,7 @@ class RemoteUI:
                 if self._snitun.is_connected:
                     await self._snitun.wait()
 
+                self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_DISCONNECT)
                 await asyncio.sleep(random.randint(1, 15))
                 await self.connect()
         except asyncio.CancelledError:

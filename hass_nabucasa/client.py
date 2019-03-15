@@ -43,12 +43,6 @@ class CloudClient:
         """Called on logout."""
         raise NotImplementedError()
 
-    async def async_user_message(
-        self, identifier: str, title: str, message: str
-    ) -> None:
-        """Create a message for user to UI."""
-        raise NotImplementedError()
-
     async def async_alexa_message(self, payload: Dict[Any, Any]) -> Dict[Any, Any]:
         """process cloud alexa message to client."""
         raise NotImplementedError()
@@ -63,4 +57,12 @@ class CloudClient:
 
     async def async_cloudhooks_update(self, data: Dict[str, Dict[str, str]]) -> None:
         """Update local list of cloudhooks."""
+        raise NotImplementedError()
+
+    def dispatcher_message(self, identifier: str, data: Any = None) -> None:
+        """Send data to dispatcher."""
+        raise NotImplementedError()
+
+    def user_message(self, identifier: str, title: str, message: str) -> None:
+        """Create a message for user to UI."""
         raise NotImplementedError()
