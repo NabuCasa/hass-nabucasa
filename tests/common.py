@@ -181,10 +181,12 @@ class MockSnitun:
         """Stop snitun."""
         self.call_stop = True
 
-    async def connect(self, token: bytes, aes_key: bytes, aes_iv: bytes):
+    async def connect(
+        self, token: bytes, aes_key: bytes, aes_iv: bytes, throttling=None
+    ):
         """Connect snitun."""
         self.call_connect = True
-        self.connect_args = [token, aes_key, aes_iv]
+        self.connect_args = [token, aes_key, aes_iv, throttling]
 
     async def disconnect(self):
         """Disconnect snitun."""
