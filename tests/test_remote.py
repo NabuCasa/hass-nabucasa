@@ -70,6 +70,7 @@ async def test_load_backend_exists_cert(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
+            "throttling": 400
         },
     )
 
@@ -93,6 +94,7 @@ async def test_load_backend_exists_cert(
 
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
+    assert snitun_mock.connect_args[3] == 400
     assert remote.is_connected
 
     assert remote._acme_task
@@ -124,6 +126,7 @@ async def test_load_backend_not_exists_cert(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
+            "throttling": 400
         },
     )
 
@@ -147,6 +150,7 @@ async def test_load_backend_not_exists_cert(
 
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
+    assert snitun_mock.connect_args[3] == 400
 
     assert remote._acme_task
     assert remote._reconnect_task
@@ -174,6 +178,7 @@ async def test_load_and_unload_backend(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
+            "throttling": 400
         },
     )
 
@@ -231,6 +236,7 @@ async def test_load_backend_exists_wrong_cert(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
+            "throttling": 400
         },
     )
 
@@ -254,6 +260,7 @@ async def test_load_backend_exists_wrong_cert(
 
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
+    assert snitun_mock.connect_args[3] == 400
 
 
 async def test_call_disconnect(
@@ -278,6 +285,7 @@ async def test_call_disconnect(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
+            "throttling": 400
         },
     )
 
@@ -314,6 +322,7 @@ async def test_load_backend_no_autostart(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
+            "throttling": 400
         },
     )
 
@@ -331,6 +340,7 @@ async def test_load_backend_no_autostart(
 
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
+    assert snitun_mock.connect_args[3] == 400
     assert cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_CONNECT
 
 
@@ -358,6 +368,7 @@ async def test_get_certificate_details(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
+            "throttling": 400
         },
     )
 
@@ -398,6 +409,7 @@ async def test_certificate_task_no_backend(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
+            "throttling": 400
         },
     )
 
@@ -434,6 +446,7 @@ async def test_certificate_task_renew_cert(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
+            "throttling": 400
         },
     )
 

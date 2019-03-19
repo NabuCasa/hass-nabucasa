@@ -56,7 +56,12 @@ async def test_remote_token(cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post(
         "https://example.com/bla/snitun_token",
-        json={"token": "123456", "server": "rest-remote.nabu.casa", "valid": 12345},
+        json={
+            "token": "123456",
+            "server": "rest-remote.nabu.casa",
+            "valid": 12345,
+            "throttling": 400,
+        },
     )
     cloud_mock.id_token = "mock-id-token"
     cloud_mock.remote_api_url = "https://example.com/bla"
@@ -67,6 +72,7 @@ async def test_remote_token(cloud_mock, aioclient_mock):
         "token": "123456",
         "server": "rest-remote.nabu.casa",
         "valid": 12345,
+        "throttling": 400,
     }
     assert aioclient_mock.mock_calls[0][2] == {"aes_iv": "6976", "aes_key": "616573"}
 

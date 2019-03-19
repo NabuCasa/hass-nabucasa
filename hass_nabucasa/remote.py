@@ -38,6 +38,7 @@ class SniTunToken:
     aes_key = attr.ib(type=bytes)
     aes_iv = attr.ib(type=bytes)
     valid = attr.ib(type=datetime)
+    throttling = attr.ib(type=int)
 
 
 @attr.s
@@ -235,6 +236,7 @@ class RemoteUI:
             aes_key,
             aes_iv,
             utils.utc_from_timestamp(data["valid"]),
+            data["throttling"]
         )
 
     async def connect(self) -> None:
@@ -250,7 +252,8 @@ class RemoteUI:
         try:
             await self._refresh_snitun_token()
             await self._snitun.connect(
-                self._token.fernet, self._token.aes_key, self._token.aes_iv
+                self._token.fernet, self._token.aes_key, self._token.aes_iv,
+                throttling=self._token.throttling
             )
 
             self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
