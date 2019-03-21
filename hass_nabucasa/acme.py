@@ -134,6 +134,7 @@ class AcmeHandler:
             key_pem = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, key)
 
             self.path_private_key.write_bytes(key_pem)
+            self.path_private_key.chmod(0o600)
 
         return crypto_util.make_csr(key_pem, [self._domain])
 
