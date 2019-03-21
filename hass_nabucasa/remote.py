@@ -161,6 +161,7 @@ class RemoteUI:
                     "Home Assistant Cloud",
                     const.MESSAGE_REMOTE_READY,
                 )
+        self.cloud.run_task(self._acme.hardening_files())
 
         # Setup snitun / aiohttp wrapper
         context = await self._create_context()

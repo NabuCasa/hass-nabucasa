@@ -85,6 +85,7 @@ async def test_load_backend_exists_cert(
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
+    assert acme_mock.call_hardening
     assert snitun_mock.call_start
     assert snitun_mock.init_args == (None, None)
     assert snitun_mock.init_kwarg == {
