@@ -113,6 +113,7 @@ class MockAcme:
         self.call_issue = False
         self.call_reset = False
         self.call_load = False
+        self.call_hardening = False
         self.init_args = None
 
         self.common_name = None
@@ -143,6 +144,10 @@ class MockAcme:
     async def load_certificate(self):
         """Load certificate."""
         self.call_load = True
+
+    async def hardening_files(self):
+        """Hardening files."""
+        self.call_hardening = True
 
     def __call__(self, *args):
         """Init."""
