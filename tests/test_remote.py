@@ -85,6 +85,7 @@ async def test_load_backend_exists_cert(
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
+    assert acme_mock.call_hardening
     assert snitun_mock.call_start
     assert snitun_mock.init_args == (None, None)
     assert snitun_mock.init_kwarg == {
@@ -141,6 +142,7 @@ async def test_load_backend_not_exists_cert(
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
+    assert acme_mock.call_hardening
     assert snitun_mock.call_start
     assert snitun_mock.init_args == (None, None)
     assert snitun_mock.init_kwarg == {
@@ -192,6 +194,7 @@ async def test_load_and_unload_backend(
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
+    assert acme_mock.call_hardening
     assert snitun_mock.call_start
     assert not snitun_mock.call_stop
     assert snitun_mock.init_args == (None, None)
@@ -251,6 +254,7 @@ async def test_load_backend_exists_wrong_cert(
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
+    assert acme_mock.call_hardening
     assert snitun_mock.call_start
     assert snitun_mock.init_args == (None, None)
     assert snitun_mock.init_kwarg == {
@@ -332,6 +336,7 @@ async def test_load_backend_no_autostart(
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert not acme_mock.call_issue
+    assert acme_mock.call_hardening
     assert snitun_mock.call_start
 
     assert not snitun_mock.call_connect

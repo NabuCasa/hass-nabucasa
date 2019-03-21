@@ -161,6 +161,7 @@ class RemoteUI:
                     "Home Assistant Cloud",
                     const.MESSAGE_REMOTE_READY,
                 )
+        await self._acme.hardening_files()
 
         # Setup snitun / aiohttp wrapper
         context = await self._create_context()
@@ -236,7 +237,7 @@ class RemoteUI:
             aes_key,
             aes_iv,
             utils.utc_from_timestamp(data["valid"]),
-            data["throttling"]
+            data["throttling"],
         )
 
     async def connect(self) -> None:
@@ -252,8 +253,10 @@ class RemoteUI:
         try:
             await self._refresh_snitun_token()
             await self._snitun.connect(
-                self._token.fernet, self._token.aes_key, self._token.aes_iv,
-                throttling=self._token.throttling
+                self._token.fernet,
+                self._token.aes_key,
+                self._token.aes_iv,
+                throttling=self._token.throttling,
             )
 
             self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)

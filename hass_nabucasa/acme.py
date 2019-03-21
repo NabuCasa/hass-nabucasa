@@ -134,6 +134,7 @@ class AcmeHandler:
             key_pem = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, key)
 
             self.path_private_key.write_bytes(key_pem)
+            self.path_private_key.chmod(0o600)
 
         return crypto_util.make_csr(key_pem, [self._domain])
 
@@ -377,3 +378,21 @@ class AcmeHandler:
             self._acme_client = None
             self._account_jwk = None
             self._x509 = None
+
+    async def hardening_files(self) -> None:
+        """Control permission on files."""
+        def _control():
+            # Set file permission to 0600
+            if self.path_account_key.exists():
+                self.path_account_key.chmod(0o600)
+            if self.path_registration_info.exists():
+                self.path_registration_info.chmod(0o600)
+            if self.path_fullchain.exists():
+                self.path_fullchain.chmod(0o600)
+            if self.path_private_key.exists():
+                self.path_private_key.chmod(0o600)
+
+        try:
+            await self.cloud.run_executor(_control)
+        except OSError:
+            _LOGGER.warning("Can't check and hardening file permission")
