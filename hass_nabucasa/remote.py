@@ -295,6 +295,7 @@ class RemoteUI:
         except asyncio.CancelledError:
             pass
         finally:
+            _LOGGER.debug("Close remote UI reconnect guard")
             self._reconnect_task = None
 
     async def _certificate_handler(self) -> None:
