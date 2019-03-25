@@ -30,7 +30,7 @@ setup(
     packages=["hass_nabucasa"],
     install_requires=[
         "warrant==0.6.1",
-        "snitun==0.17",
+        "snitun==0.18",
         "acme==0.32.0",
         "cryptography>=2.5",
         "attrs>=18.2.0",
