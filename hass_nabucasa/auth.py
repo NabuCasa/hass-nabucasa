@@ -24,6 +24,10 @@ class UserNotFound(CloudError):
     """Raised when a user is not found."""
 
 
+class UserExists(CloudError):
+    """Raised when a username already exists."""
+
+
 class UserNotConfirmed(CloudError):
     """Raised when a user has not confirmed email yet."""
 
@@ -44,8 +48,9 @@ class UnknownError(CloudError):
 
 AWS_EXCEPTIONS = {
     "UserNotFoundException": UserNotFound,
-    "NotAuthorizedException": Unauthenticated,
     "UserNotConfirmedException": UserNotConfirmed,
+    "UsernameExistsException": UserExists,
+    "NotAuthorizedException": Unauthenticated,
     "PasswordResetRequiredException": PasswordChangeRequired,
 }
 
