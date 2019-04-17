@@ -268,7 +268,7 @@ class RemoteUI:
             pass  # Ignore because HA shutdown on snitun token refresh
         finally:
             # start retry task
-            if not self._reconnect_task:
+            if self._snitun and not self._reconnect_task:
                 self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
 
     async def disconnect(self) -> None:
@@ -290,10 +290,6 @@ class RemoteUI:
     async def _reconnect_snitun(self) -> None:
         """Reconnect after disconnect."""
         try:
-            if not self._snitun:
-                return
-
-            # Reconnect on disconnects
             while True:
                 if self._snitun.is_connected:
                     await self._snitun.wait()
