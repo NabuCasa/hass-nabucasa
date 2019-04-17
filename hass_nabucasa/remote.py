@@ -264,6 +264,8 @@ class RemoteUI:
             _LOGGER.error("Connection problem to snitun server")
         except RemoteBackendError:
             _LOGGER.error("Can't refresh the snitun token")
+        except AttributeError:
+            pass  # Ignore because HA shutdown on snitun token refresh
         finally:
             # start retry task
             if not self._reconnect_task:
@@ -288,6 +290,10 @@ class RemoteUI:
     async def _reconnect_snitun(self) -> None:
         """Reconnect after disconnect."""
         try:
+            if not self._snitun:
+                return
+
+            # Reconnect on disconnects
             while True:
                 if self._snitun.is_connected:
                     await self._snitun.wait()
