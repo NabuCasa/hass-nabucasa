@@ -70,8 +70,8 @@ jobs:
   - script: python setup.py sdist
     displayName: 'Build package'
   - script: |
-      TWINE_USERNAME="$(twineUser)"
-      TWINE_PASSWORD="$(twinePassword)"
+      export TWINE_USERNAME="$(twineUser)"
+      export TWINE_PASSWORD="$(twinePassword)"
 
       twine upload dist/*
     displayName: 'Upload pypi'
