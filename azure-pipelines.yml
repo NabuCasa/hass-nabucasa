@@ -46,5 +46,5 @@ jobs:
       versionSpec: '3.7'
   - script: pip install black
     displayName: 'Install black'
-  - script: black --check hassio
+  - script: black --check hass_nabucasa
     displayName: 'Run Black'
