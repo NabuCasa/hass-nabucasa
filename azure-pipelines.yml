@@ -1,0 +1,38 @@
+# https://dev.azure.com/NabuCasa/OpenSource
+
+trigger:
+  branches:
+    include:
+    - master
+    - dev
+  tags:
+    include:
+    - '*'
+    exclude:
+    - untagged*
+pr:
+- dev
+
+
+jobs:
+
+- job: "Tox"
+  pool:
+    vmImage: 'ubuntu-latest'
+  strategy:
+    matrix:
+      Python35:
+        python.version: '3.5'
+      Python36:
+        python.version: '3.6'
+      Python37:
+        python.version: '3.7'
+  steps:
+  - task: UsePythonVersion@0
+    displayName: 'Use Python $(python.version)'
+    inputs:
+      versionSpec: '$(python.version)'
+  - script: pip install tox
+    displayName: 'Install Tox'
+  - script: tox
+    displayName: 'Run Tox'
