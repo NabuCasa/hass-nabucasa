@@ -34,3 +34,17 @@ jobs:
     displayName: 'Install Tox'
   - script: tox
     displayName: 'Run Tox'
+
+
+- job: 'Black'
+  pool:
+    vmImage: 'ubuntu-16.04'
+  steps:
+  - task: UsePythonVersion@0
+    displayName: 'Use Python $(python.version)'
+    inputs:
+      versionSpec: '3.7'
+  - script: pip install black
+    displayName: 'Install black'
+  - script: black --check hassio
+    displayName: 'Run Black'
