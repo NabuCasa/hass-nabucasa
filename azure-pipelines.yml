@@ -13,6 +13,9 @@ trigger:
 pr:
 - dev
 
+variables:
+  - group: twine
+
 
 jobs:
 
@@ -38,13 +41,37 @@ jobs:
 
 - job: 'Black'
   pool:
-    vmImage: 'ubuntu-16.04'
+    vmImage: 'ubuntu-latest'
   steps:
   - task: UsePythonVersion@0
-    displayName: 'Use Python $(python.version)'
+    displayName: 'Use Python 3.7'
     inputs:
       versionSpec: '3.7'
   - script: pip install black
     displayName: 'Install black'
   - script: black --check hass_nabucasa tests
     displayName: 'Run Black'
+
+
+- job: 'Release'
+  condition: and(startsWith(variables['Build.SourceBranch'], 'refs/tags'), succeeded('Tox'), succeeded('Black'))
+  dependsOn:
+  - 'Tox'
+  - 'Black'
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - task: UsePythonVersion@0
+    displayName: 'Use Python 3.7'
+    inputs:
+      versionSpec: '3.7'
+  - script: pip install twine
+    displayName: 'Install twine'
+  - script: python setup.py sdist
+    displayName: 'Build package'
+  - script: |
+      TWINE_USERNAME="$(twineUser)"
+      TWINE_PASSWORD="$(twinePassword)"
+
+      twine upload dist/*
+    displayName: 'Upload pypi'
