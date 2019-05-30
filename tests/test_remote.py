@@ -70,7 +70,7 @@ async def test_load_backend_exists_cert(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
-            "throttling": 400
+            "throttling": 400,
         },
     )
 
@@ -127,7 +127,7 @@ async def test_load_backend_not_exists_cert(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
-            "throttling": 400
+            "throttling": 400,
         },
     )
 
@@ -180,7 +180,7 @@ async def test_load_and_unload_backend(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
-            "throttling": 400
+            "throttling": 400,
         },
     )
 
@@ -239,7 +239,7 @@ async def test_load_backend_exists_wrong_cert(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
-            "throttling": 400
+            "throttling": 400,
         },
     )
 
@@ -289,7 +289,7 @@ async def test_call_disconnect(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
-            "throttling": 400
+            "throttling": 400,
         },
     )
 
@@ -326,7 +326,7 @@ async def test_load_backend_no_autostart(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
-            "throttling": 400
+            "throttling": 400,
         },
     )
 
@@ -373,7 +373,7 @@ async def test_get_certificate_details(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
-            "throttling": 400
+            "throttling": 400,
         },
     )
 
@@ -414,7 +414,7 @@ async def test_certificate_task_no_backend(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
-            "throttling": 400
+            "throttling": 400,
         },
     )
 
@@ -451,7 +451,7 @@ async def test_certificate_task_renew_cert(
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
             "valid": valid.timestamp(),
-            "throttling": 400
+            "throttling": 400,
         },
     )
 

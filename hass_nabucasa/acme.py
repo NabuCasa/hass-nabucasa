@@ -192,7 +192,9 @@ class AcmeHandler:
                 network = client.ClientNetwork(
                     self._account_jwk, account=regr, user_agent=USER_AGENT
                 )
-                directory = messages.Directory.from_json(network.get(self._acme_server).json())
+                directory = messages.Directory.from_json(
+                    network.get(self._acme_server).json()
+                )
                 self._acme_client = client.ClientV2(directory, net=network)
             except errors.Error as err:
                 _LOGGER.error("Can't connect to ACME server: %s", err)
@@ -202,7 +204,9 @@ class AcmeHandler:
         # Create a new registration
         try:
             network = client.ClientNetwork(self._account_jwk, user_agent=USER_AGENT)
-            directory = messages.Directory.from_json(network.get(self._acme_server).json())
+            directory = messages.Directory.from_json(
+                network.get(self._acme_server).json()
+            )
             self._acme_client = client.ClientV2(directory, net=network)
         except errors.Error as err:
             _LOGGER.error("Can't connect to ACME server: %s", err)
@@ -287,8 +291,7 @@ class AcmeHandler:
         def _load_cert():
             """Load certificate in a thread."""
             return x509.load_pem_x509_certificate(
-                self.path_fullchain.read_bytes(),
-                default_backend()
+                self.path_fullchain.read_bytes(), default_backend()
             )
 
         self._x509 = await self.cloud.run_executor(_load_cert)
@@ -363,7 +366,9 @@ class AcmeHandler:
             await self.cloud.run_executor(self._finish_challenge, challenge)
             await self.load_certificate()
         finally:
-            await cloud_api.async_remote_challenge_cleanup(self.cloud, challenge.validation)
+            await cloud_api.async_remote_challenge_cleanup(
+                self.cloud, challenge.validation
+            )
 
     async def reset_acme(self) -> None:
         """Revoke and deactivate acme certificate/account."""
@@ -381,6 +386,7 @@ class AcmeHandler:
 
     async def hardening_files(self) -> None:
         """Control permission on files."""
+
         def _control():
             # Set file permission to 0600
             if self.path_account_key.exists():
