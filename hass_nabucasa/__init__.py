@@ -152,6 +152,10 @@ class Cloud:
 
     def write_user_info(self) -> None:
         """Write user info to a file."""
+        base_path = self.path()
+        if not base_path.exists():
+            base_path.mkdir()
+
         self.user_info_path.write_text(
             json.dumps(
                 {
@@ -162,6 +166,7 @@ class Cloud:
                 indent=4,
             )
         )
+        self.user_info_path.chmod(0o600)
 
     async def start(self):
         """Start the cloud component."""
