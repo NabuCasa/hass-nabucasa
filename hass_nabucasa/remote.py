@@ -315,7 +315,7 @@ class RemoteUI:
                     continue
 
                 # Renew certificate?
-                if self._acme.expire_date > utils.utcnow() + timedelta(days=14):
+                if self._acme.expire_date > utils.utcnow() + timedelta(days=25):
                     continue
 
                 # Renew certificate
