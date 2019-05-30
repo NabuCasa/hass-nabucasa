@@ -340,4 +340,3 @@ async def test_send_message_answer(loop, cloud_mock_iot):
     cloud_iot._response_handler[uuid].set_result({"response": True})
     response = await send_task
     assert response == {"response": True}
-
