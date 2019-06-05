@@ -74,9 +74,9 @@ jobs:
         exit 1
       fi
     displayName: 'Check version of branch/tag'
-  - script: pip install twine
+  - script: pip install twine wheel
     displayName: 'Install twine'
-  - script: python setup.py sdist
+  - script: python setup.py sdist bdist_wheel
     displayName: 'Build package'
   - script: |
       export TWINE_USERNAME="$(twineUser)"
