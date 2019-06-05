@@ -322,6 +322,9 @@ class RemoteUI:
                 try:
                     await self._acme.issue_certificate()
                     await self.close_backend()
+
+                    # Wait until backend is cleaned
+                    await asyncio.sleep(5)
                     await self.load_backend()
                 except AcmeClientError:
                     _LOGGER.warning(
