@@ -17,6 +17,9 @@ from .acme import AcmeClientError, AcmeHandler
 
 _LOGGER = logging.getLogger(__name__)
 
+RENEW_IF_EXPIRES_DAYS = 25
+WARN_RENEW_FAILED_DAYS = 18
+
 
 class RemoteError(Exception):
     """General remote error."""
@@ -307,7 +310,7 @@ class RemoteUI:
         """Handle certification ACME Tasks."""
         try:
             while True:
-                await asyncio.sleep(utils.next_midnight())
+                await asyncio.sleep(utils.next_midnight() + random.randint(1, 3600))
 
                 # Backend not initialize / No certificate issue now
                 if not self._snitun:
@@ -315,18 +318,31 @@ class RemoteUI:
                     continue
 
                 # Renew certificate?
-                if self._acme.expire_date > utils.utcnow() + timedelta(days=25):
+                if self._acme.expire_date > utils.utcnow() + timedelta(
+                    days=RENEW_IF_EXPIRES_DAYS
+                ):
                     continue
 
                 # Renew certificate
                 try:
                     await self._acme.issue_certificate()
                     await self.close_backend()
+
+                    # Wait until backend is cleaned
+                    await asyncio.sleep(5)
                     await self.load_backend()
                 except AcmeClientError:
-                    _LOGGER.warning(
-                        "Renew of ACME certificate fails. Try it lager again"
-                    )
+                    # Only log as warning if we have a certain amount of days left
+                    if (
+                        self._acme.expire_date
+                        > utils.utcnow()
+                        < timedelta(days=WARN_RENEW_FAILED_DAYS)
+                    ):
+                        meth = _LOGGER.warning
+                    else:
+                        meth = _LOGGER.debug
+
+                    meth("Renewal of ACME certificate failed. Please try again later.")
 
         except asyncio.CancelledError:
             pass
