@@ -332,7 +332,7 @@ class RemoteUI:
                     await asyncio.sleep(5)
                     await self.load_backend()
                 except AcmeClientError:
-                    # Only log as warning if we have
+                    # Only log as warning if we have a certain amount of days left
                     if (
                         self._acme.expire_date
                         > utils.utcnow()
