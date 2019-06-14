@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 from typing import Optional, Any
 
+from hass_nabucasa import Cloud
 from hass_nabucasa.client import CloudClient
 
 
@@ -72,6 +73,10 @@ class TestClient(CloudClient):
     def remote_autostart(self) -> bool:
         """Return true if we want start a remote connection."""
         return self.prop_remote_autostart
+
+    async def async_initialize(self, cloud: "Cloud") -> None:
+        """Initialize the client."""
+        self.cloud = cloud
 
     async def cleanups(self):
         """Need nothing to do."""

@@ -25,6 +25,7 @@ def test_constructor_loads_info_from_constant(cloud_client):
                 "subscription_info_url": "test-subscription-info-url",
                 "cloudhook_create_url": "test-cloudhook_create_url",
                 "remote_api_url": "test-remote_api_url",
+                "alexa_access_token_url": "test-alexa-token-url",
                 "acme_directory_server": "test-acme-directory-server",
             }
         },

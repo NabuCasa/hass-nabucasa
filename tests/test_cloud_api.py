@@ -97,3 +97,13 @@ async def test_remote_challenge_cleanup(cloud_mock, aioclient_mock):
     resp = await cloud_api.async_remote_challenge_cleanup(cloud_mock, "123456")
     assert len(aioclient_mock.mock_calls) == 1
     assert aioclient_mock.mock_calls[0][2] == {"txt": "123456"}
+
+
+async def test_get_access_token(cloud_mock, aioclient_mock):
+    """Test creating a cloudhook."""
+    aioclient_mock.post("https://example.com/bla")
+    cloud_mock.id_token = "mock-id-token"
+    cloud_mock.alexa_access_token_url = "https://example.com/bla"
+
+    resp = await cloud_api.async_alexa_access_token(cloud_mock)
+    assert len(aioclient_mock.mock_calls) == 1
