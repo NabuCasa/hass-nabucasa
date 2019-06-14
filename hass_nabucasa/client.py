@@ -1,9 +1,12 @@
 """Client interface for Home Assistant to cloud."""
 import asyncio
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, TYPE_CHECKING
 
 import aiohttp
+
+if TYPE_CHECKING:
+    from . import Cloud
 
 
 class CloudClient:
@@ -37,6 +40,10 @@ class CloudClient:
     @property
     def remote_autostart(self) -> bool:
         """Return true if we want start a remote connection."""
+        raise NotImplementedError()
+
+    async def async_initialize(self, cloud: "Cloud") -> None:
+        """Initialize the client."""
         raise NotImplementedError()
 
     async def cleanups(self) -> None:

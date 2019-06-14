@@ -34,6 +34,7 @@ class Cloud:
         subscription_info_url=None,
         cloudhook_create_url=None,
         remote_api_url=None,
+        alexa_access_token_url=None,
         acme_directory_server=None,
     ):
         """Create an instance of Cloud."""
@@ -56,6 +57,7 @@ class Cloud:
             self.subscription_info_url = subscription_info_url
             self.cloudhook_create_url = cloudhook_create_url
             self.remote_api_url = remote_api_url
+            self.alexa_access_token_url = alexa_access_token_url
             self.acme_directory_server = acme_directory_server
 
         else:
@@ -69,6 +71,7 @@ class Cloud:
             self.subscription_info_url = info["subscription_info_url"]
             self.cloudhook_create_url = info["cloudhook_create_url"]
             self.remote_api_url = info["remote_api_url"]
+            self.alexa_access_token_url = info["alexa_access_token_url"]
             self.acme_directory_server = info["acme_directory_server"]
 
     @property
@@ -183,6 +186,8 @@ class Cloud:
             return json.loads(self.user_info_path.read_text())
 
         info = await self.run_executor(load_config)
+
+        await self.client.async_initialize(self)
 
         if info is None:
             return
