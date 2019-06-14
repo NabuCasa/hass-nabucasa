@@ -30,6 +30,7 @@ SERVERS = {
         ),
         "cloudhook_create_url": "https://webhooks-api.nabucasa.com/generate",
         "remote_api_url": "https://remote-sni-api.nabucasa.com",
+        "alexa_access_token_url": "https://alexa-api.nabucasa.com/access_token",
         "acme_directory_server": "https://acme-v02.api.letsencrypt.org/directory",
     }
 }

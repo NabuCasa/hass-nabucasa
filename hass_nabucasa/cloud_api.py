@@ -80,3 +80,11 @@ async def async_remote_challenge_cleanup(cloud, txt: str):
     return await cloud.websession.post(
         url, headers={AUTHORIZATION: cloud.id_token}, json={"txt": txt}
     )
+
+
+@_check_token
+async def async_alexa_access_token(cloud):
+    """Create a cloudhook."""
+    return await cloud.websession.post(
+        cloud.alexa_access_token_url, headers={AUTHORIZATION: cloud.id_token}
+    )
