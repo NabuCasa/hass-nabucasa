@@ -188,6 +188,7 @@ class Cloud:
         info = await self.run_executor(load_config)
 
         if info is None:
+            await self.client.async_initialize(self)
             return
 
         self.id_token = info["id_token"]
