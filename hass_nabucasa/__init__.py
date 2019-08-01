@@ -187,7 +187,6 @@ class Cloud:
 
         info = await self.run_executor(load_config)
 
-        
         if info is None:
             return
 
@@ -196,7 +195,7 @@ class Cloud:
         self.refresh_token = info["refresh_token"]
 
         await self.client.async_initialize(self)
-        
+
         self.run_task(self.iot.connect())
 
     async def stop(self):
