@@ -314,8 +314,10 @@ class AcmeHandler:
         except errors.ConflictError:
             pass
         except errors.Error as err:
-            _LOGGER.error("Can't revoke certificate: %s", err)
-            raise AcmeClientError() from None
+            # Ignore errors where certificate did not exist
+            if "No such certificate" not in str(err):
+                _LOGGER.error("Can't revoke certificate: %s", err)
+                raise AcmeClientError() from None
 
         self.path_fullchain.unlink()
         self.path_private_key.unlink()
