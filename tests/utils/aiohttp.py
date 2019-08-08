@@ -47,7 +47,7 @@ class AiohttpClientMocker:
         params=None,
         headers={},
         exc=None,
-        cookies=None
+        cookies=None,
     ):
         """Mock a request."""
         if json is not None:
@@ -117,7 +117,7 @@ class AiohttpClientMocker:
         headers=None,
         allow_redirects=None,
         timeout=None,
-        json=None
+        json=None,
     ):
         """Match a request against pre-registered requests."""
         data = data or json
