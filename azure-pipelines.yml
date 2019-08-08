@@ -49,7 +49,8 @@ jobs:
       versionSpec: '3.7'
   - script: pip install black
     displayName: 'Install black'
-  - script: black --check hass_nabucasa tests
+  - script: |
+      black --target-version py36 --check hass_nabucasa tests
     displayName: 'Run Black'
 
 
