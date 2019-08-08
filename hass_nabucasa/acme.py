@@ -352,7 +352,7 @@ class AcmeHandler:
 
         # Update DNS
         try:
-            async with async_timeout.timeout(15):
+            async with async_timeout.timeout(30):
                 resp = await cloud_api.async_remote_challenge_txt(
                     self.cloud, challenge.validation
                 )

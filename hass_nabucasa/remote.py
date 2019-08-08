@@ -121,7 +121,7 @@ class RemoteUI:
 
         # Load instance data from backend
         try:
-            async with async_timeout.timeout(15):
+            async with async_timeout.timeout(30):
                 resp = await cloud_api.async_remote_register(self.cloud)
             assert resp.status == 200
         except (asyncio.TimeoutError, AssertionError):
@@ -228,7 +228,7 @@ class RemoteUI:
         # Generate session token
         aes_key, aes_iv = generate_aes_keyset()
         try:
-            async with async_timeout.timeout(15):
+            async with async_timeout.timeout(30):
                 resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
             assert resp.status == 200
         except (asyncio.TimeoutError, AssertionError):
