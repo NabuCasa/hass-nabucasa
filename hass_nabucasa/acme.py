@@ -60,13 +60,13 @@ class AcmeHandler:
     def __init__(self, cloud, domain: str, email: str) -> None:
         """Initialize local ACME Handler."""
         self.cloud = cloud
-        self._acme_server = cloud.acme_directory_server
-        self._account_jwk = None
-        self._acme_client = None
-        self._x509 = None
+        self._acme_server: str = cloud.acme_directory_server
+        self._account_jwk: Optional[jose.JWKRSA] = None
+        self._acme_client: Optional[client.ClientV2] = None
+        self._x509: Optional[x509.Certificate] = None
 
-        self._domain = domain
-        self._email = email
+        self._domain: str = domain
+        self._email: str = email
 
     @property
     def path_account_key(self) -> Path:
