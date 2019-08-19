@@ -197,7 +197,7 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            **kwargs
+            **kwargs,
         )
         cognito.client = boto3.client(
             "cognito-idp",
