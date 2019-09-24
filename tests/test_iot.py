@@ -206,8 +206,9 @@ async def test_cloud_check_token_raising(mock_client, caplog, cloud_mock_iot):
 async def test_cloud_connect_invalid_auth(mock_client, caplog, cloud_mock_iot):
     """Test invalid auth detected by server."""
     conn = iot.CloudIoT(cloud_mock_iot)
+    request_info = Mock(real_url="http://example.com")
     mock_client.receive.side_effect = client_exceptions.WSServerHandshakeError(
-        None, None, status=401
+        request_info=request_info, history=None, status=401
     )
 
     await conn.connect()

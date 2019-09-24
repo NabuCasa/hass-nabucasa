@@ -39,21 +39,6 @@ jobs:
     displayName: 'Run Tox'
 
 
-- job: 'Black'
-  pool:
-    vmImage: 'ubuntu-latest'
-  steps:
-  - task: UsePythonVersion@0
-    displayName: 'Use Python 3.7'
-    inputs:
-      versionSpec: '3.7'
-  - script: pip install black
-    displayName: 'Install black'
-  - script: |
-      black --target-version py36 --check hass_nabucasa tests
-    displayName: 'Run Black'
-
-
 - job: 'Release'
   condition: and(startsWith(variables['Build.SourceBranch'], 'refs/tags'), succeeded('Tox'), succeeded('Black'))
   dependsOn:

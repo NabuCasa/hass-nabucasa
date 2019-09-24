@@ -188,11 +188,11 @@ class CloudIoT:
                 if msg.type in (WSMsgType.CLOSED, WSMsgType.CLOSING):
                     break
 
-                elif msg.type == WSMsgType.ERROR:
+                if msg.type == WSMsgType.ERROR:
                     disconnect_warn = "Connection error"
                     break
 
-                elif msg.type != WSMsgType.TEXT:
+                if msg.type != WSMsgType.TEXT:
                     disconnect_warn = "Received non-Text message: {}".format(msg.type)
                     break
 
