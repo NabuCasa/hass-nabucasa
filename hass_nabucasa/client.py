@@ -7,6 +7,8 @@ import aiohttp
 
 if TYPE_CHECKING:
     from . import Cloud
+    from homeassistant.components.google.helpers import AbstractConfig as GoogleConfig
+    from homeassistant.components.alexa.config import AbstractConfig as AlexaConfig
 
 
 class CloudClient:
@@ -40,6 +42,16 @@ class CloudClient:
     @property
     def remote_autostart(self) -> bool:
         """Return true if we want start a remote connection."""
+        raise NotImplementedError()
+
+    @property
+    def alexa_config(self) -> "AlexaConfig":
+        """Return Alexa config."""
+        raise NotImplementedError()
+
+    @property
+    def google_config(self) -> "GoogleConfig":
+        """Return Google config."""
         raise NotImplementedError()
 
     async def async_initialize(self, cloud: "Cloud") -> None:
