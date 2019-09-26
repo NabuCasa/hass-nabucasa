@@ -124,19 +124,21 @@ class BaseIoT:
             self.tries += 1
 
             try:
-                # Sleep 2^tries + 0…tries*3 seconds between retries
-                self.retry_task = self.cloud.run_task(
-                    asyncio.sleep(
-                        2 ** min(9, self.tries) + random.randint(0, self.tries * 3)
-                    )
-                )
-                await self.retry_task
-                self.retry_task = None
+                await self._wait_retry()
             except asyncio.CancelledError:
                 # Happens if disconnect called
                 break
 
         self.state = STATE_DISCONNECTED
+
+    async def _wait_retry(self):
+        """Wait until it's time till the next retry."""
+        # Sleep 2^tries + 0…tries*3 seconds between retries
+        self.retry_task = self.cloud.run_task(
+            asyncio.sleep(2 ** min(9, self.tries) + random.randint(0, self.tries * 3))
+        )
+        await self.retry_task
+        self.retry_task = None
 
     async def _handle_connection(self):
         """Connect to the IoT broker."""
