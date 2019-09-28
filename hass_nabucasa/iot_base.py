@@ -180,10 +180,12 @@ class BaseIoT:
 
             if self._on_connect:
                 results = await asyncio.gather(*[cb() for cb in self._on_connect])
-                for result, cb in zip(results, self._on_connect):
+                for result, callback in zip(results, self._on_connect):
                     if isinstance(result, Exception):
                         self._logger.error(
-                            "Unexpected error in on_connect %s", cb, exc_info=result
+                            "Unexpected error in on_connect %s",
+                            callback,
+                            exc_info=result,
                         )
 
             while not client.closed:
