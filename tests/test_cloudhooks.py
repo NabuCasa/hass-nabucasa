@@ -9,14 +9,14 @@ from .common import mock_coro
 
 
 @pytest.fixture
-def mock_cloudhooks(cloud_mock):
+def mock_cloudhooks(auth_cloud_mock):
     """Mock cloudhooks class."""
-    cloud_mock.run_executor = Mock(side_effect=lambda *a, **kw: mock_coro())
-    cloud_mock.iot = Mock(
+    auth_cloud_mock.run_executor = Mock(side_effect=lambda *a, **kw: mock_coro())
+    auth_cloud_mock.iot = Mock(
         async_send_message=Mock(side_effect=lambda *a, **kw: mock_coro())
     )
-    cloud_mock.cloudhook_create_url = "https://webhook-create.url"
-    return cloudhooks.Cloudhooks(cloud_mock)
+    auth_cloud_mock.cloudhook_create_url = "https://webhook-create.url"
+    return cloudhooks.Cloudhooks(auth_cloud_mock)
 
 
 async def test_enable(mock_cloudhooks, aioclient_mock):

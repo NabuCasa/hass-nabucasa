@@ -6,9 +6,8 @@ import random
 
 from aiohttp import WSMsgType, client_exceptions, hdrs
 
-from .auth import Unauthenticated, CloudError
+from .auth import CloudError
 from .const import (
-    MESSAGE_AUTH_FAIL,
     MESSAGE_EXPIRATION,
     STATE_CONNECTED,
     STATE_CONNECTING,
@@ -143,19 +142,11 @@ class BaseIoT:
     async def _handle_connection(self):
         """Connect to the IoT broker."""
         try:
-            await self.cloud.run_executor(self.cloud.auth.check_token)
-        except Unauthenticated as err:
-            self._logger.error("Unable to refresh token: %s", err)
-
-            self.cloud.client.user_message(
-                "cloud_subscription_expired", "Home Assistant Cloud", MESSAGE_AUTH_FAIL
-            )
-
-            # Don't await it because it will cancel this task
-            self.cloud.run_task(self.cloud.logout())
-            return
+            self.cloud.auth.async_check_token()
         except CloudError as err:
-            self._logger.warning("Unable to refresh token: %s", err)
+            self._logger.warning(
+                "Cannot connect because unable to refresh token: %s", err
+            )
             return
 
         if self.require_subscription and self.cloud.subscription_expired:

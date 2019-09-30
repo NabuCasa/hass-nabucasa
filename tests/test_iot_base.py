@@ -65,7 +65,6 @@ def mock_client(cloud_mock):
 def cloud_mock_iot(cloud_mock):
     """Mock cloud class."""
     cloud_mock.subscription_expired = False
-    cloud_mock.run_executor = Mock(return_value=mock_coro())
     yield cloud_mock
 
 
@@ -110,11 +109,11 @@ async def test_cloud_sending_invalid_json(mock_client, caplog, cloud_mock_iot):
 async def test_cloud_check_token_raising(mock_client, caplog, cloud_mock_iot):
     """Test cloud unable to check token."""
     conn = MockIoT(cloud_mock_iot)
-    cloud_mock_iot.run_executor = mock_coro_func(exception=auth_api.CloudError("BLA"))
+    cloud_mock_iot.auth.async_check_token.side_effect = auth_api.CloudError("BLA")
 
     await conn.connect()
 
-    assert "Unable to refresh token: BLA" in caplog.text
+    assert "Cannot connect because unable to refresh token: BLA" in caplog.text
 
 
 async def test_cloud_connect_invalid_auth(mock_client, caplog, cloud_mock_iot):
@@ -157,7 +156,7 @@ async def test_refresh_token_before_expiration_fails(cloud_mock):
 
     await conn.connect()
 
-    assert len(cloud_mock.auth.check_token.mock_calls) == 1
+    assert len(cloud_mock.auth.async_check_token.mock_calls) == 1
     assert len(cloud_mock.client.mock_user) == 1
 
 
@@ -168,7 +167,7 @@ async def test_refresh_token_expired(cloud_mock):
 
     await conn.connect()
 
-    assert len(cloud_mock.auth.check_token.mock_calls) == 1
+    assert len(cloud_mock.auth.async_check_token.mock_calls) == 1
     assert len(cloud_mock.client.mock_user) == 1
 
 

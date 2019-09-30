@@ -34,7 +34,6 @@ def mock_client(cloud_mock):
 def cloud_mock_iot(cloud_mock):
     """Mock cloud class."""
     cloud_mock.subscription_expired = False
-    cloud_mock.run_executor = Mock(return_value=mock_coro())
     yield cloud_mock
 
 

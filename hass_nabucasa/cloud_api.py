@@ -13,7 +13,7 @@ def _check_token(func):
     @wraps(func)
     async def check_token(cloud, *args):
         """Validate token, then call func."""
-        await cloud.run_executor(cloud.auth.check_token)
+        await cloud.auth.async_check_token()
         return await func(cloud, *args)
 
     return check_token

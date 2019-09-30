@@ -134,7 +134,7 @@ class Cloud:
 
     async def fetch_subscription_info(self):
         """Fetch subscription info."""
-        await self.run_executor(self.auth.check_token)
+        await self.auth.async_check_token()
         return await self.websession.get(
             self.subscription_info_url, headers={"authorization": self.id_token}
         )

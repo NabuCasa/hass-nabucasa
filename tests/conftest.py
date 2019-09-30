@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from .utils.aiohttp import mock_aiohttp_client, AiohttpClientMocker
-from .common import TestClient
+from .common import TestClient, mock_coro
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -35,6 +35,13 @@ async def cloud_mock(loop, aioclient_mock):
     yield cloud
 
     await cloud.websession.close()
+
+
+@pytest.fixture
+def auth_cloud_mock(cloud_mock):
+    """Return an authenticated cloud instance."""
+    cloud_mock.auth.async_check_token = mock_coro
+    return cloud_mock
 
 
 @pytest.fixture
