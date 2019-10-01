@@ -41,20 +41,20 @@ async def snitun_mock():
         yield snitun
 
 
-def test_init_remote(cloud_mock):
+def test_init_remote(auth_cloud_mock):
     """Init remote object."""
-    remote = RemoteUI(cloud_mock)
+    remote = RemoteUI(auth_cloud_mock)
 
-    assert len(cloud_mock.iot.mock_calls) == 2
+    assert len(auth_cloud_mock.iot.mock_calls) == 2
 
 
 async def test_load_backend_exists_cert(
-    cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    cloud_mock.remote_api_url = "https://test.local/api"
-    remote = RemoteUI(cloud_mock)
+    auth_cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
         "https://test.local/api/register_instance",
@@ -81,7 +81,7 @@ async def test_load_backend_exists_cert(
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert not acme_mock.call_issue
     assert acme_mock.init_args == (
-        cloud_mock,
+        auth_cloud_mock,
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
@@ -101,17 +101,17 @@ async def test_load_backend_exists_cert(
     assert remote._acme_task
     assert remote._reconnect_task
 
-    assert cloud_mock.client.mock_dispatcher[0][0] == DISPATCH_REMOTE_BACKEND_UP
-    assert cloud_mock.client.mock_dispatcher[1][0] == DISPATCH_REMOTE_CONNECT
+    assert auth_cloud_mock.client.mock_dispatcher[0][0] == DISPATCH_REMOTE_BACKEND_UP
+    assert auth_cloud_mock.client.mock_dispatcher[1][0] == DISPATCH_REMOTE_CONNECT
 
 
 async def test_load_backend_not_exists_cert(
-    cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    cloud_mock.remote_api_url = "https://test.local/api"
-    remote = RemoteUI(cloud_mock)
+    auth_cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
         "https://test.local/api/register_instance",
@@ -138,7 +138,7 @@ async def test_load_backend_not_exists_cert(
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert acme_mock.call_issue
     assert acme_mock.init_args == (
-        cloud_mock,
+        auth_cloud_mock,
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
@@ -159,12 +159,12 @@ async def test_load_backend_not_exists_cert(
 
 
 async def test_load_and_unload_backend(
-    cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    cloud_mock.remote_api_url = "https://test.local/api"
-    remote = RemoteUI(cloud_mock)
+    auth_cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
         "https://test.local/api/register_instance",
@@ -190,7 +190,7 @@ async def test_load_and_unload_backend(
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert not acme_mock.call_issue
     assert acme_mock.init_args == (
-        cloud_mock,
+        auth_cloud_mock,
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
@@ -214,16 +214,16 @@ async def test_load_and_unload_backend(
     assert not remote._acme_task
     assert not remote._reconnect_task
 
-    assert cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_BACKEND_DOWN
+    assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_BACKEND_DOWN
 
 
 async def test_load_backend_exists_wrong_cert(
-    cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    cloud_mock.remote_api_url = "https://test.local/api"
-    remote = RemoteUI(cloud_mock)
+    auth_cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
         "https://test.local/api/register_instance",
@@ -250,7 +250,7 @@ async def test_load_backend_exists_wrong_cert(
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert acme_mock.call_reset
     assert acme_mock.init_args == (
-        cloud_mock,
+        auth_cloud_mock,
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
@@ -268,12 +268,12 @@ async def test_load_backend_exists_wrong_cert(
 
 
 async def test_call_disconnect(
-    cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    cloud_mock.remote_api_url = "https://test.local/api"
-    remote = RemoteUI(cloud_mock)
+    auth_cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
         "https://test.local/api/register_instance",
@@ -301,16 +301,16 @@ async def test_call_disconnect(
     await remote.disconnect()
     assert snitun_mock.call_disconnect
     assert not remote.is_connected
-    assert cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_DISCONNECT
+    assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_DISCONNECT
 
 
 async def test_load_backend_no_autostart(
-    cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    cloud_mock.remote_api_url = "https://test.local/api"
-    remote = RemoteUI(cloud_mock)
+    auth_cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
         "https://test.local/api/register_instance",
@@ -330,7 +330,7 @@ async def test_load_backend_no_autostart(
         },
     )
 
-    cloud_mock.client.prop_remote_autostart = False
+    auth_cloud_mock.client.prop_remote_autostart = False
     await remote.load_backend()
     await asyncio.sleep(0.1)
 
@@ -346,16 +346,16 @@ async def test_load_backend_no_autostart(
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
-    assert cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_CONNECT
+    assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_CONNECT
 
 
 async def test_get_certificate_details(
-    cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    cloud_mock.remote_api_url = "https://test.local/api"
-    remote = RemoteUI(cloud_mock)
+    auth_cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(auth_cloud_mock)
 
     assert remote.certificate is None
 
@@ -377,7 +377,7 @@ async def test_get_certificate_details(
         },
     )
 
-    cloud_mock.client.prop_remote_autostart = False
+    auth_cloud_mock.client.prop_remote_autostart = False
     await remote.load_backend()
     await asyncio.sleep(0.1)
     assert remote.certificate is None
@@ -393,12 +393,12 @@ async def test_get_certificate_details(
 
 
 async def test_certificate_task_no_backend(
-    loop, cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    loop, auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    cloud_mock.remote_api_url = "https://test.local/api"
-    remote = RemoteUI(cloud_mock)
+    auth_cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
         "https://test.local/api/register_instance",
@@ -432,12 +432,12 @@ async def test_certificate_task_no_backend(
 
 
 async def test_certificate_task_renew_cert(
-    loop, cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    loop, auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    cloud_mock.remote_api_url = "https://test.local/api"
-    remote = RemoteUI(cloud_mock)
+    auth_cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
         "https://test.local/api/register_instance",
