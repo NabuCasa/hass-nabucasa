@@ -29,17 +29,32 @@ async def test_send_messages(loop, ws_server):
         """handle a server msg."""
         incoming = msg.json()
         server_msgs.append(incoming["payload"])
-        return {"msgid": incoming["msgid"], "payload": incoming["payload"]["hello"]}
+
+        # First msg is ok
+        if incoming["payload"]["hello"] == 0:
+            return {"msgid": incoming["msgid"], "payload": "mock-response"}
+
+        # Second msg is error
+        return {
+            "msgid": incoming["msgid"],
+            "error": "mock-code",
+            "message": "mock-message",
+        }
 
     grs = await create_grs(loop, ws_server, handle_server_msg)
     assert grs.state == iot_base.STATE_DISCONNECTED
 
     # Test we can handle two simultaneous messages while disconnected
     responses = await asyncio.gather(
-        *[grs.async_send_message({"hello": 0}), grs.async_send_message({"hello": 1})]
+        *[grs.async_send_message({"hello": 0}), grs.async_send_message({"hello": 1})],
+        return_exceptions=True
     )
     assert grs.state == iot_base.STATE_CONNECTED
-    assert responses == [0, 1]
+    assert len(responses) == 2
+    assert responses[0] == "mock-response"
+    assert isinstance(responses[1], ErrorResponse)
+    assert responses[1].code == "mock-code"
+    assert responses[1].message == "mock-message"
 
     assert sorted(server_msgs, key=lambda val: val["hello"]) == [
         {"hello": 0},

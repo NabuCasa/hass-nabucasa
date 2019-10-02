@@ -21,6 +21,7 @@ class ErrorResponse(Exception):
         """Initialize error response."""
         super().__init__(code)
         self.code = code
+        self.message = message
 
 
 class GoogleReportState(iot_base.BaseIoT):
