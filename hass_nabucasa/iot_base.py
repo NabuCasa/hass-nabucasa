@@ -38,7 +38,7 @@ class BaseIoT:
         self._on_connect = []
         self._on_disconnect = []
         self._logger = logging.getLogger(self.package_name)
-        self._disconnect_event = asyncio.Event()
+        self._disconnect_event = None
 
     @property
     def package_name(self) -> str:
@@ -98,7 +98,7 @@ class BaseIoT:
         self.close_requested = False
         self.state = STATE_CONNECTING
         self.tries = 0
-        self._disconnect_event.clear()
+        self._disconnect_event = asyncio.Event()
 
         while True:
             try:
@@ -133,6 +133,7 @@ class BaseIoT:
 
         self.state = STATE_DISCONNECTED
         self._disconnect_event.set()
+        self._disconnect_event = None
 
     async def _wait_retry(self):
         """Wait until it's time till the next retry."""
@@ -228,9 +229,6 @@ class BaseIoT:
 
     async def disconnect(self):
         """Disconnect the client."""
-        if self.state == STATE_DISCONNECTED:
-            return
-
         self.close_requested = True
 
         if self.client is not None:
@@ -238,4 +236,5 @@ class BaseIoT:
         elif self.retry_task is not None:
             self.retry_task.cancel()
 
-        await self._disconnect_event.wait()
+        if self._disconnect_event is not None:
+            await self._disconnect_event.wait()
