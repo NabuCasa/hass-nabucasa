@@ -43,10 +43,8 @@ class GoogleReportState(iot_base.BaseIoT):
                 # Give connect time to start up and change state.
                 await asyncio.sleep(0)
 
-        if self._to_send.qsize() == MAX_PENDING:
+        if self._to_send.full():
             self._to_send.get_nowait()
-            self._to_send.task_done()
-
         self._to_send.put_nowait(msg)
 
     def async_handle_message(self, msg):
