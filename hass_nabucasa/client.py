@@ -7,6 +7,7 @@ import aiohttp
 
 if TYPE_CHECKING:
     from . import Cloud
+    # pylint: disable=import-error
     from homeassistant.components.google.helpers import AbstractConfig as GoogleConfig
     from homeassistant.components.alexa.config import AbstractConfig as AlexaConfig
 
