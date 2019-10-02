@@ -12,6 +12,7 @@ from .client import CloudClient
 from .cloudhooks import Cloudhooks
 from .auth import CognitoAuth
 from .const import CONFIG_DIR, MODE_DEV, SERVERS, STATE_CONNECTED
+from .google_report_state import GoogleReportState
 from .iot import CloudIoT
 from .remote import RemoteUI
 from .utils import parse_date, utcnow, UTC
@@ -30,6 +31,7 @@ class Cloud:
         user_pool_id=None,
         region=None,
         relayer=None,
+        google_actions_report_state_url=None,
         google_actions_sync_url=None,
         subscription_info_url=None,
         cloudhook_create_url=None,
@@ -44,6 +46,7 @@ class Cloud:
         self.access_token = None
         self.refresh_token = None
         self.iot = CloudIoT(self)
+        self.google_report_state = GoogleReportState(self)
         self.cloudhooks = Cloudhooks(self)
         self.remote = RemoteUI(self)
         self.auth = CognitoAuth(self)
@@ -53,6 +56,7 @@ class Cloud:
             self.user_pool_id = user_pool_id
             self.region = region
             self.relayer = relayer
+            self.google_actions_report_state_url = google_actions_report_state_url
             self.google_actions_sync_url = google_actions_sync_url
             self.subscription_info_url = subscription_info_url
             self.cloudhook_create_url = cloudhook_create_url
@@ -67,6 +71,9 @@ class Cloud:
             self.user_pool_id = info["user_pool_id"]
             self.region = info["region"]
             self.relayer = info["relayer"]
+            self.google_actions_report_state_url = info[
+                "google_actions_report_state_url"
+            ]
             self.google_actions_sync_url = info["google_actions_sync_url"]
             self.subscription_info_url = info["subscription_info_url"]
             self.cloudhook_create_url = info["cloudhook_create_url"]
@@ -142,6 +149,7 @@ class Cloud:
     async def logout(self) -> None:
         """Close connection and remove all credentials."""
         await self.iot.disconnect()
+        await self.google_report_state.disconnect()
 
         self.id_token = None
         self.access_token = None

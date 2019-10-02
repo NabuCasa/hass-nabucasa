@@ -38,6 +38,7 @@ class BaseIoT:
         self._on_connect = []
         self._on_disconnect = []
         self._logger = logging.getLogger(self.package_name)
+        self._disconnect_event = None
 
     @property
     def package_name(self) -> str:
@@ -97,9 +98,11 @@ class BaseIoT:
         self.close_requested = False
         self.state = STATE_CONNECTING
         self.tries = 0
+        self._disconnect_event = asyncio.Event()
 
         while True:
             try:
+                self._logger.debug("Trying to connect")
                 await self._handle_connection()
             except Exception:  # pylint: disable=broad-except
                 # Safety net. This should never hit.
@@ -108,7 +111,7 @@ class BaseIoT:
 
             if self.state == STATE_CONNECTED and self._on_disconnect:
                 try:
-                    await asyncio.wait([cb() for cb in self._on_disconnect])
+                    await asyncio.gather(*[cb() for cb in self._on_disconnect])
                 except Exception:  # pylint: disable=broad-except
                     # Safety net. This should never hit.
                     # Still adding it here to make sure we don't break the flow
@@ -129,6 +132,8 @@ class BaseIoT:
                 break
 
         self.state = STATE_DISCONNECTED
+        self._disconnect_event.set()
+        self._disconnect_event = None
 
     async def _wait_retry(self):
         """Wait until it's time till the next retry."""
@@ -142,7 +147,7 @@ class BaseIoT:
     async def _handle_connection(self):
         """Connect to the IoT broker."""
         try:
-            self.cloud.auth.async_check_token()
+            await self.cloud.auth.async_check_token()
         except CloudError as err:
             self._logger.warning(
                 "Cannot connect because unable to refresh token: %s", err
@@ -150,6 +155,7 @@ class BaseIoT:
             return
 
         if self.require_subscription and self.cloud.subscription_expired:
+            self._logger.debug("Cloud subscription expired. Cancelling connecting.")
             self.cloud.client.user_message(
                 "cloud_subscription_expired", "Home Assistant Cloud", MESSAGE_EXPIRATION
             )
@@ -229,3 +235,6 @@ class BaseIoT:
             await self.client.close()
         elif self.retry_task is not None:
             self.retry_task.cancel()
+
+        if self._disconnect_event is not None:
+            await self._disconnect_event.wait()
