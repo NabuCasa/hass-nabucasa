@@ -228,6 +228,9 @@ class BaseIoT:
 
     async def disconnect(self):
         """Disconnect the client."""
+        if self.state == STATE_DISCONNECTED:
+            return
+
         self.close_requested = True
 
         if self.client is not None:
