@@ -1,6 +1,6 @@
 from setuptools import setup
 
-VERSION = "0.17"
+VERSION = "0.18"
 
 setup(
     name="hass-nabucasa",
@@ -20,7 +20,6 @@ setup(
         "Topic :: Internet :: Proxy Servers",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Development Status :: 5 - Production/Stable",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
     ],
@@ -30,8 +29,8 @@ setup(
     packages=["hass_nabucasa"],
     install_requires=[
         "warrant==0.6.1",
-        "snitun==0.18",
-        "acme==0.32.0",
+        "snitun==0.20",
+        "acme==0.38.0",
         "cryptography>=2.5",
         "attrs>=18.2.0",
         "pytz",

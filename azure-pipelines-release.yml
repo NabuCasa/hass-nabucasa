@@ -1,0 +1,41 @@
+# https://dev.azure.com/NabuCasa/OpenSource
+
+trigger:
+  tags:
+    include:
+    - '*'
+pr: none
+
+variables:
+  - group: twine
+
+
+jobs:
+
+- job: 'Release'
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - task: UsePythonVersion@0
+    displayName: 'Use Python 3.7'
+    inputs:
+      versionSpec: '3.7'
+  - script: |
+      setup_version="$(python setup.py -V)"
+      branch_version="$(Build.SourceBranchName)"
+
+      if [ "${setup_version}" != "${branch_version}" ]; then
+        echo "Version of tag ${branch_version} don't match with ${setup_version}!"
+        exit 1
+      fi
+    displayName: 'Check version of branch/tag'
+  - script: pip install twine wheel
+    displayName: 'Install twine'
+  - script: python setup.py sdist bdist_wheel
+    displayName: 'Build package'
+  - script: |
+      export TWINE_USERNAME="$(twineUser)"
+      export TWINE_PASSWORD="$(twinePassword)"
+
+      twine upload dist/*
+    displayName: 'Upload pypi'

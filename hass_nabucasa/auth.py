@@ -9,6 +9,8 @@ from botocore.exceptions import ClientError, EndpointConnectionError
 import warrant
 from warrant.exceptions import ForceChangePasswordException
 
+from .const import MESSAGE_AUTH_FAIL
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -137,7 +139,22 @@ class CognitoAuth:
         self.cloud.refresh_token = cognito.refresh_token
         self.cloud.write_user_info()
 
-    def check_token(self):
+    async def async_check_token(self):
+        """Check that the token is valid."""
+        try:
+            await self.cloud.run_executor(self._check_token)
+        except Unauthenticated as err:
+            _LOGGER.error("Unable to refresh token: %s", err)
+
+            self.cloud.client.user_message(
+                "cloud_subscription_expired", "Home Assistant Cloud", MESSAGE_AUTH_FAIL
+            )
+
+            # Don't await it because it could cancel this task
+            self.cloud.run_task(self.cloud.logout())
+            raise
+
+    def _check_token(self):
         """Check that the token is valid and verify if needed."""
         cognito = self._cognito(
             access_token=self.cloud.access_token, refresh_token=self.cloud.refresh_token

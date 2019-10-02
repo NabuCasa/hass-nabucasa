@@ -1,28 +1,19 @@
 """Test cloud API."""
-from unittest.mock import Mock, patch
 
-import pytest
 
 from hass_nabucasa import cloud_api
 
 
-@pytest.fixture(autouse=True)
-def mock_check_token():
-    """Mock check token."""
-    with patch("hass_nabucasa.auth.CognitoAuth.check_token"):
-        yield
-
-
-async def test_create_cloudhook(cloud_mock, aioclient_mock):
+async def test_create_cloudhook(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post(
         "https://example.com/bla",
         json={"cloudhook_id": "mock-webhook", "url": "https://blabla"},
     )
-    cloud_mock.id_token = "mock-id-token"
-    cloud_mock.cloudhook_create_url = "https://example.com/bla"
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.cloudhook_create_url = "https://example.com/bla"
 
-    resp = await cloud_api.async_create_cloudhook(cloud_mock)
+    resp = await cloud_api.async_create_cloudhook(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
     assert await resp.json() == {
         "cloudhook_id": "mock-webhook",
@@ -30,7 +21,7 @@ async def test_create_cloudhook(cloud_mock, aioclient_mock):
     }
 
 
-async def test_remote_register(cloud_mock, aioclient_mock):
+async def test_remote_register(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post(
         "https://example.com/bla/register_instance",
@@ -40,10 +31,10 @@ async def test_remote_register(cloud_mock, aioclient_mock):
             "server": "rest-remote.nabu.casa",
         },
     )
-    cloud_mock.id_token = "mock-id-token"
-    cloud_mock.remote_api_url = "https://example.com/bla"
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.remote_api_url = "https://example.com/bla"
 
-    resp = await cloud_api.async_remote_register(cloud_mock)
+    resp = await cloud_api.async_remote_register(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
     assert await resp.json() == {
         "domain": "test.dui.nabu.casa",
@@ -52,7 +43,7 @@ async def test_remote_register(cloud_mock, aioclient_mock):
     }
 
 
-async def test_remote_token(cloud_mock, aioclient_mock):
+async def test_remote_token(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post(
         "https://example.com/bla/snitun_token",
@@ -63,10 +54,10 @@ async def test_remote_token(cloud_mock, aioclient_mock):
             "throttling": 400,
         },
     )
-    cloud_mock.id_token = "mock-id-token"
-    cloud_mock.remote_api_url = "https://example.com/bla"
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.remote_api_url = "https://example.com/bla"
 
-    resp = await cloud_api.async_remote_token(cloud_mock, b"aes", b"iv")
+    resp = await cloud_api.async_remote_token(auth_cloud_mock, b"aes", b"iv")
     assert len(aioclient_mock.mock_calls) == 1
     assert await resp.json() == {
         "token": "123456",
@@ -77,33 +68,33 @@ async def test_remote_token(cloud_mock, aioclient_mock):
     assert aioclient_mock.mock_calls[0][2] == {"aes_iv": "6976", "aes_key": "616573"}
 
 
-async def test_remote_challenge_txt(cloud_mock, aioclient_mock):
+async def test_remote_challenge_txt(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post("https://example.com/bla/challenge_txt")
-    cloud_mock.id_token = "mock-id-token"
-    cloud_mock.remote_api_url = "https://example.com/bla"
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.remote_api_url = "https://example.com/bla"
 
-    resp = await cloud_api.async_remote_challenge_txt(cloud_mock, "123456")
+    await cloud_api.async_remote_challenge_txt(auth_cloud_mock, "123456")
     assert len(aioclient_mock.mock_calls) == 1
     assert aioclient_mock.mock_calls[0][2] == {"txt": "123456"}
 
 
-async def test_remote_challenge_cleanup(cloud_mock, aioclient_mock):
+async def test_remote_challenge_cleanup(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post("https://example.com/bla/challenge_cleanup")
-    cloud_mock.id_token = "mock-id-token"
-    cloud_mock.remote_api_url = "https://example.com/bla"
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.remote_api_url = "https://example.com/bla"
 
-    resp = await cloud_api.async_remote_challenge_cleanup(cloud_mock, "123456")
+    await cloud_api.async_remote_challenge_cleanup(auth_cloud_mock, "123456")
     assert len(aioclient_mock.mock_calls) == 1
     assert aioclient_mock.mock_calls[0][2] == {"txt": "123456"}
 
 
-async def test_get_access_token(cloud_mock, aioclient_mock):
+async def test_get_access_token(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post("https://example.com/bla")
-    cloud_mock.id_token = "mock-id-token"
-    cloud_mock.alexa_access_token_url = "https://example.com/bla"
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.alexa_access_token_url = "https://example.com/bla"
 
-    resp = await cloud_api.async_alexa_access_token(cloud_mock)
+    await cloud_api.async_alexa_access_token(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1

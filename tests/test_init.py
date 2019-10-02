@@ -1,9 +1,6 @@
 """Test the cloud component."""
-import asyncio
 import json
 from unittest.mock import patch, MagicMock, Mock, PropertyMock
-
-import pytest
 
 import hass_nabucasa as cloud
 from hass_nabucasa.utils import utcnow
@@ -27,6 +24,7 @@ def test_constructor_loads_info_from_constant(cloud_client):
                 "remote_api_url": "test-remote_api_url",
                 "alexa_access_token_url": "test-alexa-token-url",
                 "acme_directory_server": "test-acme-directory-server",
+                "google_actions_report_state_url": "test-google-actions-report-state-url",
             }
         },
     ):
@@ -40,7 +38,10 @@ def test_constructor_loads_info_from_constant(cloud_client):
     assert cl.google_actions_sync_url == "test-google_actions_sync_url"
     assert cl.subscription_info_url == "test-subscription-info-url"
     assert cl.cloudhook_create_url == "test-cloudhook_create_url"
+    assert cl.remote_api_url == "test-remote_api_url"
+    assert cl.alexa_access_token_url == "test-alexa-token-url"
     assert cl.acme_directory_server == "test-acme-directory-server"
+    assert cl.google_actions_report_state_url == "test-google-actions-report-state-url"
 
 
 async def test_initialize_loads_info(cloud_client):
@@ -86,6 +87,9 @@ async def test_logout_clears_info(cloud_client):
     cl.iot = MagicMock()
     cl.iot.disconnect.return_value = mock_coro()
 
+    cl.google_report_state = MagicMock()
+    cl.google_report_state.disconnect.return_value = mock_coro()
+
     with patch(
         "hass_nabucasa.Cloud.user_info_path",
         new_callable=PropertyMock(return_value=info_file),
@@ -93,6 +97,7 @@ async def test_logout_clears_info(cloud_client):
         await cl.logout()
 
     assert len(cl.iot.disconnect.mock_calls) == 1
+    assert len(cl.google_report_state.disconnect.mock_calls) == 1
     assert cl.id_token is None
     assert cl.access_token is None
     assert cl.refresh_token is None
