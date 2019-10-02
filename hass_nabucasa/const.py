@@ -21,7 +21,7 @@ SERVERS = {
         "user_pool_id": "us-east-1_87ll5WOP8",
         "region": "us-east-1",
         "relayer": "wss://cloud.nabucasa.com/websocket",
-        "google_actions_report_state_url": "TODO",
+        "google_actions_report_state_url": "remotestate.nabucasa.com",
         "google_actions_sync_url": (
             "https://24ab3v80xd.execute-api.us-east-1."
             "amazonaws.com/prod/smart_home_sync"
