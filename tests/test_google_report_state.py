@@ -72,7 +72,3 @@ async def test_max_queue_message(loop, ws_server):
         await asyncio.sleep(0)
 
     assert len(msgs) == 100
-
-    # First 50 discarded
-    assert msgs[0] == {"hello": 50}
-    assert msgs[99] == {"hello": 149}
