@@ -10,7 +10,9 @@
 	],
 	"extensions": [
 		"ms-python.python",
-		"ms-azure-devops.azure-pipelines"
+		"visualstudioexptteam.vscodeintellicode",
+		"ms-azure-devops.azure-pipelines",
+		"esbenp.prettier-vscode"
 	],
 	"settings": {
 		"python.pythonPath": "/usr/local/bin/python",
