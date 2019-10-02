@@ -1,6 +1,6 @@
 """Test the cloud.iot module."""
 import asyncio
-from unittest.mock import patch, MagicMock, PropertyMock, Mock
+from unittest.mock import patch, MagicMock, Mock
 
 from aiohttp import WSMsgType
 import pytest
@@ -11,36 +11,16 @@ from .common import mock_coro
 
 
 @pytest.fixture
-def mock_client(cloud_mock):
-    """Mock the IoT client."""
-    client = MagicMock()
-    websession = MagicMock()
-
-    type(client).closed = PropertyMock(side_effect=[False, True])
-
-    # Trigger cancelled error to avoid reconnect.
-    org_websession = cloud_mock.websession
-    with patch(
-        "hass_nabucasa.iot_base.BaseIoT._wait_retry", side_effect=asyncio.CancelledError
-    ):
-        websession.ws_connect.side_effect = lambda *a, **kw: mock_coro(client)
-        cloud_mock.websession = websession
-        yield client
-
-    cloud_mock.websession = org_websession
-
-
-@pytest.fixture
-def cloud_mock_iot(cloud_mock):
+def cloud_mock_iot(auth_cloud_mock):
     """Mock cloud class."""
-    cloud_mock.subscription_expired = False
-    yield cloud_mock
+    auth_cloud_mock.subscription_expired = False
+    yield auth_cloud_mock
 
 
-async def test_cloud_calling_handler(mock_client, cloud_mock_iot):
+async def test_cloud_calling_handler(mock_iot_client, cloud_mock_iot):
     """Test we call handle message with correct info."""
     conn = iot.CloudIoT(cloud_mock_iot)
-    mock_client.receive.return_value = mock_coro(
+    mock_iot_client.receive.return_value = mock_coro(
         MagicMock(
             type=WSMsgType.text,
             json=MagicMock(
@@ -53,7 +33,7 @@ async def test_cloud_calling_handler(mock_client, cloud_mock_iot):
         )
     )
     mock_handler = Mock(return_value=mock_coro("response"))
-    mock_client.send_json.return_value = mock_coro(None)
+    mock_iot_client.send_json.return_value = mock_coro(None)
 
     with patch.dict(iot.HANDLERS, {"test-handler": mock_handler}, clear=True):
         await conn.connect()
@@ -67,17 +47,17 @@ async def test_cloud_calling_handler(mock_client, cloud_mock_iot):
     assert payload == "test-payload"
 
     # Check that we forwarded response from handler to cloud
-    assert len(mock_client.send_json.mock_calls) == 1
-    assert mock_client.send_json.mock_calls[0][1][0] == {
+    assert len(mock_iot_client.send_json.mock_calls) == 1
+    assert mock_iot_client.send_json.mock_calls[0][1][0] == {
         "msgid": "test-msg-id",
         "payload": "response",
     }
 
 
-async def test_connection_msg_for_unknown_handler(mock_client, cloud_mock_iot):
+async def test_connection_msg_for_unknown_handler(mock_iot_client, cloud_mock_iot):
     """Test a msg for an unknown handler."""
     conn = iot.CloudIoT(cloud_mock_iot)
-    mock_client.receive.return_value = mock_coro(
+    mock_iot_client.receive.return_value = mock_coro(
         MagicMock(
             type=WSMsgType.text,
             json=MagicMock(
@@ -89,23 +69,23 @@ async def test_connection_msg_for_unknown_handler(mock_client, cloud_mock_iot):
             ),
         )
     )
-    mock_client.send_json.return_value = mock_coro(None)
+    mock_iot_client.send_json.return_value = mock_coro(None)
 
     await conn.connect()
     await asyncio.sleep(0)
 
     # Check that we sent the correct error
-    assert len(mock_client.send_json.mock_calls) == 1
-    assert mock_client.send_json.mock_calls[0][1][0] == {
+    assert len(mock_iot_client.send_json.mock_calls) == 1
+    assert mock_iot_client.send_json.mock_calls[0][1][0] == {
         "msgid": "test-msg-id",
         "error": "unknown-handler",
     }
 
 
-async def test_connection_msg_for_handler_raising(mock_client, cloud_mock_iot):
+async def test_connection_msg_for_handler_raising(mock_iot_client, cloud_mock_iot):
     """Test we sent error when handler raises exception."""
     conn = iot.CloudIoT(cloud_mock_iot)
-    mock_client.receive.return_value = mock_coro(
+    mock_iot_client.receive.return_value = mock_coro(
         MagicMock(
             type=WSMsgType.text,
             json=MagicMock(
@@ -117,7 +97,7 @@ async def test_connection_msg_for_handler_raising(mock_client, cloud_mock_iot):
             ),
         )
     )
-    mock_client.send_json.return_value = mock_coro(None)
+    mock_iot_client.send_json.return_value = mock_coro(None)
 
     with patch.dict(
         iot.HANDLERS, {"test-handler": Mock(side_effect=Exception("Broken"))}
@@ -126,8 +106,8 @@ async def test_connection_msg_for_handler_raising(mock_client, cloud_mock_iot):
         await asyncio.sleep(0)
 
     # Check that we sent the correct error
-    assert len(mock_client.send_json.mock_calls) == 1
-    assert mock_client.send_json.mock_calls[0][1][0] == {
+    assert len(mock_iot_client.send_json.mock_calls) == 1
+    assert mock_iot_client.send_json.mock_calls[0][1][0] == {
         "msgid": "test-msg-id",
         "error": "exception",
     }

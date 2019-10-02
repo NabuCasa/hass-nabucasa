@@ -159,7 +159,7 @@ async def test_check_token_raises(mock_cognito, cloud_mock):
 
 async def test_async_setup(cloud_mock):
     """Test async setup."""
-    auth = auth_api.CognitoAuth(cloud_mock)
+    auth_api.CognitoAuth(cloud_mock)
     assert len(cloud_mock.iot.mock_calls) == 2
     on_connect = cloud_mock.iot.mock_calls[0][1][0]
     on_disconnect = cloud_mock.iot.mock_calls[1][1][0]

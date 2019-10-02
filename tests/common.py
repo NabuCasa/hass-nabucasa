@@ -1,9 +1,8 @@
 """Test the helper method for writing tests."""
 import asyncio
-from datetime import datetime
 from pathlib import Path
 import tempfile
-from typing import Optional, Any
+from typing import Any
 
 from hass_nabucasa import Cloud
 from hass_nabucasa.client import CloudClient

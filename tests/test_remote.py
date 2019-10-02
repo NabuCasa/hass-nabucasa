@@ -1,7 +1,7 @@
 """Test remote sni handler."""
 import asyncio
 from datetime import timedelta
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -43,7 +43,7 @@ async def snitun_mock():
 
 def test_init_remote(auth_cloud_mock):
     """Init remote object."""
-    remote = RemoteUI(auth_cloud_mock)
+    RemoteUI(auth_cloud_mock)
 
     assert len(auth_cloud_mock.iot.mock_calls) == 2
 

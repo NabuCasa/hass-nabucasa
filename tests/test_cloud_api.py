@@ -74,7 +74,7 @@ async def test_remote_challenge_txt(auth_cloud_mock, aioclient_mock):
     auth_cloud_mock.id_token = "mock-id-token"
     auth_cloud_mock.remote_api_url = "https://example.com/bla"
 
-    resp = await cloud_api.async_remote_challenge_txt(auth_cloud_mock, "123456")
+    await cloud_api.async_remote_challenge_txt(auth_cloud_mock, "123456")
     assert len(aioclient_mock.mock_calls) == 1
     assert aioclient_mock.mock_calls[0][2] == {"txt": "123456"}
 
@@ -85,7 +85,7 @@ async def test_remote_challenge_cleanup(auth_cloud_mock, aioclient_mock):
     auth_cloud_mock.id_token = "mock-id-token"
     auth_cloud_mock.remote_api_url = "https://example.com/bla"
 
-    resp = await cloud_api.async_remote_challenge_cleanup(auth_cloud_mock, "123456")
+    await cloud_api.async_remote_challenge_cleanup(auth_cloud_mock, "123456")
     assert len(aioclient_mock.mock_calls) == 1
     assert aioclient_mock.mock_calls[0][2] == {"txt": "123456"}
 
@@ -96,5 +96,5 @@ async def test_get_access_token(auth_cloud_mock, aioclient_mock):
     auth_cloud_mock.id_token = "mock-id-token"
     auth_cloud_mock.alexa_access_token_url = "https://example.com/bla"
 
-    resp = await cloud_api.async_alexa_access_token(auth_cloud_mock)
+    await cloud_api.async_alexa_access_token(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1

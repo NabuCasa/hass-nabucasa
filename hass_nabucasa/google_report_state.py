@@ -18,6 +18,7 @@ class GoogleReportState(iot_base.BaseIoT):
     def __init__(self, cloud):
         """Initialize Google Report State."""
         super().__init__(cloud)
+        self._connect_lock = asyncio.Lock()
         self._to_send = Queue(100)
         self._message_sender_task = None
         self.register_on_connect(self._async_on_connect)
@@ -35,8 +36,12 @@ class GoogleReportState(iot_base.BaseIoT):
 
     async def async_send_message(self, msg):
         """Send a message."""
-        if self.state == iot_base.STATE_DISCONNECTED:
-            self.cloud.run_task(self.connect())
+        # Since connect is async, guard against send_message called twice in parallel.
+        async with self._connect_lock:
+            if self.state == iot_base.STATE_DISCONNECTED:
+                self.cloud.run_task(self.connect())
+                # Give connect time to start up and change state.
+                await asyncio.sleep(0)
 
         if self._to_send.qsize() == MAX_PENDING:
             self._to_send.get_nowait()
@@ -48,11 +53,11 @@ class GoogleReportState(iot_base.BaseIoT):
         """Handle a message."""
         self._logger.warning("Got unhandled message: %s", msg)
 
-    def _async_on_connect(self):
+    async def _async_on_connect(self):
         """On Connect handler."""
-        self._message_sender_task = self.cloud.run_task(self._async_on_connect())
+        self._message_sender_task = self.cloud.run_task(self._async_message_sender())
 
-    def _async_on_disconnect(self):
+    async def _async_on_disconnect(self):
         """On disconnect handler."""
         self._message_sender_task.cancel()
         self._message_sender_task = None
@@ -61,6 +66,6 @@ class GoogleReportState(iot_base.BaseIoT):
         """Start sending messages."""
         try:
             while True:
-                await self.async_send_json_message(self._to_send.get())
+                await self.async_send_json_message(await self._to_send.get())
         except asyncio.CancelledError:
             pass
