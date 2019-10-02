@@ -42,7 +42,7 @@ async def test_send_messages(loop, ws_server):
     await asyncio.sleep(0)
     await asyncio.sleep(0)
 
-    assert msgs == [{"hello": 0}, {"hello": 1}]
+    assert sorted(msgs, key=lambda val: val["hello"]) == [{"hello": 0}, {"hello": 1}]
 
     await grs.disconnect()
     assert grs.state == iot_base.STATE_DISCONNECTED
