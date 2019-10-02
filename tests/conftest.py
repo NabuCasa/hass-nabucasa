@@ -88,6 +88,7 @@ async def ws_server(aiohttp_client):
 
     async def create_client_to_server(handle_server_msg):
         """Create a websocket server."""
+        logger = logging.getLogger(f"{__name__}.ws_server")
 
         async def websocket_handler(request):
 
@@ -95,9 +96,14 @@ async def ws_server(aiohttp_client):
             await ws.prepare(request)
 
             async for msg in ws:
+                logger.debug("Received msg: %s", msg)
                 try:
-                    await handle_server_msg(msg)
+                    resp = await handle_server_msg(msg)
+                    if resp is not None:
+                        logger.debug("Sending msg: %s", msg)
+                        await ws.send_json(resp)
                 except DisconnectMockServer:
+                    logger.debug("Closing connection (via DisconnectMockServer)")
                     await ws.close()
 
             return ws
