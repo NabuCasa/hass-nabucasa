@@ -210,6 +210,7 @@ class Cloud:
     async def stop(self):
         """Stop the cloud component."""
         await self.iot.disconnect()
+        await self.google_report_state.disconnect()
 
     def _decode_claims(self, token):  # pylint: disable=no-self-use
         """Decode the claims in a token."""
