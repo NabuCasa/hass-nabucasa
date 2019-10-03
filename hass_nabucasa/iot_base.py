@@ -224,6 +224,9 @@ class BaseIoT:
         except client_exceptions.ClientError as err:
             self._logger.warning("Unable to connect: %s", err)
 
+        except asyncio.CancelledError:
+            pass
+
         finally:
             if disconnect_warn is None:
                 self._logger.info("Connection closed")
