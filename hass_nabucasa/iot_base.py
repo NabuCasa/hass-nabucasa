@@ -208,7 +208,10 @@ class BaseIoT:
                 if self._logger.isEnabledFor(logging.DEBUG):
                     self._logger.debug("Received message:\n%s\n", pprint.pformat(msg))
 
-                self.async_handle_message(msg)
+                try:
+                    self.async_handle_message(msg)
+                except Exception:  # pylint: disable=broad-except
+                    self._logger.exception("Unexpected error handling %s", msg)
 
         except client_exceptions.WSServerHandshakeError as err:
             if err.status == 401:
@@ -220,6 +223,9 @@ class BaseIoT:
 
         except client_exceptions.ClientError as err:
             self._logger.warning("Unable to connect: %s", err)
+
+        except asyncio.CancelledError:
+            pass
 
         finally:
             if disconnect_warn is None:
