@@ -1,6 +1,6 @@
 """Test Account Linking tools."""
 import asyncio
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from aiohttp import web
 import pytest
@@ -44,7 +44,6 @@ async def create_helper_instance(
 async def test_auth_helper_works(aiohttp_client):
     """Test authorize account helper."""
     received = []
-    now = utils.utcnow()
 
     async def handle_msgs(ws):
         """Handle the messages on the server."""
@@ -55,15 +54,13 @@ async def test_auth_helper_works(aiohttp_client):
 
     helper = await create_helper_instance(aiohttp_client, handle_msgs, "mock-service")
 
-    with patch("hass_nabucasa.account_link.utcnow", return_value=now):
-        assert await helper.async_get_authorize_url() == "http://mock-url"
+    assert await helper.async_get_authorize_url() == "http://mock-url"
 
-        assert await helper.async_get_tokens() == {
-            "refresh_token": "abcd",
-            "expires_in": 10,
-            "expires_at": now.timestamp() + 10,
-            "service": "mock-service",
-        }
+    assert await helper.async_get_tokens() == {
+        "refresh_token": "abcd",
+        "expires_in": 10,
+        "service": "mock-service",
+    }
 
     assert helper._client is None
     assert len(received) == 1
