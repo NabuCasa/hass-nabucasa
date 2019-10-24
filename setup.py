@@ -1,6 +1,6 @@
 from setuptools import setup
 
-VERSION = "0.22"
+VERSION = "0.23"
 
 setup(
     name="hass-nabucasa",
@@ -34,5 +34,6 @@ setup(
         "cryptography>=2.5",
         "attrs>=18.2.0",
         "pytz",
+        "aiohttp",
     ],
 )

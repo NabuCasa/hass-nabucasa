@@ -4,9 +4,11 @@ from pathlib import Path
 from typing import Dict, Any, TYPE_CHECKING
 
 import aiohttp
+from aiohttp import web
 
 if TYPE_CHECKING:
     from . import Cloud
+
     # pylint: disable=import-error
     from homeassistant.components.google.helpers import AbstractConfig as GoogleConfig
     from homeassistant.components.alexa.config import AbstractConfig as AlexaConfig
@@ -31,7 +33,7 @@ class CloudClient:
         raise NotImplementedError()
 
     @property
-    def aiohttp_runner(self) -> aiohttp.web.AppRunner:
+    def aiohttp_runner(self) -> web.AppRunner:
         """Return client webinterface aiohttp application."""
         raise NotImplementedError()
 

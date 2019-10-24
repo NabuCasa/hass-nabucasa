@@ -25,6 +25,7 @@ def test_constructor_loads_info_from_constant(cloud_client):
                 "alexa_access_token_url": "test-alexa-token-url",
                 "acme_directory_server": "test-acme-directory-server",
                 "google_actions_report_state_url": "test-google-actions-report-state-url",
+                "account_link_url": "test-account-link-url",
             }
         },
     ):
@@ -42,6 +43,7 @@ def test_constructor_loads_info_from_constant(cloud_client):
     assert cl.alexa_access_token_url == "test-alexa-token-url"
     assert cl.acme_directory_server == "test-acme-directory-server"
     assert cl.google_actions_report_state_url == "test-google-actions-report-state-url"
+    assert cl.account_link_url == "test-account-link-url"
 
 
 async def test_initialize_loads_info(cloud_client):

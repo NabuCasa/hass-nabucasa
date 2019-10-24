@@ -37,6 +37,7 @@ class Cloud:
         cloudhook_create_url=None,
         remote_api_url=None,
         alexa_access_token_url=None,
+        account_link_url=None,
         acme_directory_server=None,
     ):
         """Create an instance of Cloud."""
@@ -63,23 +64,23 @@ class Cloud:
             self.remote_api_url = remote_api_url
             self.alexa_access_token_url = alexa_access_token_url
             self.acme_directory_server = acme_directory_server
+            self.account_link_url = account_link_url
+            return
 
-        else:
-            info = SERVERS[mode]
+        info = SERVERS[mode]
 
-            self.cognito_client_id = info["cognito_client_id"]
-            self.user_pool_id = info["user_pool_id"]
-            self.region = info["region"]
-            self.relayer = info["relayer"]
-            self.google_actions_report_state_url = info[
-                "google_actions_report_state_url"
-            ]
-            self.google_actions_sync_url = info["google_actions_sync_url"]
-            self.subscription_info_url = info["subscription_info_url"]
-            self.cloudhook_create_url = info["cloudhook_create_url"]
-            self.remote_api_url = info["remote_api_url"]
-            self.alexa_access_token_url = info["alexa_access_token_url"]
-            self.acme_directory_server = info["acme_directory_server"]
+        self.cognito_client_id = info["cognito_client_id"]
+        self.user_pool_id = info["user_pool_id"]
+        self.region = info["region"]
+        self.relayer = info["relayer"]
+        self.google_actions_report_state_url = info["google_actions_report_state_url"]
+        self.google_actions_sync_url = info["google_actions_sync_url"]
+        self.subscription_info_url = info["subscription_info_url"]
+        self.cloudhook_create_url = info["cloudhook_create_url"]
+        self.remote_api_url = info["remote_api_url"]
+        self.alexa_access_token_url = info["alexa_access_token_url"]
+        self.account_link_url = info["account_link_url"]
+        self.acme_directory_server = info["acme_directory_server"]
 
     @property
     def is_logged_in(self) -> bool:
