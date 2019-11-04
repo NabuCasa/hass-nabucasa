@@ -118,6 +118,8 @@ class AiohttpClientMocker:
         allow_redirects=None,
         timeout=None,
         json=None,
+        expect100=None,
+        chunked=None,
     ):
         """Match a request against pre-registered requests."""
         data = data or json

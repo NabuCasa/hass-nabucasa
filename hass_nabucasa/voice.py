@@ -126,7 +126,7 @@ class Voice:
                 AUTHORIZATION: self._token,
                 "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
             },
-            text=ET.tostring(xml_body),
+            data=ET.tostring(xml_body),
         ) as resp:
             if resp.status != 200:
                 raise VoiceReturnError()
