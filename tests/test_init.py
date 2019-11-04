@@ -26,6 +26,7 @@ def test_constructor_loads_info_from_constant(cloud_client):
                 "acme_directory_server": "test-acme-directory-server",
                 "google_actions_report_state_url": "test-google-actions-report-state-url",
                 "account_link_url": "test-account-link-url",
+                "voice_api_url": "test-voice-api-url",
             }
         },
     ):
