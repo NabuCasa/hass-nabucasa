@@ -33,6 +33,7 @@ SERVERS = {
         "remote_api_url": "https://remote-sni-api.nabucasa.com",
         "alexa_access_token_url": "https://alexa-api.nabucasa.com/access_token",
         "account_link_url": "https://account-link.nabucasa.com",
+        "voice_api_url": "https://voice-api.nabucasa.com",
         "acme_directory_server": "https://acme-v02.api.letsencrypt.org/directory",
     }
 }

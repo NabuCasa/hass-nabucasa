@@ -8,14 +8,15 @@ from typing import Callable, Coroutine
 
 import aiohttp
 
+from .auth import CognitoAuth
 from .client import CloudClient
 from .cloudhooks import Cloudhooks
-from .auth import CognitoAuth
 from .const import CONFIG_DIR, MODE_DEV, SERVERS, STATE_CONNECTED
 from .google_report_state import GoogleReportState
 from .iot import CloudIoT
 from .remote import RemoteUI
-from .utils import parse_date, utcnow, UTC
+from .utils import UTC, parse_date, utcnow
+from .voice import Voice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class Cloud:
         remote_api_url=None,
         alexa_access_token_url=None,
         account_link_url=None,
+        voice_api_url=None,
         acme_directory_server=None,
     ):
         """Create an instance of Cloud."""
@@ -51,6 +53,7 @@ class Cloud:
         self.cloudhooks = Cloudhooks(self)
         self.remote = RemoteUI(self)
         self.auth = CognitoAuth(self)
+        self.voice = Voice(self)
 
         if mode == MODE_DEV:
             self.cognito_client_id = cognito_client_id
@@ -65,6 +68,7 @@ class Cloud:
             self.alexa_access_token_url = alexa_access_token_url
             self.acme_directory_server = acme_directory_server
             self.account_link_url = account_link_url
+            self.voice_api_url = voice_api_url
             return
 
         info = SERVERS[mode]
@@ -80,6 +84,7 @@ class Cloud:
         self.remote_api_url = info["remote_api_url"]
         self.alexa_access_token_url = info["alexa_access_token_url"]
         self.account_link_url = info["account_link_url"]
+        self.voice_api_url = info["voice_api_url"]
         self.acme_directory_server = info["acme_directory_server"]
 
     @property
