@@ -47,7 +47,7 @@ async def test_send_messages(loop, ws_server):
     # Test we can handle two simultaneous messages while disconnected
     responses = await asyncio.gather(
         *[grs.async_send_message({"hello": 0}), grs.async_send_message({"hello": 1})],
-        return_exceptions=True
+        return_exceptions=True,
     )
     assert grs.state == iot_base.STATE_CONNECTED
     assert len(responses) == 2
@@ -82,7 +82,7 @@ async def test_max_queue_message(loop, ws_server):
     with patch.object(grs, "_async_message_sender", side_effect=mock_coro):
         gather_task = asyncio.gather(
             *[grs.async_send_message({"hello": i}) for i in range(150)],
-            return_exceptions=True
+            return_exceptions=True,
         )
         # One per message
         for i in range(150):

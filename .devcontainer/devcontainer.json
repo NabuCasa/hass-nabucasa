@@ -6,7 +6,7 @@
 	"postCreateCommand": "pip3 install -e .",
 	"runArgs": [
 		"-e",
-		"GIT_EDTIOR='code --wait'"
+		"GIT_EDTIOR=code --wait"
 	],
 	"extensions": [
 		"ms-python.python",

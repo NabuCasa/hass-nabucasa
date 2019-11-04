@@ -46,7 +46,7 @@ async def async_create_cloudhook(cloud):
 @_log_response
 async def async_remote_register(cloud):
     """Create/Get a remote URL."""
-    url = "{}/register_instance".format(cloud.remote_api_url)
+    url = f"{cloud.remote_api_url}/register_instance"
     return await cloud.websession.post(url, headers={AUTHORIZATION: cloud.id_token})
 
 
@@ -54,7 +54,7 @@ async def async_remote_register(cloud):
 @_log_response
 async def async_remote_token(cloud, aes_key: bytes, aes_iv: bytes):
     """Create a remote snitun token."""
-    url = "{}/snitun_token".format(cloud.remote_api_url)
+    url = f"{cloud.remote_api_url}/snitun_token"
     return await cloud.websession.post(
         url,
         headers={AUTHORIZATION: cloud.id_token},
@@ -66,7 +66,7 @@ async def async_remote_token(cloud, aes_key: bytes, aes_iv: bytes):
 @_log_response
 async def async_remote_challenge_txt(cloud, txt: str):
     """Set DNS challenge."""
-    url = "{}/challenge_txt".format(cloud.remote_api_url)
+    url = f"{cloud.remote_api_url}/challenge_txt"
     return await cloud.websession.post(
         url, headers={AUTHORIZATION: cloud.id_token}, json={"txt": txt}
     )
@@ -76,7 +76,7 @@ async def async_remote_challenge_txt(cloud, txt: str):
 @_log_response
 async def async_remote_challenge_cleanup(cloud, txt: str):
     """Remove DNS challenge."""
-    url = "{}/challenge_cleanup".format(cloud.remote_api_url)
+    url = f"{cloud.remote_api_url}/challenge_cleanup"
     return await cloud.websession.post(
         url, headers={AUTHORIZATION: cloud.id_token}, json={"txt": txt}
     )
@@ -88,3 +88,10 @@ async def async_alexa_access_token(cloud):
     return await cloud.websession.post(
         cloud.alexa_access_token_url, headers={AUTHORIZATION: cloud.id_token}
     )
+
+
+@_check_token
+async def async_voice_connection_details(cloud):
+    """Return connection details for voice service."""
+    url = f"{cloud.voice_api_url}/connection_details"
+    return await cloud.websession.get(url, headers={AUTHORIZATION: cloud.id_token})
