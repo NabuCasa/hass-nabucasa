@@ -1,6 +1,7 @@
 """Voice handler with Azure."""
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import Optional
 import xml.etree.ElementTree as ET
 
@@ -10,6 +11,9 @@ import attr
 
 from . import cloud_api
 from .utils import utc_from_timestamp, utcnow
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class VoiceError(Exception):
@@ -86,7 +90,7 @@ class Voice:
             f"{self._endpoint_stt}?language={language}",
             headers={
                 CONTENT_TYPE: content,
-                AUTHORIZATION: self._token,
+                AUTHORIZATION: f"Bearer {self._token}",
                 ACCEPT: "application/json;text/xml",
             },
             data=stream,
@@ -94,6 +98,7 @@ class Voice:
             chunked=True,
         ) as resp:
             if resp.status != 200:
+                _LOGGER.error("Can't process Speech: %d", resp.status)
                 raise VoiceReturnError()
             data = await resp.json()
 
@@ -123,7 +128,7 @@ class Voice:
             self._endpoint_tts,
             headers={
                 CONTENT_TYPE: "application/ssml+xml",
-                AUTHORIZATION: self._token,
+                AUTHORIZATION: f"Bearer {self._token}",
                 "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
             },
             data=ET.tostring(xml_body),
