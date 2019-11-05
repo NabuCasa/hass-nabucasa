@@ -32,12 +32,16 @@ class Gender(str, Enum):
     """Gender Type for voices."""
 
     MALE = "male"
-    FAMALE = "famale"
+    FEMALE = "female"
 
 
 MAP_VOICE = {
     ("en-US", Gender.MALE): "BenjaminRUS",
-    ("en-US", Gender.FAMALE): "ZiraRUS",
+    ("en-US", Gender.FEMALE): "ZiraRUS",
+    ("de-DE", Gender.MALE): "Stefan, Apollo",
+    ("de-DE", Gender.FEMALE): "HeddaRUS",
+    ("es-ES", Gender.MALE): "Pablo, Apollo",
+    ("es-ES", Gender.FEMALE): "HelenaRUS",
 }
 
 
