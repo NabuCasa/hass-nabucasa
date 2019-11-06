@@ -41,6 +41,7 @@ class Cloud:
         account_link_url=None,
         voice_api_url=None,
         acme_directory_server=None,
+        thingtalk_url=None,
     ):
         """Create an instance of Cloud."""
         self.mode = mode
@@ -69,6 +70,7 @@ class Cloud:
             self.acme_directory_server = acme_directory_server
             self.account_link_url = account_link_url
             self.voice_api_url = voice_api_url
+            self.thingtalk_url = thingtalk_url
             return
 
         info = SERVERS[mode]
@@ -86,6 +88,7 @@ class Cloud:
         self.account_link_url = info["account_link_url"]
         self.voice_api_url = info["voice_api_url"]
         self.acme_directory_server = info["acme_directory_server"]
+        self.thingtalk_url = info["thingtalk_url"]
 
     @property
     def is_logged_in(self) -> bool:

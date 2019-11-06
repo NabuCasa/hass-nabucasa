@@ -27,6 +27,7 @@ def test_constructor_loads_info_from_constant(cloud_client):
                 "google_actions_report_state_url": "test-google-actions-report-state-url",
                 "account_link_url": "test-account-link-url",
                 "voice_api_url": "test-voice-api-url",
+                "thingtalk_url": "test-thingtalk-url",
             }
         },
     ):
@@ -45,6 +46,7 @@ def test_constructor_loads_info_from_constant(cloud_client):
     assert cl.acme_directory_server == "test-acme-directory-server"
     assert cl.google_actions_report_state_url == "test-google-actions-report-state-url"
     assert cl.account_link_url == "test-account-link-url"
+    assert cl.thingtalk_url == "test-thingtalk-url"
 
 
 async def test_initialize_loads_info(cloud_client):
