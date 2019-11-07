@@ -188,8 +188,8 @@ class Cloud:
         )
         self.user_info_path.chmod(0o600)
 
-    async def start(self):
-        """Start the cloud component."""
+    async def async_load_user_info(self):
+        """Load user info from disk."""
 
         def load_config():
             """Load config."""
@@ -200,21 +200,24 @@ class Cloud:
 
             if not self.user_info_path.exists():
                 return None
+
             return json.loads(self.user_info_path.read_text())
 
         info = await self.run_executor(load_config)
 
         if info is None:
-            await self.client.async_initialize(self)
             return
 
         self.id_token = info["id_token"]
         self.access_token = info["access_token"]
         self.refresh_token = info["refresh_token"]
 
+    async def start(self):
+        """Start the cloud component."""
         await self.client.async_initialize(self)
 
-        self.run_task(self.iot.connect())
+        if self.id_token:
+            self.run_task(self.iot.connect())
 
     async def stop(self):
         """Stop the cloud component."""
