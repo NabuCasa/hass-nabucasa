@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable, Coroutine
 
 import aiohttp
+import async_timeout
 
 from .auth import CognitoAuth
 from .client import CloudClient
@@ -118,6 +119,11 @@ class Cloud:
         ).replace(tzinfo=UTC)
 
     @property
+    def username(self) -> str:
+        """Return the subscription username."""
+        return self.claims["cognito:username"]
+
+    @property
     def claims(self):
         """Return the claims from the id token."""
         return self._decode_claims(self.id_token)
@@ -154,6 +160,15 @@ class Cloud:
         return await self.websession.get(
             self.subscription_info_url, headers={"authorization": self.id_token}
         )
+
+    async def login(self, email: str, password: str) -> None:
+        """Log a user in."""
+        with async_timeout.timeout(10):
+            await self.run_executor(self.auth.login, email, password)
+
+        self.run_task(self.iot.connect())
+
+        await self.client.logged_in()
 
     async def logout(self) -> None:
         """Close connection and remove all credentials."""
