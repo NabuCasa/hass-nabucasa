@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import json
 import logging
 from pathlib import Path
-from typing import Callable, Coroutine, List
+from typing import Awaitable, Callable, Coroutine, List
 
 import aiohttp
 import async_timeout
@@ -16,7 +16,7 @@ from .const import CONFIG_DIR, MODE_DEV, SERVERS, STATE_CONNECTED
 from .google_report_state import GoogleReportState
 from .iot import CloudIoT
 from .remote import RemoteUI
-from .utils import UTC, parse_date, utcnow, gather_callbacks
+from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,8 +56,8 @@ class Cloud:
         self.remote = RemoteUI(self)
         self.auth = CognitoAuth(self)
         self.voice = Voice(self)
-        self._on_start: List[Coroutine[[], None]] = []
-        self._on_stop = List[Coroutine[[], None]] = []
+        self._on_start: List[Callable[[], Awaitable[None]]] = []
+        self._on_stop = List[Callable[[], Awaitable[None]]] = []
 
         if mode == MODE_DEV:
             self.cognito_client_id = cognito_client_id
@@ -135,11 +135,11 @@ class Cloud:
         """Get path to the stored auth."""
         return self.path("{}_auth.json".format(self.mode))
 
-    def register_on_start(self, on_start_cb: Coroutine[[], None]):
+    def register_on_start(self, on_start_cb: Callable[[], Awaitable[None]]):
         """Register an async on_start callback."""
         self._on_start.append(on_start_cb)
 
-    def register_on_stop(self, on_stop_cb: Coroutine[[], None]):
+    def register_on_stop(self, on_stop_cb: Callable[[], Awaitable[None]]):
         """Register an async on_stop callback."""
         self._on_stop.append(on_stop_cb)
 

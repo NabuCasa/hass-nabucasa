@@ -3,7 +3,7 @@ import asyncio
 import logging
 import pprint
 import random
-from typing import Coroutine, List
+from typing import Awaitable, Callable, List
 
 from aiohttp import WSMsgType, client_exceptions, hdrs
 
@@ -37,8 +37,8 @@ class BaseIoT:
         self.tries = 0
         # Current state of the connection
         self.state = STATE_DISCONNECTED
-        self._on_connect: List[Coroutine[[], None]] = []
-        self._on_disconnect: List[Coroutine[[], None]] = []
+        self._on_connect: List[Callable[[], Awaitable[None]]] = []
+        self._on_disconnect: List[Callable[[], Awaitable[None]]] = []
         self._logger = logging.getLogger(self.package_name)
         self._disconnect_event = None
 
@@ -66,11 +66,11 @@ class BaseIoT:
 
     # --- Do not override after this line ---
 
-    def register_on_connect(self, on_connect_cb: Coroutine[[], None]):
+    def register_on_connect(self, on_connect_cb: Callable[[], Awaitable[None]]):
         """Register an async on_connect callback."""
         self._on_connect.append(on_connect_cb)
 
-    def register_on_disconnect(self, on_disconnect_cb: Coroutine[[], None]):
+    def register_on_disconnect(self, on_disconnect_cb: Callable[[], Awaitable[None]]):
         """Register an async on_disconnect callback."""
         self._on_disconnect.append(on_disconnect_cb)
 

@@ -1,9 +1,9 @@
 """Helper methods to handle the time in Home Assistant."""
 import asyncio
 import datetime as dt
-import ssl
-from typing import Optional, Callable, TypeVar, List, Coroutine
 import logging
+import ssl
+from typing import Awaitable, Callable, List, Optional, TypeVar
 
 import pytz
 
@@ -68,7 +68,7 @@ def next_midnight() -> int:
 
 
 async def gather_callbacks(
-    logger: logging.Logger, name: str, callbacks: List[Coroutine[[], None]]
+    logger: logging.Logger, name: str, callbacks: List[Callable[[], Awaitable[None]]]
 ) -> None:
     results = await asyncio.gather(*[cb() for cb in callbacks], return_exceptions=True)
     for result, callback in zip(results, callbacks):
