@@ -68,8 +68,8 @@ class RemoteUI:
         self._token = None
 
         # Register start/stop
-        cloud.iot.register_on_connect(self.load_backend)
-        cloud.iot.register_on_disconnect(self.close_backend)
+        cloud.register_on_start(self.load_backend)
+        cloud.register_on_stop(self.close_backend)
 
     @property
     def snitun_server(self) -> Optional[str]:

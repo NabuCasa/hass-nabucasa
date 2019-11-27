@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import json
 import logging
 from pathlib import Path
-from typing import Callable, Coroutine
+from typing import Callable, Coroutine, List
 
 import aiohttp
 import async_timeout
@@ -16,7 +16,7 @@ from .const import CONFIG_DIR, MODE_DEV, SERVERS, STATE_CONNECTED
 from .google_report_state import GoogleReportState
 from .iot import CloudIoT
 from .remote import RemoteUI
-from .utils import UTC, parse_date, utcnow
+from .utils import UTC, parse_date, utcnow, gather_callbacks
 from .voice import Voice
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,6 +56,8 @@ class Cloud:
         self.remote = RemoteUI(self)
         self.auth = CognitoAuth(self)
         self.voice = Voice(self)
+        self._on_start: List[Coroutine[[], None]] = []
+        self._on_stop = List[Coroutine[[], None]] = []
 
         if mode == MODE_DEV:
             self.cognito_client_id = cognito_client_id
@@ -133,6 +135,14 @@ class Cloud:
         """Get path to the stored auth."""
         return self.path("{}_auth.json".format(self.mode))
 
+    def register_on_start(self, on_start_cb: Coroutine[[], None]):
+        """Register an async on_start callback."""
+        self._on_start.append(on_start_cb)
+
+    def register_on_stop(self, on_stop_cb: Coroutine[[], None]):
+        """Register an async on_stop callback."""
+        self._on_stop.append(on_stop_cb)
+
     def path(self, *parts) -> Path:
         """Get config path inside cloud dir.
 
@@ -165,15 +175,11 @@ class Cloud:
         """Log a user in."""
         with async_timeout.timeout(10):
             await self.run_executor(self.auth.login, email, password)
-
-        self.run_task(self.iot.connect())
-
-        await self.client.logged_in()
+        await self.start()
 
     async def logout(self) -> None:
         """Close connection and remove all credentials."""
-        await self.iot.disconnect()
-        await self.google_report_state.disconnect()
+        await self.stop()
 
         self.id_token = None
         self.access_token = None
@@ -228,13 +234,11 @@ class Cloud:
         self.refresh_token = info["refresh_token"]
 
         await self.client.async_initialize(self)
-
-        self.run_task(self.iot.connect())
+        await gather_callbacks(_LOGGER, "on_start", self._on_start)
 
     async def stop(self):
         """Stop the cloud component."""
-        await self.iot.disconnect()
-        await self.google_report_state.disconnect()
+        await gather_callbacks(_LOGGER, "on_stop", self._on_stop)
 
     def _decode_claims(self, token):  # pylint: disable=no-self-use
         """Decode the claims in a token."""
