@@ -77,6 +77,9 @@ class TestClient(CloudClient):
         """Initialize the client."""
         self.cloud = cloud
 
+    async def logged_in(self):
+        """Handle log in."""
+
     async def cleanups(self):
         """Need nothing to do."""
 
