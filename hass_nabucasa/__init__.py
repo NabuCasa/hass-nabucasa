@@ -45,6 +45,8 @@ class Cloud:
         thingtalk_url=None,
     ):
         """Create an instance of Cloud."""
+        self._on_start: List[Callable[[], Awaitable[None]]] = []
+        self._on_stop: List[Callable[[], Awaitable[None]]] = []
         self.mode = mode
         self.client = client
         self.id_token = None
@@ -56,8 +58,6 @@ class Cloud:
         self.remote = RemoteUI(self)
         self.auth = CognitoAuth(self)
         self.voice = Voice(self)
-        self._on_start: List[Callable[[], Awaitable[None]]] = []
-        self._on_stop = List[Callable[[], Awaitable[None]]] = []
 
         if mode == MODE_DEV:
             self.cognito_client_id = cognito_client_id
