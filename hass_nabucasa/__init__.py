@@ -8,6 +8,7 @@ from typing import Awaitable, Callable, Coroutine, List
 
 import aiohttp
 import async_timeout
+from jose import jwt
 
 from .auth import CognitoAuth
 from .client import CloudClient
@@ -58,6 +59,9 @@ class Cloud:
         self.remote = RemoteUI(self)
         self.auth = CognitoAuth(self)
         self.voice = Voice(self)
+
+        # Set reference
+        self.client.cloud = self
 
         if mode == MODE_DEV:
             self.cognito_client_id = cognito_client_id
@@ -225,23 +229,22 @@ class Cloud:
 
         info = await self.run_executor(load_config)
 
+        # We are not logged in
         if info is None:
-            await self.client.async_initialize(self)
             return
 
         self.id_token = info["id_token"]
         self.access_token = info["access_token"]
         self.refresh_token = info["refresh_token"]
 
-        await self.client.async_initialize(self)
+        await self.client.logged_in()
         await gather_callbacks(_LOGGER, "on_start", self._on_start)
 
     async def stop(self):
         """Stop the cloud component."""
         await gather_callbacks(_LOGGER, "on_stop", self._on_stop)
 
-    def _decode_claims(self, token):  # pylint: disable=no-self-use
+    @staticmethod
+    def _decode_claims(token):
         """Decode the claims in a token."""
-        from jose import jwt
-
         return jwt.get_unverified_claims(token)

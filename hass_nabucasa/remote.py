@@ -143,7 +143,7 @@ class RemoteUI:
 
         # Domain changed / revoke CA
         ca_domain = self._acme.common_name
-        if ca_domain is not None and ca_domain != domain:
+        if ca_domain and ca_domain != domain:
             _LOGGER.warning("Invalid certificate found: %s", ca_domain)
             await self._acme.reset_acme()
 

@@ -1,18 +1,20 @@
 """Client interface for Home Assistant to cloud."""
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 import asyncio
 from pathlib import Path
-from typing import Dict, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import aiohttp
 from aiohttp import web
 
 if TYPE_CHECKING:
-    from . import Cloud
+    from . import Cloud  # noqa
 
 
 class CloudClient(ABC):
     """Interface class for Home Assistant."""
+
+    cloud: Optional["Cloud"] = None
 
     @property
     @abstractmethod
@@ -43,10 +45,6 @@ class CloudClient(ABC):
     @abstractmethod
     def remote_autostart(self) -> bool:
         """Return true if we want start a remote connection."""
-
-    @abstractmethod
-    async def async_initialize(self, cloud: "Cloud") -> None:
-        """Initialize the client."""
 
     @abstractmethod
     async def logged_in(self) -> None:
