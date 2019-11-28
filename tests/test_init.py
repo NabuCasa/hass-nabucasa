@@ -105,6 +105,10 @@ async def test_logout_clears_info(cloud_client):
         exists=Mock(return_value=True), unlink=Mock(return_value=True)
     )
 
+    cl.id_token = "id_token"
+    cl.access_token = "access_token"
+    cl.refresh_token = "refresh_token"
+
     cl.iot = MagicMock()
     cl.iot.disconnect.return_value = mock_coro()
 

@@ -227,21 +227,23 @@ class Cloud:
                 return None
             return json.loads(self.user_info_path.read_text())
 
-        info = await self.run_executor(load_config)
+        if not self.is_logged_in:
+            info = await self.run_executor(load_config)
+            if info is None:
+                # No previous token data
+                return
 
-        # We are not logged in
-        if info is None:
-            return
-
-        self.id_token = info["id_token"]
-        self.access_token = info["access_token"]
-        self.refresh_token = info["refresh_token"]
+            self.id_token = info["id_token"]
+            self.access_token = info["access_token"]
+            self.refresh_token = info["refresh_token"]
 
         await self.client.logged_in()
         await gather_callbacks(_LOGGER, "on_start", self._on_start)
 
     async def stop(self):
         """Stop the cloud component."""
+        if not self.is_logged_in:
+            return
         await gather_callbacks(_LOGGER, "on_stop", self._on_stop)
 
     @staticmethod
