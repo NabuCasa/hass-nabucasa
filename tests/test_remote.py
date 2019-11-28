@@ -45,7 +45,7 @@ def test_init_remote(auth_cloud_mock):
     """Init remote object."""
     RemoteUI(auth_cloud_mock)
 
-    assert len(auth_cloud_mock.iot.mock_calls) == 2
+    assert len(auth_cloud_mock.mock_calls) == 2
 
 
 async def test_load_backend_exists_cert(

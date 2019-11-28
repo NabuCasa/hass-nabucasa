@@ -41,6 +41,9 @@ class GoogleReportState(iot_base.BaseIoT):
         self.register_on_connect(self._async_on_connect)
         self.register_on_disconnect(self._async_on_disconnect)
 
+        # Register start/stop
+        cloud.register_on_stop(self.disconnect)
+
     @property
     def package_name(self) -> str:
         """Return the package name for logging."""

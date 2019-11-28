@@ -33,6 +33,10 @@ class CloudIoT(iot_base.BaseIoT):
         # Local code waiting for a response
         self._response_handler = {}
 
+        # Register start/stop
+        cloud.register_on_start(self.connect)
+        cloud.register_on_stop(self.disconnect)
+
     @property
     def package_name(self) -> str:
         """Return the package name for logging."""

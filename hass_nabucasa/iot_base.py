@@ -3,6 +3,7 @@ import asyncio
 import logging
 import pprint
 import random
+from typing import Awaitable, Callable, List
 
 from aiohttp import WSMsgType, client_exceptions, hdrs
 
@@ -13,6 +14,7 @@ from .const import (
     STATE_CONNECTING,
     STATE_DISCONNECTED,
 )
+from .utils import gather_callbacks
 
 
 class NotConnected(Exception):
@@ -35,8 +37,8 @@ class BaseIoT:
         self.tries = 0
         # Current state of the connection
         self.state = STATE_DISCONNECTED
-        self._on_connect = []
-        self._on_disconnect = []
+        self._on_connect: List[Callable[[], Awaitable[None]]] = []
+        self._on_disconnect: List[Callable[[], Awaitable[None]]] = []
         self._logger = logging.getLogger(self.package_name)
         self._disconnect_event = None
 
@@ -64,11 +66,11 @@ class BaseIoT:
 
     # --- Do not override after this line ---
 
-    def register_on_connect(self, on_connect_cb):
+    def register_on_connect(self, on_connect_cb: Callable[[], Awaitable[None]]):
         """Register an async on_connect callback."""
         self._on_connect.append(on_connect_cb)
 
-    def register_on_disconnect(self, on_disconnect_cb):
+    def register_on_disconnect(self, on_disconnect_cb: Callable[[], Awaitable[None]]):
         """Register an async on_disconnect callback."""
         self._on_disconnect.append(on_disconnect_cb)
 
@@ -110,14 +112,9 @@ class BaseIoT:
                 self._logger.exception("Unexpected error")
 
             if self.state == STATE_CONNECTED and self._on_disconnect:
-                try:
-                    await asyncio.gather(*[cb() for cb in self._on_disconnect])
-                except Exception:  # pylint: disable=broad-except
-                    # Safety net. This should never hit.
-                    # Still adding it here to make sure we don't break the flow
-                    self._logger.exception(
-                        "Unexpected error in on_disconnect callbacks"
-                    )
+                await gather_callbacks(
+                    self._logger, "on_disconnect", self._on_disconnect
+                )
 
             if self.close_requested:
                 break
@@ -176,14 +173,7 @@ class BaseIoT:
             self.state = STATE_CONNECTED
 
             if self._on_connect:
-                results = await asyncio.gather(*[cb() for cb in self._on_connect])
-                for result, callback in zip(results, self._on_connect):
-                    if isinstance(result, Exception):
-                        self._logger.error(
-                            "Unexpected error in on_connect %s",
-                            callback,
-                            exc_info=result,
-                        )
+                await gather_callbacks(self._logger, "on_connect", self._on_connect)
 
             while not client.closed:
                 msg = await client.receive()
