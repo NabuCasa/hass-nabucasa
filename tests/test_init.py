@@ -53,6 +53,11 @@ async def test_initialize_loads_info(cloud_client):
     """Test initialize will load info from config file."""
     cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
+    assert len(cl._on_start) == 2
+    cl._on_start.clear()
+    assert len(cl._on_stop) == 3
+    cl._on_stop.clear()
+
     info_file = MagicMock(
         read_text=Mock(
             return_value=json.dumps(
@@ -69,6 +74,11 @@ async def test_initialize_loads_info(cloud_client):
     cl.iot = MagicMock()
     cl.iot.connect.return_value = mock_coro()
 
+    cl.remote = MagicMock()
+    cl.remote.connect.return_value = mock_coro()
+
+    cl._on_start.extend([cl.iot.connect, cl.remote.connect])
+
     with patch("hass_nabucasa.Cloud._decode_claims"), patch(
         "hass_nabucasa.Cloud.user_info_path",
         new_callable=PropertyMock(return_value=info_file),
@@ -79,21 +89,38 @@ async def test_initialize_loads_info(cloud_client):
     assert cl.access_token == "test-access-token"
     assert cl.refresh_token == "test-refresh-token"
     assert len(cl.iot.connect.mock_calls) == 1
+    assert len(cl.remote.connect.mock_calls) == 1
 
 
 async def test_logout_clears_info(cloud_client):
     """Test logging out disconnects and removes info."""
     cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
+    assert len(cl._on_start) == 2
+    cl._on_start.clear()
+    assert len(cl._on_stop) == 3
+    cl._on_stop.clear()
+
     info_file = MagicMock(
         exists=Mock(return_value=True), unlink=Mock(return_value=True)
     )
+
+    cl.id_token = "id_token"
+    cl.access_token = "access_token"
+    cl.refresh_token = "refresh_token"
 
     cl.iot = MagicMock()
     cl.iot.disconnect.return_value = mock_coro()
 
     cl.google_report_state = MagicMock()
     cl.google_report_state.disconnect.return_value = mock_coro()
+
+    cl.remote = MagicMock()
+    cl.remote.disconnect.return_value = mock_coro()
+
+    cl._on_stop.extend(
+        [cl.iot.disconnect, cl.remote.disconnect, cl.google_report_state.disconnect]
+    )
 
     with patch(
         "hass_nabucasa.Cloud.user_info_path",
@@ -103,6 +130,7 @@ async def test_logout_clears_info(cloud_client):
 
     assert len(cl.iot.disconnect.mock_calls) == 1
     assert len(cl.google_report_state.disconnect.mock_calls) == 1
+    assert len(cl.remote.disconnect.mock_calls) == 1
     assert cl.id_token is None
     assert cl.access_token is None
     assert cl.refresh_token is None
