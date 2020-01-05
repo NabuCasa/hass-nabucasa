@@ -83,15 +83,27 @@ async def async_remote_challenge_cleanup(cloud, txt: str):
 
 
 @_check_token
+@_log_response
 async def async_alexa_access_token(cloud):
-    """Create a cloudhook."""
+    """Request Alexa access token."""
     return await cloud.websession.post(
         cloud.alexa_access_token_url, headers={AUTHORIZATION: cloud.id_token}
     )
 
 
 @_check_token
+@_log_response
 async def async_voice_connection_details(cloud):
     """Return connection details for voice service."""
     url = f"{cloud.voice_api_url}/connection_details"
     return await cloud.websession.get(url, headers={AUTHORIZATION: cloud.id_token})
+
+
+@_check_token
+@_log_response
+async def async_google_actions_request_sync(cloud):
+    """Request a Google Actions sync request."""
+    return await cloud.websession.post(
+        f"{cloud.google_actions_report_state_url}/request_sync",
+        headers={AUTHORIZATION: f"Bearer {cloud.id_token}"},
+    )
