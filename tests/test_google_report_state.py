@@ -14,11 +14,27 @@ async def create_grs(loop, ws_server, server_msg_handler) -> GoogleReportState:
     mock_cloud = Mock(
         run_task=loop.create_task,
         subscription_expired=False,
-        google_actions_report_state_url="mock-report-state-url",
+        google_actions_report_state_url="https://mock-report-state-url.com",
         auth=Mock(async_check_token=Mock(side_effect=mock_coro)),
         websession=Mock(ws_connect=Mock(return_value=mock_coro(client))),
     )
     return GoogleReportState(mock_cloud)
+
+
+async def test_ws_server_url():
+    """Test generating ws server url."""
+    assert (
+        GoogleReportState(
+            Mock(google_actions_report_state_url="https://example.com")
+        ).ws_server_url
+        == "wss://example.com/v1"
+    )
+    assert (
+        GoogleReportState(
+            Mock(google_actions_report_state_url="http://example.com")
+        ).ws_server_url
+        == "ws://example.com/v1"
+    )
 
 
 async def test_send_messages(loop, ws_server):
