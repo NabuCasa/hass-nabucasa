@@ -18,7 +18,6 @@ def test_constructor_loads_info_from_constant(cloud_client):
                 "user_pool_id": "test-user_pool_id",
                 "region": "test-region",
                 "relayer": "test-relayer",
-                "google_actions_sync_url": "test-google_actions_sync_url",
                 "subscription_info_url": "test-subscription-info-url",
                 "cloudhook_create_url": "test-cloudhook_create_url",
                 "remote_api_url": "test-remote_api_url",
@@ -38,7 +37,6 @@ def test_constructor_loads_info_from_constant(cloud_client):
     assert cl.user_pool_id == "test-user_pool_id"
     assert cl.region == "test-region"
     assert cl.relayer == "test-relayer"
-    assert cl.google_actions_sync_url == "test-google_actions_sync_url"
     assert cl.subscription_info_url == "test-subscription-info-url"
     assert cl.cloudhook_create_url == "test-cloudhook_create_url"
     assert cl.remote_api_url == "test-remote_api_url"

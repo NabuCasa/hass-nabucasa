@@ -1,6 +1,6 @@
 from setuptools import setup
 
-VERSION = "0.30"
+VERSION = "0.31"
 
 setup(
     name="hass-nabucasa",
@@ -30,7 +30,7 @@ setup(
     install_requires=[
         "warrant==0.6.1",
         "snitun==0.20",
-        "acme==0.39.0",
+        "acme==0.40.1",
         "cryptography>=2.5",
         "attrs>=18.2.0",
         "pytz",
