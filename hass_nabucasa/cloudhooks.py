@@ -21,6 +21,10 @@ class Cloudhooks:
             return
 
         cloudhooks = self.cloud.client.cloudhooks
+        
+        if not cloudhooks:
+            return
+        
         await self.cloud.iot.async_send_message(
             "webhook-register",
             {"cloudhook_ids": [info["cloudhook_id"] for info in cloudhooks.values()]},
