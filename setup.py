@@ -30,7 +30,7 @@ setup(
     install_requires=[
         "warrant==0.6.1",
         "snitun==0.20",
-        "acme==1.0.0",
+        "acme==1.1.0",
         "cryptography>=2.5",
         "attrs>=18.2.0",
         "pytz",
