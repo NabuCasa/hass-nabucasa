@@ -6,8 +6,8 @@ import random
 import boto3
 import botocore
 from botocore.exceptions import ClientError, EndpointConnectionError
-import warrant
-from warrant.exceptions import ForceChangePasswordException
+import pycognito
+from pycognito.exceptions import ForceChangePasswordException
 
 from .const import MESSAGE_AUTH_FAIL
 
@@ -64,6 +64,7 @@ class CognitoAuth:
         """Configure the auth api."""
         self.cloud = cloud
         self._refresh_task = None
+        self._session = boto3.session.Session()
 
         cloud.iot.register_on_connect(self.on_connect)
         cloud.iot.register_on_disconnect(self.on_disconnect)
@@ -95,9 +96,6 @@ class CognitoAuth:
         """Register a new account."""
         cognito = self._cognito()
 
-        # Workaround for bug in Warrant. PR with fix:
-        # https://github.com/capless/warrant/pull/82
-        cognito.add_base_attributes()
         try:
             cognito.register(email, password)
 
@@ -210,16 +208,13 @@ class CognitoAuth:
 
     def _cognito(self, **kwargs):
         """Get the client credentials."""
-        cognito = warrant.Cognito(
+        cognito = pycognito.Cognito(
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
+            botocore_config=botocore.config.Config(signature_version=botocore.UNSIGNED),
+            session=self._session,
             **kwargs,
-        )
-        cognito.client = boto3.client(
-            "cognito-idp",
-            region_name=self.cloud.region,
-            config=botocore.config.Config(signature_version=botocore.UNSIGNED),
         )
         return cognito
 

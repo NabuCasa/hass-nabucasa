@@ -28,12 +28,12 @@ setup(
     platforms="any",
     packages=["hass_nabucasa"],
     install_requires=[
-        "warrant==0.6.1",
+        "pycognito==0.1.1",
         "snitun==0.20",
         "acme==1.1.0",
-        "cryptography>=2.5",
-        "attrs>=18.2.0",
-        "pytz",
-        "aiohttp",
+        "cryptography~=2.8",
+        "attrs~=19.3.0",
+        "pytz~=2019.3",
+        "aiohttp~=3.6.1",
     ],
 )
