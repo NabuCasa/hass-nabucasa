@@ -174,8 +174,8 @@ class Cloud:
 
     async def login(self, email: str, password: str) -> None:
         """Log a user in."""
-        with async_timeout.timeout(10):
-            await self.run_executor(self.auth.login, email, password)
+        with async_timeout.timeout(15):
+            await self.auth.async_login(email, password)
         await self.start()
 
     async def logout(self) -> None:
