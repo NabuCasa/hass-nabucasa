@@ -1,5 +1,6 @@
 """Package to communicate with the authentication API."""
 import asyncio
+from functools import partial
 import logging
 import random
 
@@ -65,17 +66,18 @@ class CognitoAuth:
         self.cloud = cloud
         self._refresh_task = None
         self._session = boto3.session.Session()
+        self._request_lock = asyncio.Lock()
 
         cloud.iot.register_on_connect(self.on_connect)
         cloud.iot.register_on_disconnect(self.on_disconnect)
 
-    async def handle_token_refresh(self):
+    async def _async_handle_token_refresh(self):
         """Handle Cloud access token refresh."""
         sleep_time = random.randint(2400, 3600)
         while True:
             try:
                 await asyncio.sleep(sleep_time)
-                await self.cloud.run_executor(self.renew_access_token)
+                await self.async_renew_access_token()
             except CloudError as err:
                 _LOGGER.error("Can't refresh cloud token: %s", err)
             except asyncio.CancelledError:
@@ -86,116 +88,70 @@ class CognitoAuth:
 
     async def on_connect(self):
         """When the instance is connected."""
-        self._refresh_task = self.cloud.run_task(self.handle_token_refresh())
+        self._refresh_task = self.cloud.run_task(self._async_handle_token_refresh())
 
     async def on_disconnect(self):
         """When the instance is disconnected."""
         self._refresh_task.cancel()
 
-    def register(self, email, password):
+    async def async_register(self, email, password):
         """Register a new account."""
         cognito = self._cognito()
 
         try:
-            cognito.register(email, password)
+            async with self._request_lock:
+                await self.cloud.run_executor(cognito.register, email, password)
 
         except ClientError as err:
             raise _map_aws_exception(err)
         except EndpointConnectionError:
             raise UnknownError()
 
-    def resend_email_confirm(self, email):
+    async def async_resend_email_confirm(self, email):
         """Resend email confirmation."""
         cognito = self._cognito(username=email)
 
         try:
-            cognito.client.resend_confirmation_code(
-                Username=email, ClientId=cognito.client_id
-            )
+            async with self._request_lock:
+                await self.cloud.run_executor(
+                    partial(
+                        cognito.client.resend_confirmation_code,
+                        Username=email,
+                        ClientId=cognito.client_id,
+                    )
+                )
         except ClientError as err:
             raise _map_aws_exception(err)
         except EndpointConnectionError:
             raise UnknownError()
 
-    def forgot_password(self, email):
+    async def async_forgot_password(self, email):
         """Initialize forgotten password flow."""
         cognito = self._cognito(username=email)
 
         try:
-            cognito.initiate_forgot_password()
+            async with self._request_lock:
+                await self.cloud.run_executor(cognito.initiate_forgot_password)
 
         except ClientError as err:
             raise _map_aws_exception(err)
         except EndpointConnectionError:
             raise UnknownError()
 
-    def login(self, email, password):
+    async def async_login(self, email, password):
         """Log user in and fetch certificate."""
-        cognito = self._authenticate(email, password)
-        self.cloud.id_token = cognito.id_token
-        self.cloud.access_token = cognito.access_token
-        self.cloud.refresh_token = cognito.refresh_token
-        self.cloud.write_user_info()
-
-    async def async_check_token(self):
-        """Check that the token is valid."""
-        try:
-            await self.cloud.run_executor(self._check_token)
-        except Unauthenticated as err:
-            _LOGGER.error("Unable to refresh token: %s", err)
-
-            self.cloud.client.user_message(
-                "cloud_subscription_expired", "Home Assistant Cloud", MESSAGE_AUTH_FAIL
-            )
-
-            # Don't await it because it could cancel this task
-            self.cloud.run_task(self.cloud.logout())
-            raise
-
-    def _check_token(self):
-        """Check that the token is valid and verify if needed."""
-        cognito = self._cognito(
-            access_token=self.cloud.access_token, refresh_token=self.cloud.refresh_token
-        )
-
-        try:
-            if cognito.check_token():
-                self.cloud.id_token = cognito.id_token
-                self.cloud.access_token = cognito.access_token
-                self.cloud.write_user_info()
-
-        except ClientError as err:
-            raise _map_aws_exception(err)
-
-        except EndpointConnectionError:
-            raise UnknownError()
-
-    def renew_access_token(self):
-        """Renew access token."""
-        cognito = self._cognito(
-            access_token=self.cloud.access_token, refresh_token=self.cloud.refresh_token
-        )
-
-        try:
-            cognito.renew_access_token()
-            self.cloud.id_token = cognito.id_token
-            self.cloud.access_token = cognito.access_token
-            self.cloud.write_user_info()
-
-        except ClientError as err:
-            raise _map_aws_exception(err)
-
-        except EndpointConnectionError:
-            raise UnknownError()
-
-    def _authenticate(self, email, password):
-        """Log in and return an authenticated Cognito instance."""
         assert not self.cloud.is_logged_in, "Cannot login if already logged in."
 
         cognito = self._cognito(username=email)
         try:
-            cognito.authenticate(password=password)
-            return cognito
+            async with self._request_lock:
+                await self.cloud.run_executor(
+                    partial(cognito.authenticate, password=password)
+                )
+                self.cloud.id_token = cognito.id_token
+                self.cloud.access_token = cognito.access_token
+                self.cloud.refresh_token = cognito.refresh_token
+            await self.cloud.run_executor(self.cloud.write_user_info)
 
         except ForceChangePasswordException:
             raise PasswordChangeRequired()
@@ -206,9 +162,63 @@ class CognitoAuth:
         except EndpointConnectionError:
             raise UnknownError()
 
+    async def async_check_token(self):
+        """Check that the token is valid."""
+        cognito = self._authenticated_cognito
+
+        async with self._request_lock:
+            if not cognito.check_token(renew=False):
+                return
+
+            try:
+                await self._async_renew_access_token()
+            except Unauthenticated as err:
+                _LOGGER.error("Unable to refresh token: %s", err)
+
+                self.cloud.client.user_message(
+                    "cloud_subscription_expired",
+                    "Home Assistant Cloud",
+                    MESSAGE_AUTH_FAIL,
+                )
+
+                # Don't await it because it could cancel this task
+                self.cloud.run_task(self.cloud.logout())
+                raise
+
+    async def async_renew_access_token(self):
+        """Renew access token."""
+        async with self._request_lock:
+            await self._async_renew_access_token()
+
+    async def _async_renew_access_token(self):
+        """Renew access token internals.
+
+        Does not consume lock.
+        """
+        cognito = self._authenticated_cognito
+
+        try:
+            await self.cloud.run_executor(cognito.renew_access_token)
+            self.cloud.id_token = cognito.id_token
+            self.cloud.access_token = cognito.access_token
+            await self.cloud.run_executor(self.cloud.write_user_info)
+
+        except ClientError as err:
+            raise _map_aws_exception(err)
+
+        except EndpointConnectionError:
+            raise UnknownError()
+
+    @property
+    def _authenticated_cognito(self):
+        """Return an authenticated cognito instance."""
+        return self._cognito(
+            access_token=self.cloud.access_token, refresh_token=self.cloud.refresh_token
+        )
+
     def _cognito(self, **kwargs):
         """Get the client credentials."""
-        cognito = pycognito.Cognito(
+        return pycognito.Cognito(
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
@@ -216,7 +226,6 @@ class CognitoAuth:
             session=self._session,
             **kwargs,
         )
-        return cognito
 
 
 def _map_aws_exception(err):
