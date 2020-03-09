@@ -3,9 +3,9 @@
 trigger:
   branches:
     include:
-    - dev
+    - master
 pr:
-- dev
+- master
 
 jobs:
 
