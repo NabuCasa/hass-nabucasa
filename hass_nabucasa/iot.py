@@ -34,7 +34,7 @@ class CloudIoT(iot_base.BaseIoT):
         self._response_handler = {}
 
         # Register start/stop
-        cloud.register_on_start(self.connect)
+        cloud.register_on_start(self.start)
         cloud.register_on_stop(self.disconnect)
 
     @property
@@ -46,6 +46,10 @@ class CloudIoT(iot_base.BaseIoT):
     def ws_server_url(self) -> str:
         """Server to connect to."""
         return self.cloud.relayer
+
+    async def start(self) -> None:
+        """Start the CloudIoT server."""
+        self.cloud.run_task(self.connect())
 
     async def async_send_message(self, handler, payload, expect_answer=True):
         """Send a message."""

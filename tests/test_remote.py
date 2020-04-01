@@ -76,9 +76,10 @@ async def test_load_backend_exists_cert(
 
     assert not remote.is_connected
     await remote.load_backend()
+    assert remote.snitun_server == "rest-remote.nabu.casa"
+    assert remote.instance_domain == "test.dui.nabu.casa"
     await asyncio.sleep(0.1)
 
-    assert remote.snitun_server == "rest-remote.nabu.casa"
     assert not acme_mock.call_issue
     assert acme_mock.init_args == (
         auth_cloud_mock,
