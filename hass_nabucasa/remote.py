@@ -135,6 +135,10 @@ class RemoteUI:
         email = data["email"]
         server = data["server"]
 
+        # Cache data
+        self._instance_domain = domain
+        self._snitun_server = server
+
         # Set instance details for certificate
         self._acme = AcmeHandler(self.cloud, domain, email)
 
@@ -147,6 +151,10 @@ class RemoteUI:
             _LOGGER.warning("Invalid certificate found: %s", ca_domain)
             await self._acme.reset_acme()
 
+        self.cloud.run_task(self._finish_load_backend())
+
+    async def _finish_load_backend(self) -> None:
+        """Finish loading the backend."""
         # Issue a certificate
         if not self._acme.is_valid_certificate:
             try:
@@ -171,13 +179,9 @@ class RemoteUI:
         self._snitun = SniTunClientAioHttp(
             self.cloud.client.aiohttp_runner,
             context,
-            snitun_server=server,
+            snitun_server=self._snitun_server,
             snitun_port=443,
         )
-
-        # Cache data
-        self._instance_domain = domain
-        self._snitun_server = server
 
         await self._snitun.start()
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_UP)
