@@ -3,6 +3,7 @@ import asyncio
 from pathlib import Path
 import tempfile
 from typing import Any
+from unittest.mock import Mock
 
 from hass_nabucasa import Cloud
 from hass_nabucasa.client import CloudClient
@@ -33,6 +34,7 @@ class TestClient(CloudClient):
         self._loop = loop
         self._websession = websession
         self._cloudhooks = {}
+        self._aiohttp_runner = Mock()
         self.prop_remote_autostart = True
 
         self.mock_user = []
@@ -61,7 +63,7 @@ class TestClient(CloudClient):
     @property
     def aiohttp_runner(self):
         """Return client webinterface aiohttp application."""
-        return None
+        return self._aiohttp_runner
 
     @property
     def cloudhooks(self):

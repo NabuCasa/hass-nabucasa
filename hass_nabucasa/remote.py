@@ -172,7 +172,12 @@ class RemoteUI:
                     "Home Assistant Cloud",
                     const.MESSAGE_REMOTE_READY,
                 )
+
         await self._acme.hardening_files()
+
+        # aiohttp_runner comes available when Home Assistant has started.
+        while self.cloud.client.aiohttp_runner is None:
+            await asyncio.sleep(1)
 
         # Setup snitun / aiohttp wrapper
         context = await self._create_context()
