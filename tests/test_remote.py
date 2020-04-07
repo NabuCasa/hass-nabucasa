@@ -86,9 +86,6 @@ async def test_load_backend_exists_cert(
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
-    print("TEST", auth_cloud_mock)
-    print("TEST", auth_cloud_mock.client)
-    print("TEST", auth_cloud_mock.client.aiohttp_runner)
     assert acme_mock.call_hardening
     assert snitun_mock.call_start
     assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
