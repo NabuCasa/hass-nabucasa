@@ -86,9 +86,12 @@ async def test_load_backend_exists_cert(
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
+    print("TEST", auth_cloud_mock)
+    print("TEST", auth_cloud_mock.client)
+    print("TEST", auth_cloud_mock.client.aiohttp_runner)
     assert acme_mock.call_hardening
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (None, None)
+    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -145,7 +148,7 @@ async def test_load_backend_not_exists_cert(
     )
     assert acme_mock.call_hardening
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (None, None)
+    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -198,7 +201,7 @@ async def test_load_and_unload_backend(
     assert acme_mock.call_hardening
     assert snitun_mock.call_start
     assert not snitun_mock.call_stop
-    assert snitun_mock.init_args == (None, None)
+    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -257,7 +260,7 @@ async def test_load_backend_exists_wrong_cert(
     )
     assert acme_mock.call_hardening
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (None, None)
+    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
