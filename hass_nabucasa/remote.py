@@ -62,6 +62,7 @@ class RemoteUI:
         self._acme = None
         self._snitun = None
         self._snitun_server = None
+        self._snitun_port = None
         self._instance_domain = None
         self._reconnect_task = None
         self._acme_task = None
@@ -134,10 +135,15 @@ class RemoteUI:
         domain = data["domain"]
         email = data["email"]
         server = data["server"]
+        try:
+            port = data["port"]
+        except KeyError:
+            port = 443
 
         # Cache data
         self._instance_domain = domain
         self._snitun_server = server
+        self._snitun_port = port
 
         # Set instance details for certificate
         self._acme = AcmeHandler(self.cloud, domain, email)
@@ -185,7 +191,7 @@ class RemoteUI:
             self.cloud.client.aiohttp_runner,
             context,
             snitun_server=self._snitun_server,
-            snitun_port=443,
+            snitun_port=self._snitun_port,
         )
 
         await self._snitun.start()
@@ -215,6 +221,7 @@ class RemoteUI:
         self._token = None
         self._instance_domain = None
         self._snitun_server = None
+        self._snitun_port = None
 
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_DOWN)
 
