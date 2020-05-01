@@ -44,11 +44,14 @@ class TestClient(CloudClient):
         self.mock_webhooks = []
 
         self.mock_return = []
+        self._base_path = None
 
     @property
     def base_path(self):
         """Return path to base dir."""
-        return Path(tempfile.gettempdir())
+        if self._base_path is None:
+            self._base_path = Path(tempfile.gettempdir())
+        return self._base_path
 
     @property
     def loop(self):

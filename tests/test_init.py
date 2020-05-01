@@ -90,6 +90,39 @@ async def test_initialize_loads_info(cloud_client):
     assert len(cl.remote.connect.mock_calls) == 1
 
 
+async def test_initialize_loads_invalid_info(cloud_client, caplog):
+    """Test initialize load invalid info from config file."""
+    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
+
+    info_file = MagicMock(
+        read_text=Mock(return_value="invalid json"),
+        exists=Mock(return_value=True),
+        relative_to=Mock(return_value=".cloud/production_auth.json"),
+    )
+
+    cl.iot = MagicMock()
+    cl.iot.connect.return_value = mock_coro()
+
+    cl.remote = MagicMock()
+    cl.remote.connect.return_value = mock_coro()
+
+    cl._on_start.extend([cl.iot.connect, cl.remote.connect])
+
+    with patch("hass_nabucasa.Cloud._decode_claims"), patch(
+        "hass_nabucasa.Cloud.user_info_path",
+        new_callable=PropertyMock(return_value=info_file),
+    ):
+        await cl.start()
+
+    assert cl.id_token is None
+    assert len(cl.iot.connect.mock_calls) == 0
+    assert len(cl.remote.connect.mock_calls) == 0
+    assert (
+        "Error loading cloud authentication info from .cloud/production_auth.json: Expecting value: line 1 column 1 (char 0)"
+        in caplog.text
+    )
+
+
 async def test_logout_clears_info(cloud_client):
     """Test logging out disconnects and removes info."""
     cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)

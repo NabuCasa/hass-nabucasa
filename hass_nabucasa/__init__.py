@@ -222,7 +222,19 @@ class Cloud:
 
             if not self.user_info_path.exists():
                 return None
-            return json.loads(self.user_info_path.read_text())
+            try:
+                return json.loads(self.user_info_path.read_text())
+            except (ValueError, OSError) as err:
+                path = self.user_info_path.relative_to(self.client.base_path)
+                self.client.user_message(
+                    "load_auth_data",
+                    "Home Assistant Cloud error",
+                    f"Unable to load authentication from {path}. [Please login again](/config/cloud)",
+                )
+                _LOGGER.warning(
+                    "Error loading cloud authentication info from %s: %s", path, err
+                )
+                return None
 
         if not self.is_logged_in:
             info = await self.run_executor(load_config)
