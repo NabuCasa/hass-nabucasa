@@ -229,7 +229,7 @@ class Cloud:
                 self.client.user_message(
                     "load_auth_data",
                     "Home Assistant Cloud error",
-                    f"Unable to load authentication from {path}.",
+                    f"Unable to load authentication from {path}. [Please login again](/config/cloud)",
                 )
                 _LOGGER.warning(
                     "Error loading cloud authentication info from %s: %s", path, err
