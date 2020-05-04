@@ -10,7 +10,7 @@ setup(
     author_email="opensource@nabucasa.com",
     url="https://www.nabucasa.com/",
     download_url="https://github.com/NabuCasa/hass-nabucasa/tarball/{}".format(VERSION),
-    description=("Home Assistant cloud integration by Nabu Casa, inc."),
+    description=("Home Assistant cloud integration by Nabu Casa, Inc."),
     long_description=(""),
     classifiers=[
         "Intended Audience :: End Users/Desktop",
