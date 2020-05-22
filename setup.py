@@ -33,7 +33,7 @@ setup(
         "acme==1.3.0",
         "cryptography~=2.8",
         "attrs~=19.3.0",
-        "pytz~=2019.3",
+        "pytz>=2019.3,<2021.0",
         "aiohttp~=3.6.1",
     ],
 )
