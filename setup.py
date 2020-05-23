@@ -1,6 +1,6 @@
 from setuptools import setup
 
-VERSION = "0.34.2"
+VERSION = "0.34.3"
 
 setup(
     name="hass-nabucasa",
