@@ -8,6 +8,7 @@ from typing import Awaitable, Callable, Coroutine, List
 
 import aiohttp
 import async_timeout
+from atomicwrites import atomic_write
 from jose import jwt
 
 from .auth import CognitoAuth
@@ -17,7 +18,7 @@ from .const import CONFIG_DIR, MODE_DEV, SERVERS, STATE_CONNECTED
 from .google_report_state import GoogleReportState
 from .iot import CloudIoT
 from .remote import RemoteUI
-from .utils import UTC, gather_callbacks, parse_date, utcnow, safe_write
+from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
 
 _LOGGER = logging.getLogger(__name__)
@@ -198,19 +199,17 @@ class Cloud:
         if not base_path.exists():
             base_path.mkdir()
 
-        safe_write(
-            self.user_info_path,
-            json.dumps(
-                {
-                    "id_token": self.id_token,
-                    "access_token": self.access_token,
-                    "refresh_token": self.refresh_token,
-                },
-                indent=4,
-            ),
-            _LOGGER,
-            True,
-        )
+        with atomic_write(str(self.user_info_path), overwrite=True) as f:
+            f.write(
+                json.dumps(
+                    {
+                        "id_token": self.id_token,
+                        "access_token": self.access_token,
+                        "refresh_token": self.refresh_token,
+                    },
+                    indent=4,
+                )
+            )
 
     async def start(self):
         """Start the cloud component."""
