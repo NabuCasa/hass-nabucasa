@@ -172,22 +172,17 @@ def test_write_user_info(cloud_client):
     """Test writing user info works."""
     cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
-    info_file = MagicMock(
-        exists=Mock(return_value=True), write_text=Mock(return_value=True)
-    )
-
     cl.id_token = "test-id-token"
     cl.access_token = "test-access-token"
     cl.refresh_token = "test-refresh-token"
 
-    with patch(
-        "hass_nabucasa.Cloud.user_info_path",
-        new_callable=PropertyMock(return_value=info_file),
-    ):
+    with patch("hass_nabucasa.atomic_write",) as mock_write:
         cl.write_user_info()
 
-    assert info_file.write_text.called
-    data = json.loads(info_file.write_text.mock_calls[0][1][0])
+    mock_file = mock_write.return_value.__enter__.return_value
+
+    assert mock_file.write.called
+    data = json.loads(mock_file.write.mock_calls[0][1][0])
     assert data == {
         "access_token": "test-access-token",
         "id_token": "test-id-token",

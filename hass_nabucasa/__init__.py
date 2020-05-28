@@ -8,6 +8,7 @@ from typing import Awaitable, Callable, Coroutine, List
 
 import aiohttp
 import async_timeout
+from atomicwrites import atomic_write
 from jose import jwt
 
 from .auth import CognitoAuth
@@ -198,17 +199,17 @@ class Cloud:
         if not base_path.exists():
             base_path.mkdir()
 
-        self.user_info_path.write_text(
-            json.dumps(
-                {
-                    "id_token": self.id_token,
-                    "access_token": self.access_token,
-                    "refresh_token": self.refresh_token,
-                },
-                indent=4,
+        with atomic_write(str(self.user_info_path), overwrite=True) as fp:
+            fp.write(
+                json.dumps(
+                    {
+                        "id_token": self.id_token,
+                        "access_token": self.access_token,
+                        "refresh_token": self.refresh_token,
+                    },
+                    indent=4,
+                )
             )
-        )
-        self.user_info_path.chmod(0o600)
 
     async def start(self):
         """Start the cloud component."""
