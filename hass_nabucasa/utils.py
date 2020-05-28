@@ -2,7 +2,9 @@
 import asyncio
 import datetime as dt
 import logging
+import pathlib
 import ssl
+import tempfile
 from typing import Awaitable, Callable, List, Optional, TypeVar
 
 import pytz
@@ -89,3 +91,31 @@ class Registry(dict):
             return func
 
         return decorator
+
+
+def safe_write(
+    filename: pathlib.Path, data: str, logger: logging.Logger, private=False
+) -> None:
+    """Write data to a file in a safe manner.
+
+    Normal writes will truncate file, then try writing to it. This causes
+    issues when the user runs out of disk space.
+    """
+    tmp_filename = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=str(filename.parent), delete=False
+        ) as fdesc:
+            fdesc.write(data)
+            tmp_filename = pathlib.Path(fdesc.name)
+        # Modern versions of Python tempfile create this file with mode 0o600
+        if not private:
+            tmp_filename.chmod(0o644)
+        tmp_filename.replace(filename)
+    finally:
+        # Clean up in case of exceptions
+        if tmp_filename and tmp_filename.is_file():
+            try:
+                tmp_filename.unlink()
+            except OSError as err:
+                logger.error("Cleanup failed: %s", err)

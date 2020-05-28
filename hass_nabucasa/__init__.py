@@ -17,7 +17,7 @@ from .const import CONFIG_DIR, MODE_DEV, SERVERS, STATE_CONNECTED
 from .google_report_state import GoogleReportState
 from .iot import CloudIoT
 from .remote import RemoteUI
-from .utils import UTC, gather_callbacks, parse_date, utcnow
+from .utils import UTC, gather_callbacks, parse_date, utcnow, safe_write
 from .voice import Voice
 
 _LOGGER = logging.getLogger(__name__)
@@ -198,7 +198,8 @@ class Cloud:
         if not base_path.exists():
             base_path.mkdir()
 
-        self.user_info_path.write_text(
+        safe_write(
+            self.user_info_path,
             json.dumps(
                 {
                     "id_token": self.id_token,
@@ -206,9 +207,10 @@ class Cloud:
                     "refresh_token": self.refresh_token,
                 },
                 indent=4,
-            )
+            ),
+            _LOGGER,
+            True,
         )
-        self.user_info_path.chmod(0o600)
 
     async def start(self):
         """Start the cloud component."""
