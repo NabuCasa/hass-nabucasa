@@ -210,6 +210,7 @@ class Cloud:
                     indent=4,
                 )
             )
+        self.user_info_path.chmod(0o600)
 
     async def start(self):
         """Start the cloud component."""
