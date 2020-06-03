@@ -9,6 +9,7 @@ import urllib
 import OpenSSL
 from acme import challenges, client, crypto_util, errors, messages
 import async_timeout
+from atomicwrites import atomic_write
 import attr
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -280,7 +281,8 @@ class AcmeHandler:
         else:
             _LOGGER.info("Create new certificate: %s", self.path_fullchain)
 
-        self.path_fullchain.write_text(order.fullchain_pem)
+        with atomic_write(str(self.path_fullchain), overwrite=True) as fp:
+            fp.write(order.fullchain_pem)
         self.path_fullchain.chmod(0o600)
 
     async def load_certificate(self) -> None:
