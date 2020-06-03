@@ -370,9 +370,13 @@ class AcmeHandler:
             await self.cloud.run_executor(self._finish_challenge, challenge)
             await self.load_certificate()
         finally:
-            await cloud_api.async_remote_challenge_cleanup(
-                self.cloud, challenge.validation
-            )
+            try:
+                async with async_timeout.timeout(30):
+                    await cloud_api.async_remote_challenge_cleanup(
+                        self.cloud, challenge.validation
+                    )
+            except asyncio.TimeoutError:
+                _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
 
     async def reset_acme(self) -> None:
         """Revoke and deactivate acme certificate/account."""
