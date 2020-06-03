@@ -175,11 +175,14 @@ class RemoteUI:
 
         await self._acme.hardening_files()
 
+        _LOGGER.debug("Waiting for aiohttp runner to come available")
+
         # aiohttp_runner comes available when Home Assistant has started.
         while self.cloud.client.aiohttp_runner is None:
             await asyncio.sleep(1)
 
         # Setup snitun / aiohttp wrapper
+        _LOGGER.debug("Initializing remote backend")
         context = await self._create_context()
         self._snitun = SniTunClientAioHttp(
             self.cloud.client.aiohttp_runner,
@@ -188,9 +191,13 @@ class RemoteUI:
             snitun_port=443,
         )
 
+        _LOGGER.debug("Starting remote backend")
         await self._snitun.start()
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_UP)
 
+        _LOGGER.debug(
+            "Connecting remote backend: %s", self.cloud.client.remote_autostart
+        )
         # Connect to remote is autostart enabled
         if self.cloud.client.remote_autostart:
             self.cloud.run_task(self.connect())
