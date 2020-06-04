@@ -176,7 +176,7 @@ def test_write_user_info(cloud_client):
     cl.access_token = "test-access-token"
     cl.refresh_token = "test-refresh-token"
 
-    with patch("hass_nabucasa.atomic_write",) as mock_write:
+    with patch("pathlib.Path.chmod"), patch("hass_nabucasa.atomic_write") as mock_write:
         cl.write_user_info()
 
     mock_file = mock_write.return_value.__enter__.return_value
