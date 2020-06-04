@@ -199,7 +199,7 @@ class Cloud:
         if not base_path.exists():
             base_path.mkdir()
 
-        with atomic_write(str(self.user_info_path), overwrite=True) as fp:
+        with atomic_write(self.user_info_path, overwrite=True) as fp:
             fp.write(
                 json.dumps(
                     {

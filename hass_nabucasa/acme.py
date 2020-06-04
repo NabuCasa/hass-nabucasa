@@ -281,7 +281,7 @@ class AcmeHandler:
         else:
             _LOGGER.info("Create new certificate: %s", self.path_fullchain)
 
-        with atomic_write(str(self.path_fullchain), overwrite=True) as fp:
+        with atomic_write(self.path_fullchain, overwrite=True) as fp:
             fp.write(order.fullchain_pem)
         self.path_fullchain.chmod(0o600)
 
