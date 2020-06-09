@@ -96,10 +96,9 @@ class CognitoAuth:
 
     async def async_register(self, email, password):
         """Register a new account."""
-        cognito = self._cognito()
-
         try:
             async with self._request_lock:
+                cognito = self._cognito()
                 await self.cloud.run_executor(cognito.register, email, password)
 
         except ClientError as err:
@@ -109,10 +108,10 @@ class CognitoAuth:
 
     async def async_resend_email_confirm(self, email):
         """Resend email confirmation."""
-        cognito = self._cognito(username=email)
 
         try:
             async with self._request_lock:
+                cognito = self._cognito(username=email)
                 await self.cloud.run_executor(
                     partial(
                         cognito.client.resend_confirmation_code,
@@ -127,10 +126,10 @@ class CognitoAuth:
 
     async def async_forgot_password(self, email):
         """Initialize forgotten password flow."""
-        cognito = self._cognito(username=email)
 
         try:
             async with self._request_lock:
+                cognito = self._cognito(username=email)
                 await self.cloud.run_executor(cognito.initiate_forgot_password)
 
         except ClientError as err:
@@ -140,11 +139,12 @@ class CognitoAuth:
 
     async def async_login(self, email, password):
         """Log user in and fetch certificate."""
-        assert not self.cloud.is_logged_in, "Cannot login if already logged in."
 
-        cognito = self._cognito(username=email)
         try:
             async with self._request_lock:
+                assert not self.cloud.is_logged_in, "Cannot login if already logged in."
+
+                cognito = self._cognito(username=email)
                 await self.cloud.run_executor(
                     partial(cognito.authenticate, password=password)
                 )
@@ -164,10 +164,8 @@ class CognitoAuth:
 
     async def async_check_token(self):
         """Check that the token is valid."""
-        cognito = self._authenticated_cognito
-
         async with self._request_lock:
-            if not cognito.check_token(renew=False):
+            if not self._authenticated_cognito.check_token(renew=False):
                 return
 
             try:
