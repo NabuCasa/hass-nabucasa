@@ -41,6 +41,7 @@ class Cloudhooks:
         with async_timeout.timeout(10):
             resp = await cloud_api.async_create_cloudhook(self.cloud)
 
+        resp.raise_for_status()
         data = await resp.json()
         cloudhook_id = data["cloudhook_id"]
         cloudhook_url = data["url"]
