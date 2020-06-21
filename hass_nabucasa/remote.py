@@ -33,6 +33,10 @@ class RemoteNotConnected(RemoteError):
     """Raise if a request need connection and we are not ready."""
 
 
+class SubscriptionExpired(RemoteError):
+    """Raise if we cannot connect because subscription expired."""
+
+
 @attr.s
 class SniTunToken:
     """Handle snitun token."""
@@ -241,13 +245,17 @@ class RemoteUI:
             _LOGGER.debug("Don't need refresh snitun token")
             return
 
+        if self.cloud.subscription_expired:
+            raise SubscriptionExpired()
+
         # Generate session token
         aes_key, aes_iv = generate_aes_keyset()
         try:
             async with async_timeout.timeout(30):
                 resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
-            assert resp.status == 200
-        except (asyncio.TimeoutError, AssertionError):
+            if resp.status != 200:
+                raise RemoteBackendError()
+        except asyncio.TimeoutError:
             raise RemoteBackendError() from None
 
         data = await resp.json()
@@ -283,6 +291,8 @@ class RemoteUI:
             _LOGGER.error("Connection problem to snitun server")
         except RemoteBackendError:
             _LOGGER.error("Can't refresh the snitun token")
+        except SubscriptionExpired:
+            pass
         except AttributeError:
             pass  # Ignore because HA shutdown on snitun token refresh
         finally:

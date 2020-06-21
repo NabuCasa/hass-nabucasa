@@ -11,7 +11,7 @@ from hass_nabucasa.const import (
     DISPATCH_REMOTE_CONNECT,
     DISPATCH_REMOTE_DISCONNECT,
 )
-from hass_nabucasa.remote import RemoteUI
+from hass_nabucasa.remote import RemoteUI, SubscriptionExpired
 from hass_nabucasa.utils import utcnow
 
 from .common import MockAcme, MockSnitun, mock_coro
@@ -468,3 +468,11 @@ async def test_certificate_task_renew_cert(
         await remote.load_backend()
         await asyncio.sleep(0.1)
         assert acme_mock.call_issue
+
+
+async def test_refresh_token_no_sub(auth_cloud_mock):
+    """Test that we rais SubscriptionExpired if expired sub."""
+    auth_cloud_mock.subscription_expired = True
+
+    with pytest.raises(SubscriptionExpired):
+        await RemoteUI(auth_cloud_mock)._refresh_snitun_token()

@@ -43,6 +43,7 @@ async def cloud_mock(loop, aioclient_mock):
 def auth_cloud_mock(cloud_mock):
     """Return an authenticated cloud instance."""
     cloud_mock.auth.async_check_token.side_effect = mock_coro
+    cloud_mock.subscription_expired = False
     return cloud_mock
 
 
