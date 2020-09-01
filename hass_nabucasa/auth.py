@@ -102,9 +102,9 @@ class CognitoAuth:
                 await self.cloud.run_executor(cognito.register, email, password)
 
         except ClientError as err:
-            raise _map_aws_exception(err)
-        except EndpointConnectionError:
-            raise UnknownError()
+            raise _map_aws_exception(err) from err
+        except EndpointConnectionError as err:
+            raise UnknownError() from err
 
     async def async_resend_email_confirm(self, email):
         """Resend email confirmation."""
@@ -120,9 +120,9 @@ class CognitoAuth:
                     )
                 )
         except ClientError as err:
-            raise _map_aws_exception(err)
-        except EndpointConnectionError:
-            raise UnknownError()
+            raise _map_aws_exception(err) from err
+        except EndpointConnectionError as err:
+            raise UnknownError() from err
 
     async def async_forgot_password(self, email):
         """Initialize forgotten password flow."""
@@ -133,9 +133,9 @@ class CognitoAuth:
                 await self.cloud.run_executor(cognito.initiate_forgot_password)
 
         except ClientError as err:
-            raise _map_aws_exception(err)
-        except EndpointConnectionError:
-            raise UnknownError()
+            raise _map_aws_exception(err) from err
+        except EndpointConnectionError as err:
+            raise UnknownError() from err
 
     async def async_login(self, email, password):
         """Log user in and fetch certificate."""
@@ -153,14 +153,14 @@ class CognitoAuth:
                 self.cloud.refresh_token = cognito.refresh_token
             await self.cloud.run_executor(self.cloud.write_user_info)
 
-        except ForceChangePasswordException:
-            raise PasswordChangeRequired()
+        except ForceChangePasswordException as err:
+            raise PasswordChangeRequired() from err
 
         except ClientError as err:
-            raise _map_aws_exception(err)
+            raise _map_aws_exception(err) from err
 
-        except EndpointConnectionError:
-            raise UnknownError()
+        except EndpointConnectionError as err:
+            raise UnknownError() from err
 
     async def async_check_token(self):
         """Check that the token is valid."""
@@ -202,10 +202,10 @@ class CognitoAuth:
             await self.cloud.run_executor(self.cloud.write_user_info)
 
         except ClientError as err:
-            raise _map_aws_exception(err)
+            raise _map_aws_exception(err) from err
 
-        except EndpointConnectionError:
-            raise UnknownError()
+        except EndpointConnectionError as err:
+            raise UnknownError() from err
 
     @property
     def _authenticated_cognito(self):
