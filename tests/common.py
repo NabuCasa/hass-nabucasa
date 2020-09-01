@@ -3,27 +3,9 @@ import asyncio
 from pathlib import Path
 import tempfile
 from typing import Any
-from unittest.mock import Mock
+from tests.async_mock import Mock
 
-from hass_nabucasa import Cloud
 from hass_nabucasa.client import CloudClient
-
-
-def mock_coro(return_value=None, exception=None):
-    """Return a coro that returns a value or raise an exception."""
-    return mock_coro_func(return_value, exception)()
-
-
-def mock_coro_func(return_value=None, exception=None):
-    """Return a method to create a coro function that returns a value."""
-
-    async def coro(*args, **kwargs):
-        """Fake coroutine."""
-        if exception:
-            raise exception
-        return return_value
-
-    return coro
 
 
 class TestClient(CloudClient):

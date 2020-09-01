@@ -1,13 +1,11 @@
 """Test the cloud.iot_base module."""
 import asyncio
-from unittest.mock import patch, MagicMock, Mock
+from tests.async_mock import AsyncMock, patch, MagicMock, Mock
 
 from aiohttp import WSMsgType, client_exceptions
 import pytest
 
 from hass_nabucasa import iot_base, auth as auth_api
-
-from .common import mock_coro
 
 
 class MockIoT(iot_base.BaseIoT):
@@ -54,11 +52,11 @@ async def test_cloud_getting_disconnected_by_server(
 ):
     """Test server disconnecting instance."""
     conn = MockIoT(cloud_mock_iot)
-    mock_iot_client.receive.return_value = mock_coro(MagicMock(type=WSMsgType.CLOSING))
+    mock_iot_client.receive = AsyncMock(return_value=MagicMock(type=WSMsgType.CLOSING))
 
     with patch(
         "hass_nabucasa.iot_base.BaseIoT._wait_retry",
-        side_effect=[mock_coro(), asyncio.CancelledError],
+        side_effect=[None, asyncio.CancelledError],
     ):
         await conn.connect()
 
@@ -68,7 +66,7 @@ async def test_cloud_getting_disconnected_by_server(
 async def test_cloud_receiving_bytes(mock_iot_client, caplog, cloud_mock_iot):
     """Test server disconnecting instance."""
     conn = MockIoT(cloud_mock_iot)
-    mock_iot_client.receive.return_value = mock_coro(MagicMock(type=WSMsgType.BINARY))
+    mock_iot_client.receive = AsyncMock(return_value=MagicMock(type=WSMsgType.BINARY))
 
     await conn.connect()
 
@@ -78,8 +76,10 @@ async def test_cloud_receiving_bytes(mock_iot_client, caplog, cloud_mock_iot):
 async def test_cloud_sending_invalid_json(mock_iot_client, caplog, cloud_mock_iot):
     """Test cloud sending invalid JSON."""
     conn = MockIoT(cloud_mock_iot)
-    mock_iot_client.receive.return_value = mock_coro(
-        MagicMock(type=WSMsgType.TEXT, json=MagicMock(side_effect=ValueError))
+    mock_iot_client.receive = AsyncMock(
+        return_value=MagicMock(
+            type=WSMsgType.TEXT, json=MagicMock(side_effect=ValueError)
+        )
     )
 
     await conn.connect()
