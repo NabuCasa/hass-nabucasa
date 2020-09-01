@@ -1,13 +1,13 @@
 """Set up some common test helper things."""
 import asyncio
 import logging
-from unittest.mock import patch, MagicMock, PropertyMock
+from tests.async_mock import patch, MagicMock, PropertyMock, AsyncMock
 
 from aiohttp import web
 import pytest
 
 from .utils.aiohttp import mock_aiohttp_client
-from .common import TestClient, mock_coro
+from .common import TestClient
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -42,7 +42,7 @@ async def cloud_mock(loop, aioclient_mock):
 @pytest.fixture
 def auth_cloud_mock(cloud_mock):
     """Return an authenticated cloud instance."""
-    cloud_mock.auth.async_check_token.side_effect = mock_coro
+    cloud_mock.auth.async_check_token.side_effect = AsyncMock()
     cloud_mock.subscription_expired = False
     return cloud_mock
 
@@ -72,7 +72,7 @@ def mock_iot_client(cloud_mock):
     with patch(
         "hass_nabucasa.iot_base.BaseIoT._wait_retry", side_effect=asyncio.CancelledError
     ):
-        websession.ws_connect.side_effect = lambda *a, **kw: mock_coro(client)
+        websession.ws_connect.side_effect = AsyncMock(return_value=client)
         cloud_mock.websession = websession
         yield client
 

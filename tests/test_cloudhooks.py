@@ -1,20 +1,16 @@
 """Test cloud cloudhooks."""
-from unittest.mock import Mock
+from tests.async_mock import AsyncMock, Mock
 
 import pytest
 
 from hass_nabucasa import cloudhooks
 
-from .common import mock_coro
-
 
 @pytest.fixture
 def mock_cloudhooks(auth_cloud_mock):
     """Mock cloudhooks class."""
-    auth_cloud_mock.run_executor = Mock(side_effect=lambda *a, **kw: mock_coro())
-    auth_cloud_mock.iot = Mock(
-        async_send_message=Mock(side_effect=lambda *a, **kw: mock_coro())
-    )
+    auth_cloud_mock.run_executor = AsyncMock()
+    auth_cloud_mock.iot = Mock(async_send_message=AsyncMock())
     auth_cloud_mock.cloudhook_create_url = "https://webhook-create.url"
     return cloudhooks.Cloudhooks(auth_cloud_mock)
 

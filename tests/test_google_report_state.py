@@ -1,11 +1,9 @@
 """Tests for Google Report State."""
 import asyncio
-from unittest.mock import Mock, patch
+from tests.async_mock import AsyncMock, Mock, patch
 
 from hass_nabucasa import iot_base
 from hass_nabucasa.google_report_state import GoogleReportState, ErrorResponse
-
-from tests.common import mock_coro
 
 
 async def create_grs(loop, ws_server, server_msg_handler) -> GoogleReportState:
@@ -15,8 +13,8 @@ async def create_grs(loop, ws_server, server_msg_handler) -> GoogleReportState:
         run_task=loop.create_task,
         subscription_expired=False,
         google_actions_report_state_url="https://mock-report-state-url.com",
-        auth=Mock(async_check_token=Mock(side_effect=mock_coro)),
-        websession=Mock(ws_connect=Mock(return_value=mock_coro(client))),
+        auth=Mock(async_check_token=AsyncMock()),
+        websession=Mock(ws_connect=AsyncMock(return_value=client)),
     )
     return GoogleReportState(mock_cloud)
 
@@ -95,7 +93,7 @@ async def test_max_queue_message(loop, ws_server):
     grs = await create_grs(loop, ws_server, handle_server_msg)
 
     # Test we can handle sending more messages than queue fits
-    with patch.object(grs, "_async_message_sender", side_effect=mock_coro):
+    with patch.object(grs, "_async_message_sender"):
         gather_task = asyncio.gather(
             *[grs.async_send_message({"hello": i}) for i in range(150)],
             return_exceptions=True,

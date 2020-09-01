@@ -1,11 +1,9 @@
 """Test the cloud component."""
 import json
-from unittest.mock import patch, MagicMock, Mock, PropertyMock
+from tests.async_mock import AsyncMock, patch, MagicMock, Mock, PropertyMock
 
 import hass_nabucasa as cloud
 from hass_nabucasa.utils import utcnow
-
-from .common import mock_coro
 
 
 def test_constructor_loads_info_from_constant(cloud_client):
@@ -70,10 +68,10 @@ async def test_initialize_loads_info(cloud_client):
     )
 
     cl.iot = MagicMock()
-    cl.iot.connect.return_value = mock_coro()
+    cl.iot.connect = AsyncMock()
 
     cl.remote = MagicMock()
-    cl.remote.connect.return_value = mock_coro()
+    cl.remote.connect = AsyncMock()
 
     cl._on_start.extend([cl.iot.connect, cl.remote.connect])
 
@@ -101,10 +99,10 @@ async def test_initialize_loads_invalid_info(cloud_client, caplog):
     )
 
     cl.iot = MagicMock()
-    cl.iot.connect.return_value = mock_coro()
+    cl.iot.connect = AsyncMock()
 
     cl.remote = MagicMock()
-    cl.remote.connect.return_value = mock_coro()
+    cl.remote.connect = AsyncMock()
 
     cl._on_start.extend([cl.iot.connect, cl.remote.connect])
 
@@ -141,13 +139,13 @@ async def test_logout_clears_info(cloud_client):
     cl.refresh_token = "refresh_token"
 
     cl.iot = MagicMock()
-    cl.iot.disconnect.return_value = mock_coro()
+    cl.iot.disconnect = AsyncMock()
 
     cl.google_report_state = MagicMock()
-    cl.google_report_state.disconnect.return_value = mock_coro()
+    cl.google_report_state.disconnect = AsyncMock()
 
     cl.remote = MagicMock()
-    cl.remote.disconnect.return_value = mock_coro()
+    cl.remote.disconnect = AsyncMock()
 
     cl._on_stop.extend(
         [cl.iot.disconnect, cl.remote.disconnect, cl.google_report_state.disconnect]

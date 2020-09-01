@@ -1,7 +1,7 @@
 """Test remote sni handler."""
 import asyncio
 from datetime import timedelta
-from unittest.mock import patch
+from tests.async_mock import patch
 
 import pytest
 
@@ -14,15 +14,14 @@ from hass_nabucasa.const import (
 from hass_nabucasa.remote import RemoteUI, SubscriptionExpired
 from hass_nabucasa.utils import utcnow
 
-from .common import MockAcme, MockSnitun, mock_coro
+from .common import MockAcme, MockSnitun
 
 
 @pytest.fixture(autouse=True)
 def ignore_context():
     """Ignore ssl context."""
     with patch(
-        "hass_nabucasa.remote.RemoteUI._create_context",
-        side_effect=lambda *a, **lw: mock_coro(),
+        "hass_nabucasa.remote.RemoteUI._create_context", return_value=None
     ) as context:
         yield context
 

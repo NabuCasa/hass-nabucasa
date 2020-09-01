@@ -1,12 +1,10 @@
 """Test Account Linking tools."""
 import asyncio
-from unittest.mock import Mock
+from tests.async_mock import AsyncMock, Mock
 
 from aiohttp import web
 import pytest
-from hass_nabucasa import account_link, utils
-
-from tests.common import mock_coro
+from hass_nabucasa import account_link
 
 
 async def create_account_link_server(aiohttp_client, handle_server_msgs):
@@ -36,7 +34,7 @@ async def create_helper_instance(
     """Create a auth helper instance."""
     client = await create_account_link_server(aiohttp_client, handle_server_msgs)
     mock_cloud = Mock(
-        client=Mock(websession=Mock(ws_connect=Mock(return_value=mock_coro(client))))
+        client=Mock(websession=Mock(ws_connect=AsyncMock(return_value=client)))
     )
     return account_link.AuthorizeAccountHelper(mock_cloud, service)
 
