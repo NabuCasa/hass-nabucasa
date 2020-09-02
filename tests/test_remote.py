@@ -1,7 +1,7 @@
 """Test remote sni handler."""
 import asyncio
 from datetime import timedelta
-from tests.async_mock import patch
+from tests.async_mock import patch, Mock
 
 import pytest
 
@@ -27,10 +27,18 @@ def ignore_context():
 
 
 @pytest.fixture
-async def acme_mock():
+def acme_mock():
     """Mock ACME client."""
     with patch("hass_nabucasa.remote.AcmeHandler", new_callable=MockAcme) as acme:
         yield acme
+
+
+@pytest.fixture
+def valid_acme_mock(acme_mock):
+    """Mock ACME client with valid cert."""
+    acme_mock.common_name = "test.dui.nabu.casa"
+    acme_mock.expire_date = utcnow() + timedelta(days=60)
+    return acme_mock
 
 
 @pytest.fixture
@@ -48,7 +56,7 @@ def test_init_remote(auth_cloud_mock):
 
 
 async def test_load_backend_exists_cert(
-    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -74,18 +82,17 @@ async def test_load_backend_exists_cert(
     )
 
     assert not remote.is_connected
-    await remote.load_backend()
+    await remote.start()
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert remote.instance_domain == "test.dui.nabu.casa"
-    await asyncio.sleep(0.1)
 
-    assert not acme_mock.call_issue
-    assert acme_mock.init_args == (
+    assert not valid_acme_mock.call_issue
+    assert valid_acme_mock.init_args == (
         auth_cloud_mock,
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
-    assert acme_mock.call_hardening
+    assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
     assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
@@ -93,6 +100,7 @@ async def test_load_backend_exists_cert(
         "snitun_port": 443,
     }
 
+    await asyncio.sleep(0.1)
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
@@ -132,7 +140,7 @@ async def test_load_backend_not_exists_cert(
     )
 
     acme_mock.set_false()
-    await remote.load_backend()
+    await remote.start()
     await asyncio.sleep(0.1)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
@@ -159,7 +167,7 @@ async def test_load_backend_not_exists_cert(
 
 
 async def test_load_and_unload_backend(
-    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -184,17 +192,17 @@ async def test_load_and_unload_backend(
         },
     )
 
-    await remote.load_backend()
+    await remote.start()
     await asyncio.sleep(0.1)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
-    assert not acme_mock.call_issue
-    assert acme_mock.init_args == (
+    assert not valid_acme_mock.call_issue
+    assert valid_acme_mock.init_args == (
         auth_cloud_mock,
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
-    assert acme_mock.call_hardening
+    assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
     assert not snitun_mock.call_stop
     assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
@@ -206,7 +214,7 @@ async def test_load_and_unload_backend(
     assert remote._acme_task
     assert remote._reconnect_task
 
-    await remote.close_backend()
+    await remote.stop()
     await asyncio.sleep(0.1)
 
     assert snitun_mock.call_stop
@@ -218,7 +226,7 @@ async def test_load_and_unload_backend(
 
 
 async def test_load_backend_exists_wrong_cert(
-    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -243,18 +251,18 @@ async def test_load_backend_exists_wrong_cert(
         },
     )
 
-    acme_mock.common_name = "wrong.dui.nabu.casa"
+    valid_acme_mock.common_name = "wrong.dui.nabu.casa"
     await remote.load_backend()
     await asyncio.sleep(0.1)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
-    assert acme_mock.call_reset
-    assert acme_mock.init_args == (
+    assert valid_acme_mock.call_reset
+    assert valid_acme_mock.init_args == (
         auth_cloud_mock,
         "test.dui.nabu.casa",
         "test@nabucasa.inc",
     )
-    assert acme_mock.call_hardening
+    assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
     assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
@@ -305,7 +313,7 @@ async def test_call_disconnect(
 
 
 async def test_load_backend_no_autostart(
-    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -335,8 +343,8 @@ async def test_load_backend_no_autostart(
     await asyncio.sleep(0.1)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
-    assert not acme_mock.call_issue
-    assert acme_mock.call_hardening
+    assert not valid_acme_mock.call_issue
+    assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
 
     assert not snitun_mock.call_connect
@@ -420,13 +428,11 @@ async def test_certificate_task_no_backend(
 
     acme_mock.expire_date = valid
 
-    with patch(
-        "hass_nabucasa.utils.next_midnight", return_value=0
-    ) as mock_midnight, patch("random.randint", return_value=0):
+    with patch("hass_nabucasa.utils.next_midnight", return_value=0), patch(
+        "random.randint", return_value=0
+    ):
         remote._acme_task = loop.create_task(remote._certificate_handler())
-
         await asyncio.sleep(0.1)
-        assert mock_midnight.called
         assert acme_mock.call_issue
         assert snitun_mock.call_start
 

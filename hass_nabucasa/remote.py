@@ -6,6 +6,7 @@ import random
 import ssl
 from typing import Optional
 
+import aiohttp
 import async_timeout
 import attr
 from snitun.exceptions import SniTunConnectionError
@@ -71,9 +72,21 @@ class RemoteUI:
         self._acme_task = None
         self._token = None
 
+        self._info_loaded = asyncio.Event()
+
         # Register start/stop
-        cloud.register_on_start(self.load_backend)
-        cloud.register_on_stop(self.close_backend)
+        cloud.register_on_start(self.start)
+        cloud.register_on_stop(self.stop)
+
+    async def start(self) -> None:
+        """Start remote UI loop."""
+        self._acme_task = self.cloud.run_task(self._certificate_handler())
+        await self._info_loaded.wait()
+
+    async def stop(self) -> None:
+        """Stop remote UI loop."""
+        self._acme_task.cancel()
+        self._acme_task = None
 
     @property
     def snitun_server(self) -> Optional[str]:
@@ -88,9 +101,7 @@ class RemoteUI:
     @property
     def is_connected(self) -> bool:
         """Return true if we are ready to connect."""
-        if not self._snitun:
-            return False
-        return self._snitun.is_connected
+        return self._snitun and self._snitun.is_connected
 
     @property
     def certificate(self) -> Optional[Certificate]:
@@ -116,21 +127,14 @@ class RemoteUI:
 
     async def load_backend(self) -> None:
         """Load backend details."""
-        if self._snitun:
-            return
-
-        # Setup background task for ACME certification handler
-        if not self._acme_task:
-            self._acme_task = self.cloud.run_task(self._certificate_handler())
-
         # Load instance data from backend
         try:
             async with async_timeout.timeout(30):
                 resp = await cloud_api.async_remote_register(self.cloud)
-            assert resp.status == 200
-        except (asyncio.TimeoutError, AssertionError):
+            resp.raise_for_status()
+        except (asyncio.TimeoutError, aiohttp.ClientError):
             _LOGGER.error("Can't update remote details from Home Assistant cloud")
-            return
+            return False
         data = await resp.json()
 
         # Extract data
@@ -155,12 +159,13 @@ class RemoteUI:
             _LOGGER.warning("Invalid certificate found: %s", ca_domain)
             await self._acme.reset_acme()
 
-        self.cloud.run_task(self._finish_load_backend())
+        self._info_loaded.set()
 
-    async def _finish_load_backend(self) -> None:
-        """Finish loading the backend."""
-        # Issue a certificate
-        if not self._acme.is_valid_certificate:
+        should_create_cert = not self._acme.certificate_available
+
+        if should_create_cert or self._acme.expire_date < utils.utcnow() + timedelta(
+            days=RENEW_IF_EXPIRES_DAYS
+        ):
             try:
                 await self._acme.issue_certificate()
             except AcmeClientError:
@@ -171,22 +176,24 @@ class RemoteUI:
                 )
                 return
             else:
-                self.cloud.client.user_message(
-                    "cloud_remote_acme",
-                    "Home Assistant Cloud",
-                    const.MESSAGE_REMOTE_READY,
-                )
+                if should_create_cert:
+                    self.cloud.client.user_message(
+                        "cloud_remote_acme",
+                        "Home Assistant Cloud",
+                        const.MESSAGE_REMOTE_READY,
+                    )
 
         await self._acme.hardening_files()
 
-        _LOGGER.debug("Waiting for aiohttp runner to come available")
+        if self.cloud.client.aiohttp_runner is None:
+            _LOGGER.debug("Waiting for aiohttp runner to come available")
 
-        # aiohttp_runner comes available when Home Assistant has started.
-        while self.cloud.client.aiohttp_runner is None:
-            await asyncio.sleep(1)
+            # aiohttp_runner comes available when Home Assistant has started.
+            while self.cloud.client.aiohttp_runner is None:
+                await asyncio.sleep(1)
 
         # Setup snitun / aiohttp wrapper
-        _LOGGER.debug("Initializing remote backend")
+        _LOGGER.debug("Initializing SniTun")
         context = await self._create_context()
         self._snitun = SniTunClientAioHttp(
             self.cloud.client.aiohttp_runner,
@@ -195,7 +202,7 @@ class RemoteUI:
             snitun_port=443,
         )
 
-        _LOGGER.debug("Starting remote backend")
+        _LOGGER.debug("Starting SniTun")
         await self._snitun.start()
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_UP)
 
@@ -206,15 +213,16 @@ class RemoteUI:
         if self.cloud.client.remote_autostart:
             self.cloud.run_task(self.connect())
 
+        return True
+
     async def close_backend(self) -> None:
         """Close connections and shutdown backend."""
+        _LOGGER.debug("Closing backend")
+
         # Close reconnect task
         if self._reconnect_task:
             self._reconnect_task.cancel()
-
-        # Close ACME certificate handler
-        if self._acme_task:
-            self._acme_task.cancel()
+            self._reconnect_task = None
 
         # Disconnect snitun
         if self._snitun:
@@ -255,7 +263,7 @@ class RemoteUI:
                 resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
             if resp.status != 200:
                 raise RemoteBackendError()
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, aiohttp.ClientError):
             raise RemoteBackendError() from None
 
         data = await resp.json()
@@ -334,13 +342,16 @@ class RemoteUI:
 
     async def _certificate_handler(self) -> None:
         """Handle certification ACME Tasks."""
-        try:
-            while True:
-                await asyncio.sleep(utils.next_midnight() + random.randint(1, 3600))
+        while True:
+            try:
+                if self._snitun:
+                    _LOGGER.debug("Sleeping until tomorrow")
+                    await asyncio.sleep(utils.next_midnight() + random.randint(1, 3600))
 
-                # Backend not initialize / No certificate issue now
-                if not self._snitun:
-                    await self.load_backend()
+                else:
+                    _LOGGER.debug("Initializing backend")
+                    if not await self.load_backend():
+                        await asyncio.sleep(10)
                     continue
 
                 # Renew certificate?
@@ -351,6 +362,7 @@ class RemoteUI:
 
                 # Renew certificate
                 try:
+                    _LOGGER.debug("Renewing certificate")
                     await self._acme.issue_certificate()
                     await self.close_backend()
 
@@ -368,9 +380,14 @@ class RemoteUI:
                     else:
                         meth = _LOGGER.debug
 
-                    meth("Renewal of ACME certificate failed. Please try again later.")
+                    meth("Renewal of ACME certificate failed. Trying again later")
 
-        except asyncio.CancelledError:
-            pass
-        finally:
-            self._acme_task = None
+            except asyncio.CancelledError:
+                break
+
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected error in Remote UI loop")
+                raise
+
+        _LOGGER.debug("Stopping Remote UI loop")
+        await self.close_backend()
