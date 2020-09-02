@@ -125,7 +125,7 @@ class RemoteUI:
 
         return context
 
-    async def load_backend(self) -> None:
+    async def load_backend(self) -> bool:
         """Load backend details."""
         # Load instance data from backend
         try:
