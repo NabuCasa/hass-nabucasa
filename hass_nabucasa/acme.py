@@ -296,7 +296,10 @@ class AcmeHandler:
                 self.path_fullchain.read_bytes(), default_backend()
             )
 
-        self._x509 = await self.cloud.run_executor(_load_cert)
+        try:
+            self._x509 = await self.cloud.run_executor(_load_cert)
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.exception("Unexpected exception loading certificate")
 
     def _revoke_certificate(self) -> None:
         """Revoke certificate."""
