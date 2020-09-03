@@ -101,7 +101,7 @@ class RemoteUI:
     @property
     def is_connected(self) -> bool:
         """Return true if we are ready to connect."""
-        return self._snitun and self._snitun.is_connected
+        return False if self._snitun is None else self._snitun.is_connected
 
     @property
     def certificate(self) -> Optional[Certificate]:
