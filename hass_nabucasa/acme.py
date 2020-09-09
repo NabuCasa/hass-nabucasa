@@ -1,6 +1,6 @@
 """Handle ACME and local certificates."""
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from pathlib import Path
 from typing import Optional
@@ -269,10 +269,12 @@ class AcmeHandler:
             raise AcmeChallengeError() from err
 
         # Wait until it's authorize and fetch certification
-        deadline = datetime.datetime.now() + datetime.timedelta(seconds=90)
+        deadline = datetime.now() + timedelta(seconds=90)
         try:
             orderr = self._acme_client.poll_authorizations(handler.order, deadline)
-            order = self._acme_client.finalize_order(orderr, deadline, fetch_alternative_chains=False)
+            order = self._acme_client.finalize_order(
+                orderr, deadline, fetch_alternative_chains=True
+            )
         except errors.Error as err:
             _LOGGER.error("Wait of ACME challenge fails: %s", err)
             raise AcmeChallengeError() from err
