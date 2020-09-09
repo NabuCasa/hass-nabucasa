@@ -268,8 +268,11 @@ class AcmeHandler:
             _LOGGER.error("Can't accept ACME challenge: %s", err)
             raise AcmeChallengeError() from err
 
+        # Wait until it's authorize and fetch certification
+        deadline = datetime.datetime.now() + datetime.timedelta(seconds=90)
         try:
-            order = self._acme_client.poll_and_finalize(handler.order)
+            orderr = self._acme_client.poll_authorizations(handler.order, deadline)
+            order = self._acme_client.finalize_order(orderr, deadline, fetch_alternative_chains=False)
         except errors.Error as err:
             _LOGGER.error("Wait of ACME challenge fails: %s", err)
             raise AcmeChallengeError() from err
