@@ -185,3 +185,11 @@ async def test_async_setup(cloud_mock):
         await asyncio.sleep(0)
         await asyncio.sleep(0)
         assert len(mock_renew.mock_calls) == 1
+
+
+async def test_guard_no_login_authenticated_cognito():
+    with pytest.raises(auth_api.Unauthenticated):
+        auth_api.CognitoAuth(MagicMock(access_token=None))._authenticated_cognito
+
+    with pytest.raises(auth_api.Unauthenticated):
+        auth_api.CognitoAuth(MagicMock(refresh_token=None))._authenticated_cognito
