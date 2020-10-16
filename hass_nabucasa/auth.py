@@ -210,6 +210,9 @@ class CognitoAuth:
     @property
     def _authenticated_cognito(self):
         """Return an authenticated cognito instance."""
+        if self.cloud.access_token is None or self.cloud.refresh_token is None:
+            raise Unauthenticated("No authentication found")
+
         return self._cognito(
             access_token=self.cloud.access_token, refresh_token=self.cloud.refresh_token
         )
