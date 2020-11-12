@@ -34,7 +34,7 @@ setup(
         "cryptography>=2.8,<4.0",
         "attrs>=19.3,<20.3",
         "pytz>=2019.3",
-        "aiohttp>=3.6.1,<3.8.0",
+        "aiohttp>=3.6.1",
         "atomicwrites==1.4.0",
     ],
 )
