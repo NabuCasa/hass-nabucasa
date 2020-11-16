@@ -42,6 +42,7 @@ MAP_VOICE = {
     ("de-DE", Gender.FEMALE): "HeddaRUS",
     ("es-ES", Gender.MALE): "Pablo, Apollo",
     ("es-ES", Gender.FEMALE): "HelenaRUS",
+    ("nl-NL", Gender.FEMALE): "ColetteNeural",
 }
 
 
