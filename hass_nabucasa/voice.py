@@ -167,7 +167,7 @@ class Voice:
             data["RecognitionStatus"] == "Success", data.get("DisplayText")
         )
 
-    async def process_tts(self, text, language, gender: Gender) -> bytes:
+    async def process_tts(self, text: str, language: str, gender: Gender) -> bytes:
         """Get Speech from text over Azure."""
         if not self._validate_token():
             await self._update_token()
@@ -181,7 +181,7 @@ class Voice:
             "name",
             f"Microsoft Server Speech Text to Speech Voice ({language}, {MAP_VOICE[(language, gender)]})",
         )
-        voice.text = text
+        voice.text = text[:512]
 
         # Send request
         async with self.cloud.websession.post(
