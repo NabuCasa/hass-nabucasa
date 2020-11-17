@@ -181,7 +181,7 @@ class Voice:
             "name",
             f"Microsoft Server Speech Text to Speech Voice ({language}, {MAP_VOICE[(language, gender)]})",
         )
-        voice.text = text[:512]
+        voice.text = text[:2048]
 
         # Send request
         async with self.cloud.websession.post(
