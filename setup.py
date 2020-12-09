@@ -32,7 +32,7 @@ setup(
         "snitun==0.20",
         "acme==1.9.0",
         "cryptography>=2.8,<4.0",
-        "attrs>=19.3,<20.4",
+        "attrs>=19.3",
         "pytz>=2019.3",
         "aiohttp>=3.6.1",
         "atomicwrites==1.4.0",
