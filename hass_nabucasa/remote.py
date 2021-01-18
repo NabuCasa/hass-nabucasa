@@ -322,6 +322,10 @@ class RemoteUI:
             if self._snitun and not self._reconnect_task and not insecure:
                 self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
 
+            # Disconnect if the insance is mark as insecure and were in reconnect mode
+            elif self._reconnect_task and insecure:
+                self.cloud.run_task(self.disconnect())
+
     async def disconnect(self) -> None:
         """Disconnect from snitun server."""
         if not self._snitun:
