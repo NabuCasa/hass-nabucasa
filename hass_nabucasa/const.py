@@ -48,7 +48,7 @@ using the service.
 
 MESSAGE_REMOTE_READY = """
 Your remote access is now available.
-You can manage your connectivity on the [Cloud Panel](/config/cloud) or with our [Portal](https://remote.nabucasa.com/).
+You can manage your connectivity on the [Cloud Panel](/config/cloud) or with our [Portal](https://account.nabucasa.com/).
 """
 
 MESSAGE_REMOTE_SETUP = """
