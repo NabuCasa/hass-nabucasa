@@ -267,7 +267,7 @@ class RemoteUI:
                 resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
             if resp.status == 409:
                 raise RemoteInsecureVersion()
-            elif resp.status != 200:
+            if resp.status != 200:
                 raise RemoteBackendError()
         except (asyncio.TimeoutError, aiohttp.ClientError):
             raise RemoteBackendError() from None
@@ -310,7 +310,7 @@ class RemoteUI:
             self.cloud.client.user_message(
                 "connect_remote_insecure",
                 "Home Assistant Cloud error",
-                "Can't initialize connection because of insecure instance marked",
+                "Remote connection is disabled because this Home Assistant instance is marked as insecure. For more information and to enable it again, visit the [Nabu Casa Account page](https://account.nabucasa.com).",
             )
             insecure = True
         except SubscriptionExpired:
@@ -322,7 +322,7 @@ class RemoteUI:
             if self._snitun and not self._reconnect_task and not insecure:
                 self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
 
-            # Disconnect if the insance is mark as insecure and were in reconnect mode
+            # Disconnect if the instance is mark as insecure and we're in reconnect mode
             elif self._reconnect_task and insecure:
                 self.cloud.run_task(self.disconnect())
 
