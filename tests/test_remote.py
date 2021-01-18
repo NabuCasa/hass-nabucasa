@@ -481,3 +481,45 @@ async def test_refresh_token_no_sub(auth_cloud_mock):
 
     with pytest.raises(SubscriptionExpired):
         await RemoteUI(auth_cloud_mock)._refresh_snitun_token()
+
+
+async def test_load_connect_insecure(
+    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
+):
+    """Initialize backend."""
+    valid = utcnow() + timedelta(days=1)
+    auth_cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(auth_cloud_mock)
+
+    aioclient_mock.post(
+        "https://test.local/api/register_instance",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        "https://test.local/api/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+            "throttling": 400,
+        },
+        status=409
+    )
+
+    auth_cloud_mock.client.prop_remote_autostart = True
+    await remote.load_backend()
+    await asyncio.sleep(0.1)
+
+    assert remote.snitun_server == "rest-remote.nabu.casa"
+    assert not valid_acme_mock.call_issue
+    assert valid_acme_mock.call_hardening
+    assert snitun_mock.call_start
+
+    assert not snitun_mock.call_connect
+
+    assert not snitun_mock.call_connect
+    assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_BACKEND_UP

@@ -30,6 +30,10 @@ class RemoteBackendError(RemoteError):
     """Backend problem with nabucasa API."""
 
 
+class RemoteInsecureVersion(RemoteError):
+    """Raise if you try to connect with an insecure Core version."""
+
+
 class RemoteNotConnected(RemoteError):
     """Raise if a request need connection and we are not ready."""
 
@@ -261,7 +265,9 @@ class RemoteUI:
         try:
             async with async_timeout.timeout(30):
                 resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
-            if resp.status != 200:
+            if resp.status == 409:
+                raise RemoteInsecureVersion()
+            elif resp.status != 200:
                 raise RemoteBackendError()
         except (asyncio.TimeoutError, aiohttp.ClientError):
             raise RemoteBackendError() from None
@@ -285,6 +291,7 @@ class RemoteUI:
         if self._snitun.is_connected:
             return
 
+        insecure = False
         try:
             await self._refresh_snitun_token()
             await self._snitun.connect(
@@ -299,13 +306,20 @@ class RemoteUI:
             _LOGGER.error("Connection problem to snitun server")
         except RemoteBackendError:
             _LOGGER.error("Can't refresh the snitun token")
+        except RemoteInsecureVersion:
+            self.cloud.client.user_message(
+                "connect_remote_insecure",
+                "Home Assistant Cloud error",
+                "Can't initialize connection because of insecure instance marked",
+            )
+            insecure = True
         except SubscriptionExpired:
             pass
         except AttributeError:
             pass  # Ignore because HA shutdown on snitun token refresh
         finally:
             # start retry task
-            if self._snitun and not self._reconnect_task:
+            if self._snitun and not self._reconnect_task and not insecure:
                 self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
 
     async def disconnect(self) -> None:
