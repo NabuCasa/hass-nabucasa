@@ -326,7 +326,7 @@ class RemoteUI:
             elif self._reconnect_task and insecure:
                 self.cloud.run_task(self.disconnect())
 
-    async def disconnect(self) -> None:
+    async def disconnect(self, clear_snitun_token=False) -> None:
         """Disconnect from snitun server."""
         if not self._snitun:
             _LOGGER.error("Can't handle request-connection without backend")
@@ -335,6 +335,9 @@ class RemoteUI:
         # Stop reconnect task
         if self._reconnect_task:
             self._reconnect_task.cancel()
+
+        if clear_snitun_token:
+            self._token = None
 
         # Check if we already connected
         if not self._snitun.is_connected:

@@ -16,6 +16,8 @@ from hass_nabucasa.utils import utcnow
 
 from .common import MockAcme, MockSnitun
 
+# pylint: disable=protected-access
+
 
 @pytest.fixture(autouse=True)
 def ignore_context():
@@ -309,6 +311,7 @@ async def test_call_disconnect(
     await remote.disconnect()
     assert snitun_mock.call_disconnect
     assert not remote.is_connected
+    assert remote._token
     assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_DISCONNECT
 
 
@@ -507,7 +510,7 @@ async def test_load_connect_insecure(
             "valid": valid.timestamp(),
             "throttling": 400,
         },
-        status=409
+        status=409,
     )
 
     auth_cloud_mock.client.prop_remote_autostart = True
@@ -523,3 +526,42 @@ async def test_load_connect_insecure(
 
     assert not snitun_mock.call_connect
     assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_BACKEND_UP
+
+
+async def test_call_disconnect_clean_token(
+    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+):
+    """Initialize backend."""
+    valid = utcnow() + timedelta(days=1)
+    auth_cloud_mock.remote_api_url = "https://test.local/api"
+    remote = RemoteUI(auth_cloud_mock)
+
+    aioclient_mock.post(
+        "https://test.local/api/register_instance",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        "https://test.local/api/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+            "throttling": 400,
+        },
+    )
+
+    assert not remote.is_connected
+    await remote.load_backend()
+    await asyncio.sleep(0.1)
+    assert remote.is_connected
+    assert remote._token
+
+    await remote.disconnect(clear_snitun_token=True)
+    assert snitun_mock.call_disconnect
+    assert not remote.is_connected
+    assert remote._token is None
+    assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_DISCONNECT

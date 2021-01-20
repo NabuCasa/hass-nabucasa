@@ -135,6 +135,16 @@ async def async_handle_cloud(cloud, payload):
         _LOGGER.error(
             "You have been logged out from Home Assistant cloud: %s", payload["reason"]
         )
+    elif action == "disconnect_remote":
+        # Disconect Remote connection
+        await cloud.remote.disconnect(clear_snitun_token=True)
+    elif action == "user_notification":
+        # Send user Notification
+        cloud.client.user_message(
+            "homeassistant_cloud_notification",
+            "Home Assistant Cloud Notification",
+            payload["message"],
+        )
     else:
         _LOGGER.warning("Received unknown cloud action: %s", action)
 
