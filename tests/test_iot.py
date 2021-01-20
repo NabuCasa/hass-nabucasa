@@ -195,3 +195,51 @@ async def test_send_message_answer(loop, cloud_mock_iot):
     cloud_iot._response_handler[uuid].set_result({"response": True})
     response = await send_task
     assert response == {"response": True}
+
+
+async def test_handling_core_messages_user_notifcation(cloud_mock_iot):
+    """Test handling core messages."""
+    cloud_mock_iot.client.user_message = MagicMock()
+
+    await iot.async_handle_cloud(
+        cloud_mock_iot,
+        {"action": "user_notification", "title": "Test", "message": "My message"},
+    )
+    assert len(cloud_mock_iot.client.user_message.mock_calls) == 1
+
+
+async def test_handling_core_messages_critical_user_notifcation(cloud_mock_iot):
+    """Test handling core messages."""
+    cloud_mock_iot.client.user_message = MagicMock()
+
+    await iot.async_handle_cloud(
+        cloud_mock_iot,
+        {
+            "action": "critical_user_notification",
+            "title": "Test",
+            "message": "My message",
+        },
+    )
+    assert len(cloud_mock_iot.client.user_message.mock_calls) == 1
+
+
+async def test_handling_core_messages_remote_disconnect(cloud_mock_iot):
+    """Test handling core messages."""
+    cloud_mock_iot.remote.disconnect = AsyncMock()
+
+    await iot.async_handle_cloud(
+        cloud_mock_iot,
+        {"action": "disconnect_remote"},
+    )
+    assert len(cloud_mock_iot.remote.disconnect.mock_calls) == 1
+
+
+async def test_handling_core_messages_evaluate_remote_security(cloud_mock_iot):
+    """Test handling core messages."""
+    cloud_mock_iot.client = MagicMock()
+
+    await iot.async_handle_cloud(
+        cloud_mock_iot,
+        {"action": "evaluate_remote_security"},
+    )
+    assert len(cloud_mock_iot.client.loop.mock_calls) == 1

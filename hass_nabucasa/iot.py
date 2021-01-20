@@ -3,6 +3,7 @@ import asyncio
 import logging
 import pprint
 import uuid
+import random
 
 from . import iot_base
 from .utils import Registry
@@ -134,6 +135,26 @@ async def async_handle_cloud(cloud, payload):
         await cloud.logout()
         _LOGGER.error(
             "You have been logged out from Home Assistant cloud: %s", payload["reason"]
+        )
+    elif action == "disconnect_remote":
+        # Disconect Remote connection
+        await cloud.remote.disconnect(clear_snitun_token=True)
+    elif action == "evaluate_remote_security":
+
+        async def _reconnect() -> None:
+            """Reconnect after a random timeout."""
+            await asyncio.sleep(random.randint(60, 7200))
+            await cloud.remote.disconnect(clear_snitun_token=True)
+            await cloud.remote.connect()
+
+        # Reconnect to remote frontends
+        cloud.client.loop.create_task(_reconnect())
+    elif action in ("user_notification", "critical_user_notification"):
+        # Send user Notification
+        cloud.client.user_message(
+            "homeassistant_cloud_notification",
+            payload["title"],
+            payload["message"],
         )
     else:
         _LOGGER.warning("Received unknown cloud action: %s", action)
