@@ -138,7 +138,7 @@ async def async_handle_cloud(cloud, payload):
     elif action == "disconnect_remote":
         # Disconect Remote connection
         await cloud.remote.disconnect(clear_snitun_token=True)
-    elif action == "user_notification":
+    elif action in ("user_notification", "critical_user_notification"):
         # Send user Notification
         cloud.client.user_message(
             "homeassistant_cloud_notification",
