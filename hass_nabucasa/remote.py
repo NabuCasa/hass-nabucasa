@@ -281,18 +281,6 @@ class RemoteUI:
             data["throttling"],
         )
 
-    async def check_version_security(self) -> bool:
-        """Evaluate core version security and return True if we are safe."""
-        try:
-            async with async_timeout.timeout(30):
-                resp = await cloud_api.async_remote_token(self.cloud, b"", b"")
-                if resp.status == 409:
-                    return False
-        except (asyncio.TimeoutError, aiohttp.ClientError):
-            pass
-
-        return True
-
     async def connect(self) -> None:
         """Connect to snitun server."""
         if not self._snitun:
