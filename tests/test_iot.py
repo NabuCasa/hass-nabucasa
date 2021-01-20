@@ -236,10 +236,10 @@ async def test_handling_core_messages_remote_disconnect(cloud_mock_iot):
 
 async def test_handling_core_messages_evaluate_remote_security(cloud_mock_iot):
     """Test handling core messages."""
-    cloud_mock_iot.client.loop.create_task = MagicMock()
+    cloud_mock_iot.client = MagicMock()
 
     await iot.async_handle_cloud(
         cloud_mock_iot,
         {"action": "evaluate_remote_security"},
     )
-    assert len(cloud_mock_iot.client.loop.create_task.mock_calls) == 1
+    assert len(cloud_mock_iot.client.loop.mock_calls) == 1
