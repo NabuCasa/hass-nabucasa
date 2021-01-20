@@ -234,29 +234,12 @@ async def test_handling_core_messages_remote_disconnect(cloud_mock_iot):
     assert len(cloud_mock_iot.remote.disconnect.mock_calls) == 1
 
 
-async def test_handling_core_messages_evaluate_remote_security_safe(cloud_mock_iot):
+async def test_handling_core_messages_evaluate_remote_security(cloud_mock_iot):
     """Test handling core messages."""
-    cloud_mock_iot.remote.disconnect = AsyncMock()
-    cloud_mock_iot.remote.connect = AsyncMock()
-    cloud_mock_iot.remote.check_version_security = AsyncMock(return_value=True)
+    cloud_mock_iot.client.loop.create_task = MagicMock()
 
     await iot.async_handle_cloud(
         cloud_mock_iot,
         {"action": "evaluate_remote_security"},
     )
-    assert len(cloud_mock_iot.remote.disconnect.mock_calls) == 0
-    assert len(cloud_mock_iot.remote.connect.mock_calls) == 0
-
-
-async def test_handling_core_messages_evaluate_remote_security_unsafe(cloud_mock_iot):
-    """Test handling core messages."""
-    cloud_mock_iot.remote.disconnect = AsyncMock()
-    cloud_mock_iot.remote.connect = AsyncMock()
-    cloud_mock_iot.remote.check_version_security = AsyncMock(return_value=False)
-
-    await iot.async_handle_cloud(
-        cloud_mock_iot,
-        {"action": "evaluate_remote_security"},
-    )
-    assert len(cloud_mock_iot.remote.disconnect.mock_calls) == 1
-    assert len(cloud_mock_iot.remote.connect.mock_calls) == 1
+    assert len(cloud_mock_iot.client.loop.create_task.mock_calls) == 1
