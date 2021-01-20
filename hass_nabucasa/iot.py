@@ -138,6 +138,12 @@ async def async_handle_cloud(cloud, payload):
     elif action == "disconnect_remote":
         # Disconect Remote connection
         await cloud.remote.disconnect(clear_snitun_token=True)
+    elif action == "evaluate_remote_security":
+        # Disconect Remote connection
+        if await cloud.remote.check_version_security():
+            return
+        await cloud.remote.disconnect(clear_snitun_token=True)
+        await cloud.remote.connect()
     elif action in ("user_notification", "critical_user_notification"):
         # Send user Notification
         cloud.client.user_message(
