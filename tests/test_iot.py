@@ -208,6 +208,21 @@ async def test_handling_core_messages_user_notifcation(cloud_mock_iot):
     assert len(cloud_mock_iot.client.user_message.mock_calls) == 1
 
 
+async def test_handling_core_messages_critical_user_notifcation(cloud_mock_iot):
+    """Test handling core messages."""
+    cloud_mock_iot.client.user_message = MagicMock()
+
+    await iot.async_handle_cloud(
+        cloud_mock_iot,
+        {
+            "action": "critical_user_notification",
+            "title": "Test",
+            "message": "My message",
+        },
+    )
+    assert len(cloud_mock_iot.client.user_message.mock_calls) == 1
+
+
 async def test_handling_core_messages_remote_disconnect(cloud_mock_iot):
     """Test handling core messages."""
     cloud_mock_iot.remote.disconnect = AsyncMock()
