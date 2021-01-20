@@ -142,7 +142,7 @@ async def async_handle_cloud(cloud, payload):
         # Send user Notification
         cloud.client.user_message(
             "homeassistant_cloud_notification",
-            "Home Assistant Cloud Notification",
+            payload["title"],
             payload["message"],
         )
     else:
