@@ -10,7 +10,7 @@ on:
     branches: [master]
 
 jobs:
-  build:
+  Tox:
     runs-on: ubuntu-latest
 
     steps:
