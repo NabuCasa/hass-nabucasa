@@ -1,5 +1,6 @@
 """Manage remote UI connections."""
 import asyncio
+from contextvars import ContextVar
 from datetime import datetime, timedelta
 import logging
 import random
@@ -20,6 +21,8 @@ _LOGGER = logging.getLogger(__name__)
 
 RENEW_IF_EXPIRES_DAYS = 25
 WARN_RENEW_FAILED_DAYS = 18
+
+IS_CLOUD_REQUEST = ContextVar("IS_CLOUD_REQUEST", default=False)
 
 
 class RemoteError(Exception):
@@ -207,6 +210,7 @@ class RemoteUI:
         )
 
         _LOGGER.debug("Starting SniTun")
+        IS_CLOUD_REQUEST.set(True)
         await self._snitun.start()
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_UP)
 
