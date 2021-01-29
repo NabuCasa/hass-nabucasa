@@ -136,8 +136,13 @@ class RemoteUI:
             async with async_timeout.timeout(30):
                 resp = await cloud_api.async_remote_register(self.cloud)
             resp.raise_for_status()
-        except (asyncio.TimeoutError, aiohttp.ClientError):
-            _LOGGER.error("Can't update remote details from Home Assistant cloud")
+        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+            msg = "Can't update remote details from Home Assistant cloud"
+            if isinstance(err, aiohttp.ClientResponseError):
+                msg += f" ({err.status})"  # pylint: disable=no-member
+            elif isinstance(err, asyncio.TimeoutError):
+                msg += " (timeout)"
+            _LOGGER.error(msg)
             return False
         data = await resp.json()
 
