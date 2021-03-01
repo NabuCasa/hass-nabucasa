@@ -28,7 +28,7 @@ setup(
     platforms="any",
     packages=["hass_nabucasa"],
     install_requires=[
-        "pycognito==0.1.5",
+        "pycognito==2021.2.1",
         "snitun==0.20",
         "acme==1.12.0",
         "cryptography>=2.8,<4.0",
