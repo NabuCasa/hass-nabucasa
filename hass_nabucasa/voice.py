@@ -225,7 +225,7 @@ class Voice:
             headers={
                 CONTENT_TYPE: "application/ssml+xml",
                 AUTHORIZATION: f"Bearer {self._token}",
-                "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
+                "X-Microsoft-OutputFormat": "audio-24khz-160kbitrate-mono-mp3",
             },
             data=ET.tostring(xml_body),
         ) as resp:
