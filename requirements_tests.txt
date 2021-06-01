@@ -1,5 +1,5 @@
 asynctest==0.13.0
-flake8==3.9.1
+flake8==3.9.2
 pylint==2.8.2
 pytest==6.2.3
 pytest-timeout==1.4.2
