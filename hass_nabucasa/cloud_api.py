@@ -3,6 +3,7 @@ from functools import wraps
 import logging
 
 from aiohttp.hdrs import AUTHORIZATION
+from aiohttp import ClientResponse
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,9 +26,11 @@ def _log_response(func):
     @wraps(func)
     async def log_response(*args):
         """Log response if it's bad."""
-        resp = await func(*args)
-        meth = _LOGGER.debug if resp.status < 400 else _LOGGER.warning
-        meth("Fetched %s (%s)", resp.url, resp.status)
+        resp: ClientResponse = await func(*args)
+        if resp.ok:
+            _LOGGER.debug("Fetched %s (%d)", resp.url, resp.status)
+        else:
+            _LOGGER.warning("Fetched %s (%d): %s", resp.url, resp.status, resp.reason)
         return resp
 
     return log_response
@@ -35,7 +38,7 @@ def _log_response(func):
 
 @_check_token
 @_log_response
-async def async_create_cloudhook(cloud):
+async def async_create_cloudhook(cloud) -> ClientResponse:
     """Create a cloudhook."""
     return await cloud.websession.post(
         cloud.cloudhook_create_url, headers={AUTHORIZATION: cloud.id_token}
@@ -44,7 +47,7 @@ async def async_create_cloudhook(cloud):
 
 @_check_token
 @_log_response
-async def async_remote_register(cloud):
+async def async_remote_register(cloud) -> ClientResponse:
     """Create/Get a remote URL."""
     url = f"{cloud.remote_api_url}/register_instance"
     return await cloud.websession.post(url, headers={AUTHORIZATION: cloud.id_token})
@@ -52,7 +55,7 @@ async def async_remote_register(cloud):
 
 @_check_token
 @_log_response
-async def async_remote_token(cloud, aes_key: bytes, aes_iv: bytes):
+async def async_remote_token(cloud, aes_key: bytes, aes_iv: bytes) -> ClientResponse:
     """Create a remote snitun token."""
     url = f"{cloud.remote_api_url}/snitun_token"
     return await cloud.websession.post(
@@ -64,7 +67,7 @@ async def async_remote_token(cloud, aes_key: bytes, aes_iv: bytes):
 
 @_check_token
 @_log_response
-async def async_remote_challenge_txt(cloud, txt: str):
+async def async_remote_challenge_txt(cloud, txt: str) -> ClientResponse:
     """Set DNS challenge."""
     url = f"{cloud.remote_api_url}/challenge_txt"
     return await cloud.websession.post(
@@ -74,7 +77,7 @@ async def async_remote_challenge_txt(cloud, txt: str):
 
 @_check_token
 @_log_response
-async def async_remote_challenge_cleanup(cloud, txt: str):
+async def async_remote_challenge_cleanup(cloud, txt: str) -> ClientResponse:
     """Remove DNS challenge."""
     url = f"{cloud.remote_api_url}/challenge_cleanup"
     return await cloud.websession.post(
@@ -84,7 +87,7 @@ async def async_remote_challenge_cleanup(cloud, txt: str):
 
 @_check_token
 @_log_response
-async def async_alexa_access_token(cloud):
+async def async_alexa_access_token(cloud) -> ClientResponse:
     """Request Alexa access token."""
     return await cloud.websession.post(
         cloud.alexa_access_token_url, headers={AUTHORIZATION: cloud.id_token}
@@ -93,7 +96,7 @@ async def async_alexa_access_token(cloud):
 
 @_check_token
 @_log_response
-async def async_voice_connection_details(cloud):
+async def async_voice_connection_details(cloud) -> ClientResponse:
     """Return connection details for voice service."""
     url = f"{cloud.voice_api_url}/connection_details"
     return await cloud.websession.get(url, headers={AUTHORIZATION: cloud.id_token})
@@ -101,7 +104,7 @@ async def async_voice_connection_details(cloud):
 
 @_check_token
 @_log_response
-async def async_google_actions_request_sync(cloud):
+async def async_google_actions_request_sync(cloud) -> ClientResponse:
     """Request a Google Actions sync request."""
     return await cloud.websession.post(
         f"{cloud.google_actions_report_state_url}/request_sync",
