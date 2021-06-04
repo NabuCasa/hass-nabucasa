@@ -153,6 +153,7 @@ class AiohttpClientMockResponse:
         self.response = response
         self.exc = exc
         self.ok = status < 400
+        self.reason = ""
 
         self._headers = headers or {}
         self._cookies = {}
