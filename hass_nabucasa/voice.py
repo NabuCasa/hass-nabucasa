@@ -70,6 +70,8 @@ MAP_VOICE = {
     ("en-GB", Gender.MALE): "RyanNeural",
     ("en-US", Gender.FEMALE): "JennyNeural",
     ("en-US", Gender.MALE): "GuyNeural",
+    ("et-EE", Gender.FEMALE): "AnuNeural",
+    ("et-EE", Gender.MALE): "KertNeural",
     ("fi-FI", Gender.FEMALE): "SelmaNeural",
     ("fi-FI", Gender.MALE): "HarriNeural",
     ("fr-CA", Gender.FEMALE): "SylvieNeural",
