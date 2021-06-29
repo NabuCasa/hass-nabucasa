@@ -335,7 +335,7 @@ class AcmeHandler:
                 raise AcmeClientError() from None
 
         self.path_fullchain.unlink()
-        if self.path_fullchain.exists():
+        if self.path_private_key.exists():
             self.path_private_key.unlink()
 
     def _deactivate_account(self) -> None:
