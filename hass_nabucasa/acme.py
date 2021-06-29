@@ -325,12 +325,18 @@ class AcmeHandler:
             pass
         except errors.Error as err:
             # Ignore errors where certificate did not exist
-            if "No such certificate" not in str(err):
+            if "No such certificate" in str(err):
+                pass
+            # Ignore errors where certificate has expired
+            elif "Certificate is expired" in str(err):
+                pass
+            else:
                 _LOGGER.error("Can't revoke certificate: %s", err)
                 raise AcmeClientError() from None
 
         self.path_fullchain.unlink()
-        self.path_private_key.unlink()
+        if self.path_fullchain.exists():
+            self.path_private_key.unlink()
 
     def _deactivate_account(self) -> None:
         """Deactivate account."""
