@@ -332,11 +332,10 @@ class AcmeHandler:
                 pass
             else:
                 _LOGGER.error("Can't revoke certificate: %s", err)
-                raise AcmeClientError() from None
+                raise AcmeClientError() from err
 
-        self.path_fullchain.unlink()
-        if self.path_private_key.exists():
-            self.path_private_key.unlink()
+        self.path_fullchain.unlink(missing_ok=True)
+        self.path_private_key.unlink(missing_ok=True)
 
     def _deactivate_account(self) -> None:
         """Deactivate account."""
