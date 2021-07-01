@@ -30,7 +30,7 @@ setup(
     install_requires=[
         "pycognito==2021.3.1",
         "snitun==0.24.0",
-        "acme==1.15.0",
+        "acme==1.16.0",
         "cryptography>=2.8,<4.0",
         "attrs>=19.3",
         "pytz>=2019.3",
