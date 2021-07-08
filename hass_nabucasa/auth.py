@@ -170,7 +170,7 @@ class CognitoAuth:
 
             try:
                 await self._async_renew_access_token()
-            except Unauthenticated as err:
+            except (Unauthenticated, UserNotFound) as err:
                 _LOGGER.error("Unable to refresh token: %s", err)
 
                 self.cloud.client.user_message(
