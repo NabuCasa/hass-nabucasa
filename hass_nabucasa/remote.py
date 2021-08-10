@@ -306,7 +306,7 @@ class RemoteUI:
             async with async_timeout.timeout(30):
                 await self._refresh_snitun_token()
 
-            _LOGGER.debug("Attempting connection")
+            _LOGGER.debug("Attempting connection to %s", self._snitun_server)
             async with async_timeout.timeout(30):
                 await self._snitun.connect(
                     self._token.fernet,
