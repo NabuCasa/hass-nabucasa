@@ -302,15 +302,23 @@ class RemoteUI:
 
         insecure = False
         try:
-            await self._refresh_snitun_token()
-            await self._snitun.connect(
-                self._token.fernet,
-                self._token.aes_key,
-                self._token.aes_iv,
-                throttling=self._token.throttling,
-            )
+            _LOGGER.debug("Refresn snitun token")
+            async with async_timeout.timeout(30):
+                await self._refresh_snitun_token()
+
+            _LOGGER.debug("Attempting connection")
+            async with async_timeout.timeout(30):
+                await self._snitun.connect(
+                    self._token.fernet,
+                    self._token.aes_key,
+                    self._token.aes_iv,
+                    throttling=self._token.throttling,
+                )
+            _LOGGER.debug("Connected")
 
             self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
+        except asyncio.TimeoutError:
+            _LOGGER.error("Timeout connectiong to snitun server")
         except SniTunConnectionError:
             _LOGGER.error("Connection problem to snitun server")
         except RemoteBackendError:
