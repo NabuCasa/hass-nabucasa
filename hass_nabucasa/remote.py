@@ -318,7 +318,7 @@ class RemoteUI:
 
             self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
         except asyncio.TimeoutError:
-            _LOGGER.error("Timeout connectiong to snitun server")
+            _LOGGER.error("Timeout connecting to snitun server")
         except SniTunConnectionError:
             _LOGGER.error("Connection problem to snitun server")
         except RemoteBackendError:
