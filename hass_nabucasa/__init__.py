@@ -146,16 +146,12 @@ class Cloud:
         self.access_token = access_token
 
         if was_expired and not self.subscription_expired:
-            for cb in self._on_subscribe:
-                self.run_task(cb)
+            await gather_callbacks(_LOGGER, "on_subscribe", self._on_subscribe)
 
-        elif (
-            not was_expired
-            and self.subscription_expired
-            and self._on_subscription_expire
-        ):
-            for cb in self._on_subscription_expire:
-                self.run_task(cb)
+        elif not was_expired and self.subscription_expired:
+            await gather_callbacks(
+                _LOGGER, "on_subscription_expire", self._on_subscription_expire
+            )
 
     def register_on_start(self, on_start_cb: Callable[[], Awaitable[None]]):
         """Register an async on_start callback."""
@@ -211,11 +207,13 @@ class Cloud:
 
     async def logout(self) -> None:
         """Close connection and remove all credentials."""
-        await self.stop()
-
         self.id_token = None
         self.access_token = None
         self.refresh_token = None
+
+        await gather_callbacks(
+            _LOGGER, "on_subscription_expire", self._on_subscription_expire
+        )
 
         # Cleanup auth data
         if self.user_info_path.exists():
@@ -283,8 +281,6 @@ class Cloud:
 
     async def stop(self):
         """Stop the cloud component."""
-        if not self.is_logged_in:
-            return
         await gather_callbacks(_LOGGER, "on_stop", self._on_stop)
 
     @staticmethod

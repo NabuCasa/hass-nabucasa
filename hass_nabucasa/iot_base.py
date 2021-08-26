@@ -119,6 +119,9 @@ class BaseIoT:
             if self.close_requested:
                 break
 
+            if self.require_subscription and self.cloud.subscription_expired:
+                break
+
             self.state = STATE_CONNECTING
             self.tries += 1
 

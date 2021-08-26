@@ -2,10 +2,13 @@
 import asyncio
 from asyncio.queues import Queue
 import logging
-from typing import Dict
+from typing import Dict, TYPE_CHECKING
 import uuid
 
 from . import iot_base
+
+if TYPE_CHECKING:
+    from . import Cloud
 
 _LOGGER = logging.getLogger(__name__)
 MAX_PENDING = 100
@@ -30,7 +33,7 @@ class GoogleReportState(iot_base.BaseIoT):
     Uses a queue to send messages.
     """
 
-    def __init__(self, cloud):
+    def __init__(self, cloud: "Cloud"):
         """Initialize Google Report State."""
         super().__init__(cloud)
         self._connect_lock = asyncio.Lock()
@@ -42,6 +45,7 @@ class GoogleReportState(iot_base.BaseIoT):
         self.register_on_disconnect(self._async_on_disconnect)
 
         # Register start/stop
+        cloud.register_on_subscription_expire(self.disconnect)
         cloud.register_on_stop(self.disconnect)
 
     @property

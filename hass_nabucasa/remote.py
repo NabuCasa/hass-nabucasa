@@ -87,7 +87,7 @@ class RemoteUI:
         # Register start/stop
         cloud.register_on_start(self.start)
         cloud.register_on_subscribe(self.start)
-        cloud.register_on_subscription_expire(self.start)
+        cloud.register_on_subscription_expire(self.stop)
         cloud.register_on_stop(self.stop)
 
     async def start(self) -> None:
