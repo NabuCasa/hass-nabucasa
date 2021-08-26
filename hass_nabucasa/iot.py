@@ -43,8 +43,6 @@ class CloudIoT(iot_base.BaseIoT):
 
         # Register start/stop
         cloud.register_on_start(self.start)
-        cloud.register_on_subscribe(self.start)
-        cloud.register_on_subscription_expire(self.disconnect)
         cloud.register_on_stop(self.disconnect)
 
     @property

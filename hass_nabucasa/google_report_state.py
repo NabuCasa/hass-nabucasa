@@ -45,7 +45,6 @@ class GoogleReportState(iot_base.BaseIoT):
         self.register_on_disconnect(self._async_on_disconnect)
 
         # Register start/stop
-        cloud.register_on_subscription_expire(self.disconnect)
         cloud.register_on_stop(self.disconnect)
 
     @property
