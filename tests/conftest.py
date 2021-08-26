@@ -34,6 +34,12 @@ async def cloud_mock(loop, aioclient_mock):
     cloud.websession = aioclient_mock.create_session(loop)
     cloud.client = TestClient(loop, cloud.websession)
 
+    async def update_token(id_token, access_token):
+        cloud.id_token = id_token
+        cloud.access_token = access_token
+
+    cloud.update_token = update_token
+
     yield cloud
 
     await cloud.websession.close()
