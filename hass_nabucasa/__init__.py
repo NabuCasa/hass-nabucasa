@@ -49,7 +49,7 @@ class Cloud:
         self._on_start: List[Callable[[], Awaitable[None]]] = []
         self._on_stop: List[Callable[[], Awaitable[None]]] = []
         self._on_subscribe: List[Callable[[], Awaitable[None]]] = []
-        self._on_unsubscribe: List[Callable[[], Awaitable[None]]] = []
+        self._on_subscription_expire: List[Callable[[], Awaitable[None]]] = []
         self.mode = mode
         self.client = client
         self.id_token = None
@@ -149,8 +149,12 @@ class Cloud:
             for cb in self._on_subscribe:
                 self.run_task(cb)
 
-        elif not was_expired and self.subscription_expired and self._on_unsubscribe:
-            for cb in self._on_unsubscribe:
+        elif (
+            not was_expired
+            and self.subscription_expired
+            and self._on_subscription_expire
+        ):
+            for cb in self._on_subscription_expire:
                 self.run_task(cb)
 
     def register_on_start(self, on_start_cb: Callable[[], Awaitable[None]]):
@@ -165,9 +169,11 @@ class Cloud:
         """Register an async on_subscribe callback."""
         self._on_subscribe.append(on_subscribe_cb)
 
-    def register_on_unsubscribe(self, on_unsubscribe_cb: Callable[[], Awaitable[None]]):
-        """Register an async on_unsubscribe callback."""
-        self._on_unsubscribe.append(on_unsubscribe_cb)
+    def register_on_subscription_expire(
+        self, on_subscription_expire_cb: Callable[[], Awaitable[None]]
+    ):
+        """Register an async on_subscription_expire callback."""
+        self._on_subscription_expire.append(on_subscription_expire_cb)
 
     def path(self, *parts) -> Path:
         """Get config path inside cloud dir.

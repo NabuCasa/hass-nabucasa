@@ -47,7 +47,7 @@ class CloudClient(ABC):
         """Return true if we want start a remote connection."""
 
     @abstractmethod
-    async def logged_in(self) -> None:
+    async def logged_in(self, active_subscription) -> None:
         """Called on log in."""
 
     @abstractmethod
