@@ -16,7 +16,7 @@ ignore=tests_*
 # abstract-method - with intro of async there are always methods missing
 
 [BASIC]
-good-names=id,i,j,k,ex,Run,_,fp,T
+good-names=id,i,j,k,ex,Run,_,fp,T,cb
 
 generated-members=botocore.errorfactory
 

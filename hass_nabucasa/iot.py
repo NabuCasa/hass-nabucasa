@@ -4,9 +4,13 @@ import logging
 import pprint
 import uuid
 import random
+from typing import TYPE_CHECKING
 
 from . import iot_base
 from .utils import Registry
+
+if TYPE_CHECKING:
+    from . import Cloud
 
 HANDLERS = Registry()
 _LOGGER = logging.getLogger(__name__)
@@ -28,14 +32,19 @@ class ErrorMessage(Exception):
 class CloudIoT(iot_base.BaseIoT):
     """Class to manage the IoT connection."""
 
-    def __init__(self, cloud):
+    def __init__(self, cloud: "Cloud"):
         """Initialize the CloudIoT class."""
         super().__init__(cloud)
+
+        self.cloud = cloud
+
         # Local code waiting for a response
         self._response_handler = {}
 
         # Register start/stop
         cloud.register_on_start(self.start)
+        cloud.register_on_subscribe(self.start)
+        cloud.register_on_unsubscribe(self.disconnect)
         cloud.register_on_stop(self.disconnect)
 
     @property
@@ -50,6 +59,8 @@ class CloudIoT(iot_base.BaseIoT):
 
     async def start(self) -> None:
         """Start the CloudIoT server."""
+        if self.cloud.subscription_expired:
+            return
         self.cloud.run_task(self.connect())
 
     async def async_send_message(self, handler, payload, expect_answer=True):

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import logging
 import random
 import ssl
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import aiohttp
 import async_timeout
@@ -16,6 +16,9 @@ from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
 from . import cloud_api, utils, const
 from .acme import AcmeClientError, AcmeHandler
+
+if TYPE_CHECKING:
+    from . import Cloud
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,7 +71,7 @@ class Certificate:
 class RemoteUI:
     """Class to help manage remote connections."""
 
-    def __init__(self, cloud):
+    def __init__(self, cloud: "Cloud"):
         """Initialize cloudhooks."""
         self.cloud = cloud
         self._acme = None
@@ -83,15 +86,22 @@ class RemoteUI:
 
         # Register start/stop
         cloud.register_on_start(self.start)
+        cloud.register_on_subscribe(self.start)
+        cloud.register_on_unsubscribe(self.start)
         cloud.register_on_stop(self.stop)
 
     async def start(self) -> None:
         """Start remote UI loop."""
+        if self.cloud.subscription_expired:
+            return
         self._acme_task = self.cloud.run_task(self._certificate_handler())
         await self._info_loaded.wait()
 
     async def stop(self) -> None:
         """Stop remote UI loop."""
+        if self._acme_task is None:
+            return
+
         self._acme_task.cancel()
         self._acme_task = None
 

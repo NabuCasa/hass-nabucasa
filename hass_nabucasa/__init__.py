@@ -48,6 +48,8 @@ class Cloud:
         """Create an instance of Cloud."""
         self._on_start: List[Callable[[], Awaitable[None]]] = []
         self._on_stop: List[Callable[[], Awaitable[None]]] = []
+        self._on_subscribe: List[Callable[[], Awaitable[None]]] = []
+        self._on_unsubscribe: List[Callable[[], Awaitable[None]]] = []
         self.mode = mode
         self.client = client
         self.id_token = None
@@ -137,6 +139,20 @@ class Cloud:
         """Get path to the stored auth."""
         return self.path("{}_auth.json".format(self.mode))
 
+    async def update_token(self, id_token: str, access_token: str) -> None:
+        """Update the id and access token."""
+        was_expired = self.subscription_expired
+        self.id_token = id_token
+        self.access_token = access_token
+
+        if was_expired and not self.subscription_expired:
+            for cb in self._on_subscribe:
+                self.run_task(cb)
+
+        elif not was_expired and self.subscription_expired and self._on_unsubscribe:
+            for cb in self._on_unsubscribe:
+                self.run_task(cb)
+
     def register_on_start(self, on_start_cb: Callable[[], Awaitable[None]]):
         """Register an async on_start callback."""
         self._on_start.append(on_start_cb)
@@ -144,6 +160,14 @@ class Cloud:
     def register_on_stop(self, on_stop_cb: Callable[[], Awaitable[None]]):
         """Register an async on_stop callback."""
         self._on_stop.append(on_stop_cb)
+
+    def register_on_subscribe(self, on_subscribe_cb: Callable[[], Awaitable[None]]):
+        """Register an async on_subscribe callback."""
+        self._on_subscribe.append(on_subscribe_cb)
+
+    def register_on_unsubscribe(self, on_unsubscribe_cb: Callable[[], Awaitable[None]]):
+        """Register an async on_unsubscribe callback."""
+        self._on_unsubscribe.append(on_unsubscribe_cb)
 
     def path(self, *parts) -> Path:
         """Get config path inside cloud dir.
@@ -248,7 +272,7 @@ class Cloud:
             self.access_token = info["access_token"]
             self.refresh_token = info["refresh_token"]
 
-        await self.client.logged_in()
+        await self.client.logged_in(not self.subscription_expired)
         await gather_callbacks(_LOGGER, "on_start", self._on_start)
 
     async def stop(self):
