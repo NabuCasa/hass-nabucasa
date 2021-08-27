@@ -36,8 +36,6 @@ class CloudIoT(iot_base.BaseIoT):
         """Initialize the CloudIoT class."""
         super().__init__(cloud)
 
-        self.cloud = cloud
-
         # Local code waiting for a response
         self._response_handler = {}
 
