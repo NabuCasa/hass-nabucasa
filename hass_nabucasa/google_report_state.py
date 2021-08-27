@@ -1,4 +1,5 @@
 """Module to handle Google Report State."""
+from __future__ import annotations
 import asyncio
 from asyncio.queues import Queue
 import logging
@@ -33,7 +34,7 @@ class GoogleReportState(iot_base.BaseIoT):
     Uses a queue to send messages.
     """
 
-    def __init__(self, cloud: "Cloud"):
+    def __init__(self, cloud: Cloud):
         """Initialize Google Report State."""
         super().__init__(cloud)
         self._connect_lock = asyncio.Lock()

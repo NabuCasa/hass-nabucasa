@@ -1,4 +1,6 @@
 """Manage remote UI connections."""
+from __future__ import annotations
+
 import asyncio
 from contextvars import ContextVar
 from datetime import datetime, timedelta
@@ -71,7 +73,7 @@ class Certificate:
 class RemoteUI:
     """Class to help manage remote connections."""
 
-    def __init__(self, cloud: "Cloud"):
+    def __init__(self, cloud: Cloud):
         """Initialize cloudhooks."""
         self.cloud = cloud
         self._acme = None

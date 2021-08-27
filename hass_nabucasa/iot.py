@@ -1,4 +1,6 @@
 """Module to handle messages from Home Assistant cloud."""
+from __future__ import annotations
+
 import asyncio
 import logging
 import pprint
@@ -32,7 +34,7 @@ class ErrorMessage(Exception):
 class CloudIoT(iot_base.BaseIoT):
     """Class to manage the IoT connection."""
 
-    def __init__(self, cloud: "Cloud"):
+    def __init__(self, cloud: Cloud):
         """Initialize the CloudIoT class."""
         super().__init__(cloud)
 
