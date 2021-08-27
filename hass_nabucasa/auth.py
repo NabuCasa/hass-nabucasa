@@ -163,7 +163,7 @@ class CognitoAuth:
             raise UnknownError() from err
 
     async def async_check_token(self):
-        """Check that the token is valid."""
+        """Check that the token is valid and renew if necessary."""
         async with self._request_lock:
             if not self._authenticated_cognito.check_token(renew=False):
                 return

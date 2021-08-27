@@ -149,7 +149,7 @@ class Cloud:
             self.refresh_token = refresh_token
 
         if is_stopped and not self.subscription_expired:
-            self.run_task(self.start())
+            self.run_task(self._start())
 
         elif not is_stopped and self.subscription_expired:
             await self.stop()
@@ -228,8 +228,8 @@ class Cloud:
             )
         self.user_info_path.chmod(0o600)
 
-    async def start(self):
-        """Start the cloud component."""
+    async def initialize(self):
+        """Initialize the cloud component (load auth and maybe start)."""
 
         def load_config():
             """Load config."""
@@ -254,19 +254,25 @@ class Cloud:
                 )
                 return None
 
-        if not self.is_logged_in:
-            info = await self.run_executor(load_config)
-            if info is None:
-                # No previous token data
-                return
-
-            self.id_token = info["id_token"]
-            self.access_token = info["access_token"]
-            self.refresh_token = info["refresh_token"]
-
-        if not self.is_logged_in or self.subscription_expired:
+        info = await self.run_executor(load_config)
+        if info is None:
+            # No previous token data
             return
 
+        self.id_token = info["id_token"]
+        self.access_token = info["access_token"]
+        self.refresh_token = info["refresh_token"]
+
+        orig_token = self.id_token
+
+        await self.auth.async_check_token()
+
+        # A refresh will trigger a start, so only start if we didn't refresh
+        if self.id_token == orig_token and not self.subscription_expired:
+            await self._start()
+
+    async def _start(self):
+        """Start the cloud component."""
         await self.client.cloud_started()
         await gather_callbacks(_LOGGER, "on_start", self._on_start)
 
