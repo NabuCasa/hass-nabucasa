@@ -1,12 +1,18 @@
 """Module to handle messages from Home Assistant cloud."""
+from __future__ import annotations
+
 import asyncio
 import logging
 import pprint
 import uuid
 import random
+from typing import TYPE_CHECKING
 
 from . import iot_base
 from .utils import Registry
+
+if TYPE_CHECKING:
+    from . import Cloud
 
 HANDLERS = Registry()
 _LOGGER = logging.getLogger(__name__)
@@ -28,9 +34,10 @@ class ErrorMessage(Exception):
 class CloudIoT(iot_base.BaseIoT):
     """Class to manage the IoT connection."""
 
-    def __init__(self, cloud):
+    def __init__(self, cloud: Cloud):
         """Initialize the CloudIoT class."""
         super().__init__(cloud)
+
         # Local code waiting for a response
         self._response_handler = {}
 
@@ -50,6 +57,8 @@ class CloudIoT(iot_base.BaseIoT):
 
     async def start(self) -> None:
         """Start the CloudIoT server."""
+        if self.cloud.subscription_expired:
+            return
         self.cloud.run_task(self.connect())
 
     async def async_send_message(self, handler, payload, expect_answer=True):

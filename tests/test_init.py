@@ -75,11 +75,16 @@ async def test_initialize_loads_info(cloud_client):
 
     cl._on_start.extend([cl.iot.connect, cl.remote.connect])
 
-    with patch("hass_nabucasa.Cloud._decode_claims"), patch(
+    with patch(
+        "hass_nabucasa.Cloud._decode_claims",
+        return_value={"custom:sub-exp": "2080-01-01"},
+    ), patch(
         "hass_nabucasa.Cloud.user_info_path",
         new_callable=PropertyMock(return_value=info_file),
+    ), patch(
+        "hass_nabucasa.auth.CognitoAuth.async_check_token"
     ):
-        await cl.start()
+        await cl.initialize()
 
     assert cl.id_token == "test-id-token"
     assert cl.access_token == "test-access-token"
@@ -110,7 +115,7 @@ async def test_initialize_loads_invalid_info(cloud_client, caplog):
         "hass_nabucasa.Cloud.user_info_path",
         new_callable=PropertyMock(return_value=info_file),
     ):
-        await cl.start()
+        await cl.initialize()
 
     assert cl.id_token is None
     assert len(cl.iot.connect.mock_calls) == 0

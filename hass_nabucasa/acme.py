@@ -330,6 +330,9 @@ class AcmeHandler:
             # Ignore errors where certificate has expired
             elif "Certificate is expired" in str(err):
                 pass
+            # Ignore errors where unrecognized issuer (happens dev/prod switch)
+            elif "Certificate from unrecognized issuer" in str(err):
+                pass
             else:
                 _LOGGER.error("Can't revoke certificate: %s", err)
                 raise AcmeClientError() from err

@@ -6,6 +6,8 @@ from tests.async_mock import patch, MagicMock, PropertyMock, AsyncMock
 from aiohttp import web
 import pytest
 
+from hass_nabucasa import Cloud
+
 from .utils.aiohttp import mock_aiohttp_client
 from .common import TestClient
 
@@ -22,7 +24,7 @@ async def aioclient_mock(loop):
 @pytest.fixture
 async def cloud_mock(loop, aioclient_mock):
     """Simple cloud mock."""
-    cloud = MagicMock()
+    cloud = MagicMock(name="Mock Cloud", is_logged_in=True)
     cloud.run_task = loop.create_task
 
     def _executor(call, *args):
@@ -33,6 +35,14 @@ async def cloud_mock(loop, aioclient_mock):
 
     cloud.websession = aioclient_mock.create_session(loop)
     cloud.client = TestClient(loop, cloud.websession)
+
+    async def update_token(id_token, access_token, refresh_token=None):
+        cloud.id_token = id_token
+        cloud.access_token = access_token
+        if refresh_token is not None:
+            cloud.refresh_token = refresh_token
+
+    cloud.update_token = update_token
 
     yield cloud
 

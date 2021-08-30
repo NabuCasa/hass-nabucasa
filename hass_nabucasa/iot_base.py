@@ -119,6 +119,9 @@ class BaseIoT:
             if self.close_requested:
                 break
 
+            if self.require_subscription and self.cloud.subscription_expired:
+                break
+
             self.state = STATE_CONNECTING
             self.tries += 1
 
@@ -164,7 +167,6 @@ class BaseIoT:
         try:
             self.client = client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
-                heartbeat=55,
                 headers={hdrs.AUTHORIZATION: "Bearer {}".format(self.cloud.id_token)},
             )
             self.tries = 0
@@ -176,7 +178,11 @@ class BaseIoT:
                 await gather_callbacks(self._logger, "on_connect", self._on_connect)
 
             while not client.closed:
-                msg = await client.receive()
+                try:
+                    msg = await client.receive(55)
+                except asyncio.TimeoutError:
+                    await client.ping()
+                    continue
 
                 if msg.type in (WSMsgType.CLOSED, WSMsgType.CLOSING):
                     break

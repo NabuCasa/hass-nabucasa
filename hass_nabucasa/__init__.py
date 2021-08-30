@@ -1,4 +1,5 @@
 """Component to integrate the Home Assistant cloud."""
+from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta
 import json
@@ -137,6 +138,22 @@ class Cloud:
         """Get path to the stored auth."""
         return self.path("{}_auth.json".format(self.mode))
 
+    async def update_token(
+        self, id_token: str, access_token: str, refresh_token: str | None = None
+    ) -> None:
+        """Update the id and access token."""
+        is_stopped = not self.is_logged_in or self.subscription_expired
+        self.id_token = id_token
+        self.access_token = access_token
+        if refresh_token is not None:
+            self.refresh_token = refresh_token
+
+        if is_stopped and not self.subscription_expired:
+            self.run_task(self._start())
+
+        elif not is_stopped and self.subscription_expired:
+            await self.stop()
+
     def register_on_start(self, on_start_cb: Callable[[], Awaitable[None]]):
         """Register an async on_start callback."""
         self._on_start.append(on_start_cb)
@@ -177,21 +194,20 @@ class Cloud:
         """Log a user in."""
         async with async_timeout.timeout(30):
             await self.auth.async_login(email, password)
-        self.run_task(self.start())
 
     async def logout(self) -> None:
         """Close connection and remove all credentials."""
-        await self.stop()
-
         self.id_token = None
         self.access_token = None
         self.refresh_token = None
+
+        await self.stop()
 
         # Cleanup auth data
         if self.user_info_path.exists():
             await self.run_executor(self.user_info_path.unlink)
 
-        await self.client.cleanups()
+        await self.client.logout_cleanups()
 
     def write_user_info(self) -> None:
         """Write user info to a file."""
@@ -212,8 +228,8 @@ class Cloud:
             )
         self.user_info_path.chmod(0o600)
 
-    async def start(self):
-        """Start the cloud component."""
+    async def initialize(self):
+        """Initialize the cloud component (load auth and maybe start)."""
 
         def load_config():
             """Load config."""
@@ -238,23 +254,31 @@ class Cloud:
                 )
                 return None
 
-        if not self.is_logged_in:
-            info = await self.run_executor(load_config)
-            if info is None:
-                # No previous token data
-                return
+        info = await self.run_executor(load_config)
+        if info is None:
+            # No previous token data
+            return
 
-            self.id_token = info["id_token"]
-            self.access_token = info["access_token"]
-            self.refresh_token = info["refresh_token"]
+        self.id_token = info["id_token"]
+        self.access_token = info["access_token"]
+        self.refresh_token = info["refresh_token"]
 
-        await self.client.logged_in()
+        orig_token = self.id_token
+
+        await self.auth.async_check_token()
+
+        # A refresh will trigger a start, so only start if we didn't refresh
+        if self.id_token == orig_token and not self.subscription_expired:
+            await self._start()
+
+    async def _start(self):
+        """Start the cloud component."""
+        await self.client.cloud_started()
         await gather_callbacks(_LOGGER, "on_start", self._on_start)
 
     async def stop(self):
         """Stop the cloud component."""
-        if not self.is_logged_in:
-            return
+        await self.client.cloud_stopped()
         await gather_callbacks(_LOGGER, "on_stop", self._on_stop)
 
     @staticmethod

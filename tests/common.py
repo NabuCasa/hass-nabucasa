@@ -60,10 +60,13 @@ class TestClient(CloudClient):
         """Return true if we want start a remote connection."""
         return self.prop_remote_autostart
 
-    async def logged_in(self):
-        """Handle log in."""
+    async def cloud_started(self):
+        """Handle cloud started."""
 
-    async def cleanups(self):
+    async def cloud_stopped(self):
+        """Handle stopping."""
+
+    async def logout_cleanups(self):
         """Need nothing to do."""
 
     def user_message(self, identifier: str, title: str, message: str) -> None:

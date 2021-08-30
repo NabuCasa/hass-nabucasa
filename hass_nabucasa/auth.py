@@ -148,10 +148,10 @@ class CognitoAuth:
                 await self.cloud.run_executor(
                     partial(cognito.authenticate, password=password)
                 )
-                self.cloud.id_token = cognito.id_token
-                self.cloud.access_token = cognito.access_token
-                self.cloud.refresh_token = cognito.refresh_token
-            await self.cloud.run_executor(self.cloud.write_user_info)
+                await self.cloud.run_executor(self.cloud.write_user_info)
+                await self.cloud.update_token(
+                    cognito.id_token, cognito.access_token, cognito.refresh_token
+                )
 
         except ForceChangePasswordException as err:
             raise PasswordChangeRequired() from err
@@ -163,7 +163,7 @@ class CognitoAuth:
             raise UnknownError() from err
 
     async def async_check_token(self):
-        """Check that the token is valid."""
+        """Check that the token is valid and renew if necessary."""
         async with self._request_lock:
             if not self._authenticated_cognito.check_token(renew=False):
                 return
@@ -197,8 +197,7 @@ class CognitoAuth:
 
         try:
             await self.cloud.run_executor(cognito.renew_access_token)
-            self.cloud.id_token = cognito.id_token
-            self.cloud.access_token = cognito.access_token
+            await self.cloud.update_token(cognito.id_token, cognito.access_token)
             await self.cloud.run_executor(self.cloud.write_user_info)
 
         except ClientError as err:

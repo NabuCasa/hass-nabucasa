@@ -1,5 +1,6 @@
 """Tests for the tools to communicate with the cloud."""
 import asyncio
+from unittest.mock import AsyncMock
 from tests.async_mock import MagicMock, patch
 
 from botocore.exceptions import ClientError
@@ -9,11 +10,10 @@ from hass_nabucasa import auth as auth_api
 
 
 @pytest.fixture
-def mock_cloud(loop):
+def mock_cloud(cloud_mock):
     """Mock cloud."""
-    return MagicMock(
-        is_logged_in=False, run_executor=lambda *args: loop.run_in_executor(None, *args)
-    )
+    cloud_mock.is_logged_in = False
+    return cloud_mock
 
 
 def aws_error(code, message="Unknown", operation_name="fake_operation_name"):
