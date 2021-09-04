@@ -30,7 +30,7 @@ async def test_login_invalid_auth(mock_cognito, mock_cloud):
     with pytest.raises(auth_api.Unauthenticated):
         await auth.async_login("user", "pass")
 
-    assert len(mock_cloud.write_user_info.mock_calls) == 0
+    assert len(mock_cloud.update_token.mock_calls) == 0
 
 
 async def test_login_user_not_found(mock_cognito, mock_cloud):
@@ -41,7 +41,7 @@ async def test_login_user_not_found(mock_cognito, mock_cloud):
     with pytest.raises(auth_api.UserNotFound):
         await auth.async_login("user", "pass")
 
-    assert len(mock_cloud.write_user_info.mock_calls) == 0
+    assert len(mock_cloud.update_token.mock_calls) == 0
 
 
 async def test_login_user_not_confirmed(mock_cognito, mock_cloud):
@@ -52,7 +52,7 @@ async def test_login_user_not_confirmed(mock_cognito, mock_cloud):
     with pytest.raises(auth_api.UserNotConfirmed):
         await auth.async_login("user", "pass")
 
-    assert len(mock_cloud.write_user_info.mock_calls) == 0
+    assert len(mock_cloud.update_token.mock_calls) == 0
 
 
 async def test_login(mock_cognito, mock_cloud):
@@ -65,10 +65,9 @@ async def test_login(mock_cognito, mock_cloud):
     await auth.async_login("user", "pass")
 
     assert len(mock_cognito.authenticate.mock_calls) == 1
-    assert mock_cloud.id_token == "test_id_token"
-    assert mock_cloud.access_token == "test_access_token"
-    assert mock_cloud.refresh_token == "test_refresh_token"
-    assert len(mock_cloud.write_user_info.mock_calls) == 1
+    mock_cloud.update_token.assert_called_once_with(
+        "test_id_token", "test_access_token", "test_refresh_token"
+    )
 
 
 async def test_register(mock_cognito, cloud_mock):
@@ -131,7 +130,7 @@ async def test_check_token_writes_new_token_on_refresh(mock_cognito, cloud_mock)
     assert len(mock_cognito.check_token.mock_calls) == 1
     assert cloud_mock.id_token == "new id token"
     assert cloud_mock.access_token == "new access token"
-    assert len(cloud_mock.write_user_info.mock_calls) == 1
+    cloud_mock.update_token.assert_called_once_with("new id token", "new access token")
 
 
 async def test_check_token_does_not_write_existing_token(mock_cognito, cloud_mock):
@@ -144,7 +143,7 @@ async def test_check_token_does_not_write_existing_token(mock_cognito, cloud_moc
     assert len(mock_cognito.check_token.mock_calls) == 1
     assert cloud_mock.id_token != mock_cognito.id_token
     assert cloud_mock.access_token != mock_cognito.access_token
-    assert len(cloud_mock.write_user_info.mock_calls) == 0
+    assert len(cloud_mock.update_token.mock_calls) == 0
 
 
 async def test_check_token_raises(mock_cognito, cloud_mock):
@@ -158,7 +157,7 @@ async def test_check_token_raises(mock_cognito, cloud_mock):
     assert len(mock_cognito.check_token.mock_calls) == 2
     assert cloud_mock.id_token != mock_cognito.id_token
     assert cloud_mock.access_token != mock_cognito.access_token
-    assert len(cloud_mock.write_user_info.mock_calls) == 0
+    assert len(cloud_mock.update_token.mock_calls) == 0
 
 
 async def test_async_setup(cloud_mock):
