@@ -6,7 +6,7 @@ import random
 
 import boto3
 import botocore
-from botocore.exceptions import ClientError, EndpointConnectionError
+from botocore.exceptions import ClientError, BotoCoreError
 import pycognito
 from pycognito.exceptions import ForceChangePasswordException
 
@@ -103,7 +103,7 @@ class CognitoAuth:
 
         except ClientError as err:
             raise _map_aws_exception(err) from err
-        except EndpointConnectionError as err:
+        except BotoCoreError as err:
             raise UnknownError() from err
 
     async def async_resend_email_confirm(self, email):
@@ -121,7 +121,7 @@ class CognitoAuth:
                 )
         except ClientError as err:
             raise _map_aws_exception(err) from err
-        except EndpointConnectionError as err:
+        except BotoCoreError as err:
             raise UnknownError() from err
 
     async def async_forgot_password(self, email):
@@ -134,7 +134,7 @@ class CognitoAuth:
 
         except ClientError as err:
             raise _map_aws_exception(err) from err
-        except EndpointConnectionError as err:
+        except BotoCoreError as err:
             raise UnknownError() from err
 
     async def async_login(self, email, password):
@@ -159,7 +159,7 @@ class CognitoAuth:
         except ClientError as err:
             raise _map_aws_exception(err) from err
 
-        except EndpointConnectionError as err:
+        except BotoCoreError as err:
             raise UnknownError() from err
 
     async def async_check_token(self):
@@ -203,7 +203,7 @@ class CognitoAuth:
         except ClientError as err:
             raise _map_aws_exception(err) from err
 
-        except EndpointConnectionError as err:
+        except BotoCoreError as err:
             raise UnknownError() from err
 
     @property
