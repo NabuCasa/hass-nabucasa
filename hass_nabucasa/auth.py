@@ -148,7 +148,6 @@ class CognitoAuth:
                 await self.cloud.run_executor(
                     partial(cognito.authenticate, password=password)
                 )
-                print(self.cloud, self.cloud.update_token)
                 await self.cloud.update_token(
                     cognito.id_token, cognito.access_token, cognito.refresh_token
                 )
