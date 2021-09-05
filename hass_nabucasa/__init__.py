@@ -149,7 +149,7 @@ class Cloud:
             self.refresh_token = refresh_token
 
         await self.run_executor(self._write_user_info)
-        
+
         if self.started is None:
             return
 
@@ -277,7 +277,7 @@ class Cloud:
         if self.subscription_expired:
             self.started = False
             return
-        
+
         self.started = True
         await self._start()
 
