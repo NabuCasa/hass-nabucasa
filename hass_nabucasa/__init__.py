@@ -54,7 +54,7 @@ class Cloud:
         self.id_token = None
         self.access_token = None
         self.refresh_token = None
-        self.started = False
+        self.started = None
         self.iot = CloudIoT(self)
         self.google_report_state = GoogleReportState(self)
         self.cloudhooks = Cloudhooks(self)
@@ -149,6 +149,9 @@ class Cloud:
             self.refresh_token = refresh_token
 
         await self.run_executor(self._write_user_info)
+        
+        if self.started is None:
+            return
 
         if not self.started and not self.subscription_expired:
             self.started = True
@@ -262,6 +265,7 @@ class Cloud:
         info = await self.run_executor(load_config)
         if info is None:
             # No previous token data
+            self.started = False
             return
 
         self.id_token = info["id_token"]
@@ -270,10 +274,12 @@ class Cloud:
 
         await self.auth.async_check_token()
 
-        # A refresh will trigger a start, so only start if we didn't refresh
-        if not self.started and not self.subscription_expired:
-            self.started = True
-            await self._start()
+        if self.subscription_expired:
+            self.started = False
+            return
+        
+        self.started = True
+        await self._start()
 
     async def _start(self):
         """Start the cloud component."""
