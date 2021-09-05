@@ -154,7 +154,7 @@ class Cloud:
             self.started = True
             self.run_task(self._start())
 
-        elif not self.started and self.subscription_expired:
+        elif self.started and self.subscription_expired:
             self.started = False
             await self.stop()
 
@@ -205,6 +205,7 @@ class Cloud:
         self.access_token = None
         self.refresh_token = None
 
+        self.started = False
         await self.stop()
 
         # Cleanup auth data
