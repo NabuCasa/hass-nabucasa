@@ -117,7 +117,6 @@ async def async_google_actions_request_sync(cloud):
 @_check_token
 async def async_subscription_info(cloud):
     """Fetch subscription info."""
-    await cloud.auth.async_check_token()
     resp = await cloud.websession.get(
         cloud.subscription_info_url, headers={"authorization": cloud.id_token}
     )
