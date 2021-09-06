@@ -1,5 +1,5 @@
 """Test cloud API."""
-
+from unittest.mock import patch, AsyncMock
 
 from hass_nabucasa import cloud_api
 
@@ -108,3 +108,49 @@ async def test_voice_connection_details(auth_cloud_mock, aioclient_mock):
 
     await cloud_api.async_voice_connection_details(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
+
+
+async def test_subscription_info(auth_cloud_mock, aioclient_mock):
+    """Test fetching subscription info."""
+    aioclient_mock.get(
+        "https://example.com/payments/subscription_info",
+        json={
+            "success": True,
+            "provider": None,
+        },
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.subscription_info_url = (
+        "https://example.com/payments/subscription_info"
+    )
+
+    with patch.object(
+        auth_cloud_mock.auth, "async_renew_access_token", AsyncMock()
+    ) as mock_renew:
+        data = await cloud_api.async_subscription_info(auth_cloud_mock)
+    assert len(aioclient_mock.mock_calls) == 1
+    assert data == {
+        "success": True,
+        "provider": None,
+    }
+
+    auth_cloud_mock.started = False
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        "https://example.com/payments/subscription_info",
+        json={
+            "success": True,
+            "provider": "mock-provider",
+        },
+    )
+    with patch.object(
+        auth_cloud_mock.auth, "async_renew_access_token", AsyncMock()
+    ) as mock_renew:
+        data = await cloud_api.async_subscription_info(auth_cloud_mock)
+
+    assert len(aioclient_mock.mock_calls) == 1
+    assert data == {
+        "success": True,
+        "provider": "mock-provider",
+    }
+    assert len(mock_renew.mock_calls) == 1

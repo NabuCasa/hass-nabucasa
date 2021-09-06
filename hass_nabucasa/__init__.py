@@ -190,13 +190,6 @@ class Cloud:
         """
         return self.client.loop.run_in_executor(None, callback, *args)
 
-    async def fetch_subscription_info(self):
-        """Fetch subscription info."""
-        await self.auth.async_check_token()
-        return await self.websession.get(
-            self.subscription_info_url, headers={"authorization": self.id_token}
-        )
-
     async def login(self, email: str, password: str) -> None:
         """Log a user in."""
         async with async_timeout.timeout(30):

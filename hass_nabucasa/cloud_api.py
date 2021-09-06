@@ -7,6 +7,12 @@ from aiohttp.hdrs import AUTHORIZATION
 _LOGGER = logging.getLogger(__name__)
 
 
+def _do_log_response(resp):
+    """Log the response."""
+    meth = _LOGGER.debug if resp.status < 400 else _LOGGER.warning
+    meth("Fetched %s (%s)", resp.url, resp.status)
+
+
 def _check_token(func):
     """Decorate a function to verify valid token."""
 
@@ -26,8 +32,7 @@ def _log_response(func):
     async def log_response(*args):
         """Log response if it's bad."""
         resp = await func(*args)
-        meth = _LOGGER.debug if resp.status < 400 else _LOGGER.warning
-        meth("Fetched %s (%s)", resp.url, resp.status)
+        _do_log_response(resp)
         return resp
 
     return log_response
@@ -107,3 +112,21 @@ async def async_google_actions_request_sync(cloud):
         f"{cloud.google_actions_report_state_url}/request_sync",
         headers={AUTHORIZATION: f"Bearer {cloud.id_token}"},
     )
+
+
+@_check_token
+async def async_subscription_info(cloud):
+    """Fetch subscription info."""
+    resp = await cloud.websession.get(
+        cloud.subscription_info_url, headers={"authorization": cloud.id_token}
+    )
+    _do_log_response(resp)
+    resp.raise_for_status()
+    data = await resp.json()
+
+    # If subscription info indicates we are subscribed, force a refresh of the token
+    if data.get("provider") and not cloud.started:
+        _LOGGER.debug("Found disconnected account with valid subscription, connecting")
+        await cloud.auth.async_renew_access_token()
+
+    return data
