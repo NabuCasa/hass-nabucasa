@@ -121,6 +121,7 @@ async def async_subscription_info(cloud):
         cloud.subscription_info_url, headers={"authorization": cloud.id_token}
     )
     _do_log_response(resp)
+    resp.raise_for_status()
     data = await resp.json()
 
     # If subscription info indicates we are subscribed, force a refresh of the token
