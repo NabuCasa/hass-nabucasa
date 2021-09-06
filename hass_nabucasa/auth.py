@@ -151,7 +151,6 @@ class CognitoAuth:
                 await self.cloud.update_token(
                     cognito.id_token, cognito.access_token, cognito.refresh_token
                 )
-                await self.cloud.run_executor(self.cloud.write_user_info)
 
         except ForceChangePasswordException as err:
             raise PasswordChangeRequired() from err
@@ -198,7 +197,6 @@ class CognitoAuth:
         try:
             await self.cloud.run_executor(cognito.renew_access_token)
             await self.cloud.update_token(cognito.id_token, cognito.access_token)
-            await self.cloud.run_executor(self.cloud.write_user_info)
 
         except ClientError as err:
             raise _map_aws_exception(err) from err

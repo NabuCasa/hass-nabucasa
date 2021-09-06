@@ -42,7 +42,7 @@ async def cloud_mock(loop, aioclient_mock):
         if refresh_token is not None:
             cloud.refresh_token = refresh_token
 
-    cloud.update_token = update_token
+    cloud.update_token = MagicMock(side_effect=update_token)
 
     yield cloud
 
