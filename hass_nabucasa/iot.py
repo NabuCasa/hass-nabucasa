@@ -170,11 +170,10 @@ async def async_handle_cloud(cloud, payload):
 
 
 @HANDLERS.register("remote_sni")
-async def async_handle_remote_sni(cloud, payload):
+async def async_handle_remote_sni(cloud: Cloud, payload):
     """Handle remote UI requests for cloud."""
-    caller_ip = payload["ip_address"]
-
-    await cloud.remote.handle_connection_requests(caller_ip)
+    # caller_ip = payload["ip_address"]
+    await cloud.client.async_cloud_connect_update(True)
     return {"server": cloud.remote.snitun_server}
 
 
