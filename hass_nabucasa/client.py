@@ -60,7 +60,7 @@ class CloudClient(ABC):
 
     @abstractmethod
     async def async_cloud_connect_update(self, connect: bool) -> None:
-        """process cloud remote message to client."""
+        """Process cloud remote message to client."""
 
     @abstractmethod
     async def async_alexa_message(self, payload: Dict[Any, Any]) -> Dict[Any, Any]:

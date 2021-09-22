@@ -80,7 +80,7 @@ class TestClient(CloudClient):
         self.mock_dispatcher.append((identifier, data))
 
     async def async_cloud_connect_update(self, connect: bool) -> None:
-        """process cloud remote message to client."""
+        """Process cloud remote message to client."""
         self.pref_should_connect = connect
 
     async def async_alexa_message(self, payload):
