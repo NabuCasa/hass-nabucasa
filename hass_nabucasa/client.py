@@ -59,6 +59,10 @@ class CloudClient(ABC):
         """Called on logout."""
 
     @abstractmethod
+    async def async_cloud_connect_update(self, connect: bool) -> None:
+        """Process cloud remote message to client."""
+
+    @abstractmethod
     async def async_alexa_message(self, payload: Dict[Any, Any]) -> Dict[Any, Any]:
         """process cloud alexa message to client."""
 

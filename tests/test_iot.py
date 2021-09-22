@@ -149,12 +149,11 @@ async def test_handler_webhook(cloud_mock):
 
 async def test_handler_remote_sni(cloud_mock):
     """Test handler Webhook."""
-    cloud_mock.remote.handle_connection_requests = AsyncMock()
+    assert not cloud_mock.client.pref_should_connect
     cloud_mock.remote.snitun_server = "1.1.1.1"
     resp = await iot.async_handle_remote_sni(cloud_mock, {"ip_address": "8.8.8.8"})
 
-    assert cloud_mock.remote.handle_connection_requests.called
-    assert cloud_mock.remote.handle_connection_requests.mock_calls[0][1][0] == "8.8.8.8"
+    assert cloud_mock.client.pref_should_connect
     assert resp == {"server": "1.1.1.1"}
 
 

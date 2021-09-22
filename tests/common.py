@@ -28,6 +28,8 @@ class TestClient(CloudClient):
         self.mock_return = []
         self._base_path = None
 
+        self.pref_should_connect = False
+
     @property
     def base_path(self):
         """Return path to base dir."""
@@ -76,6 +78,10 @@ class TestClient(CloudClient):
     def dispatcher_message(self, identifier: str, data: Any = None) -> None:
         """Send data to dispatcher."""
         self.mock_dispatcher.append((identifier, data))
+
+    async def async_cloud_connect_update(self, connect: bool) -> None:
+        """Process cloud remote message to client."""
+        self.pref_should_connect = connect
 
     async def async_alexa_message(self, payload):
         """process cloud alexa message to client."""
