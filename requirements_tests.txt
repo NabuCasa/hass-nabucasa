@@ -4,4 +4,4 @@ pylint==2.10.2
 pytest==6.2.5
 pytest-timeout==1.4.2
 pytest-aiohttp==0.3.0
-black==21.9b0
+black==21.10b0
