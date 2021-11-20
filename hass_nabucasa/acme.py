@@ -173,7 +173,7 @@ class AcmeHandler:
         if self.path_registration_info.exists():
             _LOGGER.info("Load exists ACME registration")
             regr = messages.RegistrationResource.json_loads(
-                self.path_registration_info.read_text()
+                self.path_registration_info.read_text(encoding="utf-8")
             )
 
             acme_url = urllib.parse.urlparse(self._acme_server)
@@ -228,7 +228,9 @@ class AcmeHandler:
             raise AcmeClientError() from err
 
         # Store registration info
-        self.path_registration_info.write_text(regr.json_dumps_pretty())
+        self.path_registration_info.write_text(
+            regr.json_dumps_pretty(), encoding="utf-8"
+        )
         self.path_registration_info.chmod(0o600)
 
     def _start_challenge(self, csr_pem: str) -> ChallengeHandler:
@@ -347,7 +349,7 @@ class AcmeHandler:
 
         _LOGGER.info("Load exists ACME registration")
         regr = messages.RegistrationResource.json_loads(
-            self.path_registration_info.read_text()
+            self.path_registration_info.read_text(encoding="utf-8")
         )
 
         try:
