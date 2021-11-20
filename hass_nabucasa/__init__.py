@@ -137,7 +137,7 @@ class Cloud:
     @property
     def user_info_path(self) -> Path:
         """Get path to the stored auth."""
-        return self.path("{}_auth.json".format(self.mode))
+        return self.path(f"{self.mode}_auth.json")
 
     async def update_token(
         self, id_token: str, access_token: str, refresh_token: str | None = None
@@ -242,7 +242,7 @@ class Cloud:
             if not self.user_info_path.exists():
                 return None
             try:
-                return json.loads(self.user_info_path.read_text())
+                return json.loads(self.user_info_path.read_text(encoding="utf-8"))
             except (ValueError, OSError) as err:
                 path = self.user_info_path.relative_to(self.client.base_path)
                 self.client.user_message(

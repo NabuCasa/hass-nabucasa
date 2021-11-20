@@ -167,7 +167,7 @@ class BaseIoT:
         try:
             self.client = client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
-                headers={hdrs.AUTHORIZATION: "Bearer {}".format(self.cloud.id_token)},
+                headers={hdrs.AUTHORIZATION: f"Bearer {self.cloud.id_token}"},
             )
             self.tries = 0
 
@@ -192,7 +192,7 @@ class BaseIoT:
                     break
 
                 if msg.type != WSMsgType.TEXT:
-                    disconnect_warn = "Received non-Text message: {}".format(msg.type)
+                    disconnect_warn = f"Received non-Text message: {msg.type}"
                     break
 
                 try:
