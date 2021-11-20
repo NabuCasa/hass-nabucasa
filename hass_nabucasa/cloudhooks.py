@@ -38,7 +38,7 @@ class Cloudhooks:
             raise ValueError("Cloud is not connected")
 
         # Create cloud hook
-        with async_timeout.timeout(10):
+        async with async_timeout.timeout(10):
             resp = await cloud_api.async_create_cloudhook(self.cloud)
 
         resp.raise_for_status()
