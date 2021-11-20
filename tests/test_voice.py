@@ -70,7 +70,8 @@ async def test_process_tts(auth_cloud_mock, aioclient_mock):
     )
 
     aioclient_mock.post(
-        "tts-url", content=b"My sound",
+        "tts-url",
+        content=b"My sound",
     )
     result = await voice_api.process_tts(
         "Text for Saying", "en-US", voice.Gender.FEMALE
