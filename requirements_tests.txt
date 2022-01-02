@@ -1,6 +1,6 @@
 asynctest==0.13.0
 flake8==4.0.1
-pylint==2.12.1
+pylint==2.12.2
 pytest==6.2.5
 pytest-timeout==2.0.2
 pytest-aiohttp==0.3.0
