@@ -94,12 +94,24 @@ class CognitoAuth:
         """When the instance is disconnected."""
         self._refresh_task.cancel()
 
-    async def async_register(self, email, password):
+    async def async_register(
+        self,
+        email,
+        password,
+        attr_map=None,
+        client_metadata=None,
+    ):
         """Register a new account."""
         try:
             async with self._request_lock:
                 cognito = self._cognito()
-                await self.cloud.run_executor(cognito.register, email, password)
+                await self.cloud.run_executor(
+                    cognito.register,
+                    email,
+                    password,
+                    attr_map,
+                    client_metadata,
+                )
 
         except ClientError as err:
             raise _map_aws_exception(err) from err
