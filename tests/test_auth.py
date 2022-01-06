@@ -73,18 +73,16 @@ async def test_login(mock_cognito, mock_cloud):
 async def test_register(mock_cognito, cloud_mock):
     """Test registering an account."""
     auth = auth_api.CognitoAuth(cloud_mock)
-    await auth.async_register("email@home-assistant.io", "password")
+    await auth.async_register(
+        "email@home-assistant.io", "password", client_metadata={"test": "metadata"}
+    )
     assert len(mock_cognito.register.mock_calls) == 1
-    (
-        result_user,
-        result_password,
-        attr_map,
-        client_metadata,
-    ) = mock_cognito.register.mock_calls[0][1]
+
+    call = mock_cognito.register.mock_calls[0]
+    result_user, result_password = call.args
     assert result_user == "email@home-assistant.io"
     assert result_password == "password"
-    assert attr_map is None
-    assert client_metadata is None
+    assert call.kwargs["client_metadata"] == {"test": "metadata"}
 
 
 async def test_register_fails(mock_cognito, cloud_mock):
