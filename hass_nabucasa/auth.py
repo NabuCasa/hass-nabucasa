@@ -98,7 +98,7 @@ class CognitoAuth:
         self,
         email,
         password,
-        attr_map=None,
+        *,
         client_metadata=None,
     ):
         """Register a new account."""
@@ -106,11 +106,12 @@ class CognitoAuth:
             async with self._request_lock:
                 cognito = self._cognito()
                 await self.cloud.run_executor(
-                    cognito.register,
-                    email,
-                    password,
-                    attr_map,
-                    client_metadata,
+                    partial(
+                        cognito.register,
+                        email,
+                        password,
+                        client_metadata=client_metadata,
+                    )
                 )
 
         except ClientError as err:
