@@ -22,9 +22,7 @@ SERVERS = {
         "region": "us-east-1",
         "relayer": "wss://cloud.nabucasa.com/websocket",
         "google_actions_report_state_url": "https://remotestate.nabucasa.com",
-        "subscription_info_url": (
-            "https://stripe-api.nabucasa.com/payments/" "subscription_info"
-        ),
+        "subscription_info_url": "https://accounts.nabucasa.com/payments/subscription_info",
         "cloudhook_create_url": "https://webhooks-api.nabucasa.com/generate",
         "remote_api_url": "https://remote-sni-api.nabucasa.com",
         "alexa_access_token_url": "https://alexa-api.nabucasa.com/access_token",
