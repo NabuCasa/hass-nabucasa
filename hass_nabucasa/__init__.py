@@ -62,6 +62,8 @@ class Cloud:
         self.auth = CognitoAuth(self)
         self.voice = Voice(self)
 
+        self._init_task = None
+
         # Set reference
         self.client.cloud = self
 
@@ -265,7 +267,15 @@ class Cloud:
         self.access_token = info["access_token"]
         self.refresh_token = info["refresh_token"]
 
-        await self.auth.async_check_token()
+        self._init_task = self.run_task(self._finish_initialize())
+
+    async def _finish_initialize(self):
+        """Finish initializing the cloud component (load auth and maybe start)."""
+        try:
+            await self.auth.async_check_token()
+        except auth.CloudError:
+            _LOGGER.debug("Failed to check cloud token", exc_info=True)
+            pass
 
         if self.subscription_expired:
             self.started = False
@@ -281,6 +291,10 @@ class Cloud:
 
     async def stop(self):
         """Stop the cloud component."""
+        if self._init_task:
+            self._init_task.cancel()
+            self._init_task = None
+
         await self.client.cloud_stopped()
         await gather_callbacks(_LOGGER, "on_stop", self._on_stop)
 
