@@ -86,6 +86,7 @@ async def test_load_backend_exists_cert(
 
     assert not remote.is_connected
     await remote.start()
+    await asyncio.sleep(0.1)
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert remote.instance_domain == "test.dui.nabu.casa"
 
