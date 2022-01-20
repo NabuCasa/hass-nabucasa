@@ -47,6 +47,7 @@ class Cloud:
         thingtalk_url=None,
     ):
         """Create an instance of Cloud."""
+        self._on_initialized: List[Callable[[], Awaitable[None]]] = []
         self._on_start: List[Callable[[], Awaitable[None]]] = []
         self._on_stop: List[Callable[[], Awaitable[None]]] = []
         self.mode = mode
@@ -162,6 +163,13 @@ class Cloud:
         elif self.started and self.subscription_expired:
             self.started = False
             await self.stop()
+
+    def register_on_initialized(self, on_initialized_cb: Callable[[], Awaitable[None]]):
+        """Register an async on_initialized callback.
+
+        on_initialized callbacks are called after all on_start callbacks.
+        """
+        self._on_initialized.append(on_initialized_cb)
 
     def register_on_start(self, on_start_cb: Callable[[], Awaitable[None]]):
         """Register an async on_start callback."""
@@ -282,6 +290,7 @@ class Cloud:
 
         self.started = True
         await self._start()
+        await gather_callbacks(_LOGGER, "on_initialized", self._on_initialized)
 
     async def _start(self):
         """Start the cloud component."""

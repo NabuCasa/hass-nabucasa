@@ -84,6 +84,8 @@ class RemoteUI:
         self._acme_task = None
         self._token = None
 
+        self._info_loaded = asyncio.Event()
+
         # Register start/stop
         cloud.register_on_start(self.start)
         cloud.register_on_stop(self.stop)
@@ -93,6 +95,7 @@ class RemoteUI:
         if self.cloud.subscription_expired:
             return
         self._acme_task = self.cloud.run_task(self._certificate_handler())
+        await self._info_loaded.wait()
 
     async def stop(self) -> None:
         """Stop remote UI loop."""
@@ -177,6 +180,8 @@ class RemoteUI:
         if ca_domain and ca_domain != domain:
             _LOGGER.warning("Invalid certificate found: %s", ca_domain)
             await self._acme.reset_acme()
+
+        self._info_loaded.set()
 
         should_create_cert = not self._acme.certificate_available
 
