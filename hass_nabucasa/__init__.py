@@ -12,7 +12,7 @@ import async_timeout
 from atomicwrites import atomic_write
 from jose import jwt
 
-from .auth import CognitoAuth
+from .auth import CloudError, CognitoAuth
 from .client import CloudClient
 from .cloudhooks import Cloudhooks
 from .const import CONFIG_DIR, MODE_DEV, SERVERS, STATE_CONNECTED
@@ -47,6 +47,7 @@ class Cloud:
         thingtalk_url=None,
     ):
         """Create an instance of Cloud."""
+        self._on_initialized: List[Callable[[], Awaitable[None]]] = []
         self._on_start: List[Callable[[], Awaitable[None]]] = []
         self._on_stop: List[Callable[[], Awaitable[None]]] = []
         self.mode = mode
@@ -61,6 +62,8 @@ class Cloud:
         self.remote = RemoteUI(self)
         self.auth = CognitoAuth(self)
         self.voice = Voice(self)
+
+        self._init_task = None
 
         # Set reference
         self.client.cloud = self
@@ -160,6 +163,13 @@ class Cloud:
         elif self.started and self.subscription_expired:
             self.started = False
             await self.stop()
+
+    def register_on_initialized(self, on_initialized_cb: Callable[[], Awaitable[None]]):
+        """Register an async on_initialized callback.
+
+        on_initialized callbacks are called after all on_start callbacks.
+        """
+        self._on_initialized.append(on_initialized_cb)
 
     def register_on_start(self, on_start_cb: Callable[[], Awaitable[None]]):
         """Register an async on_start callback."""
@@ -265,7 +275,14 @@ class Cloud:
         self.access_token = info["access_token"]
         self.refresh_token = info["refresh_token"]
 
-        await self.auth.async_check_token()
+        self._init_task = self.run_task(self._finish_initialize())
+
+    async def _finish_initialize(self):
+        """Finish initializing the cloud component (load auth and maybe start)."""
+        try:
+            await self.auth.async_check_token()
+        except CloudError:
+            _LOGGER.debug("Failed to check cloud token", exc_info=True)
 
         if self.subscription_expired:
             self.started = False
@@ -273,6 +290,8 @@ class Cloud:
 
         self.started = True
         await self._start()
+        await gather_callbacks(_LOGGER, "on_initialized", self._on_initialized)
+        self._init_task = None
 
     async def _start(self):
         """Start the cloud component."""
@@ -281,6 +300,10 @@ class Cloud:
 
     async def stop(self):
         """Stop the cloud component."""
+        if self._init_task:
+            self._init_task.cancel()
+            self._init_task = None
+
         await self.client.cloud_stopped()
         await gather_callbacks(_LOGGER, "on_stop", self._on_stop)
 

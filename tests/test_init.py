@@ -1,4 +1,5 @@
 """Test the cloud component."""
+import asyncio
 import json
 from tests.async_mock import AsyncMock, patch, MagicMock, Mock, PropertyMock
 
@@ -46,7 +47,10 @@ def test_constructor_loads_info_from_constant(cloud_client):
 
 
 async def test_initialize_loads_info(cloud_client):
-    """Test initialize will load info from config file."""
+    """Test initialize will load info from config file.
+
+    Also tests that on_initialized callbacks are called when initialization finishes.
+    """
     cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
     assert len(cl._on_start) == 2
@@ -73,7 +77,13 @@ async def test_initialize_loads_info(cloud_client):
     cl.remote = MagicMock()
     cl.remote.connect = AsyncMock()
 
+    start_done_event = asyncio.Event()
+
+    async def start_done():
+        start_done_event.set()
+
     cl._on_start.extend([cl.iot.connect, cl.remote.connect])
+    cl.register_on_initialized(start_done)
 
     with patch(
         "hass_nabucasa.Cloud._decode_claims",
@@ -85,6 +95,7 @@ async def test_initialize_loads_info(cloud_client):
         "hass_nabucasa.auth.CognitoAuth.async_check_token"
     ):
         await cl.initialize()
+        await start_done_event.wait()
 
     assert cl.id_token == "test-id-token"
     assert cl.access_token == "test-access-token"
