@@ -404,10 +404,10 @@ class AcmeHandler:
             await self.cloud.run_executor(self._revoke_certificate)
             await self.cloud.run_executor(self._deactivate_account)
         finally:
-            await self.cloud.run_executor(self._remove_files)
             self._acme_client = None
             self._account_jwk = None
             self._x509 = None
+            await self.cloud.run_executor(self._remove_files)
 
     async def hardening_files(self) -> None:
         """Control permission on files."""
