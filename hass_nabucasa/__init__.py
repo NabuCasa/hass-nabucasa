@@ -291,6 +291,7 @@ class Cloud:
         self.started = True
         await self._start()
         await gather_callbacks(_LOGGER, "on_initialized", self._on_initialized)
+        self._init_task = None
 
     async def _start(self):
         """Start the cloud component."""
