@@ -336,11 +336,7 @@ class AcmeHandler:
             elif "Certificate from unrecognized issuer" in str(err):
                 pass
             else:
-                _LOGGER.error("Can't revoke certificate: %s", err)
-                raise AcmeClientError() from err
-
-        self.path_fullchain.unlink(missing_ok=True)
-        self.path_private_key.unlink(missing_ok=True)
+                _LOGGER.error("Can't revoke certificate: %s", err, exc_info=True)
 
     def _deactivate_account(self) -> None:
         """Deactivate account."""
@@ -355,11 +351,13 @@ class AcmeHandler:
         try:
             self._acme_client.deactivate_registration(regr)
         except errors.Error as err:
-            _LOGGER.error("Can't deactivate account: %s", err)
-            raise AcmeClientError() from err
+            _LOGGER.error("Can't deactivate account: %s", err, exc_info=True)
 
-        self.path_registration_info.unlink()
-        self.path_account_key.unlink()
+    def _remove_files(self) -> None:
+        self.path_registration_info.unlink(missing_ok=True)
+        self.path_account_key.unlink(missing_ok=True)
+        self.path_fullchain.unlink(missing_ok=True)
+        self.path_private_key.unlink(missing_ok=True)
 
     async def issue_certificate(self) -> None:
         """Create/Update certificate."""
@@ -406,6 +404,7 @@ class AcmeHandler:
             await self.cloud.run_executor(self._revoke_certificate)
             await self.cloud.run_executor(self._deactivate_account)
         finally:
+            await self.cloud.run_executor(self._remove_files)
             self._acme_client = None
             self._account_jwk = None
             self._x509 = None
