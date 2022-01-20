@@ -75,6 +75,7 @@ async def test_initialize_loads_info(cloud_client):
     cl.remote.connect = AsyncMock()
 
     start_done_event = asyncio.Event()
+
     async def start_done():
         start_done_event.set()
 

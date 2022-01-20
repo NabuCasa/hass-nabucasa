@@ -12,7 +12,7 @@ import async_timeout
 from atomicwrites import atomic_write
 from jose import jwt
 
-from .auth import CognitoAuth
+from .auth import CloudError, CognitoAuth
 from .client import CloudClient
 from .cloudhooks import Cloudhooks
 from .const import CONFIG_DIR, MODE_DEV, SERVERS, STATE_CONNECTED
@@ -273,9 +273,8 @@ class Cloud:
         """Finish initializing the cloud component (load auth and maybe start)."""
         try:
             await self.auth.async_check_token()
-        except auth.CloudError:
+        except CloudError:
             _LOGGER.debug("Failed to check cloud token", exc_info=True)
-            pass
 
         if self.subscription_expired:
             self.started = False
