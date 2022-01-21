@@ -1,5 +1,6 @@
 """Handle ACME and local certificates."""
 import asyncio
+import contextlib
 from datetime import datetime, timedelta
 import logging
 from pathlib import Path
@@ -336,7 +337,8 @@ class AcmeHandler:
             elif "Certificate from unrecognized issuer" in str(err):
                 pass
             else:
-                _LOGGER.error("Can't revoke certificate: %s", err, exc_info=True)
+                _LOGGER.error("Can't revoke certificate: %s", err)
+                raise AcmeClientError() from err
 
     def _deactivate_account(self) -> None:
         """Deactivate account."""
@@ -351,7 +353,8 @@ class AcmeHandler:
         try:
             self._acme_client.deactivate_registration(regr)
         except errors.Error as err:
-            _LOGGER.error("Can't deactivate account: %s", err, exc_info=True)
+            _LOGGER.error("Can't deactivate account: %s", err)
+            raise AcmeClientError() from err
 
     def _remove_files(self) -> None:
         self.path_registration_info.unlink(missing_ok=True)
@@ -401,8 +404,10 @@ class AcmeHandler:
             await self.cloud.run_executor(self._create_client)
 
         try:
-            await self.cloud.run_executor(self._revoke_certificate)
-            await self.cloud.run_executor(self._deactivate_account)
+            with contextlib.suppress(AcmeClientError):
+                await self.cloud.run_executor(self._revoke_certificate)
+            with contextlib.suppress(AcmeClientError):
+                await self.cloud.run_executor(self._deactivate_account)
         finally:
             self._acme_client = None
             self._account_jwk = None
