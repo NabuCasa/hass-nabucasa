@@ -1,5 +1,6 @@
 """Handle ACME and local certificates."""
 import asyncio
+import contextlib
 from datetime import datetime, timedelta
 import logging
 from pathlib import Path
@@ -339,9 +340,6 @@ class AcmeHandler:
                 _LOGGER.error("Can't revoke certificate: %s", err)
                 raise AcmeClientError() from err
 
-        self.path_fullchain.unlink(missing_ok=True)
-        self.path_private_key.unlink(missing_ok=True)
-
     def _deactivate_account(self) -> None:
         """Deactivate account."""
         if not self.path_registration_info.exists():
@@ -358,8 +356,11 @@ class AcmeHandler:
             _LOGGER.error("Can't deactivate account: %s", err)
             raise AcmeClientError() from err
 
-        self.path_registration_info.unlink()
-        self.path_account_key.unlink()
+    def _remove_files(self) -> None:
+        self.path_registration_info.unlink(missing_ok=True)
+        self.path_account_key.unlink(missing_ok=True)
+        self.path_fullchain.unlink(missing_ok=True)
+        self.path_private_key.unlink(missing_ok=True)
 
     async def issue_certificate(self) -> None:
         """Create/Update certificate."""
@@ -403,12 +404,15 @@ class AcmeHandler:
             await self.cloud.run_executor(self._create_client)
 
         try:
-            await self.cloud.run_executor(self._revoke_certificate)
-            await self.cloud.run_executor(self._deactivate_account)
+            with contextlib.suppress(AcmeClientError):
+                await self.cloud.run_executor(self._revoke_certificate)
+            with contextlib.suppress(AcmeClientError):
+                await self.cloud.run_executor(self._deactivate_account)
         finally:
             self._acme_client = None
             self._account_jwk = None
             self._x509 = None
+            await self.cloud.run_executor(self._remove_files)
 
     async def hardening_files(self) -> None:
         """Control permission on files."""
