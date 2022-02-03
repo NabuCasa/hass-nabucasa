@@ -1,11 +1,12 @@
 """Test the cloud.iot module."""
 import asyncio
-from tests.async_mock import AsyncMock, patch, MagicMock, Mock
 
 from aiohttp import WSMsgType
 import pytest
 
 from hass_nabucasa import iot, iot_base
+
+from tests.async_mock import AsyncMock, MagicMock, Mock, call, patch
 
 
 @pytest.fixture
@@ -235,10 +236,16 @@ async def test_handling_core_messages_remote_disconnect(cloud_mock_iot):
 
 async def test_handling_core_messages_evaluate_remote_security(cloud_mock_iot):
     """Test handling core messages."""
-    cloud_mock_iot.client = MagicMock()
+    cloud_mock_iot.remote.connect = AsyncMock()
+    cloud_mock_iot.remote.disconnect = AsyncMock()
 
-    await iot.async_handle_cloud(
-        cloud_mock_iot,
-        {"action": "evaluate_remote_security"},
-    )
-    assert len(cloud_mock_iot.client.loop.mock_calls) == 1
+    with patch("hass_nabucasa.iot.random.randint", return_value=0):
+        await iot.async_handle_cloud(
+            cloud_mock_iot,
+            {"action": "evaluate_remote_security"},
+        )
+        await asyncio.sleep(0.1)
+
+    assert cloud_mock_iot.remote.disconnect.call_count == 1
+    assert cloud_mock_iot.remote.disconnect.call_args == call(clear_snitun_token=True)
+    assert cloud_mock_iot.remote.connect.call_count == 1
