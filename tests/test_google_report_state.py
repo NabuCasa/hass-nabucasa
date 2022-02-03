@@ -1,6 +1,6 @@
 """Tests for Google Report State."""
 import asyncio
-from tests.async_mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from hass_nabucasa import iot_base
 from hass_nabucasa.google_report_state import GoogleReportState, ErrorResponse

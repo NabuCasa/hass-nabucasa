@@ -1,7 +1,7 @@
 """Test the cloud component."""
 import asyncio
 import json
-from tests.async_mock import AsyncMock, patch, MagicMock, Mock, PropertyMock
+from unittest.mock import AsyncMock, patch, MagicMock, Mock, PropertyMock
 
 import hass_nabucasa as cloud
 from hass_nabucasa.utils import utcnow

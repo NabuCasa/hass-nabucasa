@@ -1,12 +1,11 @@
 """Test the cloud.iot module."""
 import asyncio
+from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 
 from aiohttp import WSMsgType
 import pytest
 
 from hass_nabucasa import iot, iot_base
-
-from tests.async_mock import AsyncMock, MagicMock, Mock, call, patch
 
 
 @pytest.fixture
