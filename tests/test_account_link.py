@@ -1,6 +1,6 @@
 """Test Account Linking tools."""
 import asyncio
-from tests.async_mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock
 
 from aiohttp import web
 import pytest

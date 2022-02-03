@@ -1,7 +1,7 @@
 """Set up some common test helper things."""
 import asyncio
 import logging
-from tests.async_mock import patch, MagicMock, PropertyMock, AsyncMock
+from unittest.mock import patch, MagicMock, PropertyMock, AsyncMock
 
 from aiohttp import web
 import pytest

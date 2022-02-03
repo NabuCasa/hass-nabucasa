@@ -3,7 +3,7 @@ import asyncio
 from pathlib import Path
 import tempfile
 from typing import Any
-from tests.async_mock import Mock
+from unittest.mock import Mock
 
 from hass_nabucasa.client import CloudClient
 

@@ -1,7 +1,6 @@
 """Tests for the tools to communicate with the cloud."""
 import asyncio
-from unittest.mock import AsyncMock
-from tests.async_mock import MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from botocore.exceptions import ClientError
 import pytest

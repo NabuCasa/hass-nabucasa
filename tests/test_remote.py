@@ -1,7 +1,7 @@
 """Test remote sni handler."""
 import asyncio
 from datetime import timedelta
-from tests.async_mock import patch, Mock
+from unittest.mock import patch
 
 import pytest
 

@@ -1,6 +1,6 @@
 """Test the cloud.iot_base module."""
 import asyncio
-from tests.async_mock import AsyncMock, patch, MagicMock, Mock
+from unittest.mock import AsyncMock, patch, MagicMock, Mock
 
 from aiohttp import WSMsgType, client_exceptions
 import pytest
