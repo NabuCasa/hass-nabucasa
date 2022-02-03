@@ -12,7 +12,6 @@ import attr
 from . import cloud_api
 from .utils import utc_from_timestamp, utcnow
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
