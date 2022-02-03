@@ -426,9 +426,10 @@ async def test_get_certificate_details(
 
 
 async def test_certificate_task_no_backend(
-    loop, auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    event_loop, auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
+    loop = event_loop
     valid = utcnow() + timedelta(days=1)
     auth_cloud_mock.remote_api_url = "https://test.local/api"
     remote = RemoteUI(auth_cloud_mock)
@@ -468,9 +469,10 @@ async def test_certificate_task_no_backend(
 
 
 async def test_certificate_task_renew_cert(
-    loop, auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    event_loop, auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
+    loop = event_loop
     valid = utcnow() + timedelta(days=1)
     auth_cloud_mock.remote_api_url = "https://test.local/api"
     remote = RemoteUI(auth_cloud_mock)

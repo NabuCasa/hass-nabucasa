@@ -35,8 +35,9 @@ async def test_ws_server_url():
     )
 
 
-async def test_send_messages(loop, ws_server):
+async def test_send_messages(event_loop, ws_server):
     """Test that we connect if we are not connected."""
+    loop = event_loop
     server_msgs = []
 
     async def handle_server_msg(msg):
@@ -80,8 +81,9 @@ async def test_send_messages(loop, ws_server):
     assert grs._message_sender_task is None
 
 
-async def test_max_queue_message(loop, ws_server):
+async def test_max_queue_message(event_loop, ws_server):
     """Test that we connect if we are not connected."""
+    loop = event_loop
     server_msgs = []
 
     async def handle_server_msg(msg):
