@@ -1,5 +1,4 @@
 """Aiohttp test utils."""
-import asyncio
 from contextlib import contextmanager
 import json as _json
 import re

@@ -6,8 +6,6 @@ from unittest.mock import patch, MagicMock, PropertyMock, AsyncMock
 from aiohttp import web
 import pytest
 
-from hass_nabucasa import Cloud
-
 from .utils.aiohttp import mock_aiohttp_client
 from .common import TestClient
 
@@ -23,7 +21,7 @@ async def aioclient_mock(loop):
 
 @pytest.fixture
 async def cloud_mock(loop, aioclient_mock):
-    """Simple cloud mock."""
+    """Yield a simple cloud mock."""
     cloud = MagicMock(name="Mock Cloud", is_logged_in=True)
     cloud.run_task = loop.create_task
 
