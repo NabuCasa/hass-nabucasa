@@ -4,9 +4,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import pprint
-import uuid
 import random
 from typing import TYPE_CHECKING
+import uuid
 
 from . import iot_base
 from .utils import Registry

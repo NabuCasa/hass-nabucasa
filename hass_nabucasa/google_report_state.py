@@ -1,9 +1,10 @@
 """Module to handle Google Report State."""
 from __future__ import annotations
+
 import asyncio
 from asyncio.queues import Queue
 import logging
-from typing import Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict
 import uuid
 
 from . import iot_base

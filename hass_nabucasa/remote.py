@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import logging
 import random
 import ssl
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import aiohttp
 import async_timeout
@@ -16,7 +16,7 @@ from snitun.exceptions import SniTunConnectionError
 from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
-from . import cloud_api, utils, const
+from . import cloud_api, const, utils
 from .acme import AcmeClientError, AcmeHandler
 
 if TYPE_CHECKING:

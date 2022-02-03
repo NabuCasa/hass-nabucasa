@@ -6,7 +6,7 @@ import random
 
 import boto3
 import botocore
-from botocore.exceptions import ClientError, BotoCoreError
+from botocore.exceptions import BotoCoreError, ClientError
 import pycognito
 from pycognito.exceptions import ForceChangePasswordException
 
