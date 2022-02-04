@@ -84,7 +84,7 @@ class TestClient(CloudClient):
         self.pref_should_connect = connect
 
     async def async_alexa_message(self, payload):
-        """process cloud alexa message to client."""
+        """Process cloud alexa message to client."""
         self.mock_alexa.append(payload)
         return self.mock_return.pop()
 
@@ -120,6 +120,7 @@ class MockAcme:
         self.fingerprint = None
 
     def set_false(self):
+        """Set certificate as not valid."""
         self.is_valid = False
 
     @property

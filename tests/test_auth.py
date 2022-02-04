@@ -191,6 +191,7 @@ async def test_async_setup(cloud_mock):
 
 
 async def test_guard_no_login_authenticated_cognito():
+    """Test that not authenticated cognito login raises."""
     with pytest.raises(auth_api.Unauthenticated):
         auth_api.CognitoAuth(MagicMock(access_token=None))._authenticated_cognito
 

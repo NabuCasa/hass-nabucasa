@@ -40,7 +40,7 @@ async def test_send_messages(loop, ws_server):
     server_msgs = []
 
     async def handle_server_msg(msg):
-        """handle a server msg."""
+        """Handle a server msg."""
         incoming = msg.json()
         server_msgs.append(incoming["payload"])
 
@@ -85,7 +85,7 @@ async def test_max_queue_message(loop, ws_server):
     server_msgs = []
 
     async def handle_server_msg(msg):
-        """handle a server msg."""
+        """Handle a server msg."""
         incoming = msg.json()
         server_msgs.append(incoming["payload"])
         return {"msgid": incoming["msgid"], "payload": incoming["payload"]["hello"]}
