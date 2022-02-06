@@ -114,3 +114,7 @@ async def test_max_queue_message(loop, ws_server):
     results = await gather_task
     assert len(results) == 150
     assert sum(isinstance(result, ErrorResponse) for result in results) == 50
+
+    await grs.disconnect()
+    assert grs.state == iot_base.STATE_DISCONNECTED
+    assert grs._message_sender_task is None

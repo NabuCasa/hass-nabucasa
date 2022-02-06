@@ -116,6 +116,11 @@ async def test_load_backend_exists_cert(
     assert auth_cloud_mock.client.mock_dispatcher[0][0] == DISPATCH_REMOTE_BACKEND_UP
     assert auth_cloud_mock.client.mock_dispatcher[1][0] == DISPATCH_REMOTE_CONNECT
 
+    await remote.stop()
+    await asyncio.sleep(0.1)
+
+    assert not remote._acme_task
+
 
 async def test_load_backend_not_exists_cert(
     auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
@@ -168,6 +173,11 @@ async def test_load_backend_not_exists_cert(
 
     assert remote._acme_task
     assert remote._reconnect_task
+
+    await remote.stop()
+    await asyncio.sleep(0.1)
+
+    assert not remote._acme_task
 
 
 async def test_load_and_unload_backend(
@@ -278,6 +288,11 @@ async def test_load_backend_exists_wrong_cert(
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
 
+    await remote.disconnect()
+    await asyncio.sleep(0.1)
+
+    assert snitun_mock.call_disconnect
+
 
 async def test_call_disconnect(
     auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
@@ -361,6 +376,11 @@ async def test_load_backend_no_autostart(
     assert snitun_mock.connect_args[3] == 400
     assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_CONNECT
 
+    await remote.disconnect()
+    await asyncio.sleep(0.1)
+
+    assert snitun_mock.call_disconnect
+
 
 async def test_get_certificate_details(
     auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
@@ -436,10 +456,15 @@ async def test_certificate_task_no_backend(
     with patch("hass_nabucasa.utils.next_midnight", return_value=0), patch(
         "random.randint", return_value=0
     ):
-        remote._acme_task = loop.create_task(remote._certificate_handler())
+        acme_task = remote._acme_task = loop.create_task(remote._certificate_handler())
         await asyncio.sleep(0.1)
         assert acme_mock.call_issue
         assert snitun_mock.call_start
+
+        await remote.stop()
+        await asyncio.sleep(0.1)
+
+        assert acme_task.done()
 
 
 async def test_certificate_task_renew_cert(
@@ -473,11 +498,16 @@ async def test_certificate_task_renew_cert(
     with patch("hass_nabucasa.utils.next_midnight", return_value=0), patch(
         "random.randint", return_value=0
     ):
-        remote._acme_task = loop.create_task(remote._certificate_handler())
+        acme_task = remote._acme_task = loop.create_task(remote._certificate_handler())
 
         await remote.load_backend()
         await asyncio.sleep(0.1)
         assert acme_mock.call_issue
+
+        await remote.stop()
+        await asyncio.sleep(0.1)
+
+        assert acme_task.done()
 
 
 async def test_refresh_token_no_sub(auth_cloud_mock):
