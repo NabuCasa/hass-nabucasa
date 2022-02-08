@@ -233,7 +233,7 @@ class AiohttpClientMockResponse:
         """Raise error if status is 400 or higher."""
         if self.status >= 400:
             raise ClientResponseError(
-                None, None, code=self.status, headers=self.headers
+                None, None, status=self.status, headers=self.headers
             )
 
     def close(self):

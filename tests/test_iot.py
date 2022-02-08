@@ -171,8 +171,9 @@ async def test_send_message_no_answer(cloud_mock_iot):
     assert msg["payload"] == {"msg": "yo"}
 
 
-async def test_send_message_answer(loop, cloud_mock_iot):
+async def test_send_message_answer(event_loop, cloud_mock_iot):
     """Test sending a message that expects an answer."""
+    loop = event_loop
     cloud_iot = iot.CloudIoT(cloud_mock_iot)
     cloud_iot.state = iot_base.STATE_CONNECTED
     cloud_iot.client = MagicMock(send_json=AsyncMock())
