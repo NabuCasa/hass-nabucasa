@@ -184,7 +184,7 @@ class BaseIoT:
                     await client.ping()
                     continue
 
-                if msg.type in (WSMsgType.CLOSED, WSMsgType.CLOSING):
+                if msg.type in (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING):
                     break
 
                 if msg.type == WSMsgType.ERROR:
