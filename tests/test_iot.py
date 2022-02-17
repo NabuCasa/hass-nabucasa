@@ -18,6 +18,7 @@ def cloud_mock_iot(auth_cloud_mock):
 async def test_cloud_calling_handler(mock_iot_client, cloud_mock_iot):
     """Test we call handle message with correct info."""
     conn = iot.CloudIoT(cloud_mock_iot)
+    mock_iot_client.auto_close()
     mock_iot_client.receive = AsyncMock(
         return_value=MagicMock(
             type=WSMsgType.text,
@@ -55,6 +56,7 @@ async def test_cloud_calling_handler(mock_iot_client, cloud_mock_iot):
 async def test_connection_msg_for_unknown_handler(mock_iot_client, cloud_mock_iot):
     """Test a msg for an unknown handler."""
     conn = iot.CloudIoT(cloud_mock_iot)
+    mock_iot_client.auto_close()
     mock_iot_client.receive = AsyncMock(
         return_value=MagicMock(
             type=WSMsgType.text,
@@ -83,6 +85,7 @@ async def test_connection_msg_for_unknown_handler(mock_iot_client, cloud_mock_io
 async def test_connection_msg_for_handler_raising(mock_iot_client, cloud_mock_iot):
     """Test we sent error when handler raises exception."""
     conn = iot.CloudIoT(cloud_mock_iot)
+    mock_iot_client.auto_close()
     mock_iot_client.receive = AsyncMock(
         return_value=MagicMock(
             type=WSMsgType.text,

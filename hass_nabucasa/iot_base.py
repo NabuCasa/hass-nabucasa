@@ -1,5 +1,8 @@
 """Base class to keep a websocket connection open to a server."""
+from __future__ import annotations
+
 import asyncio
+import dataclasses
 import logging
 import pprint
 import random
@@ -15,6 +18,14 @@ from .const import (
     STATE_DISCONNECTED,
 )
 from .utils import gather_callbacks
+
+
+@dataclasses.dataclass
+class DisconnectReason:
+    """Disconnect reason."""
+
+    clean: bool
+    reason: str
 
 
 class NotConnected(Exception):
@@ -43,6 +54,7 @@ class BaseIoT:
         self._on_disconnect: List[Callable[[], Awaitable[None]]] = []
         self._logger = logging.getLogger(self.package_name)
         self._disconnect_event = None
+        self.last_disconnect_reason: DisconnectReason | None = None
 
     @property
     def package_name(self) -> str:
@@ -165,8 +177,8 @@ class BaseIoT:
             return
 
         client = None
-        disconnect_warn = None
-        close_reason = None
+        disconnect_clean = False
+        disconnect_reason = None
         try:
             self.client = client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
@@ -184,10 +196,8 @@ class BaseIoT:
                     continue
 
                 if msg.type in (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING):
-                    if self.state == STATE_CONNECTED:
-                        close_reason = f"{msg.data} - {msg.extra}"
-                    else:
-                        disconnect_warn = f"Closed by server: {msg.extra} ({msg.data})"
+                    disconnect_clean = self.state == STATE_CONNECTED
+                    disconnect_reason = f"Closed by server: {msg.extra} ({msg.data})"
                     break
 
                 # Do this inside the loop because if 2 clients are connected, it can happen that
@@ -196,17 +206,17 @@ class BaseIoT:
                     await self._connected()
 
                 if msg.type == WSMsgType.ERROR:
-                    disconnect_warn = "Connection error"
+                    disconnect_reason = "Connection error"
                     break
 
                 if msg.type != WSMsgType.TEXT:
-                    disconnect_warn = f"Received non-Text message: {msg.type}"
+                    disconnect_reason = f"Received non-Text message: {msg.type}"
                     break
 
                 try:
                     msg = msg.json()
                 except ValueError:
-                    disconnect_warn = "Received invalid JSON."
+                    disconnect_reason = "Received invalid JSON."
                     break
 
                 if self._logger.isEnabledFor(logging.DEBUG):
@@ -217,9 +227,13 @@ class BaseIoT:
                 except Exception:  # pylint: disable=broad-except
                     self._logger.exception("Unexpected error handling %s", msg)
 
+            if client.closed:
+                disconnect_clean = True
+                disconnect_reason = "Closed by server: unknown"
+
         except client_exceptions.WSServerHandshakeError as err:
             if err.status == 401:
-                disconnect_warn = "Invalid auth."
+                disconnect_reason = "Invalid auth."
                 self.close_requested = True
                 # Should we notify user?
             else:
@@ -232,10 +246,11 @@ class BaseIoT:
             pass
 
         finally:
-            if disconnect_warn is None:
-                self._logger.info("Connection closed: %s", close_reason)
-            else:
-                self._logger.warning("Connection closed: %s", disconnect_warn)
+            self.last_disconnect_reason = DisconnectReason(
+                disconnect_clean, disconnect_reason
+            )
+            meth = self._logger.info if disconnect_clean else self._logger.warning
+            meth("Connection closed: %s", disconnect_reason)
 
     async def disconnect(self):
         """Disconnect the client."""
@@ -253,6 +268,7 @@ class BaseIoT:
         """Handle connected."""
         self.tries = 0
         self.state = STATE_CONNECTED
+        self.last_disconnect_reason = None
         self._logger.info("Connected")
 
         if self._on_connect:

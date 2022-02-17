@@ -73,9 +73,18 @@ def mock_cognito():
 @pytest.fixture
 def mock_iot_client(cloud_mock):
     """Mock a base IoT client."""
-    client = MagicMock()
+
+    class Client(MagicMock):
+        """Websocket client mock."""
+
+        closed = PropertyMock(return_value=False)
+
+        def auto_close(self):
+            """If the client should disconnect itself after 1 message."""
+            Client.closed = PropertyMock(side_effect=[False, True])
+
+    client = Client()
     websession = MagicMock()
-    type(client).closed = PropertyMock(side_effect=[False, True])
 
     # Trigger cancelled error to avoid reconnect.
     org_websession = cloud_mock.websession
