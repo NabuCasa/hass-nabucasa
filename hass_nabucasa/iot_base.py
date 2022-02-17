@@ -173,6 +173,7 @@ class BaseIoT:
 
             self._logger.info("Connected")
             self.state = STATE_CONNECTED
+            close_reason = None
 
             if self._on_connect:
                 await gather_callbacks(self._logger, "on_connect", self._on_connect)
@@ -185,6 +186,7 @@ class BaseIoT:
                     continue
 
                 if msg.type in (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING):
+                    close_reason = f"{msg.data} - {msg.extra}"
                     break
 
                 if msg.type == WSMsgType.ERROR:
@@ -225,7 +227,7 @@ class BaseIoT:
 
         finally:
             if disconnect_warn is None:
-                self._logger.info("Connection closed")
+                self._logger.info("Connection closed: %s", close_reason)
             else:
                 self._logger.warning("Connection closed: %s", disconnect_warn)
 
