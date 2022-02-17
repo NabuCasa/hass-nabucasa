@@ -34,6 +34,8 @@ class ErrorMessage(Exception):
 class CloudIoT(iot_base.BaseIoT):
     """Class to manage the IoT connection."""
 
+    mark_connected_after_first_message = True
+
     def __init__(self, cloud: Cloud):
         """Initialize the CloudIoT class."""
         super().__init__(cloud)

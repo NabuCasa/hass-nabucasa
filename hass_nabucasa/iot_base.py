@@ -24,6 +24,8 @@ class NotConnected(Exception):
 class BaseIoT:
     """Class to manage the IoT connection."""
 
+    mark_connected_after_first_message = False
+
     def __init__(self, cloud):
         """Initialize the CloudIoT class."""
         self.cloud = cloud
@@ -171,6 +173,9 @@ class BaseIoT:
                 headers={hdrs.AUTHORIZATION: f"Bearer {self.cloud.id_token}"},
             )
 
+            if not self.mark_connected_after_first_message:
+                await self._connected()
+
             while not client.closed:
                 try:
                     msg = await client.receive(55)
@@ -188,14 +193,7 @@ class BaseIoT:
                 # Do this inside the loop because if 2 clients are connected, it can happen that
                 # we get connected with valid auth, but then server decides to drop our connection.
                 if self.state != STATE_CONNECTED:
-                    self.tries = 0
-                    self.state = STATE_CONNECTED
-                    self._logger.info("Connected")
-
-                    if self._on_connect:
-                        await gather_callbacks(
-                            self._logger, "on_connect", self._on_connect
-                        )
+                    await self._connected()
 
                 if msg.type == WSMsgType.ERROR:
                     disconnect_warn = "Connection error"
@@ -250,3 +248,12 @@ class BaseIoT:
 
         if self._disconnect_event is not None:
             await self._disconnect_event.wait()
+
+    async def _connected(self):
+        """Handle connected."""
+        self.tries = 0
+        self.state = STATE_CONNECTED
+        self._logger.info("Connected")
+
+        if self._on_connect:
+            await gather_callbacks(self._logger, "on_connect", self._on_connect)
