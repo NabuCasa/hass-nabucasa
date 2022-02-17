@@ -227,7 +227,7 @@ class BaseIoT:
                 except Exception:  # pylint: disable=broad-except
                     self._logger.exception("Unexpected error handling %s", msg)
 
-            if client.closed:
+            if client.closed and disconnect_reason is None:
                 disconnect_clean = True
                 disconnect_reason = "Closed by server: unknown"
 
