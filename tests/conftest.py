@@ -105,6 +105,7 @@ async def ws_server(aiohttp_client):
 
             ws = web.WebSocketResponse()
             await ws.prepare(request)
+            await ws.send_json({"msgid": 0, "handler": "hello"})
 
             async for msg in ws:
                 logger.debug("Received msg: %s", msg)

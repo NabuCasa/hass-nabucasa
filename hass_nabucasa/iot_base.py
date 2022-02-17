@@ -164,19 +164,12 @@ class BaseIoT:
 
         client = None
         disconnect_warn = None
+        close_reason = None
         try:
             self.client = client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
                 headers={hdrs.AUTHORIZATION: f"Bearer {self.cloud.id_token}"},
             )
-            self.tries = 0
-
-            self._logger.info("Connected")
-            self.state = STATE_CONNECTED
-            close_reason = None
-
-            if self._on_connect:
-                await gather_callbacks(self._logger, "on_connect", self._on_connect)
 
             while not client.closed:
                 try:
@@ -186,8 +179,23 @@ class BaseIoT:
                     continue
 
                 if msg.type in (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING):
-                    close_reason = f"{msg.data} - {msg.extra}"
+                    if self.state == STATE_CONNECTED:
+                        close_reason = f"{msg.data} - {msg.extra}"
+                    else:
+                        disconnect_warn = f"Closed by server: {msg.extra} ({msg.data})"
                     break
+
+                # Do this inside the loop because if 2 clients are connected, it can happen that
+                # we get connected with valid auth, but then server decides to drop our connection.
+                if self.state != STATE_CONNECTED:
+                    self.tries = 0
+                    self.state = STATE_CONNECTED
+                    self._logger.info("Connected")
+
+                    if self._on_connect:
+                        await gather_callbacks(
+                            self._logger, "on_connect", self._on_connect
+                        )
 
                 if msg.type == WSMsgType.ERROR:
                     disconnect_warn = "Connection error"
