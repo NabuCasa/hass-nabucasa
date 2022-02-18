@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 from asyncio.queues import Queue
-import logging
 from typing import TYPE_CHECKING, Dict
 import uuid
 
@@ -12,7 +11,6 @@ from . import iot_base
 if TYPE_CHECKING:
     from . import Cloud
 
-_LOGGER = logging.getLogger(__name__)
 MAX_PENDING = 100
 
 ERR_DISCARD_CODE = "message_discarded"
