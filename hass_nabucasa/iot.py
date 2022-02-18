@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 import logging
 import pprint
 import random
@@ -33,6 +34,8 @@ class ErrorMessage(Exception):
 
 class CloudIoT(iot_base.BaseIoT):
     """Class to manage the IoT connection."""
+
+    mark_connected_after_first_message = True
 
     def __init__(self, cloud: Cloud):
         """Initialize the CloudIoT class."""
@@ -116,10 +119,22 @@ class CloudIoT(iot_base.BaseIoT):
             self._logger.exception("Error handling message")
             response["error"] = "exception"
 
+        # Client is unset in case the connection has been lost.
+        if self.client is None:
+            return
+
         if self._logger.isEnabledFor(logging.DEBUG):
             self._logger.debug("Publishing message:\n%s\n", pprint.pformat(response))
 
-        await self.client.send_json(response)
+        # Suppress when client is closing.
+        with suppress(ConnectionResetError):
+            await self.client.send_json(response)
+
+
+@HANDLERS.register("system")
+async def async_handle_system(cloud, payload):
+    """We ignore incoming system IoT messages."""
+    return None
 
 
 @HANDLERS.register("alexa")

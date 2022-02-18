@@ -1,8 +1,7 @@
 """Test the cloud.iot_base module."""
-import asyncio
-from unittest.mock import AsyncMock, patch, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
-from aiohttp import WSMsgType, client_exceptions
+from aiohttp import WSMsgType, client_exceptions, WSMessage
 import pytest
 
 from hass_nabucasa import iot_base, auth as auth_api
@@ -37,7 +36,6 @@ class MockIoT(iot_base.BaseIoT):
 
         Run all async tasks in a wrapper to log appropriately.
         """
-        raise NotImplementedError
 
 
 @pytest.fixture
@@ -47,20 +45,75 @@ def cloud_mock_iot(auth_cloud_mock):
     return auth_cloud_mock
 
 
+@pytest.mark.parametrize(
+    "require_first_message,messages,disconnct_reason",
+    [
+        (
+            False,
+            [
+                WSMessage(
+                    type=WSMsgType.CLOSING,
+                    data=4002,
+                    extra="Another instance connected",
+                ),
+            ],
+            iot_base.DisconnectReason(
+                True,
+                "Connection closed: Closed by server. Another instance connected (4002)",
+            ),
+        ),
+        (
+            True,
+            [
+                WSMessage(
+                    type=WSMsgType.CLOSING,
+                    data=4002,
+                    extra="Another instance connected",
+                )
+            ],
+            iot_base.DisconnectReason(
+                False,
+                "Connection closed: Closed by server. Another instance connected (4002)",
+            ),
+        ),
+        (
+            True,
+            [
+                WSMessage(
+                    type=WSMsgType.TEXT,
+                    data='{"msgid": "1", "handler": "system"}',
+                    extra=None,
+                ),
+                WSMessage(
+                    type=WSMsgType.CLOSING,
+                    data=4002,
+                    extra="Another instance connected",
+                ),
+            ],
+            iot_base.DisconnectReason(
+                True,
+                "Connection closed: Closed by server. Another instance connected (4002)",
+            ),
+        ),
+    ],
+)
 async def test_cloud_getting_disconnected_by_server(
-    mock_iot_client, caplog, cloud_mock_iot
+    mock_iot_client,
+    caplog,
+    cloud_mock_iot,
+    require_first_message,
+    messages,
+    disconnct_reason,
 ):
     """Test server disconnecting instance."""
     conn = MockIoT(cloud_mock_iot)
-    mock_iot_client.receive = AsyncMock(return_value=MagicMock(type=WSMsgType.CLOSING))
+    conn.mark_connected_after_first_message = require_first_message
+    mock_iot_client.receive = AsyncMock(side_effect=messages)
 
-    with patch(
-        "hass_nabucasa.iot_base.BaseIoT._wait_retry",
-        side_effect=[None, asyncio.CancelledError],
-    ):
-        await conn.connect()
+    await conn.connect()
 
     assert "Connection closed" in caplog.text
+    assert conn.last_disconnect_reason == disconnct_reason
 
 
 async def test_cloud_receiving_bytes(mock_iot_client, caplog, cloud_mock_iot):
@@ -110,13 +163,18 @@ async def test_cloud_connect_invalid_auth(mock_iot_client, caplog, cloud_mock_io
     assert "Connection closed: Invalid auth." in caplog.text
 
 
-async def test_cloud_unable_to_connect(mock_iot_client, caplog, cloud_mock_iot):
+async def test_cloud_unable_to_connect(
+    cloud_mock, caplog, cloud_mock_iot, mock_iot_client
+):
     """Test unable to connect error."""
     conn = MockIoT(cloud_mock_iot)
-    mock_iot_client.receive.side_effect = client_exceptions.ClientError(None, None)
-
+    cloud_mock.websession.ws_connect.side_effect = client_exceptions.ClientError(
+        "SSL Verification failed"
+    )
     await conn.connect()
-
+    assert conn.last_disconnect_reason == iot_base.DisconnectReason(
+        False, "Unable to connect: SSL Verification failed"
+    )
     assert "Unable to connect:" in caplog.text
 
 

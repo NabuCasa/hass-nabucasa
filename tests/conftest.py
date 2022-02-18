@@ -73,9 +73,21 @@ def mock_cognito():
 @pytest.fixture
 def mock_iot_client(cloud_mock):
     """Mock a base IoT client."""
-    client = MagicMock()
+
+    class Client(MagicMock):
+        """Websocket client mock."""
+
+        closed = PropertyMock(return_value=False)
+
+        def auto_close(self, msg_count=1):
+            """If the client should disconnect itself after 1 message."""
+            Client.closed = PropertyMock(side_effect=msg_count * [False] + [True])
+
+        async def close(self):
+            """Close the client."""
+
+    client = Client()
     websession = MagicMock()
-    type(client).closed = PropertyMock(side_effect=[False, True])
 
     # Trigger cancelled error to avoid reconnect.
     org_websession = cloud_mock.websession
@@ -105,6 +117,8 @@ async def ws_server(aiohttp_client):
 
             ws = web.WebSocketResponse()
             await ws.prepare(request)
+            # Send a message to trigger IoTBase with `mark_connected_after_first_message`
+            await ws.send_json({"msgid": 0, "handler": "hello"})
 
             async for msg in ws:
                 logger.debug("Received msg: %s", msg)

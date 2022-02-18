@@ -1,5 +1,8 @@
 """Base class to keep a websocket connection open to a server."""
+from __future__ import annotations
+
 import asyncio
+import dataclasses
 import logging
 import pprint
 import random
@@ -17,12 +20,22 @@ from .const import (
 from .utils import gather_callbacks
 
 
+@dataclasses.dataclass
+class DisconnectReason:
+    """Disconnect reason."""
+
+    clean: bool
+    reason: str
+
+
 class NotConnected(Exception):
     """Exception raised when trying to handle unknown handler."""
 
 
 class BaseIoT:
     """Class to manage the IoT connection."""
+
+    mark_connected_after_first_message = False
 
     def __init__(self, cloud):
         """Initialize the CloudIoT class."""
@@ -41,6 +54,7 @@ class BaseIoT:
         self._on_disconnect: List[Callable[[], Awaitable[None]]] = []
         self._logger = logging.getLogger(self.package_name)
         self._disconnect_event = None
+        self.last_disconnect_reason: DisconnectReason | None = None
 
     @property
     def package_name(self) -> str:
@@ -162,45 +176,46 @@ class BaseIoT:
             self.close_requested = True
             return
 
-        client = None
-        disconnect_warn = None
+        disconnect_clean = False
+        disconnect_reason = None
         try:
-            self.client = client = await self.cloud.websession.ws_connect(
+            self.client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
                 headers={hdrs.AUTHORIZATION: f"Bearer {self.cloud.id_token}"},
             )
-            self.tries = 0
 
-            self._logger.info("Connected")
-            self.state = STATE_CONNECTED
-            close_reason = None
+            if not self.mark_connected_after_first_message:
+                await self._connected()
 
-            if self._on_connect:
-                await gather_callbacks(self._logger, "on_connect", self._on_connect)
-
-            while not client.closed:
+            while not self.client.closed:
                 try:
-                    msg = await client.receive(55)
+                    msg = await self.client.receive(55)
                 except asyncio.TimeoutError:
-                    await client.ping()
+                    await self.client.ping()
                     continue
 
                 if msg.type in (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING):
-                    close_reason = f"{msg.data} - {msg.extra}"
+                    disconnect_clean = self.state == STATE_CONNECTED
+                    disconnect_reason = f"Closed by server. {msg.extra} ({msg.data})"
                     break
 
+                # Do this inside the loop because if 2 clients are connected, it can happen that
+                # we get connected with valid auth, but then server decides to drop our connection.
+                if self.state != STATE_CONNECTED:
+                    await self._connected()
+
                 if msg.type == WSMsgType.ERROR:
-                    disconnect_warn = "Connection error"
+                    disconnect_reason = "Connection error"
                     break
 
                 if msg.type != WSMsgType.TEXT:
-                    disconnect_warn = f"Received non-Text message: {msg.type}"
+                    disconnect_reason = f"Received non-Text message: {msg.type}"
                     break
 
                 try:
                     msg = msg.json()
                 except ValueError:
-                    disconnect_warn = "Received invalid JSON."
+                    disconnect_reason = "Received invalid JSON."
                     break
 
                 if self._logger.isEnabledFor(logging.DEBUG):
@@ -211,25 +226,42 @@ class BaseIoT:
                 except Exception:  # pylint: disable=broad-except
                     self._logger.exception("Unexpected error handling %s", msg)
 
+            if self.client.closed:
+                if self.close_requested:
+                    disconnect_clean = True
+                    disconnect_reason = "Close requested"
+                elif disconnect_reason is None:
+                    disconnect_reason = "Closed by server. Unknown reason"
+
         except client_exceptions.WSServerHandshakeError as err:
             if err.status == 401:
-                disconnect_warn = "Invalid auth."
+                disconnect_reason = "Invalid auth."
                 self.close_requested = True
                 # Should we notify user?
             else:
-                self._logger.warning("Unable to connect: %s", err)
+                disconnect_reason = err
 
         except client_exceptions.ClientError as err:
-            self._logger.warning("Unable to connect: %s", err)
+            disconnect_reason = err
 
         except asyncio.CancelledError:
-            pass
+            disconnect_clean = True
+            disconnect_reason = "Connection Cancelled"
 
         finally:
-            if disconnect_warn is None:
-                self._logger.info("Connection closed: %s", close_reason)
+            if self.client:
+                base_msg = "Connection closed"
+                await self.client.close()
+                self.client = None
             else:
-                self._logger.warning("Connection closed: %s", disconnect_warn)
+                base_msg = "Unable to connect"
+            msg = f"{base_msg}: {disconnect_reason}"
+            self.last_disconnect_reason = DisconnectReason(disconnect_clean, msg)
+
+            if self.close_requested or disconnect_clean:
+                self._logger.info(msg)
+            else:
+                self._logger.warning(msg)
 
     async def disconnect(self):
         """Disconnect the client."""
@@ -242,3 +274,13 @@ class BaseIoT:
 
         if self._disconnect_event is not None:
             await self._disconnect_event.wait()
+
+    async def _connected(self):
+        """Handle connected."""
+        self.last_disconnect_reason = None
+        self.tries = 0
+        self.state = STATE_CONNECTED
+        self._logger.info("Connected")
+
+        if self._on_connect:
+            await gather_callbacks(self._logger, "on_connect", self._on_connect)
