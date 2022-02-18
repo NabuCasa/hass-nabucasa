@@ -104,7 +104,7 @@ class CloudIoT(iot_base.BaseIoT):
             if handler is None:
                 raise UnknownHandler()
 
-            result = await handler(self.cloud, message["payload"])
+            result = await handler(self.cloud, message.get("payload"))
 
             # No response from handler
             if result is None:
