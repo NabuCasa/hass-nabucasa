@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 import logging
 import pprint
 import random
@@ -125,11 +126,9 @@ class CloudIoT(iot_base.BaseIoT):
         if self._logger.isEnabledFor(logging.DEBUG):
             self._logger.debug("Publishing message:\n%s\n", pprint.pformat(response))
 
-        try:
+        # Suppress when client is closing.
+        with suppress(ConnectionResetError):
             await self.client.send_json(response)
-        except ConnectionResetError:
-            # Client is closing.
-            pass
 
 
 @HANDLERS.register("system")
