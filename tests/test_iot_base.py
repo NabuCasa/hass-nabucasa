@@ -1,5 +1,5 @@
 """Test the cloud.iot_base module."""
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 from aiohttp import WSMsgType, client_exceptions, WSMessage
 import pytest
