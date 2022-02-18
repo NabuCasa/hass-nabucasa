@@ -227,9 +227,12 @@ class BaseIoT:
                 except Exception:  # pylint: disable=broad-except
                     self._logger.exception("Unexpected error handling %s", msg)
 
-            if client.closed and disconnect_reason is None:
-                disconnect_clean = True
-                disconnect_reason = "Closed by server: unknown"
+            if client.closed:
+                if self.close_requested:
+                    disconnect_clean = True
+                    disconnect_reason = "Close requested"
+                elif disconnect_reason is None:
+                    disconnect_reason = "Closed by server: unknown"
 
         except client_exceptions.WSServerHandshakeError as err:
             if err.status == 401:
@@ -243,7 +246,8 @@ class BaseIoT:
             disconnect_reason = err
 
         except asyncio.CancelledError:
-            pass
+            disconnect_clean = True
+            disconnect_reason = "Connection Cancelled"
 
         finally:
             if self.client:
@@ -252,11 +256,13 @@ class BaseIoT:
                 self.client = None
             else:
                 base_msg = "Unable to connect"
-            self.last_disconnect_reason = DisconnectReason(
-                disconnect_clean, disconnect_reason
-            )
-            meth = self._logger.info if disconnect_clean else self._logger.warning
-            meth("%s: %s", base_msg, disconnect_reason)
+            msg = f"{base_msg}: {disconnect_reason}"
+            self.last_disconnect_reason = DisconnectReason(disconnect_clean, msg)
+
+            if self.close_requested or disconnect_clean:
+                self._logger.info(msg)
+            else:
+                self._logger.warning(msg)
 
     async def disconnect(self):
         """Disconnect the client."""
