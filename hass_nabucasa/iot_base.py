@@ -237,20 +237,26 @@ class BaseIoT:
                 self.close_requested = True
                 # Should we notify user?
             else:
-                self._logger.warning("Unable to connect: %s", err)
+                disconnect_reason = err
 
         except client_exceptions.ClientError as err:
-            self._logger.warning("Unable to connect: %s", err)
+            disconnect_reason = err
 
         except asyncio.CancelledError:
             pass
 
         finally:
+            if self.client:
+                base_msg = "Connection closed"
+                await self.client.close()
+                self.client = None
+            else:
+                base_msg = "Unable to connect"
             self.last_disconnect_reason = DisconnectReason(
                 disconnect_clean, disconnect_reason
             )
             meth = self._logger.info if disconnect_clean else self._logger.warning
-            meth("Connection closed: %s", disconnect_reason)
+            meth("%s: %s", base_msg, disconnect_reason)
 
     async def disconnect(self):
         """Disconnect the client."""
