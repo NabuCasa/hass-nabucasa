@@ -38,7 +38,21 @@ def mock_handler_message(conn, mock_iot_client, msg):
     )
 
 
-async def test_cloud_calling_handler(mock_iot_client, cloud_mock_iot):
+@pytest.mark.parametrize(
+    "message",
+    (
+        {
+            "msgid": "test-msg-id",
+            "handler": "test-handler",
+            "payload": "test-payload",
+        },
+        {
+            "msgid": "test-msg-id",
+            "handler": "test-handler",
+        },
+    ),
+)
+async def test_cloud_calling_handler(mock_iot_client, cloud_mock_iot, message):
     """Test we call handle message with correct info."""
     conn = iot.CloudIoT(cloud_mock_iot)
     mock_handler_message(
@@ -46,13 +60,7 @@ async def test_cloud_calling_handler(mock_iot_client, cloud_mock_iot):
         mock_iot_client,
         MagicMock(
             type=WSMsgType.text,
-            json=MagicMock(
-                return_value={
-                    "msgid": "test-msg-id",
-                    "handler": "test-handler",
-                    "payload": "test-payload",
-                }
-            ),
+            json=MagicMock(return_value=message),
         ),
     )
 
@@ -66,7 +74,7 @@ async def test_cloud_calling_handler(mock_iot_client, cloud_mock_iot):
     cloud, payload = mock_handler.mock_calls[0][1]
 
     assert cloud is cloud_mock_iot
-    assert payload == "test-payload"
+    assert payload == message.get("payload")
 
     # Check that we forwarded response from handler to cloud
     assert len(mock_iot_client.send_json.mock_calls) == 1
