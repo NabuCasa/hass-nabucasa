@@ -118,10 +118,18 @@ class CloudIoT(iot_base.BaseIoT):
             self._logger.exception("Error handling message")
             response["error"] = "exception"
 
+        # Client is unset in case the connection has been lost.
+        if self.client is None:
+            return
+
         if self._logger.isEnabledFor(logging.DEBUG):
             self._logger.debug("Publishing message:\n%s\n", pprint.pformat(response))
 
-        await self.client.send_json(response)
+        try:
+            await self.client.send_json(response)
+        except ConnectionResetError:
+            # Client is closing.
+            pass
 
 
 @HANDLERS.register("system")

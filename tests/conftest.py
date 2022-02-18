@@ -79,9 +79,12 @@ def mock_iot_client(cloud_mock):
 
         closed = PropertyMock(return_value=False)
 
-        def auto_close(self):
+        def auto_close(self, msg_count=1):
             """If the client should disconnect itself after 1 message."""
-            Client.closed = PropertyMock(side_effect=[False, True])
+            Client.closed = PropertyMock(side_effect=msg_count * [False] + [True])
+
+        async def close(self):
+            """Close the client."""
 
     client = Client()
     websession = MagicMock()

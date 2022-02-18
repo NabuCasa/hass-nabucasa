@@ -176,11 +176,10 @@ class BaseIoT:
             self.close_requested = True
             return
 
-        client = None
         disconnect_clean = False
         disconnect_reason = None
         try:
-            self.client = client = await self.cloud.websession.ws_connect(
+            self.client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
                 headers={hdrs.AUTHORIZATION: f"Bearer {self.cloud.id_token}"},
             )
@@ -188,16 +187,16 @@ class BaseIoT:
             if not self.mark_connected_after_first_message:
                 await self._connected()
 
-            while not client.closed:
+            while not self.client.closed:
                 try:
-                    msg = await client.receive(55)
+                    msg = await self.client.receive(55)
                 except asyncio.TimeoutError:
-                    await client.ping()
+                    await self.client.ping()
                     continue
 
                 if msg.type in (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING):
                     disconnect_clean = self.state == STATE_CONNECTED
-                    disconnect_reason = f"Closed by server: {msg.extra} ({msg.data})"
+                    disconnect_reason = f"Closed by server. {msg.extra} ({msg.data})"
                     break
 
                 # Do this inside the loop because if 2 clients are connected, it can happen that
@@ -227,12 +226,12 @@ class BaseIoT:
                 except Exception:  # pylint: disable=broad-except
                     self._logger.exception("Unexpected error handling %s", msg)
 
-            if client.closed:
+            if self.client.closed:
                 if self.close_requested:
                     disconnect_clean = True
                     disconnect_reason = "Close requested"
                 elif disconnect_reason is None:
-                    disconnect_reason = "Closed by server: unknown"
+                    disconnect_reason = "Closed by server. Unknown reason"
 
         except client_exceptions.WSServerHandshakeError as err:
             if err.status == 401:

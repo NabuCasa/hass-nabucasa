@@ -1,5 +1,5 @@
 """Test the cloud.iot_base module."""
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from aiohttp import WSMsgType, client_exceptions, WSMessage
 import pytest
@@ -58,7 +58,8 @@ def cloud_mock_iot(auth_cloud_mock):
                 ),
             ],
             iot_base.DisconnectReason(
-                True, "Closed by server: Another instance connected (4002)"
+                True,
+                "Connection closed: Closed by server. Another instance connected (4002)",
             ),
         ),
         (
@@ -71,7 +72,8 @@ def cloud_mock_iot(auth_cloud_mock):
                 )
             ],
             iot_base.DisconnectReason(
-                False, "Closed by server: Another instance connected (4002)"
+                False,
+                "Connection closed: Closed by server. Another instance connected (4002)",
             ),
         ),
         (
@@ -89,7 +91,8 @@ def cloud_mock_iot(auth_cloud_mock):
                 ),
             ],
             iot_base.DisconnectReason(
-                True, "Closed by server: Another instance connected (4002)"
+                True,
+                "Connection closed: Closed by server. Another instance connected (4002)",
             ),
         ),
     ],
@@ -160,13 +163,18 @@ async def test_cloud_connect_invalid_auth(mock_iot_client, caplog, cloud_mock_io
     assert "Connection closed: Invalid auth." in caplog.text
 
 
-async def test_cloud_unable_to_connect(mock_iot_client, caplog, cloud_mock_iot):
+async def test_cloud_unable_to_connect(
+    cloud_mock, caplog, cloud_mock_iot, mock_iot_client
+):
     """Test unable to connect error."""
     conn = MockIoT(cloud_mock_iot)
-    mock_iot_client.receive.side_effect = client_exceptions.ClientError(None, None)
-
+    cloud_mock.websession.ws_connect.side_effect = client_exceptions.ClientError(
+        "SSL Verification failed"
+    )
     await conn.connect()
-
+    assert conn.last_disconnect_reason == iot_base.DisconnectReason(
+        False, "Unable to connect: SSL Verification failed"
+    )
     assert "Unable to connect:" in caplog.text
 
 
