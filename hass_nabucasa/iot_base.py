@@ -111,7 +111,6 @@ class BaseIoT:
         if self.state != STATE_DISCONNECTED:
             raise RuntimeError("Connect called while not disconnected")
 
-        self.last_disconnect_reason = None
         self.close_requested = False
         self.state = STATE_CONNECTING
         self.tries = 0
@@ -267,6 +266,7 @@ class BaseIoT:
 
     async def _connected(self):
         """Handle connected."""
+        self.last_disconnect_reason = None
         self.tries = 0
         self.state = STATE_CONNECTED
         self._logger.info("Connected")
