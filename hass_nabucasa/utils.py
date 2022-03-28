@@ -5,11 +5,9 @@ import logging
 import ssl
 from typing import Awaitable, Callable, List, Optional, TypeVar
 
-import pytz
-
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # noqa pylint: disable=invalid-name
 DATE_STR_FORMAT = "%Y-%m-%d"
-UTC = pytz.utc
+UTC = dt.timezone.utc
 
 
 def utcnow() -> dt.datetime:
@@ -19,7 +17,7 @@ def utcnow() -> dt.datetime:
 
 def utc_from_timestamp(timestamp: float) -> dt.datetime:
     """Return a UTC time from a timestamp."""
-    return UTC.localize(dt.datetime.utcfromtimestamp(timestamp))
+    return dt.datetime.utcfromtimestamp(timestamp).replace(tzinfo=UTC)
 
 
 def parse_date(dt_str: str) -> Optional[dt.date]:
