@@ -203,8 +203,7 @@ class Cloud:
 
     async def login(self, email: str, password: str) -> None:
         """Log a user in."""
-        async with async_timeout.timeout(30):
-            await self.auth.async_login(email, password)
+        await self.auth.async_login(email, password)
 
     async def logout(self) -> None:
         """Close connection and remove all credentials."""

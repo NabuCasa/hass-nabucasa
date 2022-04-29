@@ -4,6 +4,7 @@ from functools import partial
 import logging
 import random
 
+import async_timeout
 import boto3
 import botocore
 from botocore.exceptions import BotoCoreError, ClientError
@@ -158,9 +159,12 @@ class CognitoAuth:
                 assert not self.cloud.is_logged_in, "Cannot login if already logged in."
 
                 cognito = self._cognito(username=email)
-                await self.cloud.run_executor(
-                    partial(cognito.authenticate, password=password)
-                )
+
+                async with async_timeout.timeout(30):
+                    await self.cloud.run_executor(
+                        partial(cognito.authenticate, password=password)
+                    )
+
                 await self.cloud.update_token(
                     cognito.id_token, cognito.access_token, cognito.refresh_token
                 )
