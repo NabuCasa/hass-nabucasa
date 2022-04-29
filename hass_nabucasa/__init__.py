@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Awaitable, Callable, Coroutine, List
 
 import aiohttp
-import async_timeout
 from atomicwrites import atomic_write
 from jose import jwt
 
