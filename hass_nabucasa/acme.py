@@ -13,7 +13,6 @@ import async_timeout
 from atomicwrites import atomic_write
 import attr
 from cryptography import x509
-from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
@@ -146,16 +145,12 @@ class AcmeHandler:
         if self.path_account_key.exists():
             _LOGGER.debug("Load account keyfile: %s", self.path_account_key)
             pem = self.path_account_key.read_bytes()
-            key = serialization.load_pem_private_key(
-                pem, password=None, backend=default_backend()
-            )
+            key = serialization.load_pem_private_key(pem, password=None)
 
         else:
             _LOGGER.debug("Create new RSA keyfile: %s", self.path_account_key)
             key = rsa.generate_private_key(
-                public_exponent=65537,
-                key_size=ACCOUNT_KEY_SIZE,
-                backend=default_backend(),
+                public_exponent=65537, key_size=ACCOUNT_KEY_SIZE
             )
 
             # Store it to file
@@ -300,9 +295,7 @@ class AcmeHandler:
 
         def _load_cert():
             """Load certificate in a thread."""
-            return x509.load_pem_x509_certificate(
-                self.path_fullchain.read_bytes(), default_backend()
-            )
+            return x509.load_pem_x509_certificate(self.path_fullchain.read_bytes())
 
         try:
             self._x509 = await self.cloud.run_executor(_load_cert)
