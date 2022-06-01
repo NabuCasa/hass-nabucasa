@@ -32,7 +32,7 @@ setup(
     install_requires=[
         "pycognito==2022.4.0",
         "snitun==0.31.0",
-        "acme==1.26.0",
+        "acme==1.27.0",
         "cryptography>=2.8,<38.0",
         "attrs>=19.3",
         "aiohttp>=3.6.1",
