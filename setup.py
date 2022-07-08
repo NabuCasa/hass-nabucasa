@@ -36,6 +36,6 @@ setup(
         "cryptography>=2.8,<38.0",
         "attrs>=19.3",
         "aiohttp>=3.6.1",
-        "atomicwrites==1.4.0",
+        "atomicwrites-homeassistant==1.4.1",
     ],
 )
