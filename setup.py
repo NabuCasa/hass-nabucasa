@@ -37,6 +37,6 @@ setup(
         "attrs>=19.3",
         "pytz>=2019.3",
         "aiohttp>=3.6.1",
-        "atomicwrites==1.4.0",
+        "atomicwrites-homeassistant==1.4.1",
     ],
 )
