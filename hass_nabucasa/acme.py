@@ -316,7 +316,8 @@ class AcmeHandler:
 
         _LOGGER.info("Revoke certificate")
         try:
-            self._acme_client.revoke(fullchain, 0)
+            # https://letsencrypt.org/docs/revoking/#specifying-a-reason-code
+            self._acme_client.revoke(fullchain, 4)
         except errors.ConflictError:
             pass
         except errors.Error as err:
