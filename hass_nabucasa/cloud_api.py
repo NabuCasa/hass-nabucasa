@@ -130,3 +130,14 @@ async def async_subscription_info(cloud):
         await cloud.auth.async_renew_access_token()
 
     return data
+
+
+@_check_token
+async def async_migrate_subscription(cloud):
+    """Migrate a subscription from legacy."""
+    resp = await cloud.websession.post(
+        cloud.migrate_subscription_url, headers={"authorization": cloud.id_token}
+    )
+    _do_log_response(resp)
+    resp.raise_for_status()
+    return await resp.json()

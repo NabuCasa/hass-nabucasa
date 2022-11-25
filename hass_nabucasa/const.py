@@ -30,6 +30,7 @@ SERVERS = {
         "voice_api_url": "https://voice-api.nabucasa.com",
         "thingtalk_url": "https://thingtalk-api.nabucasa.com",
         "acme_directory_server": "https://acme-v02.api.letsencrypt.org/directory",
+        "migrate_subscription_url": "https://accounts.nabucasa.com/migrate_paypal_agreement",
     }
 }
 

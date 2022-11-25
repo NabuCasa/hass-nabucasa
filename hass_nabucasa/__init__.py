@@ -45,6 +45,7 @@ class Cloud:
         voice_api_url=None,
         acme_directory_server=None,
         thingtalk_url=None,
+        migrate_subscription_url=None,
     ):
         """Create an instance of Cloud."""
         self._on_initialized: List[Callable[[], Awaitable[None]]] = []
@@ -82,6 +83,7 @@ class Cloud:
             self.account_link_url = account_link_url
             self.voice_api_url = voice_api_url
             self.thingtalk_url = thingtalk_url
+            self.migrate_subscription_url = migrate_subscription_url
             return
 
         info = SERVERS[mode]
@@ -99,6 +101,7 @@ class Cloud:
         self.voice_api_url = info["voice_api_url"]
         self.acme_directory_server = info["acme_directory_server"]
         self.thingtalk_url = info["thingtalk_url"]
+        self.migrate_subscription_url = info["migrate_subscription_url"]
 
     @property
     def is_logged_in(self) -> bool:
