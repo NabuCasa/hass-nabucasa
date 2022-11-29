@@ -7,11 +7,11 @@ from hass_nabucasa import cloud_api
 async def test_create_cloudhook(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post(
-        "https://example.com/bla",
+        "https://example.com/generate",
         json={"cloudhook_id": "mock-webhook", "url": "https://blabla"},
     )
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.cloudhook_create_url = "https://example.com/bla"
+    auth_cloud_mock.cloudhook_server = "example.com"
 
     resp = await cloud_api.async_create_cloudhook(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
@@ -32,7 +32,7 @@ async def test_remote_register(auth_cloud_mock, aioclient_mock):
         },
     )
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.remote_api_url = "https://example.com/bla"
+    auth_cloud_mock.remote_sni_server = "example.com/bla"
 
     resp = await cloud_api.async_remote_register(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
@@ -46,7 +46,7 @@ async def test_remote_register(auth_cloud_mock, aioclient_mock):
 async def test_remote_token(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post(
-        "https://example.com/bla/snitun_token",
+        "https://example.com/snitun_token",
         json={
             "token": "123456",
             "server": "rest-remote.nabu.casa",
@@ -55,7 +55,7 @@ async def test_remote_token(auth_cloud_mock, aioclient_mock):
         },
     )
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.remote_api_url = "https://example.com/bla"
+    auth_cloud_mock.remote_sni_server = "example.com"
 
     resp = await cloud_api.async_remote_token(auth_cloud_mock, b"aes", b"iv")
     assert len(aioclient_mock.mock_calls) == 1
@@ -70,9 +70,9 @@ async def test_remote_token(auth_cloud_mock, aioclient_mock):
 
 async def test_remote_challenge_txt(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
-    aioclient_mock.post("https://example.com/bla/challenge_txt")
+    aioclient_mock.post("https://example.com/challenge_txt")
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.remote_api_url = "https://example.com/bla"
+    auth_cloud_mock.remote_sni_server = "example.com"
 
     await cloud_api.async_remote_challenge_txt(auth_cloud_mock, "123456")
     assert len(aioclient_mock.mock_calls) == 1
@@ -81,9 +81,9 @@ async def test_remote_challenge_txt(auth_cloud_mock, aioclient_mock):
 
 async def test_remote_challenge_cleanup(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
-    aioclient_mock.post("https://example.com/bla/challenge_cleanup")
+    aioclient_mock.post("https://example.com/challenge_cleanup")
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.remote_api_url = "https://example.com/bla"
+    auth_cloud_mock.remote_sni_server = "example.com"
 
     await cloud_api.async_remote_challenge_cleanup(auth_cloud_mock, "123456")
     assert len(aioclient_mock.mock_calls) == 1
@@ -92,9 +92,9 @@ async def test_remote_challenge_cleanup(auth_cloud_mock, aioclient_mock):
 
 async def test_get_access_token(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
-    aioclient_mock.post("https://example.com/bla")
+    aioclient_mock.post("https://example.com/access_token")
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.alexa_access_token_url = "https://example.com/bla"
+    auth_cloud_mock.alexa_server = "example.com"
 
     await cloud_api.async_alexa_access_token(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
@@ -104,7 +104,7 @@ async def test_voice_connection_details(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.get("https://example.com/connection_details")
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.voice_api_url = "https://example.com"
+    auth_cloud_mock.voice_server = "example.com"
 
     await cloud_api.async_voice_connection_details(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
@@ -120,9 +120,7 @@ async def test_subscription_info(auth_cloud_mock, aioclient_mock):
         },
     )
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.subscription_info_url = (
-        "https://example.com/payments/subscription_info"
-    )
+    auth_cloud_mock.accounts_server = "example.com"
 
     with patch.object(
         auth_cloud_mock.auth, "async_renew_access_token", AsyncMock()
