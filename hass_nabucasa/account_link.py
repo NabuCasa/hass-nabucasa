@@ -60,7 +60,7 @@ class AuthorizeAccountHelper:
         _LOGGER.debug("Opening connection for %s", self.service)
 
         self._client = await self.cloud.client.websession.ws_connect(
-            f"{self.cloud.account_link_url}/v1"
+            f"https://{self.cloud.account_link_server}/v1"
         )
         await self._client.send_json({"service": self.service})
 
@@ -106,7 +106,7 @@ async def async_fetch_access_token(cloud: "Cloud", service: str, refresh_token: 
     """Fetch access tokens using a refresh token."""
     _LOGGER.debug("Fetching tokens for %s", service)
     resp = await cloud.client.websession.post(
-        f"{cloud.account_link_url}/refresh_token/{service}",
+        f"https://{cloud.account_link_server}/refresh_token/{service}",
         json={"refresh_token": refresh_token},
     )
     resp.raise_for_status()
@@ -117,6 +117,8 @@ async def async_fetch_access_token(cloud: "Cloud", service: str, refresh_token: 
 
 async def async_fetch_available_services(cloud: "Cloud"):
     """Fetch available services."""
-    resp = await cloud.client.websession.post(f"{cloud.account_link_url}/services")
+    resp = await cloud.client.websession.post(
+        f"https://{cloud.account_link_server}/services"
+    )
     resp.raise_for_status()
     return await resp.json()

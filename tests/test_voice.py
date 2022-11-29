@@ -6,13 +6,13 @@ import hass_nabucasa.voice as voice
 
 async def test_token_handling(auth_cloud_mock, aioclient_mock):
     """Test handling around token."""
-    auth_cloud_mock.voice_api_url = "https://test.local/api"
+    auth_cloud_mock.voice_server = "test.local"
     voice_api = voice.Voice(auth_cloud_mock)
 
     assert not voice_api._validate_token()
 
     aioclient_mock.get(
-        "https://test.local/api/connection_details",
+        "https://test.local/connection_details",
         json={
             "authorized_key": "test-key",
             "endpoint_stt": "stt-url",
@@ -31,11 +31,11 @@ async def test_token_handling(auth_cloud_mock, aioclient_mock):
 
 async def test_process_stt(auth_cloud_mock, aioclient_mock):
     """Test handling around stt."""
-    auth_cloud_mock.voice_api_url = "https://test.local/api"
+    auth_cloud_mock.voice_server = "test.local"
     voice_api = voice.Voice(auth_cloud_mock)
 
     aioclient_mock.get(
-        "https://test.local/api/connection_details",
+        "https://test.local/connection_details",
         json={
             "authorized_key": "test-key",
             "endpoint_stt": "stt-url",
@@ -56,11 +56,11 @@ async def test_process_stt(auth_cloud_mock, aioclient_mock):
 
 async def test_process_tts(auth_cloud_mock, aioclient_mock):
     """Test handling around tts."""
-    auth_cloud_mock.voice_api_url = "https://test.local/api"
+    auth_cloud_mock.voice_server = "test.local"
     voice_api = voice.Voice(auth_cloud_mock)
 
     aioclient_mock.get(
-        "https://test.local/api/connection_details",
+        "https://test.local/connection_details",
         json={
             "authorized_key": "test-key",
             "endpoint_stt": "stt-url",

@@ -10,23 +10,28 @@ from hass_nabucasa.utils import utcnow
 def test_constructor_loads_info_from_constant(cloud_client):
     """Test non-dev mode loads info from SERVERS constant."""
     with patch.dict(
-        cloud.SERVERS,
+        cloud.DEFAULT_VALUES,
         {
             "beer": {
                 "cognito_client_id": "test-cognito_client_id",
                 "user_pool_id": "test-user_pool_id",
                 "region": "test-region",
+            }
+        },
+    ), patch.dict(
+        cloud.DEFAULT_SERVERS,
+        {
+            "beer": {
                 "relayer": "test-relayer",
-                "subscription_info_url": "test-subscription-info-url",
-                "cloudhook_create_url": "test-cloudhook_create_url",
-                "remote_api_url": "test-remote_api_url",
-                "alexa_access_token_url": "test-alexa-token-url",
-                "acme_directory_server": "test-acme-directory-server",
-                "google_actions_report_state_url": "test-google-actions-report-state-url",
-                "account_link_url": "test-account-link-url",
-                "voice_api_url": "test-voice-api-url",
-                "thingtalk_url": "test-thingtalk-url",
-                "migrate_subscription_url": "test-migrate_subscription_url",
+                "accounts": "test-subscription-info-url",
+                "cloudhook": "test-cloudhook_server",
+                "remote_sni": "test-remote_sni_server",
+                "alexa": "test-alexa-token-url",
+                "acme": "test-acme-directory-server",
+                "remotestate": "test-google-actions-report-state-url",
+                "account_link": "test-account-link-url",
+                "voice": "test-voice-api-url",
+                "thingtalk": "test-thingtalk-url",
             }
         },
     ):
@@ -36,16 +41,15 @@ def test_constructor_loads_info_from_constant(cloud_client):
     assert cl.cognito_client_id == "test-cognito_client_id"
     assert cl.user_pool_id == "test-user_pool_id"
     assert cl.region == "test-region"
-    assert cl.relayer == "test-relayer"
-    assert cl.subscription_info_url == "test-subscription-info-url"
-    assert cl.cloudhook_create_url == "test-cloudhook_create_url"
-    assert cl.remote_api_url == "test-remote_api_url"
-    assert cl.alexa_access_token_url == "test-alexa-token-url"
-    assert cl.acme_directory_server == "test-acme-directory-server"
-    assert cl.google_actions_report_state_url == "test-google-actions-report-state-url"
-    assert cl.account_link_url == "test-account-link-url"
-    assert cl.thingtalk_url == "test-thingtalk-url"
-    assert cl.migrate_subscription_url == "test-migrate_subscription_url"
+    assert cl.relayer_server == "test-relayer"
+    assert cl.accounts_server == "test-subscription-info-url"
+    assert cl.cloudhook_server == "test-cloudhook_server"
+    assert cl.remote_sni_server == "test-remote_sni_server"
+    assert cl.alexa_server == "test-alexa-token-url"
+    assert cl.acme_server == "test-acme-directory-server"
+    assert cl.remotestate_server == "test-google-actions-report-state-url"
+    assert cl.account_link_server == "test-account-link-url"
+    assert cl.thingtalk_server == "test-thingtalk-url"
 
 
 async def test_initialize_loads_info(cloud_client):

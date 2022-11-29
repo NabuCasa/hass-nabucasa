@@ -43,7 +43,8 @@ def _log_response(func):
 async def async_create_cloudhook(cloud):
     """Create a cloudhook."""
     return await cloud.websession.post(
-        cloud.cloudhook_create_url, headers={AUTHORIZATION: cloud.id_token}
+        f"https://{cloud.cloudhook_server}/generate",
+        headers={AUTHORIZATION: cloud.id_token},
     )
 
 
@@ -51,7 +52,7 @@ async def async_create_cloudhook(cloud):
 @_log_response
 async def async_remote_register(cloud):
     """Create/Get a remote URL."""
-    url = f"{cloud.remote_api_url}/register_instance"
+    url = f"https://{cloud.remote_sni_server}/register_instance"
     return await cloud.websession.post(url, headers={AUTHORIZATION: cloud.id_token})
 
 
@@ -59,7 +60,7 @@ async def async_remote_register(cloud):
 @_log_response
 async def async_remote_token(cloud, aes_key: bytes, aes_iv: bytes):
     """Create a remote snitun token."""
-    url = f"{cloud.remote_api_url}/snitun_token"
+    url = f"https://{cloud.remote_sni_server}/snitun_token"
     return await cloud.websession.post(
         url,
         headers={AUTHORIZATION: cloud.id_token},
@@ -71,7 +72,7 @@ async def async_remote_token(cloud, aes_key: bytes, aes_iv: bytes):
 @_log_response
 async def async_remote_challenge_txt(cloud, txt: str):
     """Set DNS challenge."""
-    url = f"{cloud.remote_api_url}/challenge_txt"
+    url = f"https://{cloud.remote_sni_server}/challenge_txt"
     return await cloud.websession.post(
         url, headers={AUTHORIZATION: cloud.id_token}, json={"txt": txt}
     )
@@ -81,7 +82,7 @@ async def async_remote_challenge_txt(cloud, txt: str):
 @_log_response
 async def async_remote_challenge_cleanup(cloud, txt: str):
     """Remove DNS challenge."""
-    url = f"{cloud.remote_api_url}/challenge_cleanup"
+    url = f"https://{cloud.remote_sni_server}/challenge_cleanup"
     return await cloud.websession.post(
         url, headers={AUTHORIZATION: cloud.id_token}, json={"txt": txt}
     )
@@ -92,7 +93,8 @@ async def async_remote_challenge_cleanup(cloud, txt: str):
 async def async_alexa_access_token(cloud):
     """Request Alexa access token."""
     return await cloud.websession.post(
-        cloud.alexa_access_token_url, headers={AUTHORIZATION: cloud.id_token}
+        f"https://{cloud.alexa_server}/access_token",
+        headers={AUTHORIZATION: cloud.id_token},
     )
 
 
@@ -100,7 +102,7 @@ async def async_alexa_access_token(cloud):
 @_log_response
 async def async_voice_connection_details(cloud):
     """Return connection details for voice service."""
-    url = f"{cloud.voice_api_url}/connection_details"
+    url = f"https://{cloud.voice_server}/connection_details"
     return await cloud.websession.get(url, headers={AUTHORIZATION: cloud.id_token})
 
 
@@ -109,7 +111,7 @@ async def async_voice_connection_details(cloud):
 async def async_google_actions_request_sync(cloud):
     """Request a Google Actions sync request."""
     return await cloud.websession.post(
-        f"{cloud.google_actions_report_state_url}/request_sync",
+        f"https://{cloud.remotestate_server}/request_sync",
         headers={AUTHORIZATION: f"Bearer {cloud.id_token}"},
     )
 
@@ -118,7 +120,8 @@ async def async_google_actions_request_sync(cloud):
 async def async_subscription_info(cloud):
     """Fetch subscription info."""
     resp = await cloud.websession.get(
-        cloud.subscription_info_url, headers={"authorization": cloud.id_token}
+        f"https://{cloud.accounts_server}/payments/subscription_info",
+        headers={"authorization": cloud.id_token},
     )
     _do_log_response(resp)
     resp.raise_for_status()

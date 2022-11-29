@@ -12,7 +12,7 @@ class ThingTalkConversionError(Exception):
 async def async_convert(cloud: "Cloud", query: str):
     """Convert sentence."""
     resp = await cloud.client.websession.post(
-        f"{cloud.thingtalk_url}/convert", json={"query": query}
+        f"https://{cloud.thingtalk_server}/convert", json={"query": query}
     )
     if resp.status == 200:
         return await resp.json()

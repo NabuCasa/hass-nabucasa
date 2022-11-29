@@ -15,23 +15,29 @@ DISPATCH_REMOTE_DISCONNECT = "remote_disconnect"
 DISPATCH_REMOTE_BACKEND_UP = "remote_backend_up"
 DISPATCH_REMOTE_BACKEND_DOWN = "remote_backend_down"
 
-SERVERS = {
+DEFAULT_SERVERS = {
+    "production": {
+        "account_link": "account-link.nabucasa.com",
+        "accounts": "accounts.nabucasa.com",
+        "acme": "acme-v02.api.letsencrypt.org",
+        "alexa": "alexa-api.nabucasa.com",
+        "cloudhook": "webhooks-api.nabucasa.com",
+        "relayer": "cloud.nabucasa.com/websocket",
+        "remote_sni": "remote-sni-api.nabucasa.com",
+        "remotestate": "remotestate.nabucasa.com",
+        "thingtalk": "thingtalk-api.nabucasa.com",
+        "voice": "voice-api.nabucasa.com",
+    },
+    "development": {},
+}
+
+DEFAULT_VALUES = {
     "production": {
         "cognito_client_id": "60i2uvhvbiref2mftj7rgcrt9u",
         "user_pool_id": "us-east-1_87ll5WOP8",
         "region": "us-east-1",
-        "relayer": "wss://cloud.nabucasa.com/websocket",
-        "google_actions_report_state_url": "https://remotestate.nabucasa.com",
-        "subscription_info_url": "https://accounts.nabucasa.com/payments/subscription_info",
-        "cloudhook_create_url": "https://webhooks-api.nabucasa.com/generate",
-        "remote_api_url": "https://remote-sni-api.nabucasa.com",
-        "alexa_access_token_url": "https://alexa-api.nabucasa.com/access_token",
-        "account_link_url": "https://account-link.nabucasa.com",
-        "voice_api_url": "https://voice-api.nabucasa.com",
-        "thingtalk_url": "https://thingtalk-api.nabucasa.com",
-        "acme_directory_server": "https://acme-v02.api.letsencrypt.org/directory",
-        "migrate_subscription_url": "https://accounts.nabucasa.com/migrate_paypal_agreement",
-    }
+    },
+    "development": {},
 }
 
 MESSAGE_EXPIRATION = """
@@ -47,7 +53,7 @@ using the service.
 
 MESSAGE_REMOTE_READY = """
 Your remote access is now available.
-You can manage your connectivity on the [Cloud Panel](/config/cloud) or with our [Portal](https://account.nabucasa.com/).
+You can manage your connectivity on the [Cloud Panel](/config/cloud) or with our [Portal](account.nabucasa.com/).
 """
 
 MESSAGE_REMOTE_SETUP = """
