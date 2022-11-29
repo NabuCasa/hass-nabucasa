@@ -43,7 +43,8 @@ def _log_response(func):
 async def async_create_cloudhook(cloud):
     """Create a cloudhook."""
     return await cloud.websession.post(
-        f"https://{cloud.cloudhook_server}/generate", headers={AUTHORIZATION: cloud.id_token}
+        f"https://{cloud.cloudhook_server}/generate",
+        headers={AUTHORIZATION: cloud.id_token},
     )
 
 
@@ -92,7 +93,8 @@ async def async_remote_challenge_cleanup(cloud, txt: str):
 async def async_alexa_access_token(cloud):
     """Request Alexa access token."""
     return await cloud.websession.post(
-        f"https://{cloud.alexa_server}/access_token", headers={AUTHORIZATION: cloud.id_token}
+        f"https://{cloud.alexa_server}/access_token",
+        headers={AUTHORIZATION: cloud.id_token},
     )
 
 

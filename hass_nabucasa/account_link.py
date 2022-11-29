@@ -117,6 +117,8 @@ async def async_fetch_access_token(cloud: "Cloud", service: str, refresh_token: 
 
 async def async_fetch_available_services(cloud: "Cloud"):
     """Fetch available services."""
-    resp = await cloud.client.websession.post(f"https://{cloud.account_link_server}/services")
+    resp = await cloud.client.websession.post(
+        f"https://{cloud.account_link_server}/services"
+    )
     resp.raise_for_status()
     return await resp.json()

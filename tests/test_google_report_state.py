@@ -27,7 +27,6 @@ async def test_ws_server_url():
     )
 
 
-
 async def test_send_messages(event_loop, ws_server):
     """Test that we connect if we are not connected."""
     loop = event_loop
