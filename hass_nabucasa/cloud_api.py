@@ -136,10 +136,11 @@ async def async_subscription_info(cloud):
 
 
 @_check_token
-async def async_migrate_subscription(cloud):
-    """Migrate a subscription from legacy."""
+async def async_migrate_paypal_agreement(cloud):
+    """Migrate a paypal agreement from legacy."""
     resp = await cloud.websession.post(
-        cloud.migrate_subscription_url, headers={"authorization": cloud.id_token}
+        f"https://{cloud.accounts_server}/migrate_paypal_agreement",
+        headers={"authorization": cloud.id_token},
     )
     _do_log_response(resp)
     resp.raise_for_status()

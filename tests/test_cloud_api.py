@@ -163,11 +163,9 @@ async def test_migrate_subscription(auth_cloud_mock, aioclient_mock):
         },
     )
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.migrate_subscription_url = (
-        "https://example.com/migrate_paypal_agreement"
-    )
+    auth_cloud_mock.accounts_server = "example.com"
 
-    data = await cloud_api.async_migrate_subscription(auth_cloud_mock)
+    data = await cloud_api.async_migrate_paypal_agreement(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
     assert data == {
         "url": "https://example.com/some/path",
