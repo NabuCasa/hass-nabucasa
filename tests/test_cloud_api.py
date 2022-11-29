@@ -154,7 +154,7 @@ async def test_subscription_info(auth_cloud_mock, aioclient_mock):
     assert len(mock_renew.mock_calls) == 1
 
 
-async def test_migrate_subscription(auth_cloud_mock, aioclient_mock):
+async def test_migrate_paypal_agreement(auth_cloud_mock, aioclient_mock):
     """Test migrating a subscription."""
     aioclient_mock.post(
         "https://example.com/migrate_paypal_agreement",
