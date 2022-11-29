@@ -55,8 +55,7 @@ class GoogleReportState(iot_base.BaseIoT):
     @property
     def ws_server_url(self) -> str:
         """Server to connect to."""
-        # https -> wss, http -> ws
-        return f"ws{self.cloud.google_actions_report_state_url[4:]}/v1"
+        return f"wss://{self.cloud.remotestate_server}/v1"
 
     async def async_send_message(self, msg):
         """Send a message."""

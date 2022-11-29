@@ -5,14 +5,14 @@ import aiohttp
 
 from hass_nabucasa import thingtalk
 
-API_URL = "https://example.com"
-CONVERT_URL = f"{API_URL}/convert"
+API_URL = "example.com"
+CONVERT_URL = f"https://{API_URL}/convert"
 
 
 @pytest.fixture(autouse=True)
 def set_api_url(cloud_mock):
     """Set TT API url."""
-    cloud_mock.thingtalk_url = API_URL
+    cloud_mock.thingtalk_server = API_URL
 
 
 async def test_async_convert_ok(aioclient_mock, cloud_mock):

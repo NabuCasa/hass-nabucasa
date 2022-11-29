@@ -15,7 +15,13 @@ from jose import jwt
 from .auth import CloudError, CognitoAuth
 from .client import CloudClient
 from .cloudhooks import Cloudhooks
-from .const import CONFIG_DIR, MODE_DEV, SERVERS, STATE_CONNECTED
+from .const import (
+    CONFIG_DIR,
+    MODE_DEV,
+    DEFAULT_SERVERS,
+    DEFAULT_VALUES,
+    STATE_CONNECTED,
+)
 from .google_report_state import GoogleReportState
 from .iot import CloudIoT
 from .remote import RemoteUI
@@ -32,19 +38,21 @@ class Cloud:
         self,
         client: CloudClient,
         mode: str,
+        *,
         cognito_client_id=None,
         user_pool_id=None,
         region=None,
-        relayer=None,
-        google_actions_report_state_url=None,
-        subscription_info_url=None,
-        cloudhook_create_url=None,
-        remote_api_url=None,
-        alexa_access_token_url=None,
-        account_link_url=None,
-        voice_api_url=None,
-        acme_directory_server=None,
-        thingtalk_url=None,
+        account_link_server=None,
+        accounts_server=None,
+        acme_server=None,
+        alexa_server=None,
+        cloudhook_server=None,
+        relayer_server=None,
+        remote_sni_server=None,
+        remotestate_server=None,
+        thingtalk_server=None,
+        voice_server=None,
+        **kwargs,
     ):
         """Create an instance of Cloud."""
         self._on_initialized: List[Callable[[], Awaitable[None]]] = []
@@ -72,33 +80,37 @@ class Cloud:
             self.cognito_client_id = cognito_client_id
             self.user_pool_id = user_pool_id
             self.region = region
-            self.relayer = relayer
-            self.google_actions_report_state_url = google_actions_report_state_url
-            self.subscription_info_url = subscription_info_url
-            self.cloudhook_create_url = cloudhook_create_url
-            self.remote_api_url = remote_api_url
-            self.alexa_access_token_url = alexa_access_token_url
-            self.acme_directory_server = acme_directory_server
-            self.account_link_url = account_link_url
-            self.voice_api_url = voice_api_url
-            self.thingtalk_url = thingtalk_url
+
+            self.account_link_server = account_link_server
+            self.accounts_server = accounts_server
+            self.acme_server = acme_server
+            self.alexa_server = alexa_server
+            self.cloudhook_server = cloudhook_server
+            self.relayer_server = relayer_server
+            self.remote_sni_server = remote_sni_server
+            self.remotestate_server = remotestate_server
+            self.thingtalk_server = thingtalk_server
+            self.voice_server = voice_server
             return
 
-        info = SERVERS[mode]
+        _values = DEFAULT_VALUES[mode]
 
-        self.cognito_client_id = info["cognito_client_id"]
-        self.user_pool_id = info["user_pool_id"]
-        self.region = info["region"]
-        self.relayer = info["relayer"]
-        self.google_actions_report_state_url = info["google_actions_report_state_url"]
-        self.subscription_info_url = info["subscription_info_url"]
-        self.cloudhook_create_url = info["cloudhook_create_url"]
-        self.remote_api_url = info["remote_api_url"]
-        self.alexa_access_token_url = info["alexa_access_token_url"]
-        self.account_link_url = info["account_link_url"]
-        self.voice_api_url = info["voice_api_url"]
-        self.acme_directory_server = info["acme_directory_server"]
-        self.thingtalk_url = info["thingtalk_url"]
+        self.cognito_client_id = _values["cognito_client_id"]
+        self.user_pool_id = _values["user_pool_id"]
+        self.region = _values["region"]
+
+        _servers = DEFAULT_SERVERS[mode]
+
+        self.account_link_server = _servers["account_link"]
+        self.accounts_server = _servers["accounts"]
+        self.acme_server = _servers["acme"]
+        self.alexa_server = _servers["alexa"]
+        self.cloudhook_server = _servers["cloudhook"]
+        self.relayer_server = _servers["relayer"]
+        self.remote_sni_server = _servers["remote_sni"]
+        self.remotestate_server = _servers["remotestate"]
+        self.thingtalk_server = _servers["thingtalk"]
+        self.voice_server = _servers["voice"]
 
     @property
     def is_logged_in(self) -> bool:
