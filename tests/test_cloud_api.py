@@ -155,7 +155,7 @@ async def test_subscription_info(auth_cloud_mock, aioclient_mock):
 
 
 async def test_migrate_paypal_agreement(auth_cloud_mock, aioclient_mock):
-    """Test migrating a subscription."""
+    """Test a paypal agreement from legacy."""
     aioclient_mock.post(
         "https://example.com/migrate_paypal_agreement",
         json={
