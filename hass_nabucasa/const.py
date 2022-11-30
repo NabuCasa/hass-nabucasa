@@ -22,7 +22,7 @@ DEFAULT_SERVERS = {
         "acme": "acme-v02.api.letsencrypt.org",
         "alexa": "alexa-api.nabucasa.com",
         "cloudhook": "webhooks-api.nabucasa.com",
-        "relayer": "cloud.nabucasa.com/websocket",
+        "relayer": "cloud.nabucasa.com",
         "remote_sni": "remote-sni-api.nabucasa.com",
         "remotestate": "remotestate.nabucasa.com",
         "thingtalk": "thingtalk-api.nabucasa.com",
