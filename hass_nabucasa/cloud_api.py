@@ -133,3 +133,15 @@ async def async_subscription_info(cloud):
         await cloud.auth.async_renew_access_token()
 
     return data
+
+
+@_check_token
+async def async_migrate_paypal_agreement(cloud):
+    """Migrate a paypal agreement from legacy."""
+    resp = await cloud.websession.post(
+        f"https://{cloud.accounts_server}/migrate_paypal_agreement",
+        headers={"authorization": cloud.id_token},
+    )
+    _do_log_response(resp)
+    resp.raise_for_status()
+    return await resp.json()

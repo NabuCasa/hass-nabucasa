@@ -152,3 +152,21 @@ async def test_subscription_info(auth_cloud_mock, aioclient_mock):
         "provider": "mock-provider",
     }
     assert len(mock_renew.mock_calls) == 1
+
+
+async def test_migrate_paypal_agreement(auth_cloud_mock, aioclient_mock):
+    """Test a paypal agreement from legacy."""
+    aioclient_mock.post(
+        "https://example.com/migrate_paypal_agreement",
+        json={
+            "url": "https://example.com/some/path",
+        },
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.accounts_server = "example.com"
+
+    data = await cloud_api.async_migrate_paypal_agreement(auth_cloud_mock)
+    assert len(aioclient_mock.mock_calls) == 1
+    assert data == {
+        "url": "https://example.com/some/path",
+    }
