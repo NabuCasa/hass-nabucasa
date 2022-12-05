@@ -271,7 +271,7 @@ class AcmeHandler:
         try:
             order = self._acme_client.poll_authorizations(handler.order, deadline)
             order = self._acme_client.finalize_order(
-                order, deadline, fetch_alternative_chains=True
+                order, deadline, fetch_alternative_chains=False
             )
         except errors.Error as err:
             _LOGGER.error("Wait of ACME challenge fails: %s", err)
