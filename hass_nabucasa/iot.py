@@ -42,7 +42,7 @@ class CloudIoT(iot_base.BaseIoT):
         super().__init__(cloud)
 
         # Local code waiting for a response
-        self._response_handler: dict[str, Any] = {}
+        self._response_handler: dict[str, asyncio.Future[None]] = {}
 
         # Register start/stop
         cloud.register_on_start(self.start)
