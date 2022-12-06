@@ -148,8 +148,7 @@ class Cloud:
     @property
     def claims(self) -> Mapping[str, str]:
         """Return the claims from the id token."""
-        assert self.id_token is not None
-        return self._decode_claims(self.id_token)
+        return self._decode_claims(str(self.id_token))
 
     @property
     def user_info_path(self) -> Path:
