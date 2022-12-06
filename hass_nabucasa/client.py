@@ -10,7 +10,7 @@ import aiohttp
 from aiohttp import web
 
 if TYPE_CHECKING:
-    from . import Cloud  # noqa
+    from . import Cloud
 
 
 class CloudClient(ABC):
