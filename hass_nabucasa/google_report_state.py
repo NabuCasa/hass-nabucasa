@@ -36,7 +36,7 @@ class GoogleReportState(iot_base.BaseIoT):
     def __init__(self, cloud: Cloud) -> None:
         """Initialize Google Report State."""
         super().__init__(cloud)
-        self._connect_lock: asyncio.Lock = asyncio.Lock()
+        self._connect_lock = asyncio.Lock()
         self._to_send: Queue[dict[str, Any]] = Queue(100)
         self._message_sender_task: asyncio.Task | None = None
         # Local code waiting for a response

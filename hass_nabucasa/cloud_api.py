@@ -48,7 +48,7 @@ def _log_response(
     @wraps(func)
     async def log_response(*args: Any) -> ClientResponse:
         """Log response if it's bad."""
-        resp: ClientResponse = await func(*args)
+        resp = await func(*args)
         _do_log_response(resp)
         return resp
 

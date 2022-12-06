@@ -70,7 +70,7 @@ class CognitoAuth:
 
     def __init__(self, cloud: Cloud) -> None:
         """Configure the auth api."""
-        self.cloud: Cloud = cloud
+        self.cloud = cloud
         self._refresh_task: asyncio.Task | None = None
         self._session = boto3.session.Session()
         self._request_lock = asyncio.Lock()

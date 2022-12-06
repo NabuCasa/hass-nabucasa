@@ -75,7 +75,7 @@ class RemoteUI:
 
     def __init__(self, cloud: Cloud) -> None:
         """Initialize cloudhooks."""
-        self.cloud: Cloud = cloud
+        self.cloud = cloud
         self._acme: AcmeHandler | None = None
         self._snitun: SniTunClientAioHttp | None = None
         self._snitun_server: str | None = None

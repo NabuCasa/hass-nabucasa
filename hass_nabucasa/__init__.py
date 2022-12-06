@@ -58,8 +58,8 @@ class Cloud:
         self._on_initialized: list[Callable[[], Awaitable[None]]] = []
         self._on_start: list[Callable[[], Awaitable[None]]] = []
         self._on_stop: list[Callable[[], Awaitable[None]]] = []
-        self.mode: str = mode
-        self.client: CloudClient = client
+        self.mode = mode
+        self.client = client
         self.id_token: str | None = None
         self.access_token: str | None = None
         self.refresh_token: str | None = None

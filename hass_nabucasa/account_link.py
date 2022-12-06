@@ -37,7 +37,7 @@ class AccountLinkException(Exception):
     def __init__(self, code: str) -> None:
         """Initialize the exception."""
         super().__init__(code)
-        self.code: str = code
+        self.code = code
 
 
 def _update_token_response(tokens: dict[str, str], service: str) -> None:
@@ -50,8 +50,8 @@ class AuthorizeAccountHelper:
 
     def __init__(self, cloud: Cloud, service: str) -> None:
         """Initialize the authorize account helper."""
-        self.cloud: Cloud = cloud
-        self.service: str = service
+        self.cloud = cloud
+        self.service = service
         self._client: ClientWebSocketResponse | None = None
 
     async def async_get_authorize_url(self) -> str:

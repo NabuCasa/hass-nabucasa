@@ -50,7 +50,7 @@ class BaseIoT:
 
     def __init__(self, cloud: Cloud) -> None:
         """Initialize the CloudIoT class."""
-        self.cloud: Cloud = cloud
+        self.cloud = cloud
         # The WebSocket client
         self.client: ClientWebSocketResponse | None = None
         # Scheduled sleep task till next connection retry
