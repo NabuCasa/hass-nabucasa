@@ -136,7 +136,9 @@ class Cloud:
     def expiration_date(self) -> datetime:
         """Return the subscription expiration as a UTC datetime object."""
         if (parsed_date := parse_date(self.claims["custom:sub-exp"])) is None:
-            raise ValueError(f"Invalid expiration date ({self.claims['custom:sub-exp']})")
+            raise ValueError(
+                f"Invalid expiration date ({self.claims['custom:sub-exp']})"
+            )
         return datetime.combine(parsed_date, datetime.min.time()).replace(tzinfo=UTC)
 
     @property
