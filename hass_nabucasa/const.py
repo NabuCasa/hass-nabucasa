@@ -1,4 +1,6 @@
 """Constants for the hass-nabucasa."""
+from __future__ import annotations
+
 CONFIG_DIR = ".cloud"
 
 REQUEST_TIMEOUT = 10
@@ -15,7 +17,7 @@ DISPATCH_REMOTE_DISCONNECT = "remote_disconnect"
 DISPATCH_REMOTE_BACKEND_UP = "remote_backend_up"
 DISPATCH_REMOTE_BACKEND_DOWN = "remote_backend_down"
 
-DEFAULT_SERVERS = {
+DEFAULT_SERVERS: dict[str, dict[str, str]] = {
     "production": {
         "account_link": "account-link.nabucasa.com",
         "accounts": "accounts.nabucasa.com",
@@ -31,7 +33,7 @@ DEFAULT_SERVERS = {
     "development": {},
 }
 
-DEFAULT_VALUES = {
+DEFAULT_VALUES: dict[str, dict[str, str]] = {
     "production": {
         "cognito_client_id": "60i2uvhvbiref2mftj7rgcrt9u",
         "user_pool_id": "us-east-1_87ll5WOP8",

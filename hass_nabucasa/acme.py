@@ -1,10 +1,12 @@
 """Handle ACME and local certificates."""
+from __future__ import annotations
+
 import asyncio
 import contextlib
 from datetime import datetime, timedelta
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 import urllib
 
 import OpenSSL
@@ -32,6 +34,9 @@ USER_AGENT = "home-assistant-cloud"
 
 _LOGGER = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from . import Cloud
+
 
 class AcmeClientError(Exception):
     """Raise if a acme client error raise."""
@@ -49,7 +54,7 @@ class AcmeNabuCasaError(AcmeClientError):
 class ChallengeHandler:
     """Handle ACME data over a challenge."""
 
-    challenge = attr.ib(type=messages.ChallengeResource)
+    challenge = attr.ib(type=messages.ChallengeBody)
     order = attr.ib(type=messages.OrderResource)
     response = attr.ib(type=challenges.ChallengeResponse)
     validation = attr.ib(type=str)
@@ -58,13 +63,13 @@ class ChallengeHandler:
 class AcmeHandler:
     """Class handle a local certification."""
 
-    def __init__(self, cloud, domain: str, email: str) -> None:
+    def __init__(self, cloud: Cloud, domain: str, email: str) -> None:
         """Initialize local ACME Handler."""
-        self.cloud = cloud
+        self.cloud: Cloud = cloud
         self._acme_server: str = f"https://{cloud.acme_server}/directory"
-        self._account_jwk: Optional[jose.JWKRSA] = None
-        self._acme_client: Optional[client.ClientV2] = None
-        self._x509: Optional[x509.Certificate] = None
+        self._account_jwk: jose.JWKRSA | None = None
+        self._acme_client: client.ClientV2 | None = None
+        self._x509: x509.Certificate | None = None
 
         self._domain: str = domain
         self._email: str = email
@@ -102,21 +107,21 @@ class AcmeHandler:
         return self._x509.not_valid_after > datetime.utcnow()
 
     @property
-    def expire_date(self) -> Optional[datetime]:
+    def expire_date(self) -> datetime | None:
         """Return datetime of expire date for certificate."""
         if not self._x509:
             return None
         return self._x509.not_valid_after.replace(tzinfo=UTC)
 
     @property
-    def common_name(self) -> Optional[str]:
+    def common_name(self) -> str | bytes | None:
         """Return CommonName of certificate."""
         if not self._x509:
             return None
         return self._x509.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
 
     @property
-    def fingerprint(self) -> Optional[str]:
+    def fingerprint(self) -> str | None:
         """Return SHA1 hex string as fingerprint."""
         if not self._x509:
             return None
@@ -182,6 +187,7 @@ class AcmeHandler:
 
         # Make sure that account key is loaded
         self._load_account_key()
+        assert self._account_jwk is not None
 
         # Load a exists registration
         if self.path_registration_info.exists():
@@ -229,9 +235,10 @@ class AcmeHandler:
         )
         self.path_registration_info.chmod(0o600)
 
-    def _start_challenge(self, csr_pem: str) -> ChallengeHandler:
+    def _start_challenge(self, csr_pem: bytes) -> ChallengeHandler:
         """Initialize domain challenge and return token."""
         _LOGGER.info("Initialize challenge for a new ACME certificate")
+        assert self._acme_client is not None
         try:
             order = self._acme_client.new_order(csr_pem)
         except errors.Error as err:
@@ -240,12 +247,16 @@ class AcmeHandler:
 
         # Find DNS challenge
         # pylint: disable=not-an-iterable
-        dns_challenge = None
+        dns_challenge: messages.ChallengeBody | None = None
         for auth in order.authorizations:
             for challenge in auth.body.challenges:
                 if challenge.typ != "dns-01":
                     continue
                 dns_challenge = challenge
+
+        if dns_challenge is None:
+            _LOGGER.error("No pending ACME challenge")
+            raise AcmeChallengeError()
 
         try:
             response, validation = dns_challenge.response_and_validation(
@@ -260,6 +271,7 @@ class AcmeHandler:
     def _finish_challenge(self, handler: ChallengeHandler) -> None:
         """Wait until challenge is finished."""
         _LOGGER.info("Finishing challenge for the new ACME certificate")
+        assert self._acme_client is not None
         try:
             self._acme_client.answer_challenge(handler.challenge, handler.response)
         except errors.Error as err:
@@ -293,7 +305,7 @@ class AcmeHandler:
         if self._x509 or not self.path_fullchain.exists():
             return
 
-        def _load_cert():
+        def _load_cert() -> x509.Certificate:
             """Load certificate in a thread."""
             return x509.load_pem_x509_certificate(self.path_fullchain.read_bytes())
 
@@ -306,6 +318,10 @@ class AcmeHandler:
         """Revoke certificate."""
         if not self.path_fullchain.exists():
             _LOGGER.warning("Can't revoke not exists certificate")
+            return
+
+        if self._acme_client is None:
+            _LOGGER.error("No acme client")
             return
 
         fullchain = jose.ComparableX509(
@@ -336,7 +352,7 @@ class AcmeHandler:
 
     def _deactivate_account(self) -> None:
         """Deactivate account."""
-        if not self.path_registration_info.exists():
+        if not self.path_registration_info.exists() or self._acme_client is None:
             return
 
         _LOGGER.info("Load exists ACME registration")
@@ -411,7 +427,7 @@ class AcmeHandler:
     async def hardening_files(self) -> None:
         """Control permission on files."""
 
-        def _control():
+        def _control() -> None:
             # Set file permission to 0600
             if self.path_account_key.exists():
                 self.path_account_key.chmod(0o600)

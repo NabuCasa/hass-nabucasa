@@ -130,7 +130,7 @@ class CloudIoT(iot_base.BaseIoT):
         if self.client is None:
             return
 
-        if self._logger.isEnabledFor(logging.DEBUG):  # type: ignore[unreachable]
+        if self._logger.isEnabledFor(logging.DEBUG):
             self._logger.debug("Publishing message:\n%s\n", pprint.pformat(response))
 
         # Suppress when client is closing.

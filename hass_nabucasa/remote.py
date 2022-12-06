@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import logging
 import random
 import ssl
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import aiohttp
 import async_timeout
@@ -106,12 +106,12 @@ class RemoteUI:
         self._acme_task = None
 
     @property
-    def snitun_server(self) -> Optional[str]:
+    def snitun_server(self) -> str | None:
         """Return connected snitun server."""
         return self._snitun_server
 
     @property
-    def instance_domain(self) -> Optional[str]:
+    def instance_domain(self) -> str | None:
         """Return instance domain."""
         return self._instance_domain
 
@@ -121,7 +121,7 @@ class RemoteUI:
         return bool(False if self._snitun is None else self._snitun.is_connected)
 
     @property
-    def certificate(self) -> Optional[Certificate]:
+    def certificate(self) -> Certificate | None:
         """Return certificate details."""
         if not self._acme or not self._acme.certificate_available:
             return None
@@ -134,7 +134,7 @@ class RemoteUI:
             return None
 
         return Certificate(
-            self._acme.common_name, self._acme.expire_date, self._acme.fingerprint
+            str(self._acme.common_name), self._acme.expire_date, self._acme.fingerprint
         )
 
     async def _create_context(self) -> ssl.SSLContext:

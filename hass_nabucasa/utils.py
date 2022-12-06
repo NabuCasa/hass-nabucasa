@@ -1,9 +1,11 @@
 """Helper methods to handle the time in Home Assistant."""
+from __future__ import annotations
+
 import asyncio
 import datetime as dt
 import logging
 import ssl
-from typing import Awaitable, Callable, List, Optional, TypeVar
+from typing import Awaitable, Callable, TypeVar
 
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # noqa pylint: disable=invalid-name
 DATE_STR_FORMAT = "%Y-%m-%d"
@@ -20,7 +22,7 @@ def utc_from_timestamp(timestamp: float) -> dt.datetime:
     return dt.datetime.utcfromtimestamp(timestamp).replace(tzinfo=UTC)
 
 
-def parse_date(dt_str: str) -> Optional[dt.date]:
+def parse_date(dt_str: str) -> dt.date | None:
     """Convert a date string to a date object."""
     try:
         return dt.datetime.strptime(dt_str, DATE_STR_FORMAT).date()
@@ -66,7 +68,7 @@ def next_midnight() -> float:
 
 
 async def gather_callbacks(
-    logger: logging.Logger, name: str, callbacks: List[Callable[[], Awaitable[None]]]
+    logger: logging.Logger, name: str, callbacks: list[Callable[[], Awaitable[None]]]
 ) -> None:
     results = await asyncio.gather(*[cb() for cb in callbacks], return_exceptions=True)
     for result, callback in zip(results, callbacks):
