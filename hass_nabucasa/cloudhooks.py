@@ -1,17 +1,22 @@
 """Manage cloud cloudhooks."""
-from typing import Any, Dict
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import async_timeout
 
 from . import cloud_api
 
+if TYPE_CHECKING:
+    from . import Cloud
+
 
 class Cloudhooks:
     """Class to help manage cloudhooks."""
 
-    def __init__(self, cloud):
+    def __init__(self, cloud: Cloud) -> None:
         """Initialize cloudhooks."""
-        self.cloud = cloud
+        self.cloud: Cloud = cloud
 
         cloud.iot.register_on_connect(self.async_publish_cloudhooks)
 
@@ -27,7 +32,7 @@ class Cloudhooks:
             expect_answer=False,
         )
 
-    async def async_create(self, webhook_id: str, managed: bool) -> Dict[str, Any]:
+    async def async_create(self, webhook_id: str, managed: bool) -> dict[str, Any]:
         """Create a cloud webhook."""
         cloudhooks = self.cloud.client.cloudhooks
 
