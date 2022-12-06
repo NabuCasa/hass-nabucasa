@@ -57,7 +57,7 @@ def server_context_modern() -> ssl.SSLContext:
     return context
 
 
-def next_midnight() -> int:
+def next_midnight() -> float:
     """Return the seconds till next local midnight."""
     midnight = dt.datetime.now().replace(
         hour=0, minute=0, second=0, microsecond=0
