@@ -178,7 +178,7 @@ class CognitoAuth:
         except BotoCoreError as err:
             raise UnknownError() from err
 
-    async def async_check_token(self):
+    async def async_check_token(self) -> None:
         """Check that the token is valid and renew if necessary."""
         async with self._request_lock:
             if not self._authenticated_cognito.check_token(renew=False):
