@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import json
 import logging
 from pathlib import Path
-from typing import Awaitable, Callable, Coroutine, List
+from typing import Any, Awaitable, Callable, Coroutine, Mapping
 
 import aiohttp
 from atomicwrites import atomic_write
@@ -39,31 +39,31 @@ class Cloud:
         client: CloudClient,
         mode: str,
         *,
-        cognito_client_id=None,
-        user_pool_id=None,
-        region=None,
-        account_link_server=None,
-        accounts_server=None,
-        acme_server=None,
-        alexa_server=None,
-        cloudhook_server=None,
-        relayer_server=None,
-        remote_sni_server=None,
-        remotestate_server=None,
-        thingtalk_server=None,
-        voice_server=None,
-        **kwargs,
-    ):
+        cognito_client_id: str | None = None,
+        user_pool_id: str | None = None,
+        region: str | None = None,
+        account_link_server: str | None = None,
+        accounts_server: str | None = None,
+        acme_server: str | None = None,
+        alexa_server: str | None = None,
+        cloudhook_server: str | None = None,
+        relayer_server: str | None = None,
+        remote_sni_server: str | None = None,
+        remotestate_server: str | None = None,
+        thingtalk_server: str | None = None,
+        voice_server: str | None = None,
+        **kwargs: Any,
+    ) -> None:
         """Create an instance of Cloud."""
-        self._on_initialized: List[Callable[[], Awaitable[None]]] = []
-        self._on_start: List[Callable[[], Awaitable[None]]] = []
-        self._on_stop: List[Callable[[], Awaitable[None]]] = []
+        self._on_initialized: list[Callable[[], Awaitable[None]]] = []
+        self._on_start: list[Callable[[], Awaitable[None]]] = []
+        self._on_stop: list[Callable[[], Awaitable[None]]] = []
         self.mode = mode
         self.client = client
-        self.id_token = None
-        self.access_token = None
-        self.refresh_token = None
-        self.started = None
+        self.id_token: str | None = None
+        self.access_token: str | None = None
+        self.refresh_token: str | None = None
+        self.started: bool | None = None
         self.iot = CloudIoT(self)
         self.google_report_state = GoogleReportState(self)
         self.cloudhooks = Cloudhooks(self)
@@ -71,7 +71,7 @@ class Cloud:
         self.auth = CognitoAuth(self)
         self.voice = Voice(self)
 
-        self._init_task = None
+        self._init_task: asyncio.Task | None = None
 
         # Set reference
         self.client.cloud = self
@@ -130,14 +130,16 @@ class Cloud:
     @property
     def subscription_expired(self) -> bool:
         """Return a boolean if the subscription has expired."""
-        return utcnow() > self.expiration_date + timedelta(days=7)
+        return self.expiration_date is None or (
+            utcnow() > self.expiration_date + timedelta(days=7)
+        )
 
     @property
-    def expiration_date(self) -> datetime:
+    def expiration_date(self) -> datetime | None:
         """Return the subscription expiration as a UTC datetime object."""
-        return datetime.combine(
-            parse_date(self.claims["custom:sub-exp"]), datetime.min.time()
-        ).replace(tzinfo=UTC)
+        if (parsed_date := parse_date(self.claims["custom:sub-exp"])) is None:
+            return None
+        return datetime.combine(parsed_date, datetime.min.time()).replace(tzinfo=UTC)
 
     @property
     def username(self) -> str:
@@ -145,9 +147,9 @@ class Cloud:
         return self.claims["cognito:username"]
 
     @property
-    def claims(self):
+    def claims(self) -> Mapping[str, str]:
         """Return the claims from the id token."""
-        return self._decode_claims(self.id_token)
+        return self._decode_claims(str(self.id_token))
 
     @property
     def user_info_path(self) -> Path:
@@ -176,36 +178,38 @@ class Cloud:
             self.started = False
             await self.stop()
 
-    def register_on_initialized(self, on_initialized_cb: Callable[[], Awaitable[None]]):
+    def register_on_initialized(
+        self, on_initialized_cb: Callable[[], Awaitable[None]]
+    ) -> None:
         """Register an async on_initialized callback.
 
         on_initialized callbacks are called after all on_start callbacks.
         """
         self._on_initialized.append(on_initialized_cb)
 
-    def register_on_start(self, on_start_cb: Callable[[], Awaitable[None]]):
+    def register_on_start(self, on_start_cb: Callable[[], Awaitable[None]]) -> None:
         """Register an async on_start callback."""
         self._on_start.append(on_start_cb)
 
-    def register_on_stop(self, on_stop_cb: Callable[[], Awaitable[None]]):
+    def register_on_stop(self, on_stop_cb: Callable[[], Awaitable[None]]) -> None:
         """Register an async on_stop callback."""
         self._on_stop.append(on_stop_cb)
 
-    def path(self, *parts) -> Path:
+    def path(self, *parts: Any) -> Path:
         """Get config path inside cloud dir.
 
         Async friendly.
         """
         return Path(self.client.base_path, CONFIG_DIR, *parts)
 
-    def run_task(self, coro: Coroutine) -> Coroutine:
+    def run_task(self, coro: Coroutine) -> asyncio.Task:
         """Schedule a task.
 
-        Return a coroutine.
+        Return a task.
         """
         return self.client.loop.create_task(coro)
 
-    def run_executor(self, callback: Callable, *args) -> asyncio.Future:
+    def run_executor(self, callback: Callable, *args: Any) -> asyncio.Future:
         """Run function inside executore.
 
         Return a awaitable object.
@@ -250,10 +254,10 @@ class Cloud:
             )
         self.user_info_path.chmod(0o600)
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize the cloud component (load auth and maybe start)."""
 
-        def load_config():
+        def load_config() -> None | dict[str, Any]:
             """Load config."""
             # Ensure config dir exists
             base_path = self.path()
@@ -263,7 +267,10 @@ class Cloud:
             if not self.user_info_path.exists():
                 return None
             try:
-                return json.loads(self.user_info_path.read_text(encoding="utf-8"))
+                content: dict[str, Any] = json.loads(
+                    self.user_info_path.read_text(encoding="utf-8")
+                )
+                return content
             except (ValueError, OSError) as err:
                 path = self.user_info_path.relative_to(self.client.base_path)
                 self.client.user_message(
@@ -288,7 +295,7 @@ class Cloud:
 
         self._init_task = self.run_task(self._finish_initialize())
 
-    async def _finish_initialize(self):
+    async def _finish_initialize(self) -> None:
         """Finish initializing the cloud component (load auth and maybe start)."""
         try:
             await self.auth.async_check_token()
@@ -304,12 +311,12 @@ class Cloud:
         await gather_callbacks(_LOGGER, "on_initialized", self._on_initialized)
         self._init_task = None
 
-    async def _start(self):
+    async def _start(self) -> None:
         """Start the cloud component."""
         await self.client.cloud_started()
         await gather_callbacks(_LOGGER, "on_start", self._on_start)
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the cloud component."""
         if self._init_task:
             self._init_task.cancel()
@@ -319,6 +326,7 @@ class Cloud:
         await gather_callbacks(_LOGGER, "on_stop", self._on_stop)
 
     @staticmethod
-    def _decode_claims(token):
+    def _decode_claims(token: str) -> Mapping[str, Any]:
         """Decode the claims in a token."""
-        return jwt.get_unverified_claims(token)
+        decoded: Mapping[str, Any] = jwt.get_unverified_claims(token)
+        return decoded

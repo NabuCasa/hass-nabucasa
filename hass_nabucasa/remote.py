@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import logging
 import random
 import ssl
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import aiohttp
 import async_timeout
@@ -73,16 +73,16 @@ class Certificate:
 class RemoteUI:
     """Class to help manage remote connections."""
 
-    def __init__(self, cloud: Cloud):
+    def __init__(self, cloud: Cloud) -> None:
         """Initialize cloudhooks."""
         self.cloud = cloud
-        self._acme = None
-        self._snitun = None
-        self._snitun_server = None
-        self._instance_domain = None
-        self._reconnect_task = None
-        self._acme_task = None
-        self._token = None
+        self._acme: AcmeHandler | None = None
+        self._snitun: SniTunClientAioHttp | None = None
+        self._snitun_server: str | None = None
+        self._instance_domain: str | None = None
+        self._reconnect_task: asyncio.Task | None = None
+        self._acme_task: asyncio.Task | None = None
+        self._token: SniTunToken | None = None
 
         self._info_loaded = asyncio.Event()
 
@@ -106,33 +106,42 @@ class RemoteUI:
         self._acme_task = None
 
     @property
-    def snitun_server(self) -> Optional[str]:
+    def snitun_server(self) -> str | None:
         """Return connected snitun server."""
         return self._snitun_server
 
     @property
-    def instance_domain(self) -> Optional[str]:
+    def instance_domain(self) -> str | None:
         """Return instance domain."""
         return self._instance_domain
 
     @property
     def is_connected(self) -> bool:
         """Return true if we are ready to connect."""
-        return False if self._snitun is None else self._snitun.is_connected
+        return bool(False if self._snitun is None else self._snitun.is_connected)
 
     @property
-    def certificate(self) -> Optional[Certificate]:
+    def certificate(self) -> Certificate | None:
         """Return certificate details."""
-        if not self._acme or not self._acme.certificate_available:
+        if (
+            not self._acme
+            or not self._acme.certificate_available
+            or self._acme.common_name is None
+            or self._acme.expire_date is None
+            or self._acme.fingerprint is None
+        ):
             return None
 
         return Certificate(
-            self._acme.common_name, self._acme.expire_date, self._acme.fingerprint
+            str(self._acme.common_name), self._acme.expire_date, self._acme.fingerprint
         )
 
     async def _create_context(self) -> ssl.SSLContext:
         """Create SSL context with acme certificate."""
         context = utils.server_context_modern()
+
+        # We can not get here without this being set, but mypy does not know that.
+        assert self._acme is not None
 
         await self.cloud.run_executor(
             context.load_cert_chain,
@@ -185,8 +194,11 @@ class RemoteUI:
 
         should_create_cert = not self._acme.certificate_available
 
-        if should_create_cert or self._acme.expire_date < utils.utcnow() + timedelta(
-            days=RENEW_IF_EXPIRES_DAYS
+        if (
+            should_create_cert
+            or self._acme.expire_date is None
+            or self._acme.expire_date
+            < utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS)
         ):
             try:
                 await self._acme.issue_certificate()
@@ -196,7 +208,7 @@ class RemoteUI:
                     "Home Assistant Cloud",
                     const.MESSAGE_REMOTE_SETUP,
                 )
-                return
+                return False
             else:
                 if should_create_cert:
                     self.cloud.client.user_message(
@@ -316,6 +328,9 @@ class RemoteUI:
             async with async_timeout.timeout(30):
                 await self._refresh_snitun_token()
 
+            # We can not get here without this being set, but mypy does not know that.
+            assert self._token is not None
+
             _LOGGER.debug("Attempting connection to %s", self._snitun_server)
             async with async_timeout.timeout(30):
                 await self._snitun.connect(
@@ -353,7 +368,7 @@ class RemoteUI:
             elif self._reconnect_task and insecure:
                 self.cloud.run_task(self.disconnect())
 
-    async def disconnect(self, clear_snitun_token=False) -> None:
+    async def disconnect(self, clear_snitun_token: bool = False) -> None:
         """Disconnect from snitun server."""
         if not self._snitun:
             _LOGGER.error("Can't handle request-connection without backend")
@@ -376,7 +391,7 @@ class RemoteUI:
         """Reconnect after disconnect."""
         try:
             while True:
-                if self._snitun.is_connected:
+                if self._snitun is not None and self._snitun.is_connected:
                     await self._snitun.wait()
 
                 self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_DISCONNECT)
@@ -402,9 +417,13 @@ class RemoteUI:
                         await asyncio.sleep(10)
                     continue
 
+                # We can not get here without this being set, but mypy does not know that.
+                assert self._acme is not None
+
                 # Renew certificate?
-                if self._acme.expire_date > utils.utcnow() + timedelta(
-                    days=RENEW_IF_EXPIRES_DAYS
+                if self._acme.expire_date is not None and (
+                    self._acme.expire_date
+                    > (utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS))
                 ):
                     continue
 
@@ -419,10 +438,10 @@ class RemoteUI:
                     await self.load_backend()
                 except AcmeClientError:
                     # Only log as warning if we have a certain amount of days left
-                    if (
+                    if self._acme.expire_date is None or (
                         self._acme.expire_date
                         > utils.utcnow()
-                        < timedelta(days=WARN_RENEW_FAILED_DAYS)
+                        < (utils.utcnow() + timedelta(days=WARN_RENEW_FAILED_DAYS))
                     ):
                         meth = _LOGGER.warning
                     else:

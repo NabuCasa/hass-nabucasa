@@ -1,20 +1,22 @@
 """Client interface for Home Assistant to cloud."""
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from aiohttp import web
 
 if TYPE_CHECKING:
-    from . import Cloud  # noqa
+    from . import Cloud
 
 
 class CloudClient(ABC):
     """Interface class for Home Assistant."""
 
-    cloud: Optional["Cloud"] = None
+    cloud: Cloud | None = None
 
     @property
     @abstractmethod
@@ -33,12 +35,12 @@ class CloudClient(ABC):
 
     @property
     @abstractmethod
-    def aiohttp_runner(self) -> web.AppRunner:
+    def aiohttp_runner(self) -> web.AppRunner | None:
         """Return client webinterface aiohttp application."""
 
     @property
     @abstractmethod
-    def cloudhooks(self) -> Dict[str, Dict[str, str]]:
+    def cloudhooks(self) -> dict[str, dict[str, str | bool]]:
         """Return list of cloudhooks."""
 
     @property
@@ -63,19 +65,22 @@ class CloudClient(ABC):
         """Process cloud remote message to client."""
 
     @abstractmethod
-    async def async_alexa_message(self, payload: Dict[Any, Any]) -> Dict[Any, Any]:
+    async def async_alexa_message(self, payload: dict[Any, Any]) -> dict[Any, Any]:
         """process cloud alexa message to client."""
 
     @abstractmethod
-    async def async_google_message(self, payload: Dict[Any, Any]) -> Dict[Any, Any]:
+    async def async_google_message(self, payload: dict[Any, Any]) -> dict[Any, Any]:
         """Process cloud google message to client."""
 
     @abstractmethod
-    async def async_webhook_message(self, payload: Dict[Any, Any]) -> Dict[Any, Any]:
+    async def async_webhook_message(self, payload: dict[Any, Any]) -> dict[Any, Any]:
         """Process cloud webhook message to client."""
 
     @abstractmethod
-    async def async_cloudhooks_update(self, data: Dict[str, Dict[str, str]]) -> None:
+    async def async_cloudhooks_update(
+        self,
+        data: dict[str, dict[str, str | bool]],
+    ) -> None:
         """Update local list of cloudhooks."""
 
     @abstractmethod
