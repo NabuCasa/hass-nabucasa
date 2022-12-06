@@ -130,15 +130,15 @@ class Cloud:
     @property
     def subscription_expired(self) -> bool:
         """Return a boolean if the subscription has expired."""
-        return self.expiration_date is None or (
-            utcnow() > self.expiration_date + timedelta(days=7)
-        )
+        return utcnow() > self.expiration_date + timedelta(days=7)
 
     @property
-    def expiration_date(self) -> datetime | None:
+    def expiration_date(self) -> datetime:
         """Return the subscription expiration as a UTC datetime object."""
         if (parsed_date := parse_date(self.claims["custom:sub-exp"])) is None:
-            return None
+            raise ValueError(
+                f"Invalid expiration date ({self.claims['custom:sub-exp']})"
+            )
         return datetime.combine(parsed_date, datetime.min.time()).replace(tzinfo=UTC)
 
     @property
