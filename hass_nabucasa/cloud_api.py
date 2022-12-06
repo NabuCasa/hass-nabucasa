@@ -1,23 +1,38 @@
 """Cloud APIs."""
+from __future__ import annotations
+
 from functools import wraps
 import logging
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    TypeVar,
+)
+from aiohttp import ClientResponse
 
 from aiohttp.hdrs import AUTHORIZATION
 
 _LOGGER = logging.getLogger(__name__)
 
+T = TypeVar("T")
 
-def _do_log_response(resp):
+if TYPE_CHECKING:
+    from . import Cloud
+
+
+def _do_log_response(resp: ClientResponse) -> None:
     """Log the response."""
     meth = _LOGGER.debug if resp.status < 400 else _LOGGER.warning
     meth("Fetched %s (%s)", resp.url, resp.status)
 
 
-def _check_token(func):
+def _check_token(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
     """Decorate a function to verify valid token."""
 
     @wraps(func)
-    async def check_token(cloud, *args):
+    async def check_token(cloud: Cloud, *args: Any) -> T:
         """Validate token, then call func."""
         await cloud.auth.async_check_token()
         return await func(cloud, *args)
@@ -25,13 +40,15 @@ def _check_token(func):
     return check_token
 
 
-def _log_response(func):
+def _log_response(
+    func: Callable[..., Awaitable[ClientResponse]]
+) -> Callable[..., Awaitable[ClientResponse]]:
     """Decorate a function to log bad responses."""
 
     @wraps(func)
-    async def log_response(*args):
+    async def log_response(*args: Any) -> ClientResponse:
         """Log response if it's bad."""
-        resp = await func(*args)
+        resp: ClientResponse = await func(*args)
         _do_log_response(resp)
         return resp
 
@@ -40,7 +57,7 @@ def _log_response(func):
 
 @_check_token
 @_log_response
-async def async_create_cloudhook(cloud):
+async def async_create_cloudhook(cloud: Cloud) -> ClientResponse:
     """Create a cloudhook."""
     return await cloud.websession.post(
         f"https://{cloud.cloudhook_server}/generate",
@@ -50,7 +67,7 @@ async def async_create_cloudhook(cloud):
 
 @_check_token
 @_log_response
-async def async_remote_register(cloud):
+async def async_remote_register(cloud: Cloud) -> ClientResponse:
     """Create/Get a remote URL."""
     url = f"https://{cloud.remote_sni_server}/register_instance"
     return await cloud.websession.post(url, headers={AUTHORIZATION: cloud.id_token})
@@ -58,7 +75,9 @@ async def async_remote_register(cloud):
 
 @_check_token
 @_log_response
-async def async_remote_token(cloud, aes_key: bytes, aes_iv: bytes):
+async def async_remote_token(
+    cloud: Cloud, aes_key: bytes, aes_iv: bytes
+) -> ClientResponse:
     """Create a remote snitun token."""
     url = f"https://{cloud.remote_sni_server}/snitun_token"
     return await cloud.websession.post(
@@ -70,7 +89,7 @@ async def async_remote_token(cloud, aes_key: bytes, aes_iv: bytes):
 
 @_check_token
 @_log_response
-async def async_remote_challenge_txt(cloud, txt: str):
+async def async_remote_challenge_txt(cloud: Cloud, txt: str) -> ClientResponse:
     """Set DNS challenge."""
     url = f"https://{cloud.remote_sni_server}/challenge_txt"
     return await cloud.websession.post(
@@ -80,7 +99,7 @@ async def async_remote_challenge_txt(cloud, txt: str):
 
 @_check_token
 @_log_response
-async def async_remote_challenge_cleanup(cloud, txt: str):
+async def async_remote_challenge_cleanup(cloud: Cloud, txt: str) -> ClientResponse:
     """Remove DNS challenge."""
     url = f"https://{cloud.remote_sni_server}/challenge_cleanup"
     return await cloud.websession.post(
@@ -90,7 +109,7 @@ async def async_remote_challenge_cleanup(cloud, txt: str):
 
 @_check_token
 @_log_response
-async def async_alexa_access_token(cloud):
+async def async_alexa_access_token(cloud: Cloud) -> ClientResponse:
     """Request Alexa access token."""
     return await cloud.websession.post(
         f"https://{cloud.alexa_server}/access_token",
@@ -100,7 +119,7 @@ async def async_alexa_access_token(cloud):
 
 @_check_token
 @_log_response
-async def async_voice_connection_details(cloud):
+async def async_voice_connection_details(cloud: Cloud) -> ClientResponse:
     """Return connection details for voice service."""
     url = f"https://{cloud.voice_server}/connection_details"
     return await cloud.websession.get(url, headers={AUTHORIZATION: cloud.id_token})
@@ -108,7 +127,7 @@ async def async_voice_connection_details(cloud):
 
 @_check_token
 @_log_response
-async def async_google_actions_request_sync(cloud):
+async def async_google_actions_request_sync(cloud: Cloud) -> ClientResponse:
     """Request a Google Actions sync request."""
     return await cloud.websession.post(
         f"https://{cloud.remotestate_server}/request_sync",
@@ -117,7 +136,7 @@ async def async_google_actions_request_sync(cloud):
 
 
 @_check_token
-async def async_subscription_info(cloud):
+async def async_subscription_info(cloud: Cloud) -> dict[str, Any]:
     """Fetch subscription info."""
     resp = await cloud.websession.get(
         f"https://{cloud.accounts_server}/payments/subscription_info",
@@ -125,7 +144,7 @@ async def async_subscription_info(cloud):
     )
     _do_log_response(resp)
     resp.raise_for_status()
-    data = await resp.json()
+    data: dict[str, Any] = await resp.json()
 
     # If subscription info indicates we are subscribed, force a refresh of the token
     if data.get("provider") and not cloud.started:
@@ -136,7 +155,7 @@ async def async_subscription_info(cloud):
 
 
 @_check_token
-async def async_migrate_paypal_agreement(cloud):
+async def async_migrate_paypal_agreement(cloud: Cloud) -> dict[str, Any]:
     """Migrate a paypal agreement from legacy."""
     resp = await cloud.websession.post(
         f"https://{cloud.accounts_server}/migrate_paypal_agreement",
@@ -144,4 +163,5 @@ async def async_migrate_paypal_agreement(cloud):
     )
     _do_log_response(resp)
     resp.raise_for_status()
-    return await resp.json()
+    data: dict[str, Any] = await resp.json()
+    return data

@@ -199,7 +199,7 @@ class CognitoAuth:
                 self.cloud.run_task(self.cloud.logout())
                 raise
 
-    async def async_renew_access_token(self):
+    async def async_renew_access_token(self) -> None:
         """Renew access token."""
         async with self._request_lock:
             await self._async_renew_access_token()
