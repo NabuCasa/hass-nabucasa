@@ -1,8 +1,10 @@
 """Voice handler with Azure."""
+from __future__ import annotations
+
 from datetime import datetime
 from enum import Enum
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING
 import xml.etree.ElementTree as ET
 
 import aiohttp
@@ -11,6 +13,9 @@ import attr
 
 from . import cloud_api
 from .utils import utc_from_timestamp, utcnow
+
+if TYPE_CHECKING:
+    from . import Cloud
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -301,19 +306,19 @@ class STTResponse:
     """Response of STT."""
 
     success: bool = attr.ib()
-    text: Optional[str] = attr.ib()
+    text: str | None = attr.ib()
 
 
 class Voice:
     """Class to help manage azure STT and TTS."""
 
-    def __init__(self, cloud):
+    def __init__(self, cloud: Cloud) -> None:
         """Initialize azure voice."""
         self.cloud = cloud
-        self._token: Optional[str] = None
-        self._endpoint_tts: Optional[str] = None
-        self._endpoint_stt: Optional[str] = None
-        self._valid: Optional[datetime] = None
+        self._token: str | None = None
+        self._endpoint_tts: str | None = None
+        self._endpoint_stt: str | None = None
+        self._valid: datetime | None = None
 
     def _validate_token(self) -> bool:
         """Validate token outside of coroutine."""
@@ -377,6 +382,9 @@ class Voice:
             f"Microsoft Server Speech Text to Speech Voice ({language}, {MAP_VOICE[(language, gender)]})",
         )
         voice.text = text[:2048]
+
+        # We can not get here wihtout this beeing set, but mypy does not know that.
+        assert self._endpoint_tts is not None
 
         # Send request
         async with self.cloud.websession.post(
