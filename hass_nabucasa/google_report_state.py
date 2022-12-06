@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from asyncio.queues import Queue
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING, Any
 import uuid
 
 from . import iot_base
@@ -20,7 +20,7 @@ ERR_DISCARD_MSG = "Message discarded because max messages reachced"
 class ErrorResponse(Exception):
     """Raised when a request receives a success=false response."""
 
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str) -> None:
         """Initialize error response."""
         super().__init__(code)
         self.code = code
@@ -33,14 +33,14 @@ class GoogleReportState(iot_base.BaseIoT):
     Uses a queue to send messages.
     """
 
-    def __init__(self, cloud: Cloud):
+    def __init__(self, cloud: Cloud) -> None:
         """Initialize Google Report State."""
         super().__init__(cloud)
-        self._connect_lock = asyncio.Lock()
-        self._to_send = Queue(100)
-        self._message_sender_task = None
+        self._connect_lock: asyncio.Lock = asyncio.Lock()
+        self._to_send: Queue = Queue(100)
+        self._message_sender_task: asyncio.Task | None = None
         # Local code waiting for a response
-        self._response_handler: Dict[str, asyncio.Future] = {}
+        self._response_handler: dict[str, asyncio.Future[None]] = {}
         self.register_on_connect(self._async_on_connect)
         self.register_on_disconnect(self._async_on_disconnect)
 
@@ -57,9 +57,9 @@ class GoogleReportState(iot_base.BaseIoT):
         """Server to connect to."""
         return f"wss://{self.cloud.remotestate_server}/v1"
 
-    async def async_send_message(self, msg):
+    async def async_send_message(self, msg: Any) -> None:
         """Send a message."""
-        msgid = uuid.uuid4().hex
+        msgid: str = uuid.uuid4().hex
 
         # Since connect is async, guard against send_message called twice in parallel.
         async with self._connect_lock:
@@ -83,7 +83,7 @@ class GoogleReportState(iot_base.BaseIoT):
         finally:
             self._response_handler.pop(msgid, None)
 
-    def async_handle_message(self, msg):
+    def async_handle_message(self, msg: dict[str, Any]) -> None:
         """Handle a message."""
         response_handler = self._response_handler.get(msg["msgid"])
 
@@ -98,16 +98,17 @@ class GoogleReportState(iot_base.BaseIoT):
 
         self._logger.warning("Got unhandled message: %s", msg)
 
-    async def _async_on_connect(self):
+    async def _async_on_connect(self) -> None:
         """On Connect handler."""
         self._message_sender_task = self.cloud.run_task(self._async_message_sender())
 
-    async def _async_on_disconnect(self):
+    async def _async_on_disconnect(self) -> None:
         """On disconnect handler."""
-        self._message_sender_task.cancel()
-        self._message_sender_task = None
+        if self._message_sender_task is not None:
+            self._message_sender_task.cancel()
+            self._message_sender_task = None
 
-    async def _async_message_sender(self):
+    async def _async_message_sender(self) -> None:
         """Start sending messages."""
         self._logger.debug("Message sender task activated")
         try:
