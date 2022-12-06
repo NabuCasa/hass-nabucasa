@@ -108,7 +108,9 @@ class AuthorizeAccountHelper:
 
 
 async def async_fetch_access_token(
-    cloud: "Cloud", service: str, refresh_token: str
+    cloud: Cloud,
+    service: str,
+    refresh_token: str,
 ) -> dict[str, str]:
     """Fetch access tokens using a refresh token."""
     _LOGGER.debug("Fetching tokens for %s", service)

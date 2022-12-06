@@ -42,7 +42,7 @@ class CloudIoT(iot_base.BaseIoT):
         super().__init__(cloud)
 
         # Local code waiting for a response
-        self._response_handler: dict[str, asyncio.Future[None]] = {}
+        self._response_handler: dict[str, asyncio.Future[Any]] = {}
 
         # Register start/stop
         cloud.register_on_start(self.start)
@@ -69,10 +69,10 @@ class CloudIoT(iot_base.BaseIoT):
         handler: str,
         payload: Any,
         expect_answer: bool = True,
-    ) -> asyncio.Future[None] | None:
+    ) -> Any | None:
         """Send a message."""
         msgid = uuid.uuid4().hex
-        fut: asyncio.Future[None] | None = None
+        fut: asyncio.Future[Any] | None = None
 
         if expect_answer:
             fut = self._response_handler[msgid] = asyncio.Future()
@@ -84,9 +84,9 @@ class CloudIoT(iot_base.BaseIoT):
 
             if expect_answer and fut is not None:
                 return await fut
+            return None
         finally:
             self._response_handler.pop(msgid, None)
-        return None
 
     def async_handle_message(self, msg: dict[str, Any]) -> None:
         """Handle a message."""
