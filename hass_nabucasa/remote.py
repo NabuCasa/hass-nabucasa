@@ -123,11 +123,10 @@ class RemoteUI:
     @property
     def certificate(self) -> Certificate | None:
         """Return certificate details."""
-        if not self._acme or not self._acme.certificate_available:
-            return None
-
         if (
-            self._acme.common_name is None
+            not self._acme
+            or not self._acme.certificate_available
+            or self._acme.common_name is None
             or self._acme.expire_date is None
             or self._acme.fingerprint is None
         ):
