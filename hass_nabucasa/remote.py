@@ -141,7 +141,7 @@ class RemoteUI:
         """Create SSL context with acme certificate."""
         context = utils.server_context_modern()
 
-        # We can not get here wihtout this beeing set, but mypy does not know that.
+        # We can not get here without this being set, but mypy does not know that.
         assert self._acme is not None
 
         await self.cloud.run_executor(
@@ -329,7 +329,7 @@ class RemoteUI:
             async with async_timeout.timeout(30):
                 await self._refresh_snitun_token()
 
-            # We can not get here wihtout this beeing set, but mypy does not know that.
+            # We can not get here without this being set, but mypy does not know that.
             assert self._token is not None
 
             _LOGGER.debug("Attempting connection to %s", self._snitun_server)
@@ -418,7 +418,7 @@ class RemoteUI:
                         await asyncio.sleep(10)
                     continue
 
-                # We can not get here wihtout this beeing set, but mypy does not know that.
+                # We can not get here without this being set, but mypy does not know that.
                 assert self._acme is not None
 
                 # Renew certificate?

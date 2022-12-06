@@ -204,7 +204,7 @@ class Cloud:
     def run_task(self, coro: Coroutine) -> asyncio.Task:
         """Schedule a task.
 
-        Return a coroutine.
+        Return a task.
         """
         return self.client.loop.create_task(coro)
 

@@ -383,7 +383,7 @@ class Voice:
         )
         voice.text = text[:2048]
 
-        # We can not get here wihtout this beeing set, but mypy does not know that.
+        # We can not get here without this being set, but mypy does not know that.
         assert self._endpoint_tts is not None
 
         # Send request
