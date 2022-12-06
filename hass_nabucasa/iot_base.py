@@ -6,7 +6,7 @@ import dataclasses
 import logging
 import pprint
 import random
-from typing import Awaitable, Callable, List
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, List
 
 from aiohttp import WSMsgType, client_exceptions, hdrs
 
@@ -18,6 +18,9 @@ from .const import (
     STATE_DISCONNECTED,
 )
 from .utils import gather_callbacks
+
+if TYPE_CHECKING:
+    from . import Cloud
 
 
 @dataclasses.dataclass
@@ -37,9 +40,9 @@ class BaseIoT:
 
     mark_connected_after_first_message = False
 
-    def __init__(self, cloud):
+    def __init__(self, cloud: Cloud) -> None:
         """Initialize the CloudIoT class."""
-        self.cloud = cloud
+        self.cloud: Cloud = cloud
         # The WebSocket client
         self.client = None
         # Scheduled sleep task till next connection retry
@@ -93,7 +96,7 @@ class BaseIoT:
         """Return if we're currently connected."""
         return self.state == STATE_CONNECTED
 
-    async def async_send_json_message(self, message):
+    async def async_send_json_message(self, message: dict[str, Any]) -> None:
         """Send a message.
 
         Raises NotConnected if client not connected.
@@ -106,7 +109,7 @@ class BaseIoT:
 
         await self.client.send_json(message)
 
-    async def connect(self):
+    async def connect(self) -> None:
         """Connect to the IoT broker."""
         if self.state != STATE_DISCONNECTED:
             raise RuntimeError("Connect called while not disconnected")
