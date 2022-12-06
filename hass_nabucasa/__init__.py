@@ -198,7 +198,7 @@ class Cloud:
         """
         return Path(self.client.base_path, CONFIG_DIR, *parts)
 
-    def run_task(self, coro: Coroutine) -> Coroutine:
+    def run_task(self, coro: Coroutine) -> asyncio.Task:
         """Schedule a task.
 
         Return a coroutine.
