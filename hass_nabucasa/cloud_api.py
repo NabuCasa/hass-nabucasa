@@ -158,7 +158,7 @@ async def async_subscription_info(cloud: Cloud) -> dict[str, Any]:
 async def async_migrate_paypal_agreement(cloud: Cloud) -> dict[str, Any]:
     """Migrate a paypal agreement from legacy."""
     resp = await cloud.websession.post(
-        f"https://{cloud.accounts_server}/migrate_paypal_agreement",
+        f"https://{cloud.accounts_server}/payments/migrate_paypal_agreement",
         headers={"authorization": cloud.id_token},
     )
     _do_log_response(resp)
