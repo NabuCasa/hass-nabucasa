@@ -358,8 +358,7 @@ class Voice:
             chunked=True,
         ) as resp:
             if resp.status != 200:
-                _LOGGER.error("Can't process Speech: %d", resp.status)
-                raise VoiceReturnError()
+                raise VoiceReturnError(f"Can't process Speech: {resp.status}")
             data = await resp.json()
 
         # Parse Answer

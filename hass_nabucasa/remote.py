@@ -275,8 +275,7 @@ class RemoteUI:
     async def handle_connection_requests(self, caller_ip: str) -> None:
         """Handle connection requests."""
         if not self._snitun:
-            _LOGGER.error("Can't handle request-connection without backend")
-            raise RemoteNotConnected()
+            raise RemoteNotConnected("Can't handle request-connection without backend")
 
         if self._snitun.is_connected:
             return
@@ -315,8 +314,7 @@ class RemoteUI:
     async def connect(self) -> None:
         """Connect to snitun server."""
         if not self._snitun:
-            _LOGGER.error("Can't handle request-connection without backend")
-            raise RemoteNotConnected()
+            raise RemoteNotConnected("Can't handle request-connection without backend")
 
         # Check if we already connected
         if self._snitun.is_connected:
@@ -371,8 +369,7 @@ class RemoteUI:
     async def disconnect(self, clear_snitun_token: bool = False) -> None:
         """Disconnect from snitun server."""
         if not self._snitun:
-            _LOGGER.error("Can't handle request-connection without backend")
-            raise RemoteNotConnected()
+            raise RemoteNotConnected("Can't handle request-connection without backend")
 
         # Stop reconnect task
         if self._reconnect_task:
