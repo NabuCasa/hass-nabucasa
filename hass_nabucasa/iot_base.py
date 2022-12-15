@@ -6,6 +6,7 @@ import dataclasses
 import logging
 import pprint
 import random
+from socket import gaierror
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from aiohttp import (
@@ -257,7 +258,7 @@ class BaseIoT:
             else:
                 disconnect_reason = err
 
-        except client_exceptions.ClientError as err:
+        except (client_exceptions.ClientError, gaierror) as err:
             disconnect_reason = err
 
         except asyncio.CancelledError:
