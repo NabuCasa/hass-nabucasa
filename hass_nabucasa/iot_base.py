@@ -191,7 +191,7 @@ class BaseIoT:
             return
 
         disconnect_clean: bool = False
-        disconnect_reason: str | WSServerHandshakeError | ClientError | None = None
+        disconnect_reason: str | WSServerHandshakeError | ClientError | gaierror | None = None
         try:
             self.client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
