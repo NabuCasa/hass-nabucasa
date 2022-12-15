@@ -326,11 +326,7 @@ class AcmeHandler:
             )
         )
 
-        _LOGGER.info(
-            "Revoking certificate for %s (%s)",
-            str(self.common_name),
-            self.expire_date,
-        )
+        _LOGGER.info("Revoke certificate")
         try:
             # https://letsencrypt.org/docs/revoking/#specifying-a-reason-code
             self._acme_client.revoke(fullchain, 4)
