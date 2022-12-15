@@ -200,8 +200,7 @@ class AcmeHandler:
                 )
                 self._acme_client = client.ClientV2(directory, net=network)
             except errors.Error as err:
-                _LOGGER.error("Can't connect to ACME server: %s", err)
-                raise AcmeClientError() from err
+                raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
             return
 
         # Create a new registration
@@ -212,8 +211,7 @@ class AcmeHandler:
             )
             self._acme_client = client.ClientV2(directory, net=network)
         except errors.Error as err:
-            _LOGGER.error("Can't connect to ACME server: %s", err)
-            raise AcmeClientError() from err
+            raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
 
         try:
             _LOGGER.info(
@@ -226,8 +224,7 @@ class AcmeHandler:
                 )
             )
         except errors.Error as err:
-            _LOGGER.error("Can't register to ACME server: %s", err)
-            raise AcmeClientError() from err
+            raise AcmeClientError(f"Can't register to ACME server: {err}") from err
 
         # Store registration info
         self.path_registration_info.write_text(
@@ -242,8 +239,9 @@ class AcmeHandler:
         try:
             order = self._acme_client.new_order(csr_pem)
         except errors.Error as err:
-            _LOGGER.error("Can't order a new ACME challenge: %s", err)
-            raise AcmeChallengeError() from None
+            raise AcmeChallengeError(
+                f"Can't order a new ACME challenge: {err}"
+            ) from None
 
         # Find DNS challenge
         # pylint: disable=not-an-iterable
@@ -255,16 +253,16 @@ class AcmeHandler:
                 dns_challenge = challenge
 
         if dns_challenge is None:
-            _LOGGER.error("No pending ACME challenge")
-            raise AcmeChallengeError()
+            raise AcmeChallengeError("No pending ACME challenge")
 
         try:
             response, validation = dns_challenge.response_and_validation(
                 self._account_jwk
             )
         except errors.Error as err:
-            _LOGGER.error("Can't validate the new ACME challenge: %s", err)
-            raise AcmeChallengeError() from None
+            raise AcmeChallengeError(
+                f"Can't validate the new ACME challenge: {err}"
+            ) from None
 
         return ChallengeHandler(dns_challenge, order, response, validation)
 
@@ -275,8 +273,7 @@ class AcmeHandler:
         try:
             self._acme_client.answer_challenge(handler.challenge, handler.response)
         except errors.Error as err:
-            _LOGGER.error("Can't accept ACME challenge: %s", err)
-            raise AcmeChallengeError() from err
+            raise AcmeChallengeError(f"Can't accept ACME challenge: {err}") from err
 
         # Wait until it's authorize and fetch certification
         deadline = datetime.now() + timedelta(seconds=90)
@@ -286,8 +283,7 @@ class AcmeHandler:
                 order, deadline, fetch_alternative_chains=True
             )
         except errors.Error as err:
-            _LOGGER.error("Wait of ACME challenge fails: %s", err)
-            raise AcmeChallengeError() from err
+            raise AcmeChallengeError(f"Wait of ACME challenge fails: {err}") from err
 
         # Cleanup the old stuff
         if self.path_fullchain.exists():
@@ -330,7 +326,11 @@ class AcmeHandler:
             )
         )
 
-        _LOGGER.info("Revoke certificate")
+        _LOGGER.info(
+            "Revoking certificate for %s (%s)",
+            str(self.common_name),
+            self.expire_date,
+        )
         try:
             # https://letsencrypt.org/docs/revoking/#specifying-a-reason-code
             self._acme_client.revoke(fullchain, 4)
@@ -347,8 +347,7 @@ class AcmeHandler:
             elif "Certificate from unrecognized issuer" in str(err):
                 pass
             else:
-                _LOGGER.error("Can't revoke certificate: %s", err)
-                raise AcmeClientError() from err
+                raise AcmeClientError(f"Can't revoke certificate: {err}") from err
 
     def _deactivate_account(self) -> None:
         """Deactivate account."""
@@ -363,8 +362,7 @@ class AcmeHandler:
         try:
             self._acme_client.deactivate_registration(regr)
         except errors.Error as err:
-            _LOGGER.error("Can't deactivate account: %s", err)
-            raise AcmeClientError() from err
+            raise AcmeClientError(f"Can't deactivate account: {err}") from err
 
     def _remove_files(self) -> None:
         self.path_registration_info.unlink(missing_ok=True)
@@ -389,12 +387,13 @@ class AcmeHandler:
                 )
             assert resp.status == 200
         except (asyncio.TimeoutError, AssertionError):
-            _LOGGER.error("Can't set challenge token to NabuCasa DNS!")
-            raise AcmeNabuCasaError() from None
+            raise AcmeNabuCasaError(
+                "Can't set challenge token to NabuCasa DNS!"
+            ) from None
 
         # Finish validation
         try:
-            _LOGGER.info("Wait 60sec for publishing DNS to ACME provider")
+            _LOGGER.info("Waiting 60 seconds for publishing DNS to ACME provider")
             await asyncio.sleep(60)
             await self.cloud.run_executor(self._finish_challenge, challenge)
             await self.load_certificate()
