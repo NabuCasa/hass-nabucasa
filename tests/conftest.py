@@ -114,7 +114,6 @@ async def ws_server(aiohttp_client):
         logger = logging.getLogger(f"{__name__}.ws_server")
 
         async def websocket_handler(request):
-
             ws = web.WebSocketResponse()
             await ws.prepare(request)
             # Send a message to trigger IoTBase with `mark_connected_after_first_message`
