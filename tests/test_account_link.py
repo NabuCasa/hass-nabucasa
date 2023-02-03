@@ -11,7 +11,6 @@ async def create_account_link_server(aiohttp_client, handle_server_msgs):
     """Create a websocket server."""
 
     async def websocket_handler(request):
-
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
