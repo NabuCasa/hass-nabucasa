@@ -209,13 +209,13 @@ class RemoteUI:
                     const.MESSAGE_REMOTE_SETUP,
                 )
                 return False
-            else:
-                if should_create_cert:
-                    self.cloud.client.user_message(
-                        "cloud_remote_acme",
-                        "Home Assistant Cloud",
-                        const.MESSAGE_REMOTE_READY,
-                    )
+
+            if should_create_cert:
+                self.cloud.client.user_message(
+                    "cloud_remote_acme",
+                    "Home Assistant Cloud",
+                    const.MESSAGE_REMOTE_READY,
+                )
 
         await self._acme.hardening_files()
 
