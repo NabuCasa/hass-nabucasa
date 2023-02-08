@@ -126,7 +126,7 @@ async def async_fetch_access_token(
 
 async def async_fetch_available_services(cloud: Cloud) -> dict[str, Any]:
     """Fetch available services."""
-    resp = await cloud.client.websession.post(
+    resp = await cloud.client.websession.get(
         f"https://{cloud.account_link_server}/services"
     )
     resp.raise_for_status()
