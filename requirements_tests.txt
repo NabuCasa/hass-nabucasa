@@ -1,7 +1,7 @@
 black==23.1.0
 flake8==6.0.0
 mypy==1.0.1
-pylint==2.16.1
+pylint==2.16.2
 pytest-aiohttp==1.0.4
 pytest-timeout==2.1.0
 pytest==7.2.1
