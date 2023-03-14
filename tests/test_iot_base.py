@@ -46,7 +46,7 @@ def cloud_mock_iot(auth_cloud_mock):
 
 
 @pytest.mark.parametrize(
-    "require_first_message,messages,disconnct_reason",
+    "require_first_message,messages,disconnect_reason",
     [
         (
             False,
@@ -103,7 +103,7 @@ async def test_cloud_getting_disconnected_by_server(
     cloud_mock_iot,
     require_first_message,
     messages,
-    disconnct_reason,
+    disconnect_reason,
 ):
     """Test server disconnecting instance."""
     conn = MockIoT(cloud_mock_iot)
@@ -113,7 +113,7 @@ async def test_cloud_getting_disconnected_by_server(
     await conn.connect()
 
     assert "Connection closed" in caplog.text
-    assert conn.last_disconnect_reason == disconnct_reason
+    assert conn.last_disconnect_reason == disconnect_reason
 
 
 async def test_cloud_receiving_bytes(mock_iot_client, caplog, cloud_mock_iot):
@@ -176,6 +176,23 @@ async def test_cloud_unable_to_connect(
         False, "Unable to connect: SSL Verification failed"
     )
     assert "Unable to connect:" in caplog.text
+
+
+async def test_cloud_connection_reset_exception(
+    mock_iot_client, caplog, cloud_mock_iot
+):
+    """Test connection reset exception."""
+    conn = MockIoT(cloud_mock_iot)
+    mock_iot_client.receive.side_effect = ConnectionResetError(
+        "Cannot write to closing transport"
+    )
+
+    await conn.connect()
+
+    assert conn.last_disconnect_reason == iot_base.DisconnectReason(
+        False, "Connection closed: Cannot write to closing transport"
+    )
+    assert "Cannot write to closing transport" in caplog.text
 
 
 async def test_cloud_random_exception(mock_iot_client, caplog, cloud_mock_iot):

@@ -191,9 +191,14 @@ class BaseIoT:
             return
 
         disconnect_clean: bool = False
-        disconnect_reason: str | WSServerHandshakeError | ClientError | gaierror | None = (
-            None
-        )
+        disconnect_reason: (
+            str
+            | WSServerHandshakeError
+            | ClientError
+            | ConnectionResetError
+            | gaierror
+            | None
+        ) = None
         try:
             self.client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
@@ -260,7 +265,7 @@ class BaseIoT:
             else:
                 disconnect_reason = err
 
-        except (client_exceptions.ClientError, gaierror) as err:
+        except (client_exceptions.ClientError, ConnectionResetError, gaierror) as err:
             disconnect_reason = err
 
         except asyncio.CancelledError:
