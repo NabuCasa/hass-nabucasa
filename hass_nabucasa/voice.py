@@ -38,6 +38,13 @@ class Gender(str, Enum):
     FEMALE = "female"
 
 
+class AudioOutput(str, Enum):
+    """Gender Type for voices."""
+
+    MP3 = "mp3"
+    RAW = "raw"
+
+
 MAP_VOICE = {
     ("af-ZA", Gender.FEMALE): "AdriNeural",
     ("af-ZA", Gender.MALE): "WillemNeural",
@@ -365,7 +372,9 @@ class Voice:
             data["RecognitionStatus"] == "Success", data.get("DisplayText")
         )
 
-    async def process_tts(self, text: str, language: str, gender: Gender) -> bytes:
+    async def process_tts(
+        self, text: str, language: str, gender: Gender, output: AudioOutput
+    ) -> bytes:
         """Get Speech from text over Azure."""
         if not self._validate_token():
             await self._update_token()
@@ -384,16 +393,24 @@ class Voice:
         # We can not get here without this being set, but mypy does not know that.
         assert self._endpoint_tts is not None
 
+        if output == AudioOutput.RAW:
+            output_header = "raw-16khz-16bit-mono-pcm"
+        else:
+            output_header = "audio-24khz-48kbitrate-mono-mp3"
+
         # Send request
         async with self.cloud.websession.post(
             self._endpoint_tts,
             headers={
                 CONTENT_TYPE: "application/ssml+xml",
                 AUTHORIZATION: f"Bearer {self._token}",
-                "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+                "X-Microsoft-OutputFormat": output_header,
             },
             data=ET.tostring(xml_body),
         ) as resp:
             if resp.status != 200:
                 raise VoiceReturnError()
-            return await resp.read()
+            resp = await resp.read()
+            with open("/tmp/azure.wav", "wb") as file:
+                file.write(resp)
+            return resp
