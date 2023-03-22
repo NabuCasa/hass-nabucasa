@@ -4,10 +4,9 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, AsyncGenerator
 import xml.etree.ElementTree as ET
 
-import aiohttp
 from aiohttp.hdrs import ACCEPT, AUTHORIZATION, CONTENT_TYPE
 import attr
 
@@ -339,7 +338,7 @@ class Voice:
         self._valid = utc_from_timestamp(float(data["valid"]))
 
     async def process_stt(
-        self, stream: aiohttp.StreamReader, content: str, language: str
+        self, stream: AsyncGenerator[bytes], content: str, language: str
     ) -> STTResponse:
         """Stream Audio to Azure congnitive instance."""
         if not self._validate_token():
