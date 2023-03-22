@@ -74,7 +74,12 @@ async def test_process_tts(auth_cloud_mock, aioclient_mock):
         content=b"My sound",
     )
     result = await voice_api.process_tts(
-        "Text for Saying", "en-US", voice.Gender.FEMALE
+        "Text for Saying", "en-US", voice.Gender.FEMALE, voice.AudioOutput.MP3
     )
 
     assert result == b"My sound"
+    assert aioclient_mock.mock_calls[1][3] == {
+        "Authorization": "Bearer test-key",
+        "Content-Type": "application/ssml+xml",
+        "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+    }
