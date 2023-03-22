@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import TYPE_CHECKING, AsyncIterable
 import xml.etree.ElementTree as ET
 
@@ -15,8 +14,6 @@ from .utils import utc_from_timestamp, utcnow
 
 if TYPE_CHECKING:
     from . import Cloud
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class VoiceError(Exception):
@@ -410,7 +407,4 @@ class Voice:
         ) as resp:
             if resp.status != 200:
                 raise VoiceReturnError()
-            resp = await resp.read()
-            with open("/tmp/azure.wav", "wb") as file:
-                file.write(resp)
-            return resp
+            return await resp.read()
