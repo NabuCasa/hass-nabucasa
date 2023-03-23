@@ -140,8 +140,8 @@ class CloudIoT(iot_base.BaseIoT):
 
 @HANDLERS.register("system")
 async def async_handle_system(cloud: Cloud, payload: dict[str, Any]) -> None:
-    """We ignore incoming system IoT messages."""
-    return None
+    """Handle an incoming IoT message for System."""
+    return await cloud.client.async_system_message(payload)
 
 
 @HANDLERS.register("alexa")

@@ -69,6 +69,10 @@ class CloudClient(ABC):
         """process cloud alexa message to client."""
 
     @abstractmethod
+    async def async_system_message(self, payload: dict[Any, Any]) -> None:
+        """process cloud system message to client."""
+
+    @abstractmethod
     async def async_google_message(self, payload: dict[Any, Any]) -> dict[Any, Any]:
         """Process cloud google message to client."""
 
