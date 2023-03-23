@@ -179,6 +179,15 @@ async def test_handler_webhook(cloud_mock):
     assert resp == {"test": 5}
 
 
+async def test_handler_system(cloud_mock):
+    """Test handler system."""
+    cloud_mock.client.mock_return.append({"test": 5})
+    resp = await iot.async_handle_system(cloud_mock, {"test-discovery": True})
+
+    assert len(cloud_mock.client.mock_system) == 1
+    assert resp == {"test": 5}
+
+
 async def test_handler_remote_sni(cloud_mock):
     """Test handler Webhook."""
     assert not cloud_mock.client.pref_should_connect
