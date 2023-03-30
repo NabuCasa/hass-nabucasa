@@ -199,7 +199,9 @@ class AcmeHandler:
                     network.get(self._acme_server).json()
                 )
                 self._acme_client = client.ClientV2(directory, net=network)
-            except errors.Error as err:
+            except (errors.Error, ValueError) as err:
+                # https://github.com/certbot/certbot/blob/63fb97d8dea73ba63964f69fac0b15acfed02b3e/acme/acme/client.py#L670
+                # The client raises ValueError for RequestException
                 raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
             return
 
@@ -210,7 +212,7 @@ class AcmeHandler:
                 network.get(self._acme_server).json()
             )
             self._acme_client = client.ClientV2(directory, net=network)
-        except errors.Error as err:
+        except (errors.Error, ValueError) as err:
             raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
 
         try:
