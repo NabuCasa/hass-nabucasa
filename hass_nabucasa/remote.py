@@ -78,6 +78,7 @@ class CertificateStatus(str, Enum):
     GENERATING = "generating"
     LOADED = "loaded"
     LOADING = "loading"
+    READY = "ready"
 
 
 class RemoteUI:
@@ -235,8 +236,9 @@ class RemoteUI:
                     const.MESSAGE_REMOTE_READY,
                 )
 
-        await self._acme.hardening_files()
         self._certificate_status = CertificateStatus.LOADED
+        await self._acme.hardening_files()
+        self._certificate_status = CertificateStatus.READY
 
         if self.cloud.client.aiohttp_runner is None:
             _LOGGER.debug("Waiting for aiohttp runner to come available")
@@ -448,12 +450,13 @@ class RemoteUI:
                     _LOGGER.debug("Renewing certificate")
                     self._certificate_status = CertificateStatus.GENERATING
                     await self._acme.issue_certificate()
+                    self._certificate_status = CertificateStatus.LOADED
                     await self.close_backend()
 
                     # Wait until backend is cleaned
                     await asyncio.sleep(5)
                     await self.load_backend()
-                    self._certificate_status = CertificateStatus.LOADED
+                    self._certificate_status = CertificateStatus.READY
                 except AcmeClientError:
                     # Only log as warning if we have a certain amount of days left
                     if self._acme.expire_date is None or (

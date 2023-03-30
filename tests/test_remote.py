@@ -122,7 +122,7 @@ async def test_load_backend_exists_cert(
     await asyncio.sleep(0.1)
 
     assert not remote._acme_task
-    assert remote.certificate_status == CertificateStatus.LOADED
+    assert remote.certificate_status == CertificateStatus.READY
 
 
 async def test_load_backend_not_exists_cert(
