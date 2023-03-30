@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 from contextvars import ContextVar
 from datetime import datetime, timedelta
+from enum import Enum
 import logging
 import random
 import ssl
@@ -70,6 +71,15 @@ class Certificate:
     fingerprint = attr.ib(type=str)
 
 
+class CertificateStatus(str, Enum):
+    """Representation of the remote UI status."""
+
+    ERROR = "error"
+    GENERATING = "generating"
+    LOADED = "loaded"
+    LOADING = "loading"
+
+
 class RemoteUI:
     """Class to help manage remote connections."""
 
@@ -83,6 +93,7 @@ class RemoteUI:
         self._reconnect_task: asyncio.Task | None = None
         self._acme_task: asyncio.Task | None = None
         self._token: SniTunToken | None = None
+        self._certificate_status: CertificateStatus | None = None
 
         self._info_loaded = asyncio.Event()
 
@@ -109,6 +120,11 @@ class RemoteUI:
     def snitun_server(self) -> str | None:
         """Return connected snitun server."""
         return self._snitun_server
+
+    @property
+    def certificate_status(self) -> CertificateStatus | None:
+        """Return the certificate status."""
+        return self._certificate_status
 
     @property
     def instance_domain(self) -> str | None:
@@ -182,6 +198,7 @@ class RemoteUI:
         self._acme = AcmeHandler(self.cloud, domain, email)
 
         # Load exists certificate
+        self._certificate_status = CertificateStatus.LOADING
         await self._acme.load_certificate()
 
         # Domain changed / revoke CA
@@ -201,6 +218,7 @@ class RemoteUI:
             < utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS)
         ):
             try:
+                self._certificate_status = CertificateStatus.GENERATING
                 await self._acme.issue_certificate()
             except AcmeClientError:
                 self.cloud.client.user_message(
@@ -218,6 +236,7 @@ class RemoteUI:
                 )
 
         await self._acme.hardening_files()
+        self._certificate_status = CertificateStatus.LOADED
 
         if self.cloud.client.aiohttp_runner is None:
             _LOGGER.debug("Waiting for aiohttp runner to come available")
@@ -427,12 +446,14 @@ class RemoteUI:
                 # Renew certificate
                 try:
                     _LOGGER.debug("Renewing certificate")
+                    self._certificate_status = CertificateStatus.GENERATING
                     await self._acme.issue_certificate()
                     await self.close_backend()
 
                     # Wait until backend is cleaned
                     await asyncio.sleep(5)
                     await self.load_backend()
+                    self._certificate_status = CertificateStatus.LOADED
                 except AcmeClientError:
                     # Only log as warning if we have a certain amount of days left
                     if self._acme.expire_date is None or (
@@ -441,6 +462,7 @@ class RemoteUI:
                         < (utils.utcnow() + timedelta(days=WARN_RENEW_FAILED_DAYS))
                     ):
                         meth = _LOGGER.warning
+                        self._certificate_status = CertificateStatus.ERROR
                     else:
                         meth = _LOGGER.debug
 
