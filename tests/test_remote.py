@@ -11,7 +11,7 @@ from hass_nabucasa.const import (
     DISPATCH_REMOTE_CONNECT,
     DISPATCH_REMOTE_DISCONNECT,
 )
-from hass_nabucasa.remote import RemoteUI, SubscriptionExpired
+from hass_nabucasa.remote import CertificateStatus, RemoteUI, SubscriptionExpired
 from hass_nabucasa.utils import utcnow
 
 from .common import MockAcme, MockSnitun
@@ -84,6 +84,8 @@ async def test_load_backend_exists_cert(
         },
     )
 
+    assert remote.certificate_status is None
+
     assert not remote.is_connected
     await remote.start()
     await remote._info_loaded.wait()
@@ -120,6 +122,7 @@ async def test_load_backend_exists_cert(
     await asyncio.sleep(0.1)
 
     assert not remote._acme_task
+    assert remote.certificate_status == CertificateStatus.READY
 
 
 async def test_load_backend_not_exists_cert(
