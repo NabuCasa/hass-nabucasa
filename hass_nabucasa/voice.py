@@ -350,7 +350,7 @@ class Voice:
 
         # Send request
         async with self.cloud.websession.post(
-            f"{self._endpoint_stt}?language={language}",
+            f"{self._endpoint_stt}?language={language}&profanity=raw",
             headers={
                 CONTENT_TYPE: content,
                 AUTHORIZATION: f"Bearer {self._token}",
