@@ -168,9 +168,16 @@ class RemoteUI:
 
         return context
 
+    async def _recreate_backend(self) -> None:
+        """There was a connection error, recreate the backend."""
+        _LOGGER.info("Recreating backend")
+        await self.close_backend()
+        # Wait until backend is cleaned
+        await asyncio.sleep(5)
+        await self.load_backend()
+
     async def load_backend(self) -> bool:
         """Load backend details."""
-        # Load instance data from backend
         try:
             async with async_timeout.timeout(30):
                 resp = await cloud_api.async_remote_register(self.cloud)
@@ -259,7 +266,7 @@ class RemoteUI:
 
         _LOGGER.debug("Starting SniTun")
         is_cloud_request.set(True)
-        await self._snitun.start()
+        await self._snitun.start(False, self._recreate_backend)
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_UP)
 
         _LOGGER.debug(
@@ -451,11 +458,7 @@ class RemoteUI:
                     self._certificate_status = CertificateStatus.GENERATING
                     await self._acme.issue_certificate()
                     self._certificate_status = CertificateStatus.LOADED
-                    await self.close_backend()
-
-                    # Wait until backend is cleaned
-                    await asyncio.sleep(5)
-                    await self.load_backend()
+                    await self._recreate_backend()
                     self._certificate_status = CertificateStatus.READY
                 except AcmeClientError:
                     # Only log as warning if we have a certain amount of days left
