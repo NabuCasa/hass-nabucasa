@@ -1,8 +1,10 @@
 """Test the helper method for writing tests."""
+from __future__ import annotations
+
 import asyncio
 from pathlib import Path
 import tempfile
-from typing import Any
+from typing import Any, Coroutine
 from unittest.mock import Mock
 
 from hass_nabucasa.client import CloudClient
@@ -175,6 +177,9 @@ class MockSnitun:
         self.init_kwarg = None
         self.wait_task = asyncio.Event()
 
+        self.start_whitelist = None
+        self.start_endpoint_connection_error_callback = None
+
     @property
     def is_connected(self):
         """Return if it is connected."""
@@ -184,8 +189,16 @@ class MockSnitun:
         """Return waitable object."""
         return self.wait_task.wait()
 
-    async def start(self):
+    async def start(
+        self,
+        whitelist: bool = False,
+        endpoint_connection_error_callback: Coroutine[Any, Any, None] | None = None,
+    ):
         """Start snitun."""
+        self.start_whitelist = whitelist
+        self.start_endpoint_connection_error_callback = (
+            endpoint_connection_error_callback
+        )
         self.call_start = True
 
     async def stop(self):

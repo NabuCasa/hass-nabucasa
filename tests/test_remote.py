@@ -106,6 +106,9 @@ async def test_load_backend_exists_cert(
         "snitun_port": 443,
     }
 
+    assert snitun_mock.start_whitelist is not None
+    assert snitun_mock.start_endpoint_connection_error_callback is not None
+
     await asyncio.sleep(0.1)
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
