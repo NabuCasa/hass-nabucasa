@@ -1,0 +1,27 @@
+# serializer version: 1
+# name: test_process_tts_with_gender
+  dict({
+    'speak': dict({
+      '@version': '1.0',
+      '@xml:lang': 'en-US',
+      'voice': dict({
+        '#text': 'Text for Saying',
+        '@name': 'Microsoft Server Speech Text to Speech Voice (en-US, JennyNeural)',
+        '@xml:lang': 'en-US',
+      }),
+    }),
+  })
+# ---
+# name: test_process_tts_with_voice
+  dict({
+    'speak': dict({
+      '@version': '1.0',
+      '@xml:lang': 'nl-NL',
+      'voice': dict({
+        '#text': 'Text for Saying',
+        '@name': 'Microsoft Server Speech Text to Speech Voice (nl-NL, FennaNeural)',
+        '@xml:lang': 'nl-NL',
+      }),
+    }),
+  })
+# ---
