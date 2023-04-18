@@ -1271,13 +1271,9 @@ class Voice:
             chunked=True,
         ) as resp:
             if resp.status != 200:
-                _LOGGER.error(
-                    "Error processing %s speech: %s %s",
-                    language,
-                    resp.status,
-                    await resp.text(),
+                raise VoiceReturnError(
+                    f"Error processing {language} speech: {resp.status} {await resp.text()}"
                 )
-                raise VoiceReturnError(f"Can't process Speech: {resp.status}")
             data = await resp.json()
 
         # Parse Answer
@@ -1342,12 +1338,7 @@ class Voice:
             data=ET.tostring(xml_body),
         ) as resp:
             if resp.status != 200:
-                _LOGGER.error(
-                    "Error receiving TTS with %s/%s: %s %s",
-                    language,
-                    voice,
-                    resp.status,
-                    await resp.text(),
+                raise VoiceReturnError(
+                    f"Error receiving TTS with {language}/{voice}: {resp.status} {await resp.text()}"
                 )
-                raise VoiceReturnError()
             return await resp.read()
