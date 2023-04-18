@@ -6,9 +6,6 @@ categories:
     labels:
       - "dependencies"
 version-resolver:
-  patch:
-    labels:
-      - 'dependencies'
   default: minor
 change-template: '- #$NUMBER $TITLE @$AUTHOR'
 sort-direction: ascending
