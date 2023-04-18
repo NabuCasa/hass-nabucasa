@@ -20,8 +20,6 @@ setup(
         "Topic :: Internet :: Proxy Servers",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Development Status :: 5 - Production/Stable",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
     ],
@@ -29,7 +27,7 @@ setup(
     zip_safe=False,
     platforms="any",
     packages=["hass_nabucasa"],
-    python_requires=">=3.8",
+    python_requires=">=3.10",
     install_requires=[
         "pycognito==2022.12.0",
         "snitun==0.35.0",
