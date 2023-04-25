@@ -168,7 +168,7 @@ class Cloud:
         await self.run_executor(self._write_user_info)
 
         if self.started is None:
-            return
+            return None
 
         if not self.started and not self.subscription_expired:
             self.started = True
