@@ -10,11 +10,11 @@ from unittest.mock import Mock
 from hass_nabucasa.client import CloudClient
 
 
-class TestClient(CloudClient):
+class MockClient(CloudClient):
     """Interface class for Home Assistant."""
 
     def __init__(self, loop, websession):
-        """Initialize TestClient."""
+        """Initialize MockClient."""
         self._loop = loop
         self._websession = websession
         self._cloudhooks = {}

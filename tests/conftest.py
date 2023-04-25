@@ -7,7 +7,7 @@ from aiohttp import web
 import pytest
 
 from .utils.aiohttp import mock_aiohttp_client
-from .common import TestClient
+from .common import MockClient
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -34,7 +34,7 @@ async def cloud_mock(event_loop, aioclient_mock):
     cloud.run_executor = _executor
 
     cloud.websession = aioclient_mock.create_session(loop)
-    cloud.client = TestClient(loop, cloud.websession)
+    cloud.client = MockClient(loop, cloud.websession)
 
     async def update_token(id_token, access_token, refresh_token=None):
         cloud.id_token = id_token
