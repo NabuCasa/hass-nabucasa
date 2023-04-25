@@ -53,6 +53,10 @@ class CloudClient(ABC):
         """Called when cloud connected."""
 
     @abstractmethod
+    async def cloud_disconnected(self) -> None:
+        """Called when cloud disconnected."""
+
+    @abstractmethod
     async def cloud_started(self) -> None:
         """Called when cloud started with active subscription."""
 

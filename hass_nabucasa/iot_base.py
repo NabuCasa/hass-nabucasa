@@ -139,10 +139,12 @@ class BaseIoT:
                 # Still adding it here to make sure we can always reconnect
                 self._logger.exception("Unexpected error")
 
-            if self.state == STATE_CONNECTED and self._on_disconnect:
-                await gather_callbacks(
-                    self._logger, "on_disconnect", self._on_disconnect
-                )
+            if self.state == STATE_CONNECTED:
+                await self.cloud.client.cloud_disconnected()
+                if self._on_disconnect:
+                    await gather_callbacks(
+                        self._logger, "on_disconnect", self._on_disconnect
+                    )
 
             if self.close_requested:
                 break

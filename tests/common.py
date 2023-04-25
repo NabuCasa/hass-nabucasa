@@ -68,6 +68,9 @@ class MockClient(CloudClient):
     async def cloud_connected(self):
         """Handle cloud connected."""
 
+    async def cloud_disconnected(self):
+        """Handle cloud disconnected."""
+
     async def cloud_started(self):
         """Handle cloud started."""
 
