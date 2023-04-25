@@ -28,7 +28,7 @@ from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
 
-_ClientT = TypeVar("_ClientT", bound="CloudClient")
+_ClientT = TypeVar("_ClientT", bound=CloudClient)
 
 
 _LOGGER = logging.getLogger(__name__)
