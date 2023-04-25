@@ -306,5 +306,6 @@ class BaseIoT:
         self.state = STATE_CONNECTED
         self._logger.info("Connected")
 
+        await self.cloud.client.cloud_connected()
         if self._on_connect:
             await gather_callbacks(self._logger, "on_connect", self._on_connect)
