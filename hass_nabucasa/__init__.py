@@ -174,7 +174,7 @@ class Cloud:
             self.started = True
             return self.run_task(self._start())
 
-        elif self.started and self.subscription_expired:
+        if self.started and self.subscription_expired:
             self.started = False
             await self.stop()
 
