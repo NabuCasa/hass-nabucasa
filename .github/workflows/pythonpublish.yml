@@ -19,7 +19,8 @@ jobs:
           python-version: "3.x"
 
       - name: Verify version
-        run: [[ "$(python3 setup.py --version)" != "${{ github.event.release.tag_name }}" ]]
+        run: |
+          [[ "$(python3 setup.py --version)" == "${{ github.event.release.tag_name }}" ]]
 
       - name: Install dependencies
         run: |
