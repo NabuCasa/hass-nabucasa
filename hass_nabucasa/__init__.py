@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import json
 import logging
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Coroutine, Mapping
+from typing import Any, Awaitable, Callable, Coroutine, Generic, Mapping, TypeVar
 
 import aiohttp
 from atomicwrites import atomic_write
@@ -28,15 +28,18 @@ from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
 
+_ClientT = TypeVar("_ClientT", bound="CloudClient")
+
+
 _LOGGER = logging.getLogger(__name__)
 
 
-class Cloud:
+class Cloud(Generic[_ClientT]):
     """Store the configuration of the cloud connection."""
 
     def __init__(
         self,
-        client: CloudClient,
+        client: _ClientT,
         mode: str,
         *,
         cognito_client_id: str | None = None,
