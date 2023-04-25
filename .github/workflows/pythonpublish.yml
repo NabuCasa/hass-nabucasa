@@ -20,7 +20,7 @@ jobs:
 
       - name: Verify version
         run: |
-          [[ "$(python3 setup.py --version)" != "${{ github.event.release.tag_name }}" ]]
+          [[ "$(python3 setup.py --version)" == "${{ github.event.release.tag_name }}" ]]
 
       - name: Install dependencies
         run: |
