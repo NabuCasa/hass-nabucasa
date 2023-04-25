@@ -172,9 +172,12 @@ class CognitoAuth:
                         partial(cognito.authenticate, password=password)
                     )
 
-                await self.cloud.update_token(
+                task = await self.cloud.update_token(
                     cognito.id_token, cognito.access_token, cognito.refresh_token
                 )
+
+            if task:
+                await task
 
         except ForceChangePasswordException as err:
             raise PasswordChangeRequired() from err
