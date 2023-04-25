@@ -51,7 +51,7 @@ class Cloud:
         remote_sni_server: str | None = None,
         remotestate_server: str | None = None,
         thingtalk_server: str | None = None,
-        voice_server: str | None = None,
+        servicehandlers_server: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Create an instance of Cloud."""
@@ -90,7 +90,7 @@ class Cloud:
             self.remote_sni_server = remote_sni_server
             self.remotestate_server = remotestate_server
             self.thingtalk_server = thingtalk_server
-            self.voice_server = voice_server
+            self.servicehandlers_server = servicehandlers_server
             return
 
         _values = DEFAULT_VALUES[mode]
@@ -110,7 +110,7 @@ class Cloud:
         self.remote_sni_server = _servers["remote_sni"]
         self.remotestate_server = _servers["remotestate"]
         self.thingtalk_server = _servers["thingtalk"]
-        self.voice_server = _servers["voice"]
+        self.servicehandlers_server = _servers["servicehandlers"]
 
     @property
     def is_logged_in(self) -> bool:

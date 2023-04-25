@@ -30,7 +30,7 @@ def test_constructor_loads_info_from_constant(cloud_client):
                 "acme": "test-acme-directory-server",
                 "remotestate": "test-google-actions-report-state-url",
                 "account_link": "test-account-link-url",
-                "voice": "test-voice-api-url",
+                "servicehandlers": "test-servicehandlers-url",
                 "thingtalk": "test-thingtalk-url",
             }
         },

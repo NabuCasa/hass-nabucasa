@@ -121,7 +121,7 @@ async def async_alexa_access_token(cloud: Cloud) -> ClientResponse:
 @_log_response
 async def async_voice_connection_details(cloud: Cloud) -> ClientResponse:
     """Return connection details for voice service."""
-    url = f"https://{cloud.voice_server}/connection_details"
+    url = f"https://{cloud.servicehandlers_server}/voice/connection_details"
     return await cloud.websession.get(url, headers={AUTHORIZATION: cloud.id_token})
 
 

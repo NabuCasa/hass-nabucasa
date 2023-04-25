@@ -10,7 +10,7 @@ import hass_nabucasa.voice as voice
 @pytest.fixture
 def voice_api(auth_cloud_mock):
     """Voice api fixture."""
-    auth_cloud_mock.voice_server = "test.local"
+    auth_cloud_mock.servicehandlers_server = "test.local"
     return voice.Voice(auth_cloud_mock)
 
 
@@ -18,7 +18,7 @@ def voice_api(auth_cloud_mock):
 def mock_voice_connection_details(aioclient_mock):
     """Mock voice connection details."""
     aioclient_mock.get(
-        "https://test.local/connection_details",
+        "https://test.local/voice/connection_details",
         json={
             "authorized_key": "test-key",
             "endpoint_stt": "stt-url",
