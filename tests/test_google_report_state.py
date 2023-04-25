@@ -7,6 +7,7 @@ from hass_nabucasa.google_report_state import GoogleReportState, ErrorResponse
 
 from .common import MockClient
 
+
 async def create_grs(loop, ws_server, server_msg_handler) -> GoogleReportState:
     """Create a grs instance."""
     client = await ws_server(server_msg_handler)
@@ -16,7 +17,7 @@ async def create_grs(loop, ws_server, server_msg_handler) -> GoogleReportState:
         remotestate_server="mock-report-state-url.com",
         auth=Mock(async_check_token=AsyncMock()),
         websession=Mock(ws_connect=AsyncMock(return_value=client)),
-        client=Mock(spec_set=MockClient)
+        client=Mock(spec_set=MockClient),
     )
     return GoogleReportState(mock_cloud)
 
