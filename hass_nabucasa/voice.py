@@ -14,7 +14,7 @@ from . import cloud_api
 from .utils import utc_from_timestamp, utcnow
 
 if TYPE_CHECKING:
-    from . import Cloud
+    from . import Cloud, _ClientT
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -1218,7 +1218,7 @@ class STTResponse:
 class Voice:
     """Class to help manage azure STT and TTS."""
 
-    def __init__(self, cloud: Cloud) -> None:
+    def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Initialize azure voice."""
         self.cloud = cloud
         self._token: str | None = None

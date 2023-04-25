@@ -17,7 +17,7 @@ from pycognito.exceptions import ForceChangePasswordException
 from .const import MESSAGE_AUTH_FAIL
 
 if TYPE_CHECKING:
-    from . import Cloud
+    from . import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ AWS_EXCEPTIONS: dict[str, Type[CloudError]] = {
 class CognitoAuth:
     """Handle cloud auth."""
 
-    def __init__(self, cloud: Cloud) -> None:
+    def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Configure the auth api."""
         self.cloud = cloud
         self._refresh_task: asyncio.Task | None = None

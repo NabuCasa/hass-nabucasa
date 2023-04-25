@@ -8,13 +8,13 @@ import async_timeout
 from . import cloud_api
 
 if TYPE_CHECKING:
-    from . import Cloud
+    from . import Cloud, _ClientT
 
 
 class Cloudhooks:
     """Class to help manage cloudhooks."""
 
-    def __init__(self, cloud: Cloud) -> None:
+    def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Initialize cloudhooks."""
         self.cloud = cloud
 

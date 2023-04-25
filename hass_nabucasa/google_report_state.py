@@ -9,7 +9,7 @@ import uuid
 from . import iot_base
 
 if TYPE_CHECKING:
-    from . import Cloud
+    from . import Cloud, _ClientT
 
 MAX_PENDING = 100
 
@@ -33,7 +33,7 @@ class GoogleReportState(iot_base.BaseIoT):
     Uses a queue to send messages.
     """
 
-    def __init__(self, cloud: Cloud) -> None:
+    def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Initialize Google Report State."""
         super().__init__(cloud)
         self._connect_lock = asyncio.Lock()

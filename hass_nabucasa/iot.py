@@ -13,7 +13,7 @@ from . import iot_base
 from .utils import Registry
 
 if TYPE_CHECKING:
-    from . import Cloud
+    from . import Cloud, _ClientT
 
 HANDLERS = Registry()
 _LOGGER = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class CloudIoT(iot_base.BaseIoT):
 
     mark_connected_after_first_message: bool = True
 
-    def __init__(self, cloud: Cloud) -> None:
+    def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Initialize the CloudIoT class."""
         super().__init__(cloud)
 
@@ -139,27 +139,29 @@ class CloudIoT(iot_base.BaseIoT):
 
 
 @HANDLERS.register("system")
-async def async_handle_system(cloud: Cloud, payload: dict[str, Any]) -> None:
+async def async_handle_system(cloud: Cloud[_ClientT], payload: dict[str, Any]) -> None:
     """Handle an incoming IoT message for System."""
     return await cloud.client.async_system_message(payload)
 
 
 @HANDLERS.register("alexa")
-async def async_handle_alexa(cloud: Cloud, payload: dict[str, Any]) -> dict[str, Any]:
+async def async_handle_alexa(
+    cloud: Cloud[_ClientT], payload: dict[str, Any]
+) -> dict[str, Any]:
     """Handle an incoming IoT message for Alexa."""
     return await cloud.client.async_alexa_message(payload)
 
 
 @HANDLERS.register("google_actions")
 async def async_handle_google_actions(
-    cloud: Cloud, payload: dict[str, Any]
+    cloud: Cloud[_ClientT], payload: dict[str, Any]
 ) -> dict[str, Any]:
     """Handle an incoming IoT message for Google Actions."""
     return await cloud.client.async_google_message(payload)
 
 
 @HANDLERS.register("cloud")
-async def async_handle_cloud(cloud: Cloud, payload: dict[str, Any]) -> None:
+async def async_handle_cloud(cloud: Cloud[_ClientT], payload: dict[str, Any]) -> None:
     """Handle an incoming IoT message for cloud component."""
     action = payload["action"]
 
@@ -195,7 +197,7 @@ async def async_handle_cloud(cloud: Cloud, payload: dict[str, Any]) -> None:
 
 @HANDLERS.register("remote_sni")
 async def async_handle_remote_sni(
-    cloud: Cloud,
+    cloud: Cloud[_ClientT],
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     """Handle remote UI requests for cloud."""
@@ -204,6 +206,8 @@ async def async_handle_remote_sni(
 
 
 @HANDLERS.register("webhook")
-async def async_handle_webhook(cloud: Cloud, payload: dict[str, Any]) -> dict[str, Any]:
+async def async_handle_webhook(
+    cloud: Cloud[_ClientT], payload: dict[str, Any]
+) -> dict[str, Any]:
     """Handle an incoming IoT message for cloud webhooks."""
     return await cloud.client.async_webhook_message(payload)

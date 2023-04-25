@@ -35,7 +35,7 @@ USER_AGENT = "home-assistant-cloud"
 _LOGGER = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from . import Cloud
+    from . import Cloud, _ClientT
 
 
 class AcmeClientError(Exception):
@@ -63,7 +63,7 @@ class ChallengeHandler:
 class AcmeHandler:
     """Class handle a local certification."""
 
-    def __init__(self, cloud: Cloud, domain: str, email: str) -> None:
+    def __init__(self, cloud: Cloud[_ClientT], domain: str, email: str) -> None:
         """Initialize local ACME Handler."""
         self.cloud = cloud
         self._acme_server = f"https://{cloud.acme_server}/directory"

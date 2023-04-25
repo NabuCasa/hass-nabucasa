@@ -29,7 +29,7 @@ from .const import (
 from .utils import gather_callbacks
 
 if TYPE_CHECKING:
-    from . import Cloud
+    from . import Cloud, _ClientT
 
 
 @dataclasses.dataclass
@@ -49,7 +49,7 @@ class BaseIoT:
 
     mark_connected_after_first_message = False
 
-    def __init__(self, cloud: Cloud) -> None:
+    def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Initialize the CloudIoT class."""
         self.cloud = cloud
         # The WebSocket client
