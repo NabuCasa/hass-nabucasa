@@ -158,7 +158,7 @@ class Cloud:
 
     async def update_token(
         self, id_token: str, access_token: str, refresh_token: str | None = None
-    ) -> None:
+    ) -> asyncio.Task | None:
         """Update the id and access token."""
         self.id_token = id_token
         self.access_token = access_token
@@ -168,15 +168,17 @@ class Cloud:
         await self.run_executor(self._write_user_info)
 
         if self.started is None:
-            return
+            return None
 
         if not self.started and not self.subscription_expired:
             self.started = True
-            self.run_task(self._start())
+            return self.run_task(self._start())
 
-        elif self.started and self.subscription_expired:
+        if self.started and self.subscription_expired:
             self.started = False
             await self.stop()
+
+        return None
 
     def register_on_initialized(
         self, on_initialized_cb: Callable[[], Awaitable[None]]
