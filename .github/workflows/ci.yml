@@ -12,7 +12,7 @@ jobs:
   tox:
     name: Tox (${{ matrix.python.version }})
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.python.prerelease }}
+    continue-on-error: ${{ matrix.python.prerelease || false }}
     strategy:
       fail-fast: false
       matrix:
@@ -29,7 +29,7 @@ jobs:
         uses: actions/setup-python@v4.6.0
         with:
           python-version: ${{ matrix.python.version }}
-          allow-prereleases: ${{ matrix.python.prerelease }}
+          allow-prereleases: ${{ matrix.python.prerelease || false }}
 
       - name: Install dependencies
         run: |
