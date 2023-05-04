@@ -124,7 +124,9 @@ async def async_fetch_access_token(
     return tokens
 
 
-async def async_fetch_available_services(cloud: Cloud[_ClientT]) -> list[dict[str, Any]]:
+async def async_fetch_available_services(
+    cloud: Cloud[_ClientT],
+) -> list[dict[str, Any]]:
     """Fetch available services."""
 
     resp = await cloud.client.websession.get(
