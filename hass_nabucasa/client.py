@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class CloudClient(ABC):
     """Interface class for Home Assistant."""
 
-    cloud: Cloud | None = None
+    cloud: Cloud
 
     @property
     @abstractmethod
@@ -25,7 +25,7 @@ class CloudClient(ABC):
 
     @property
     @abstractmethod
-    def loop(self) -> asyncio.BaseEventLoop:
+    def loop(self) -> asyncio.AbstractEventLoop:
         """Return client loop."""
 
     @property
