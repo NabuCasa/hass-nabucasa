@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from aiohttp.client_ws import ClientWebSocketResponse
 
 if TYPE_CHECKING:
-    from . import Cloud
+    from . import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ def _update_token_response(tokens: dict[str, str], service: str) -> None:
 class AuthorizeAccountHelper:
     """Class to help the user authorize a third party account with Home Assistant."""
 
-    def __init__(self, cloud: Cloud, service: str) -> None:
+    def __init__(self, cloud: Cloud[_ClientT], service: str) -> None:
         """Initialize the authorize account helper."""
         self.cloud = cloud
         self.service = service
@@ -108,7 +108,7 @@ class AuthorizeAccountHelper:
 
 
 async def async_fetch_access_token(
-    cloud: Cloud,
+    cloud: Cloud[_ClientT],
     service: str,
     refresh_token: str,
 ) -> dict[str, str]:
@@ -124,8 +124,9 @@ async def async_fetch_access_token(
     return tokens
 
 
-async def async_fetch_available_services(cloud: Cloud) -> dict[str, Any]:
+async def async_fetch_available_services(cloud: Cloud[_ClientT]) -> dict[str, Any]:
     """Fetch available services."""
+
     resp = await cloud.client.websession.get(
         f"https://{cloud.account_link_server}/services"
     )

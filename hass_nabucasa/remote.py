@@ -21,7 +21,7 @@ from . import cloud_api, const, utils
 from .acme import AcmeClientError, AcmeHandler
 
 if TYPE_CHECKING:
-    from . import Cloud
+    from . import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ class CertificateStatus(str, Enum):
 class RemoteUI:
     """Class to help manage remote connections."""
 
-    def __init__(self, cloud: Cloud) -> None:
+    def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Initialize cloudhooks."""
         self.cloud = cloud
         self._acme: AcmeHandler | None = None
