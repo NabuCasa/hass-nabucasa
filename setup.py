@@ -27,6 +27,7 @@ setup(
     zip_safe=False,
     platforms="any",
     packages=["hass_nabucasa"],
+    package_data={"hass_nabucasa": ["py.typed"]},
     python_requires=">=3.10",
     install_requires=[
         "pycognito==2022.12.0",
