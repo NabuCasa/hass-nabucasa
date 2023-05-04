@@ -133,5 +133,5 @@ async def async_fetch_available_services(
         f"https://{cloud.account_link_server}/services"
     )
     resp.raise_for_status()
-    content: dict[str, Any] = await resp.json()
+    content: list[dict[str, Any]] = await resp.json()
     return content
