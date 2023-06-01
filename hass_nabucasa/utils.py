@@ -19,7 +19,7 @@ def utcnow() -> dt.datetime:
 
 def utc_from_timestamp(timestamp: float) -> dt.datetime:
     """Return a UTC time from a timestamp."""
-    return dt.datetime.utcfromtimestamp(timestamp).replace(tzinfo=UTC)
+    return dt.datetime.fromtimestamp(timestamp, UTC)
 
 
 def parse_date(dt_str: str) -> dt.date | None:
