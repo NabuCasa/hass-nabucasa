@@ -10,11 +10,11 @@ from unittest.mock import Mock
 from hass_nabucasa.client import CloudClient
 
 
-class TestClient(CloudClient):
+class MockClient(CloudClient):
     """Interface class for Home Assistant."""
 
     def __init__(self, loop, websession):
-        """Initialize TestClient."""
+        """Initialize MockClient."""
         self._loop = loop
         self._websession = websession
         self._cloudhooks = {}
@@ -64,6 +64,12 @@ class TestClient(CloudClient):
     def remote_autostart(self) -> bool:
         """Return true if we want start a remote connection."""
         return self.prop_remote_autostart
+
+    async def cloud_connected(self):
+        """Handle cloud connected."""
+
+    async def cloud_disconnected(self):
+        """Handle cloud disconnected."""
 
     async def cloud_started(self):
         """Handle cloud started."""

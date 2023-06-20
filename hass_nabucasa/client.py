@@ -49,8 +49,16 @@ class CloudClient(ABC):
         """Return true if we want start a remote connection."""
 
     @abstractmethod
+    async def cloud_connected(self) -> None:
+        """Called when cloud connected."""
+
+    @abstractmethod
+    async def cloud_disconnected(self) -> None:
+        """Called when cloud disconnected."""
+
+    @abstractmethod
     async def cloud_started(self) -> None:
-        """Called when cloud started with active subscription ."""
+        """Called when cloud started with active subscription."""
 
     @abstractmethod
     async def cloud_stopped(self) -> None:
