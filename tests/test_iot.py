@@ -198,6 +198,15 @@ async def test_handler_remote_sni(cloud_mock):
     assert resp == {"server": "1.1.1.1"}
 
 
+async def test_handler_remote_sni_action(cloud_mock):
+    """Test remote_sni action."""
+    cloud_mock.client.mock_return.append({"test": 5})
+    resp = await iot.async_handle_remote_sni(
+        cloud_mock, {"ip_address": "8.8.8.8", "action": "connection_info"}
+    )
+    assert resp == {"test": 5}
+
+
 async def test_send_message_no_answer(cloud_mock_iot):
     """Test sending a message that expects no answer."""
     cloud_iot = iot.CloudIoT(cloud_mock_iot)

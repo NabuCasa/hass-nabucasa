@@ -112,6 +112,10 @@ class MockClient(CloudClient):
         self.mock_system.append(payload)
         return self.mock_return.pop()
 
+    async def async_cloud_connection_info(self) -> dict[Any, Any]:
+        """Process cloud connection info message to client."""
+        return self.mock_return.pop()
+
     async def async_cloudhooks_update(self, data):
         """Update internal cloudhooks data."""
         self._cloudhooks = data
