@@ -201,8 +201,6 @@ async def async_handle_remote_sni(
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     """Handle remote UI requests for cloud."""
-    if payload and (action := payload.get("action")) and action == "connection_info":
-        return await cloud.client.async_cloud_connection_info()
     await cloud.client.async_cloud_connect_update(True)
     return {"server": cloud.remote.snitun_server}
 
