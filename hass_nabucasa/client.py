@@ -73,7 +73,9 @@ class CloudClient(ABC):
         """Process cloud remote message to client."""
 
     @abstractmethod
-    async def async_cloud_connection_info(self) -> dict[Any, Any]:
+    async def async_cloud_connection_info(
+        self, payload: dict[Any, Any]
+    ) -> dict[Any, Any]:
         """Process cloud connection info message to client."""
 
     @abstractmethod

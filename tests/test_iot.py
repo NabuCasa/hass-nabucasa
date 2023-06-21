@@ -199,11 +199,9 @@ async def test_handler_remote_sni(cloud_mock):
 
 
 async def test_handler_remote_sni_action(cloud_mock):
-    """Test remote_sni action."""
+    """Test connection info."""
     cloud_mock.client.mock_return.append({"test": 5})
-    resp = await iot.async_handle_remote_sni(
-        cloud_mock, {"ip_address": "8.8.8.8", "action": "connection_info"}
-    )
+    resp = await iot.async_handle_connection_info(cloud_mock, {})
     assert resp == {"test": 5}
 
 
