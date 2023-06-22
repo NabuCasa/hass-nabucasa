@@ -79,19 +79,18 @@ class CloudClient(ABC):
         """Process cloud connection info message to client."""
 
     @abstractmethod
-    async def async_alexa_message(self, payload: dict[Any, Any]) -> dict[Any, Any]:
-        """process cloud alexa message to client."""
+    async def async_alexa_message(self, payload: dict[str, Any]) -> dict[str, Any]:
 
     @abstractmethod
-    async def async_system_message(self, payload: dict[Any, Any]) -> None:
+    async def async_system_message(self, payload: dict[str, Any]) -> None:
         """process cloud system message to client."""
 
     @abstractmethod
-    async def async_google_message(self, payload: dict[Any, Any]) -> dict[Any, Any]:
+    async def async_google_message(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Process cloud google message to client."""
 
     @abstractmethod
-    async def async_webhook_message(self, payload: dict[Any, Any]) -> dict[Any, Any]:
+    async def async_webhook_message(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Process cloud webhook message to client."""
 
     @abstractmethod
