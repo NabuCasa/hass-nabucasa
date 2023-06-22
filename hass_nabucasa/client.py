@@ -80,6 +80,7 @@ class CloudClient(ABC):
 
     @abstractmethod
     async def async_alexa_message(self, payload: dict[str, Any]) -> dict[str, Any]:
+        process cloud alexa message to client."""
 
     @abstractmethod
     async def async_system_message(self, payload: dict[str, Any]) -> None:
