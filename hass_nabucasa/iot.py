@@ -139,12 +139,12 @@ class CloudIoT(iot_base.BaseIoT):
 
     async def _connected(self) -> None:
         """Handle connected."""
-        super()._connected()
+        await super()._connected()
         await self.cloud.client.cloud_connected()
 
     async def _disconnected(self) -> None:
         """Handle connected."""
-        super()._disconnected()
+        await super()._disconnected()
         await self.cloud.client.cloud_disconnected()
 
 
