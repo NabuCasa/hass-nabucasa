@@ -137,6 +137,16 @@ class CloudIoT(iot_base.BaseIoT):
         with suppress(ConnectionResetError):
             await self.client.send_json(response)
 
+    async def _connected(self) -> None:
+        """Handle connected."""
+        super()._connected()
+        await self.cloud.client.cloud_connected()
+
+    async def _disconnected(self) -> None:
+        """Handle connected."""
+        super()._disconnected()
+        await self.cloud.client.cloud_disconnected()
+
 
 @HANDLERS.register("system")
 async def async_handle_system(cloud: Cloud[_ClientT], payload: dict[str, Any]) -> None:

@@ -140,11 +140,7 @@ class BaseIoT:
                 self._logger.exception("Unexpected error")
 
             if self.state == STATE_CONNECTED:
-                await self.cloud.client.cloud_disconnected()
-                if self._on_disconnect:
-                    await gather_callbacks(
-                        self._logger, "on_disconnect", self._on_disconnect
-                    )
+                await self._disconnected()
 
             if self.close_requested:
                 break
@@ -308,6 +304,10 @@ class BaseIoT:
         self.state = STATE_CONNECTED
         self._logger.info("Connected")
 
-        await self.cloud.client.cloud_connected()
         if self._on_connect:
             await gather_callbacks(self._logger, "on_connect", self._on_connect)
+
+    async def _disconnected(self) -> None:
+        """Handle connected."""
+        if self._on_disconnect:
+            await gather_callbacks(self._logger, "on_disconnect", self._on_disconnect)
