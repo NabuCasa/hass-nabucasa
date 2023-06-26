@@ -205,6 +205,15 @@ async def async_handle_remote_sni(
     return {"server": cloud.remote.snitun_server}
 
 
+@HANDLERS.register("connection_info")
+async def async_handle_connection_info(
+    cloud: Cloud[_ClientT],
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Handle connection info requests for cloud."""
+    return await cloud.client.async_cloud_connection_info(payload)
+
+
 @HANDLERS.register("webhook")
 async def async_handle_webhook(
     cloud: Cloud[_ClientT], payload: dict[str, Any]

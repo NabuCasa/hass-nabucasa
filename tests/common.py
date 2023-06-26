@@ -27,6 +27,7 @@ class MockClient(CloudClient):
         self.mock_google = []
         self.mock_webhooks = []
         self.mock_system = []
+        self.mock_connection_info = []
 
         self.mock_return = []
         self._base_path = None
@@ -110,6 +111,11 @@ class MockClient(CloudClient):
     async def async_system_message(self, payload):
         """Process cloud system message to client."""
         self.mock_system.append(payload)
+        return self.mock_return.pop()
+
+    async def async_cloud_connection_info(self, payload) -> dict[Any, Any]:
+        """Process cloud connection info message to client."""
+        self.mock_connection_info.append(payload)
         return self.mock_return.pop()
 
     async def async_cloudhooks_update(self, data):
