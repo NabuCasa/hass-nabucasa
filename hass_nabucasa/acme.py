@@ -295,7 +295,8 @@ class AcmeHandler:
     def _answer_challenge(self, handler: ChallengeHandler) -> None:
         """Answer challenge."""
         _LOGGER.info("Answer challenge for the new ACME certificate")
-        assert self._acme_client is not None
+        if TYPE_CHECKING:
+            assert self._acme_client is not None
         try:
             self._acme_client.answer_challenge(handler.challenge, handler.response)
         except errors.Error as err:
@@ -304,6 +305,8 @@ class AcmeHandler:
     def _finish_challenge(self, order: messages.OrderResource) -> None:
         """Wait until challenge is finished."""
         # Wait until it's authorize and fetch certification
+        if TYPE_CHECKING:
+            assert self._acme_client is not None
         deadline = datetime.now() + timedelta(seconds=90)
         try:
             order = self._acme_client.poll_authorizations(order, deadline)

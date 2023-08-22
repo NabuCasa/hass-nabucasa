@@ -8,7 +8,7 @@ from enum import Enum
 import logging
 import random
 import ssl
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import aiohttp
 import async_timeout
@@ -69,7 +69,7 @@ class Certificate:
     common_name = attr.ib(type=str)
     expire_date = attr.ib(type=datetime)
     fingerprint = attr.ib(type=str)
-    alternative_names = attr.ib(type=list[str])
+    alternative_names = attr.ib(type=list[str] | None)
 
 
 class CertificateStatus(str, Enum):
@@ -135,7 +135,7 @@ class RemoteUI:
         return self._instance_domain
 
     @property
-    def alias(self) -> str | None:
+    def alias(self) -> list[str] | None:
         """Return alias."""
         return self._alias
 
@@ -212,7 +212,7 @@ class RemoteUI:
         # Cache data
         self._instance_domain = instance_domain
         self._snitun_server = server
-        self._alias = data.get("alias", [])
+        self._alias = cast(list[str], data.get("alias", []))
 
         domains: list[str] = [instance_domain, *self._alias]
 
