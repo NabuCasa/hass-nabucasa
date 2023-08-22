@@ -69,6 +69,7 @@ class Certificate:
     common_name = attr.ib(type=str)
     expire_date = attr.ib(type=datetime)
     fingerprint = attr.ib(type=str)
+    alternative_names = attr.ib(type=list[str])
 
 
 class CertificateStatus(str, Enum):
@@ -91,6 +92,7 @@ class RemoteUI:
         self._snitun: SniTunClientAioHttp | None = None
         self._snitun_server: str | None = None
         self._instance_domain: str | None = None
+        self._alias: list[str] | None = None
         self._reconnect_task: asyncio.Task | None = None
         self._acme_task: asyncio.Task | None = None
         self._token: SniTunToken | None = None
@@ -133,6 +135,11 @@ class RemoteUI:
         return self._instance_domain
 
     @property
+    def alias(self) -> str | None:
+        """Return alias."""
+        return self._alias
+
+    @property
     def is_connected(self) -> bool:
         """Return true if we are ready to connect."""
         return bool(False if self._snitun is None else self._snitun.is_connected)
@@ -150,7 +157,10 @@ class RemoteUI:
             return None
 
         return Certificate(
-            str(self._acme.common_name), self._acme.expire_date, self._acme.fingerprint
+            self._acme.common_name,
+            self._acme.expire_date,
+            self._acme.fingerprint,
+            alternative_names=self._acme.alternative_names,
         )
 
     async def _create_context(self) -> ssl.SSLContext:
@@ -194,25 +204,32 @@ class RemoteUI:
 
         # Extract data
         _LOGGER.debug("Retrieve instance data: %s", data)
-        domain = data["domain"]
+
+        instance_domain = data["domain"]
         email = data["email"]
         server = data["server"]
 
         # Cache data
-        self._instance_domain = domain
+        self._instance_domain = instance_domain
         self._snitun_server = server
+        self._alias = data.get("alias", [])
+
+        domains: list[str] = [instance_domain, *self._alias]
 
         # Set instance details for certificate
-        self._acme = AcmeHandler(self.cloud, domain, email)
+        self._acme = AcmeHandler(self.cloud, domains, email)
 
         # Load exists certificate
         self._certificate_status = CertificateStatus.LOADING
         await self._acme.load_certificate()
 
         # Domain changed / revoke CA
-        ca_domain = self._acme.common_name
-        if ca_domain and ca_domain != domain:
-            _LOGGER.warning("Invalid certificate found: %s", ca_domain)
+        ca_domains = set(self._acme.alternative_names or [])
+        if self._acme.common_name:
+            ca_domains.add(self._acme.common_name)
+
+        if ca_domains and ca_domains != set(domains):
+            _LOGGER.warning("Invalid certificate found for: (%s)", ",".join(ca_domains))
             await self._acme.reset_acme()
 
         self._info_loaded.set()
@@ -296,6 +313,7 @@ class RemoteUI:
         self._acme = None
         self._token = None
         self._instance_domain = None
+        self._alias = None
         self._snitun_server = None
 
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_DOWN)

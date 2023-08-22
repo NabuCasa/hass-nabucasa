@@ -136,6 +136,7 @@ class MockAcme:
         self.init_args = None
 
         self.common_name = None
+        self.alternative_names = None
         self.expire_date = None
         self.fingerprint = None
 

@@ -39,6 +39,7 @@ def acme_mock():
 def valid_acme_mock(acme_mock):
     """Mock ACME client with valid cert."""
     acme_mock.common_name = "test.dui.nabu.casa"
+    acme_mock.alternative_names = ["test.dui.nabu.casa"]
     acme_mock.expire_date = utcnow() + timedelta(days=60)
     return acme_mock
 
@@ -95,7 +96,7 @@ async def test_load_backend_exists_cert(
     assert not valid_acme_mock.call_issue
     assert valid_acme_mock.init_args == (
         auth_cloud_mock,
-        "test.dui.nabu.casa",
+        ["test.dui.nabu.casa"],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
@@ -162,7 +163,7 @@ async def test_load_backend_not_exists_cert(
     assert acme_mock.call_issue
     assert acme_mock.init_args == (
         auth_cloud_mock,
-        "test.dui.nabu.casa",
+        ["test.dui.nabu.casa"],
         "test@nabucasa.inc",
     )
     assert acme_mock.call_hardening
@@ -219,7 +220,7 @@ async def test_load_and_unload_backend(
     assert not valid_acme_mock.call_issue
     assert valid_acme_mock.init_args == (
         auth_cloud_mock,
-        "test.dui.nabu.casa",
+        ["test.dui.nabu.casa"],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
@@ -259,6 +260,7 @@ async def test_load_backend_exists_wrong_cert(
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
             "server": "rest-remote.nabu.casa",
+            "alias": ["example.com"],
         },
     )
     aioclient_mock.post(
@@ -271,7 +273,8 @@ async def test_load_backend_exists_wrong_cert(
         },
     )
 
-    valid_acme_mock.common_name = "wrong.dui.nabu.casa"
+    valid_acme_mock.common_name = "test.dui.nabu.casa"
+    valid_acme_mock.alternative_names = ["test.dui.nabu.casa"]
     await remote.load_backend()
     await asyncio.sleep(0.1)
 
@@ -279,7 +282,7 @@ async def test_load_backend_exists_wrong_cert(
     assert valid_acme_mock.call_reset
     assert valid_acme_mock.init_args == (
         auth_cloud_mock,
-        "test.dui.nabu.casa",
+        ["test.dui.nabu.casa", "example.com"],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
@@ -422,11 +425,13 @@ async def test_get_certificate_details(
     assert remote.certificate is None
 
     acme_mock.common_name = "test"
+    acme_mock.alternative_names = ["test"]
     acme_mock.expire_date = valid
     acme_mock.fingerprint = "ffff"
 
     certificate = remote.certificate
     assert certificate.common_name == "test"
+    assert certificate.alternative_names == ["test"]
     assert certificate.expire_date == valid
     assert certificate.fingerprint == "ffff"
 
