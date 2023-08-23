@@ -17,7 +17,7 @@ import attr
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID
+from cryptography.x509.oid import NameOID, ExtensionOID
 import josepy as jose
 
 from . import cloud_api
@@ -63,7 +63,7 @@ class ChallengeHandler:
 class AcmeHandler:
     """Class handle a local certification."""
 
-    def __init__(self, cloud: Cloud[_ClientT], domain: str, email: str) -> None:
+    def __init__(self, cloud: Cloud[_ClientT], domains: list[str], email: str) -> None:
         """Initialize local ACME Handler."""
         self.cloud = cloud
         self._acme_server = f"https://{cloud.acme_server}/directory"
@@ -71,7 +71,7 @@ class AcmeHandler:
         self._acme_client: client.ClientV2 | None = None
         self._x509: x509.Certificate | None = None
 
-        self._domain = domain
+        self._domains = domains
         self._email = email
 
     @property
@@ -114,11 +114,25 @@ class AcmeHandler:
         return self._x509.not_valid_after.replace(tzinfo=UTC)
 
     @property
-    def common_name(self) -> str | bytes | None:
+    def common_name(self) -> str | None:
         """Return CommonName of certificate."""
         if not self._x509:
             return None
-        return self._x509.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+        return str(
+            self._x509.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+        )
+
+    @property
+    def alternative_names(self) -> list[str] | None:
+        """Return alternative names of certificate."""
+        if not self._x509:
+            return None
+        return [
+            str(entry.value)
+            for entry in self._x509.extensions.get_extension_for_oid(
+                ExtensionOID.SUBJECT_ALTERNATIVE_NAME
+            ).value
+        ]
 
     @property
     def fingerprint(self) -> str | None:
@@ -142,7 +156,7 @@ class AcmeHandler:
             self.path_private_key.write_bytes(key_pem)
             self.path_private_key.chmod(0o600)
 
-        return crypto_util.make_csr(key_pem, [self._domain])
+        return crypto_util.make_csr(key_pem, self._domains)
 
     def _load_account_key(self) -> None:
         """Load or create account key."""
@@ -234,53 +248,68 @@ class AcmeHandler:
         )
         self.path_registration_info.chmod(0o600)
 
-    def _start_challenge(self, csr_pem: bytes) -> ChallengeHandler:
+    def _create_order(self, csr_pem: bytes) -> messages.OrderResource:
         """Initialize domain challenge and return token."""
         _LOGGER.info("Initialize challenge for a new ACME certificate")
         assert self._acme_client is not None
         try:
-            order = self._acme_client.new_order(csr_pem)
+            return self._acme_client.new_order(csr_pem)
         except errors.Error as err:
             raise AcmeChallengeError(
                 f"Can't order a new ACME challenge: {err}"
             ) from None
 
+    def _start_challenge(self, order: messages.OrderResource) -> list[ChallengeHandler]:
+        """Initialize domain challenge and return token."""
+        _LOGGER.info("Start challenge for a new ACME certificate")
+
         # Find DNS challenge
         # pylint: disable=not-an-iterable
-        dns_challenge: messages.ChallengeBody | None = None
+        dns_challenges: list[messages.ChallengeBody] = []
         for auth in order.authorizations:
             for challenge in auth.body.challenges:
                 if challenge.typ != "dns-01":
                     continue
-                dns_challenge = challenge
+                dns_challenges.append(challenge)
 
-        if dns_challenge is None:
+        if len(dns_challenges) == 0:
             raise AcmeChallengeError("No pending ACME challenge")
 
-        try:
-            response, validation = dns_challenge.response_and_validation(
-                self._account_jwk
+        handlers = []
+
+        for dns_challenge in dns_challenges:
+            try:
+                response, validation = dns_challenge.response_and_validation(
+                    self._account_jwk
+                )
+            except errors.Error as err:
+                raise AcmeChallengeError(
+                    f"Can't validate the new ACME challenge: {err}"
+                ) from None
+            handlers.append(
+                ChallengeHandler(dns_challenge, order, response, validation)
             )
-        except errors.Error as err:
-            raise AcmeChallengeError(
-                f"Can't validate the new ACME challenge: {err}"
-            ) from None
 
-        return ChallengeHandler(dns_challenge, order, response, validation)
+        return handlers
 
-    def _finish_challenge(self, handler: ChallengeHandler) -> None:
-        """Wait until challenge is finished."""
-        _LOGGER.info("Finishing challenge for the new ACME certificate")
-        assert self._acme_client is not None
+    def _answer_challenge(self, handler: ChallengeHandler) -> None:
+        """Answer challenge."""
+        _LOGGER.info("Answer challenge for the new ACME certificate")
+        if TYPE_CHECKING:
+            assert self._acme_client is not None
         try:
             self._acme_client.answer_challenge(handler.challenge, handler.response)
         except errors.Error as err:
             raise AcmeChallengeError(f"Can't accept ACME challenge: {err}") from err
 
+    def _finish_challenge(self, order: messages.OrderResource) -> None:
+        """Wait until challenge is finished."""
         # Wait until it's authorize and fetch certification
+        if TYPE_CHECKING:
+            assert self._acme_client is not None
         deadline = datetime.now() + timedelta(seconds=90)
         try:
-            order = self._acme_client.poll_authorizations(handler.order, deadline)
+            order = self._acme_client.poll_authorizations(order, deadline)
             order = self._acme_client.finalize_order(
                 order, deadline, fetch_alternative_chains=True
             )
@@ -375,34 +404,42 @@ class AcmeHandler:
 
         # Initialize challenge / new certificate
         csr = await self.cloud.run_executor(self._generate_csr)
-        challenge = await self.cloud.run_executor(self._start_challenge, csr)
+        order = await self.cloud.run_executor(self._create_order, csr)
+        dns_challenges: list[ChallengeHandler] = await self.cloud.run_executor(
+            self._start_challenge, order
+        )
 
-        # Update DNS
-        try:
-            async with async_timeout.timeout(30):
-                resp = await cloud_api.async_remote_challenge_txt(
-                    self.cloud, challenge.validation
-                )
-            assert resp.status == 200
-        except (asyncio.TimeoutError, AssertionError):
-            raise AcmeNabuCasaError(
-                "Can't set challenge token to NabuCasa DNS!"
-            ) from None
-
-        # Finish validation
-        try:
-            _LOGGER.info("Waiting 60 seconds for publishing DNS to ACME provider")
-            await asyncio.sleep(60)
-            await self.cloud.run_executor(self._finish_challenge, challenge)
-            await self.load_certificate()
-        finally:
+        for challenge in dns_challenges:
+            # Update DNS
             try:
                 async with async_timeout.timeout(30):
-                    await cloud_api.async_remote_challenge_cleanup(
+                    resp = await cloud_api.async_remote_challenge_txt(
                         self.cloud, challenge.validation
                     )
-            except asyncio.TimeoutError:
-                _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
+                assert resp.status == 200
+            except (asyncio.TimeoutError, AssertionError):
+                raise AcmeNabuCasaError(
+                    "Can't set challenge token to NabuCasa DNS!"
+                ) from None
+
+            # Answer challenge
+            try:
+                _LOGGER.info("Waiting 60 seconds for publishing DNS to ACME provider")
+                await asyncio.sleep(60)
+                await self.cloud.run_executor(self._answer_challenge, challenge)
+                await self.load_certificate()
+            finally:
+                try:
+                    async with async_timeout.timeout(30):
+                        await cloud_api.async_remote_challenge_cleanup(
+                            self.cloud, challenge.validation
+                        )
+                except asyncio.TimeoutError:
+                    _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
+
+        # Finish validation
+        await self.cloud.run_executor(self._finish_challenge, order)
+        await self.load_certificate()
 
     async def reset_acme(self) -> None:
         """Revoke and deactivate acme certificate/account."""
