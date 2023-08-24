@@ -416,7 +416,7 @@ class AcmeHandler:
                     resp = await cloud_api.async_remote_challenge_txt(
                         self.cloud, challenge.validation
                     )
-                assert resp.status == 200
+                assert resp.status in (200, 201)
             except (asyncio.TimeoutError, AssertionError):
                 raise AcmeNabuCasaError(
                     "Can't set challenge token to NabuCasa DNS!"
