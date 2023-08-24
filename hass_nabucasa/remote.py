@@ -343,7 +343,7 @@ class RemoteUI:
                 resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
                 if resp.status == 409:
                     raise RemoteInsecureVersion()
-                if resp.status != 200:
+                if resp.status not in (200, 201):
                     raise RemoteBackendError()
         except (asyncio.TimeoutError, aiohttp.ClientError):
             raise RemoteBackendError() from None

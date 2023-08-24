@@ -1270,7 +1270,7 @@ class Voice:
             expect100=True,
             chunked=True,
         ) as resp:
-            if resp.status != 200:
+            if resp.status not in (200, 201):
                 raise VoiceReturnError(
                     f"Error processing {language} speech: {resp.status} {await resp.text()}"
                 )
@@ -1337,7 +1337,7 @@ class Voice:
             },
             data=ET.tostring(xml_body),
         ) as resp:
-            if resp.status != 200:
+            if resp.status not in (200, 201):
                 raise VoiceReturnError(
                     f"Error receiving TTS with {language}/{voice}: {resp.status} {await resp.text()}"
                 )
