@@ -69,7 +69,7 @@ async def async_create_cloudhook(cloud: Cloud[_ClientT]) -> ClientResponse:
 @_log_response
 async def async_remote_register(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Create/Get a remote URL."""
-    url = f"https://{cloud.remote_sni_server}/register_instance"
+    url = f"https://{cloud.servicehandlers_server}/instance/register"
     return await cloud.websession.post(url, headers={AUTHORIZATION: cloud.id_token})
 
 
@@ -79,7 +79,7 @@ async def async_remote_token(
     cloud: Cloud[_ClientT], aes_key: bytes, aes_iv: bytes
 ) -> ClientResponse:
     """Create a remote snitun token."""
-    url = f"https://{cloud.remote_sni_server}/snitun_token"
+    url = f"https://{cloud.servicehandlers_server}/instance/snitun_token"
     return await cloud.websession.post(
         url,
         headers={AUTHORIZATION: cloud.id_token},
@@ -93,7 +93,7 @@ async def async_remote_challenge_txt(
     cloud: Cloud[_ClientT], txt: str
 ) -> ClientResponse:
     """Set DNS challenge."""
-    url = f"https://{cloud.remote_sni_server}/challenge_txt"
+    url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_txt"
     return await cloud.websession.post(
         url, headers={AUTHORIZATION: cloud.id_token}, json={"txt": txt}
     )
@@ -105,7 +105,7 @@ async def async_remote_challenge_cleanup(
     cloud: Cloud[_ClientT], txt: str
 ) -> ClientResponse:
     """Remove DNS challenge."""
-    url = f"https://{cloud.remote_sni_server}/challenge_cleanup"
+    url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_cleanup"
     return await cloud.websession.post(
         url, headers={AUTHORIZATION: cloud.id_token}, json={"txt": txt}
     )
