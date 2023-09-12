@@ -25,7 +25,6 @@ DEFAULT_SERVERS: dict[str, dict[str, str]] = {
         "alexa": "alexa-api.nabucasa.com",
         "cloudhook": "webhooks-api.nabucasa.com",
         "relayer": "cloud.nabucasa.com",
-        "remote_sni": "remote-sni-api.nabucasa.com",
         "remotestate": "remotestate.nabucasa.com",
         "servicehandlers": "servicehandlers.nabucasa.com",
         "thingtalk": "thingtalk-api.nabucasa.com",
