@@ -427,7 +427,6 @@ class AcmeHandler:
                 _LOGGER.info("Waiting 60 seconds for publishing DNS to ACME provider")
                 await asyncio.sleep(60)
                 await self.cloud.run_executor(self._answer_challenge, challenge)
-                await self.load_certificate()
             finally:
                 try:
                     async with async_timeout.timeout(30):
