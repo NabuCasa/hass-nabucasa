@@ -409,7 +409,8 @@ class AcmeHandler:
             self._start_challenge, order
         )
 
-        for challenge in dns_challenges:
+        dns_entries = len(dns_challenges)
+        for idx, challenge in enumerate(dns_challenges):
             # Update DNS
             try:
                 async with async_timeout.timeout(30):
@@ -429,6 +430,9 @@ class AcmeHandler:
                 await self.cloud.run_executor(self._answer_challenge, challenge)
                 await self.load_certificate()
             finally:
+                if (idx + 1) != dns_entries:
+                    # We only need to cleanup for the last entry
+                    continue
                 try:
                     async with async_timeout.timeout(30):
                         await cloud_api.async_remote_challenge_cleanup(
