@@ -409,33 +409,38 @@ class AcmeHandler:
             self._start_challenge, order
         )
 
-        for challenge in dns_challenges:
-            # Update DNS
-            try:
-                async with async_timeout.timeout(30):
-                    resp = await cloud_api.async_remote_challenge_txt(
-                        self.cloud, challenge.validation
-                    )
-                assert resp.status in (200, 201)
-            except (asyncio.TimeoutError, AssertionError):
-                raise AcmeNabuCasaError(
-                    "Can't set challenge token to NabuCasa DNS!"
-                ) from None
-
-            # Answer challenge
-            try:
-                _LOGGER.info("Waiting 60 seconds for publishing DNS to ACME provider")
-                await asyncio.sleep(60)
-                await self.cloud.run_executor(self._answer_challenge, challenge)
-                await self.load_certificate()
-            finally:
+        try:
+            for challenge in dns_challenges:
+                # Update DNS
                 try:
                     async with async_timeout.timeout(30):
-                        await cloud_api.async_remote_challenge_cleanup(
+                        resp = await cloud_api.async_remote_challenge_txt(
                             self.cloud, challenge.validation
                         )
-                except asyncio.TimeoutError:
-                    _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
+                    assert resp.status in (200, 201)
+                except (asyncio.TimeoutError, AssertionError):
+                    raise AcmeNabuCasaError(
+                        "Can't set challenge token to NabuCasa DNS!"
+                    ) from None
+
+                # Answer challenge
+                try:
+                    _LOGGER.info(
+                        "Waiting 60 seconds for publishing DNS to ACME provider"
+                    )
+                    await asyncio.sleep(60)
+                    await self.cloud.run_executor(self._answer_challenge, challenge)
+                except AcmeChallengeError as err:
+                    _LOGGER.error("Could not complete answer challenge - %s", err)
+        finally:
+            try:
+                async with async_timeout.timeout(30):
+                    # We only need to cleanup for the last entry
+                    await cloud_api.async_remote_challenge_cleanup(
+                        self.cloud, dns_challenges[-1].validation
+                    )
+            except asyncio.TimeoutError:
+                _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
 
         # Finish validation
         await self.cloud.run_executor(self._finish_challenge, order)
