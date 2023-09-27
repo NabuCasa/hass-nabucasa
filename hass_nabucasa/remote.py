@@ -368,7 +368,7 @@ class RemoteUI:
 
         insecure = False
         try:
-            _LOGGER.debug("Refresn snitun token")
+            _LOGGER.debug("Refresh snitun token")
             async with async_timeout.timeout(30):
                 await self._refresh_snitun_token()
 
@@ -388,8 +388,14 @@ class RemoteUI:
             self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout connecting to snitun server")
-        except SniTunConnectionError:
-            _LOGGER.error("Connection problem to snitun server")
+        except SniTunConnectionError as err:
+            can_reconnect = self._snitun and not self._reconnect_task
+            _LOGGER.log(
+                logging.INFO if can_reconnect else logging.ERROR,
+                "Connection problem to snitun server%s (%s)",
+                ", reconnecting" if can_reconnect else "",
+                err,
+            )
         except RemoteBackendError:
             _LOGGER.error("Can't refresh the snitun token")
         except RemoteInsecureVersion:
