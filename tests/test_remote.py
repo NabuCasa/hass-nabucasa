@@ -573,6 +573,43 @@ async def test_load_connect_insecure(
     assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_BACKEND_UP
 
 
+async def test_load_connect_forbidden(
+    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock, caplog
+):
+    """Initialize backend."""
+    auth_cloud_mock.servicehandlers_server = "test.local"
+    remote = RemoteUI(auth_cloud_mock)
+
+    aioclient_mock.post(
+        "https://test.local/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        "https://test.local/instance/snitun_token",
+        json={
+            "message": "lorem_ipsum",
+        },
+        status=403,
+        headers={"content-type": "application/json; charset=utf-8"},
+    )
+
+    auth_cloud_mock.client.prop_remote_autostart = True
+    await remote.load_backend()
+    await asyncio.sleep(0.1)
+
+    assert remote.snitun_server == "rest-remote.nabu.casa"
+    assert not valid_acme_mock.call_issue
+    assert valid_acme_mock.call_hardening
+    assert snitun_mock.call_start
+    assert not snitun_mock.call_connect
+
+    assert "Remote connection is not allowed lorem_ipsum" in caplog.text
+
+
 async def test_call_disconnect_clean_token(
     auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
