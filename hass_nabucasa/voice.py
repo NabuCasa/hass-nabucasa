@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, AsyncIterable
 import logging
 import xml.etree.ElementTree as ET
 
-from aiohttp.hdrs import ACCEPT, AUTHORIZATION, CONTENT_TYPE
+from aiohttp.hdrs import ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT
 import attr
 
 from . import cloud_api
@@ -1265,6 +1265,7 @@ class Voice:
                 CONTENT_TYPE: content_type,
                 AUTHORIZATION: f"Bearer {self._token}",
                 ACCEPT: "application/json;text/xml",
+                USER_AGENT: self.cloud.client.client_name,
             },
             data=stream,
             expect100=True,
@@ -1334,6 +1335,7 @@ class Voice:
                 CONTENT_TYPE: "application/ssml+xml",
                 AUTHORIZATION: f"Bearer {self._token}",
                 "X-Microsoft-OutputFormat": output_header,
+                USER_AGENT: self.cloud.client.client_name,
             },
             data=ET.tostring(xml_body),
         ) as resp:

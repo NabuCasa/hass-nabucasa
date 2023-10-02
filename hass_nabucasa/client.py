@@ -35,6 +35,11 @@ class CloudClient(ABC):
 
     @property
     @abstractmethod
+    def client_name(self) -> str:
+        """Return name of the client, this will be used as the user-agent."""
+
+    @property
+    @abstractmethod
     def aiohttp_runner(self) -> web.AppRunner | None:
         """Return client webinterface aiohttp application."""
 
