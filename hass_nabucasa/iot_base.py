@@ -200,7 +200,10 @@ class BaseIoT:
         try:
             self.client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
-                headers={hdrs.AUTHORIZATION: f"Bearer {self.cloud.id_token}"},
+                headers={
+                    hdrs.AUTHORIZATION: f"Bearer {self.cloud.id_token}",
+                    hdrs.USER_AGENT: self.cloud.client.client_name,
+                },
             )
 
             if not self.mark_connected_after_first_message:

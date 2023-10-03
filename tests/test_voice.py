@@ -88,6 +88,7 @@ async def test_process_tts_with_gender(
         "Authorization": "Bearer test-key",
         "Content-Type": "application/ssml+xml",
         "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+        "User-Agent": "hass-nabucasa/tests",
     }
     assert xmltodict.parse(aioclient_mock.mock_calls[1][2]) == snapshot
 
@@ -115,6 +116,7 @@ async def test_process_tts_with_voice(
         "Authorization": "Bearer test-key",
         "Content-Type": "application/ssml+xml",
         "X-Microsoft-OutputFormat": "raw-16khz-16bit-mono-pcm",
+        "User-Agent": "hass-nabucasa/tests",
     }
     assert xmltodict.parse(aioclient_mock.mock_calls[1][2]) == snapshot
 
