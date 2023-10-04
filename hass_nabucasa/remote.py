@@ -43,6 +43,10 @@ class RemoteInsecureVersion(RemoteError):
     """Raise if you try to connect with an insecure Core version."""
 
 
+class RemoteForbidden(RemoteError):
+    """Raise if remote connection is not allowed."""
+
+
 class RemoteNotConnected(RemoteError):
     """Raise if a request need connection and we are not ready."""
 
@@ -343,6 +347,11 @@ class RemoteUI:
                 resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
                 if resp.status == 409:
                     raise RemoteInsecureVersion()
+                if resp.status == 403:
+                    msg = ""
+                    if "application/json" in (resp.content_type or ""):
+                        msg = (await resp.json()).get("message", "")
+                    raise RemoteForbidden(msg)
                 if resp.status not in (200, 201):
                     raise RemoteBackendError()
         except (asyncio.TimeoutError, aiohttp.ClientError):
@@ -367,6 +376,7 @@ class RemoteUI:
             return
 
         insecure = False
+        forbidden = False
         try:
             _LOGGER.debug("Refresh snitun token")
             async with async_timeout.timeout(30):
@@ -398,6 +408,9 @@ class RemoteUI:
             )
         except RemoteBackendError:
             _LOGGER.error("Can't refresh the snitun token")
+        except RemoteForbidden as err:
+            _LOGGER.error("Remote connection is not allowed %s", err)
+            forbidden = True
         except RemoteInsecureVersion:
             self.cloud.client.user_message(
                 "connect_remote_insecure",
@@ -411,11 +424,15 @@ class RemoteUI:
             pass  # Ignore because HA shutdown on snitun token refresh
         finally:
             # start retry task
-            if self._snitun and not self._reconnect_task and not insecure:
+            if (
+                self._snitun
+                and not self._reconnect_task
+                and not (insecure or forbidden)
+            ):
                 self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
 
             # Disconnect if the instance is mark as insecure and we're in reconnect mode
-            elif self._reconnect_task and insecure:
+            elif self._reconnect_task and (insecure or forbidden):
                 self.cloud.run_task(self.disconnect())
 
     async def disconnect(self, clear_snitun_token: bool = False) -> None:
