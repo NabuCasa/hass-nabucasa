@@ -350,7 +350,7 @@ class RemoteUI:
                 if resp.status == 403:
                     msg = ""
                     if "application/json" in (resp.content_type or ""):
-                        msg = (await resp.json()).get("message")
+                        msg = (await resp.json()).get("message", "")
                     raise RemoteForbidden(msg)
                 if resp.status not in (200, 201):
                     raise RemoteBackendError()
