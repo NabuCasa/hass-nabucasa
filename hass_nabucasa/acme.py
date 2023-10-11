@@ -315,6 +315,11 @@ class AcmeHandler:
             )
         except errors.Error as err:
             raise AcmeChallengeError(f"Wait of ACME challenge fails: {err}") from err
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.exception("Unexpected exception while finalizing order")
+            raise AcmeChallengeError(
+                "Unexpected exception while finalizing order"
+            ) from None
 
         # Cleanup the old stuff
         if self.path_fullchain.exists():
@@ -432,6 +437,12 @@ class AcmeHandler:
                     await self.cloud.run_executor(self._answer_challenge, challenge)
                 except AcmeChallengeError as err:
                     _LOGGER.error("Could not complete answer challenge - %s", err)
+                    # There is no point in continuing here
+                    break
+                except Exception:  # pylint: disable=broad-except
+                    _LOGGER.exception("Unexpected exception while answering challenge")
+                    # There is no point in continuing here
+                    break
         finally:
             try:
                 async with async_timeout.timeout(30):
@@ -443,7 +454,10 @@ class AcmeHandler:
                 _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
 
         # Finish validation
-        await self.cloud.run_executor(self._finish_challenge, order)
+        try:
+            await self.cloud.run_executor(self._finish_challenge, order)
+        except AcmeChallengeError as err:
+            raise AcmeNabuCasaError(f"Could not finish challenge - {err}") from err
         await self.load_certificate()
 
     async def reset_acme(self) -> None:
