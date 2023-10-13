@@ -17,7 +17,8 @@ import attr
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID, ExtensionOID
+from cryptography.x509.oid import NameOID
+from cryptography.x509.extensions import SubjectAlternativeName
 import josepy as jose
 
 from . import cloud_api
@@ -127,12 +128,11 @@ class AcmeHandler:
         """Return alternative names of certificate."""
         if not self._x509:
             return None
-        return [
-            str(entry.value)
-            for entry in self._x509.extensions.get_extension_for_oid(
-                ExtensionOID.SUBJECT_ALTERNATIVE_NAME
-            ).value
-        ]
+
+        alternative_names = self._x509.extensions.get_extension_for_class(
+            SubjectAlternativeName
+        ).value
+        return [str(entry.value) for entry in alternative_names]
 
     @property
     def fingerprint(self) -> str | None:
