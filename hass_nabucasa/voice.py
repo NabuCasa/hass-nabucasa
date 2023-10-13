@@ -1250,12 +1250,13 @@ class Voice:
         stream: AsyncIterable[bytes],
         content_type: str,
         language: str,
+        force_token_renewal: bool = False,
     ) -> STTResponse:
         """Stream Audio to Azure congnitive instance."""
         if language not in STT_LANGUAGES:
             raise VoiceError(f"Language {language} not supported")
 
-        if not self._validate_token():
+        if force_token_renewal or not self._validate_token():
             await self._update_token()
 
         # Send request
@@ -1271,6 +1272,15 @@ class Voice:
             expect100=True,
             chunked=True,
         ) as resp:
+            if resp.status == 429 and not force_token_renewal:
+                # By checking the force_token_renewal argument, we limit retries to 1.
+                _LOGGER.info("Retrying with new token")
+                return await self.process_stt(
+                    stream=stream,
+                    content_type=content_type,
+                    language=language,
+                    force_token_renewal=True,
+                )
             if resp.status not in (200, 201):
                 raise VoiceReturnError(
                     f"Error processing {language} speech: {resp.status} {await resp.text()}"
@@ -1290,6 +1300,7 @@ class Voice:
         output: AudioOutput,
         voice: str | None = None,
         gender: Gender | None = None,
+        force_token_renewal: bool = False,
     ) -> bytes:
         """Get Speech from text over Azure."""
         if language not in TTS_VOICES:
@@ -1306,7 +1317,7 @@ class Voice:
         if voice not in TTS_VOICES[language]:
             raise VoiceError(f"Unsupported voice {voice} for language {language}")
 
-        if not self._validate_token():
+        if force_token_renewal or not self._validate_token():
             await self._update_token()
 
         # SSML
@@ -1339,6 +1350,17 @@ class Voice:
             },
             data=ET.tostring(xml_body),
         ) as resp:
+            if resp.status == 429 and not force_token_renewal:
+                # By checking the force_token_renewal argument, we limit retries to 1.
+                _LOGGER.info("Retrying with new token")
+                return await self.process_tts(
+                    text=text,
+                    language=language,
+                    output=output,
+                    voice=voice,
+                    gender=gender,
+                    force_token_renewal=True,
+                )
             if resp.status not in (200, 201):
                 raise VoiceReturnError(
                     f"Error receiving TTS with {language}/{voice}: {resp.status} {await resp.text()}"

@@ -140,3 +140,46 @@ async def test_process_tts_bad_voice(voice_api):
             voice="Not a US voice",
             output=voice.AudioOutput.MP3,
         )
+
+
+async def test_process_tss_429(
+    voice_api, mock_voice_connection_details, aioclient_mock, caplog
+):
+    """Test handling of voice with 429."""
+    aioclient_mock.post(
+        "tts-url",
+        status=429,
+    )
+
+    with pytest.raises(voice.VoiceError):
+        await voice_api.process_tts(
+            text="Text for Saying",
+            language="en-US",
+            gender=voice.Gender.FEMALE,
+            output=voice.AudioOutput.MP3,
+        )
+
+    assert len(aioclient_mock.mock_calls) == 4
+
+    assert "Retrying with new token" in caplog.text
+
+
+async def test_process_stt_429(
+    voice_api, mock_voice_connection_details, aioclient_mock, caplog
+):
+    """Test handling of voice with 429."""
+    aioclient_mock.post(
+        "stt-url",
+        status=429,
+    )
+
+    with pytest.raises(voice.VoiceError):
+        await voice_api.process_stt(
+            stream=b"feet",
+            content_type="video=test",
+            language="en-US",
+        )
+
+    assert len(aioclient_mock.mock_calls) == 4
+
+    assert "Retrying with new token" in caplog.text
