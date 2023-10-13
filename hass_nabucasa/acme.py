@@ -36,9 +36,6 @@ _LOGGER = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
-    from cryptography.hazmat.primitives.asymmetric.types import (
-        PrivateKeyTypes,
-    )
 
 
 class AcmeClientError(Exception):
@@ -149,7 +146,7 @@ class AcmeHandler:
 
     def _load_account_key(self) -> None:
         """Load or create account key."""
-        key: PrivateKeyTypes | None = None
+        key = None
         if self.path_account_key.exists():
             _LOGGER.debug("Load account keyfile: %s", self.path_account_key)
             pem = self.path_account_key.read_bytes()
