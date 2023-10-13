@@ -6,7 +6,7 @@ import contextlib
 from datetime import datetime, timedelta
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 import urllib
 
 import OpenSSL
@@ -36,6 +36,9 @@ _LOGGER = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
+    from cryptography.hazmat.primitives.asymmetric.types import (
+        PrivateKeyTypes,
+    )
 
 
 class AcmeClientError(Exception):
@@ -146,7 +149,7 @@ class AcmeHandler:
 
     def _load_account_key(self) -> None:
         """Load or create account key."""
-        key = None
+        key: PrivateKeyTypes | None = None
         if self.path_account_key.exists():
             _LOGGER.debug("Load account keyfile: %s", self.path_account_key)
             pem = self.path_account_key.read_bytes()
@@ -167,7 +170,9 @@ class AcmeHandler:
             self.path_account_key.write_bytes(pem)
             self.path_account_key.chmod(0o600)
 
-        self._account_jwk = jose.JWKRSA(key=jose.ComparableRSAKey(key))
+        self._account_jwk = jose.JWKRSA(
+            key=jose.ComparableRSAKey(cast(rsa.RSAPrivateKey, key))
+        )
 
     def _create_client(self) -> None:
         """Create new ACME client."""
