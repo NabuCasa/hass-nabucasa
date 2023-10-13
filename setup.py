@@ -1,6 +1,6 @@
 from setuptools import setup
 
-VERSION = "0.69.0"
+VERSION = "0.73.0"
 
 setup(
     name="hass-nabucasa",
@@ -30,8 +30,8 @@ setup(
     package_data={"hass_nabucasa": ["py.typed"]},
     python_requires=">=3.10",
     install_requires=[
-        "pycognito==2022.12.0",
-        "snitun==0.35.0",
+        "pycognito==2023.5.0",
+        "snitun==0.36.2",
         "acme==1.31.0",
         "cryptography>=2.8",
         "attrs>=19.3",

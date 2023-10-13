@@ -1,0 +1,20 @@
+blank_issues_enabled: false
+contact_links:
+  - name: I have an issue with my cloud account
+    url: https://nabucasa.com/support/
+    about: If You have issues related to your cloud account you need to create a ticket on the Nabu Casa website.
+  - name: I have an issue with Google Assistant
+    url: https://github.com/home-assistant/core/issues/new?assignees=&labels=&projects=&template=bug_report.yml&integration_name=google_assistant&integration_link=https://www.home-assistant.io/integrations/google_assistant/
+    about: For issues related to Google Assistant create a ticket on the Nabu Casa website or a issue in the Home Assistant core repository.
+  - name: I have an issue with Alexa
+    url: https://github.com/home-assistant/core/issues/new?assignees=&labels=&projects=&template=bug_report.yml&integration_name=alexa&integration_link=https://www.home-assistant.io/integrations/alexa/
+    about: For issues related to Alexa create a ticket on the Nabu Casa website or a issue in the Home Assistant core repository.
+  - name: I have an issue with remote connection
+    url: https://nabucasa.com/support/
+    about: For issues related to the remote connection create a ticket on the Nabu Casa website.
+  - name: I have an issue with payments
+    url: https://nabucasa.com/support/
+    about: For issues related to payments create a ticket on the Nabu Casa website.
+  - name: I want to request a feature to be added
+    url: https://community.home-assistant.io/tags/c/feature-requests/13/cloud
+    about: Please use the forums for feature requests

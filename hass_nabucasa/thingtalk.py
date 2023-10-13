@@ -16,7 +16,7 @@ async def async_convert(cloud: Cloud[_ClientT], query: str) -> dict[str, Any]:
     resp = await cloud.client.websession.post(
         f"https://{cloud.thingtalk_server}/convert", json={"query": query}
     )
-    if resp.status == 200:
+    if resp.status in (200, 201):
         content: dict[str, Any] = await resp.json()
         return content
 

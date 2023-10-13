@@ -12,7 +12,7 @@ from typing import (
 )
 from aiohttp import ClientResponse
 
-from aiohttp.hdrs import AUTHORIZATION
+from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ async def async_create_cloudhook(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Create a cloudhook."""
     return await cloud.websession.post(
         f"https://{cloud.cloudhook_server}/generate",
-        headers={AUTHORIZATION: cloud.id_token},
+        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
     )
 
 
@@ -69,8 +69,11 @@ async def async_create_cloudhook(cloud: Cloud[_ClientT]) -> ClientResponse:
 @_log_response
 async def async_remote_register(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Create/Get a remote URL."""
-    url = f"https://{cloud.remote_sni_server}/register_instance"
-    return await cloud.websession.post(url, headers={AUTHORIZATION: cloud.id_token})
+    url = f"https://{cloud.servicehandlers_server}/instance/register"
+    return await cloud.websession.post(
+        url,
+        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
+    )
 
 
 @_check_token
@@ -79,10 +82,10 @@ async def async_remote_token(
     cloud: Cloud[_ClientT], aes_key: bytes, aes_iv: bytes
 ) -> ClientResponse:
     """Create a remote snitun token."""
-    url = f"https://{cloud.remote_sni_server}/snitun_token"
+    url = f"https://{cloud.servicehandlers_server}/instance/snitun_token"
     return await cloud.websession.post(
         url,
-        headers={AUTHORIZATION: cloud.id_token},
+        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
         json={"aes_key": aes_key.hex(), "aes_iv": aes_iv.hex()},
     )
 
@@ -93,9 +96,11 @@ async def async_remote_challenge_txt(
     cloud: Cloud[_ClientT], txt: str
 ) -> ClientResponse:
     """Set DNS challenge."""
-    url = f"https://{cloud.remote_sni_server}/challenge_txt"
+    url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_txt"
     return await cloud.websession.post(
-        url, headers={AUTHORIZATION: cloud.id_token}, json={"txt": txt}
+        url,
+        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
+        json={"txt": txt},
     )
 
 
@@ -105,9 +110,11 @@ async def async_remote_challenge_cleanup(
     cloud: Cloud[_ClientT], txt: str
 ) -> ClientResponse:
     """Remove DNS challenge."""
-    url = f"https://{cloud.remote_sni_server}/challenge_cleanup"
+    url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_cleanup"
     return await cloud.websession.post(
-        url, headers={AUTHORIZATION: cloud.id_token}, json={"txt": txt}
+        url,
+        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
+        json={"txt": txt},
     )
 
 
@@ -117,7 +124,7 @@ async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Request Alexa access token."""
     return await cloud.websession.post(
         f"https://{cloud.alexa_server}/access_token",
-        headers={AUTHORIZATION: cloud.id_token},
+        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
     )
 
 
@@ -126,7 +133,10 @@ async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
 async def async_voice_connection_details(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Return connection details for voice service."""
     url = f"https://{cloud.servicehandlers_server}/voice/connection_details"
-    return await cloud.websession.get(url, headers={AUTHORIZATION: cloud.id_token})
+    return await cloud.websession.get(
+        url,
+        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
+    )
 
 
 @_check_token
@@ -135,7 +145,10 @@ async def async_google_actions_request_sync(cloud: Cloud[_ClientT]) -> ClientRes
     """Request a Google Actions sync request."""
     return await cloud.websession.post(
         f"https://{cloud.remotestate_server}/request_sync",
-        headers={AUTHORIZATION: f"Bearer {cloud.id_token}"},
+        headers={
+            AUTHORIZATION: f"Bearer {cloud.id_token}",
+            USER_AGENT: cloud.client.client_name,
+        },
     )
 
 
@@ -144,7 +157,7 @@ async def async_subscription_info(cloud: Cloud[_ClientT]) -> dict[str, Any]:
     """Fetch subscription info."""
     resp = await cloud.websession.get(
         f"https://{cloud.accounts_server}/payments/subscription_info",
-        headers={"authorization": cloud.id_token},
+        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
     )
     _do_log_response(resp)
     resp.raise_for_status()
@@ -163,7 +176,7 @@ async def async_migrate_paypal_agreement(cloud: Cloud[_ClientT]) -> dict[str, An
     """Migrate a paypal agreement from legacy."""
     resp = await cloud.websession.post(
         f"https://{cloud.accounts_server}/payments/migrate_paypal_agreement",
-        headers={"authorization": cloud.id_token},
+        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
     )
     _do_log_response(resp)
     resp.raise_for_status()

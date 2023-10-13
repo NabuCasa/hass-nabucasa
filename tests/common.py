@@ -52,6 +52,11 @@ class MockClient(CloudClient):
         return self._websession
 
     @property
+    def client_name(self):
+        """Return name of the client, this will be used as the user-agent."""
+        return "hass-nabucasa/tests"
+
+    @property
     def aiohttp_runner(self):
         """Return client webinterface aiohttp application."""
         return self._aiohttp_runner
@@ -136,6 +141,7 @@ class MockAcme:
         self.init_args = None
 
         self.common_name = None
+        self.alternative_names = None
         self.expire_date = None
         self.fingerprint = None
 

@@ -8,7 +8,7 @@ from enum import Enum
 import logging
 import random
 import ssl
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import aiohttp
 import async_timeout
@@ -43,6 +43,10 @@ class RemoteInsecureVersion(RemoteError):
     """Raise if you try to connect with an insecure Core version."""
 
 
+class RemoteForbidden(RemoteError):
+    """Raise if remote connection is not allowed."""
+
+
 class RemoteNotConnected(RemoteError):
     """Raise if a request need connection and we are not ready."""
 
@@ -69,6 +73,7 @@ class Certificate:
     common_name = attr.ib(type=str)
     expire_date = attr.ib(type=datetime)
     fingerprint = attr.ib(type=str)
+    alternative_names = attr.ib(type=list[str] | None)
 
 
 class CertificateStatus(str, Enum):
@@ -91,6 +96,7 @@ class RemoteUI:
         self._snitun: SniTunClientAioHttp | None = None
         self._snitun_server: str | None = None
         self._instance_domain: str | None = None
+        self._alias: list[str] | None = None
         self._reconnect_task: asyncio.Task | None = None
         self._acme_task: asyncio.Task | None = None
         self._token: SniTunToken | None = None
@@ -133,6 +139,11 @@ class RemoteUI:
         return self._instance_domain
 
     @property
+    def alias(self) -> list[str] | None:
+        """Return alias."""
+        return self._alias
+
+    @property
     def is_connected(self) -> bool:
         """Return true if we are ready to connect."""
         return bool(False if self._snitun is None else self._snitun.is_connected)
@@ -150,7 +161,10 @@ class RemoteUI:
             return None
 
         return Certificate(
-            str(self._acme.common_name), self._acme.expire_date, self._acme.fingerprint
+            self._acme.common_name,
+            self._acme.expire_date,
+            self._acme.fingerprint,
+            alternative_names=self._acme.alternative_names,
         )
 
     async def _create_context(self) -> ssl.SSLContext:
@@ -194,25 +208,32 @@ class RemoteUI:
 
         # Extract data
         _LOGGER.debug("Retrieve instance data: %s", data)
-        domain = data["domain"]
+
+        instance_domain = data["domain"]
         email = data["email"]
         server = data["server"]
 
         # Cache data
-        self._instance_domain = domain
+        self._instance_domain = instance_domain
         self._snitun_server = server
+        self._alias = cast(list[str], data.get("alias", []))
+
+        domains: list[str] = [instance_domain, *self._alias]
 
         # Set instance details for certificate
-        self._acme = AcmeHandler(self.cloud, domain, email)
+        self._acme = AcmeHandler(self.cloud, domains, email)
 
         # Load exists certificate
         self._certificate_status = CertificateStatus.LOADING
         await self._acme.load_certificate()
 
         # Domain changed / revoke CA
-        ca_domain = self._acme.common_name
-        if ca_domain and ca_domain != domain:
-            _LOGGER.warning("Invalid certificate found: %s", ca_domain)
+        ca_domains = set(self._acme.alternative_names or [])
+        if self._acme.common_name:
+            ca_domains.add(self._acme.common_name)
+
+        if ca_domains and ca_domains != set(domains):
+            _LOGGER.warning("Invalid certificate found for: (%s)", ",".join(ca_domains))
             await self._acme.reset_acme()
 
         self._info_loaded.set()
@@ -296,6 +317,7 @@ class RemoteUI:
         self._acme = None
         self._token = None
         self._instance_domain = None
+        self._alias = None
         self._snitun_server = None
 
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_DOWN)
@@ -325,7 +347,12 @@ class RemoteUI:
                 resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
                 if resp.status == 409:
                     raise RemoteInsecureVersion()
-                if resp.status != 200:
+                if resp.status == 403:
+                    msg = ""
+                    if "application/json" in (resp.content_type or ""):
+                        msg = (await resp.json()).get("message", "")
+                    raise RemoteForbidden(msg)
+                if resp.status not in (200, 201):
                     raise RemoteBackendError()
         except (asyncio.TimeoutError, aiohttp.ClientError):
             raise RemoteBackendError() from None
@@ -349,8 +376,9 @@ class RemoteUI:
             return
 
         insecure = False
+        forbidden = False
         try:
-            _LOGGER.debug("Refresn snitun token")
+            _LOGGER.debug("Refresh snitun token")
             async with async_timeout.timeout(30):
                 await self._refresh_snitun_token()
 
@@ -370,10 +398,19 @@ class RemoteUI:
             self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout connecting to snitun server")
-        except SniTunConnectionError:
-            _LOGGER.error("Connection problem to snitun server")
+        except SniTunConnectionError as err:
+            can_reconnect = self._snitun and not self._reconnect_task
+            _LOGGER.log(
+                logging.INFO if can_reconnect else logging.ERROR,
+                "Connection problem to snitun server%s (%s)",
+                ", reconnecting" if can_reconnect else "",
+                err,
+            )
         except RemoteBackendError:
             _LOGGER.error("Can't refresh the snitun token")
+        except RemoteForbidden as err:
+            _LOGGER.error("Remote connection is not allowed %s", err)
+            forbidden = True
         except RemoteInsecureVersion:
             self.cloud.client.user_message(
                 "connect_remote_insecure",
@@ -387,11 +424,15 @@ class RemoteUI:
             pass  # Ignore because HA shutdown on snitun token refresh
         finally:
             # start retry task
-            if self._snitun and not self._reconnect_task and not insecure:
+            if (
+                self._snitun
+                and not self._reconnect_task
+                and not (insecure or forbidden)
+            ):
                 self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
 
             # Disconnect if the instance is mark as insecure and we're in reconnect mode
-            elif self._reconnect_task and insecure:
+            elif self._reconnect_task and (insecure or forbidden):
                 self.cloud.run_task(self.disconnect())
 
     async def disconnect(self, clear_snitun_token: bool = False) -> None:
