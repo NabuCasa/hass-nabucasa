@@ -6,7 +6,7 @@ import contextlib
 from datetime import datetime, timedelta
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 import urllib
 
 import OpenSSL
@@ -160,7 +160,6 @@ class AcmeHandler:
 
     def _load_account_key(self) -> None:
         """Load or create account key."""
-        key = None
         if self.path_account_key.exists():
             _LOGGER.debug("Load account keyfile: %s", self.path_account_key)
             pem = self.path_account_key.read_bytes()
@@ -181,9 +180,9 @@ class AcmeHandler:
             self.path_account_key.write_bytes(pem)
             self.path_account_key.chmod(0o600)
 
-        self._account_jwk = jose.JWKRSA(
-            key=jose.ComparableRSAKey(cast(rsa.RSAPrivateKey, key))
-        )
+        if TYPE_CHECKING:
+            assert isinstance(key, rsa.RSAPrivateKey)
+        self._account_jwk = jose.JWKRSA(key=jose.ComparableRSAKey(key))
 
     def _create_client(self) -> None:
         """Create new ACME client."""
