@@ -17,7 +17,8 @@ import attr
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID, ExtensionOID
+from cryptography.x509.oid import NameOID
+from cryptography.x509.extensions import SubjectAlternativeName
 import josepy as jose
 
 from . import cloud_api
@@ -127,12 +128,11 @@ class AcmeHandler:
         """Return alternative names of certificate."""
         if not self._x509:
             return None
-        return [
-            str(entry.value)
-            for entry in self._x509.extensions.get_extension_for_oid(
-                ExtensionOID.SUBJECT_ALTERNATIVE_NAME
-            ).value
-        ]
+
+        alternative_names = self._x509.extensions.get_extension_for_class(
+            SubjectAlternativeName
+        ).value
+        return [str(entry.value) for entry in alternative_names]
 
     @property
     def fingerprint(self) -> str | None:
@@ -160,7 +160,6 @@ class AcmeHandler:
 
     def _load_account_key(self) -> None:
         """Load or create account key."""
-        key = None
         if self.path_account_key.exists():
             _LOGGER.debug("Load account keyfile: %s", self.path_account_key)
             pem = self.path_account_key.read_bytes()
@@ -181,6 +180,8 @@ class AcmeHandler:
             self.path_account_key.write_bytes(pem)
             self.path_account_key.chmod(0o600)
 
+        if TYPE_CHECKING:
+            assert isinstance(key, rsa.RSAPrivateKey)
         self._account_jwk = jose.JWKRSA(key=jose.ComparableRSAKey(key))
 
     def _create_client(self) -> None:
