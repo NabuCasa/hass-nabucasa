@@ -208,12 +208,15 @@ class AcmeHandler:
         if self.path_registration_info.exists():
             try:
                 network = client.ClientNetwork(
-                    self._account_jwk, account=regr, user_agent=USER_AGENT
+                    self._account_jwk,
+                    account=regr,
+                    user_agent=USER_AGENT,
                 )
-                directory = messages.Directory.from_json(
-                    network.get(self._acme_server).json()
+                directory = client.ClientV2.get_directory(
+                    url=self._acme_server,
+                    net=network,
                 )
-                self._acme_client = client.ClientV2(directory, net=network)
+                self._acme_client = client.ClientV2(directory=directory, net=network)
             except (errors.Error, ValueError) as err:
                 # https://github.com/certbot/certbot/blob/63fb97d8dea73ba63964f69fac0b15acfed02b3e/acme/acme/client.py#L670
                 # The client raises ValueError for RequestException
@@ -223,10 +226,11 @@ class AcmeHandler:
         # Create a new registration
         try:
             network = client.ClientNetwork(self._account_jwk, user_agent=USER_AGENT)
-            directory = messages.Directory.from_json(
-                network.get(self._acme_server).json()
+            directory = client.ClientV2.get_directory(
+                url=self._acme_server,
+                net=network,
             )
-            self._acme_client = client.ClientV2(directory, net=network)
+            self._acme_client = client.ClientV2(directory=directory, net=network)
         except (errors.Error, ValueError) as err:
             raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
 
