@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
-import re
 import logging
 import ssl
 from typing import Awaitable, Callable, TypeVar
 
+import ciso8601
+
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # noqa pylint: disable=invalid-name
-DATE_STR_FORMAT = re.compile(r"(20\d{2})-(0[1-9]|1[0,1,2])-(0[1-9]|[12][0-9]|3[01])")
 UTC = dt.timezone.utc
 
 
@@ -25,12 +25,8 @@ def utc_from_timestamp(timestamp: float) -> dt.datetime:
 
 def parse_date(dt_str: str) -> dt.date | None:
     """Convert a date string to a date object."""
-    if (match := DATE_STR_FORMAT.match(dt_str)) is None:
-        return None
-
-    [year, month, day] = [int(group) for group in match.groups()]
     try:
-        return dt.datetime(year, month, day).date()
+        return ciso8601.parse_datetime(dt_str).date()
     except ValueError:  # If dt_str did not match our format
         return None
 

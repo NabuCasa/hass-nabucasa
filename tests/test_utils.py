@@ -22,6 +22,8 @@ from hass_nabucasa import utils
         "2020-06-31",
         "2016-02-30",
         "2021-11-31",
+        "invalid",
+        "2023/12/12",
     ],
 )
 def test_parse_date_with_invalid_dates(input_str):
