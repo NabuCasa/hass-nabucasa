@@ -7,8 +7,9 @@ import logging
 import ssl
 from typing import Awaitable, Callable, TypeVar
 
+import ciso8601
+
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # noqa pylint: disable=invalid-name
-DATE_STR_FORMAT = "%Y-%m-%d"
 UTC = dt.timezone.utc
 
 
@@ -25,7 +26,7 @@ def utc_from_timestamp(timestamp: float) -> dt.datetime:
 def parse_date(dt_str: str) -> dt.date | None:
     """Convert a date string to a date object."""
     try:
-        return dt.datetime.strptime(dt_str, DATE_STR_FORMAT).date()
+        return ciso8601.parse_datetime(dt_str).date()
     except ValueError:  # If dt_str did not match our format
         return None
 

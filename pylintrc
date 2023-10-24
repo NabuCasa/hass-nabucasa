@@ -17,6 +17,7 @@ ignore=tests_*
 good-names=id,i,j,k,ex,Run,_,fp,T,cb
 
 generated-members=botocore.errorfactory
+extension-pkg-whitelist=ciso8601
 
 disable=
   abstract-method,

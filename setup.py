@@ -32,6 +32,7 @@ setup(
     install_requires=[
         "pycognito==2023.5.0",
         "snitun==0.36.2",
+        "ciso8601>=2.3.0",
         "acme==2.7.1",
         "cryptography>=2.8",
         "attrs>=19.3",
