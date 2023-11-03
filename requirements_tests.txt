@@ -6,6 +6,6 @@ pytest-aiohttp==1.0.5
 pytest-timeout==2.1.0
 pytest==7.4.3
 types_atomicwrites==1.4.5.1
-types_pyOpenSSL==23.2.0.2
+types_pyOpenSSL==23.3.0.0
 xmltodict==0.13.0
 syrupy==4.5.0
