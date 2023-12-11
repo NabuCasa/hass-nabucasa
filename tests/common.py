@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 import tempfile
-from typing import Any, Coroutine
+from typing import Any, Coroutine, Literal
 from unittest.mock import Mock
 
 from hass_nabucasa.client import CloudClient
@@ -27,6 +27,7 @@ class MockClient(CloudClient):
         self.mock_google = []
         self.mock_webhooks = []
         self.mock_system = []
+        self.mock_repairs = []
         self.mock_connection_info = []
 
         self.mock_return = []
@@ -126,6 +127,15 @@ class MockClient(CloudClient):
     async def async_cloudhooks_update(self, data):
         """Update internal cloudhooks data."""
         self._cloudhooks = data
+
+    async def async_create_repair_issue(
+        self,
+        identifier: str,
+        *,
+        placeholders: dict[str, str] | None = None,
+        severity: Literal["warning", "error"] = "warning"
+    ) -> None:
+        self.mock_repairs.append({"identifier": identifier, "placeholders": placeholders, "severity": severity})
 
 
 class MockAcme:
