@@ -133,13 +133,13 @@ class MockClient(CloudClient):
         identifier: str,
         *,
         placeholders: dict[str, str] | None = None,
-        severity: Literal["warning", "error"] = "warning",
+        error: bool = False,
     ) -> None:
         self.mock_repairs.append(
             {
                 "identifier": identifier,
                 "placeholders": placeholders,
-                "severity": severity,
+                "error": error,
             }
         )
 

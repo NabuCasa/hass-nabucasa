@@ -120,6 +120,6 @@ class CloudClient(ABC):
         identifier: str,
         *,
         placeholders: dict[str, str] | None = None,
-        severity: Literal["warning", "error"] = "warning",
+        error: bool = False,
     ) -> None:
         """Create a repair issue."""
