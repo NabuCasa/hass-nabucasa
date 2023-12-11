@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import aiohttp
 from aiohttp import web
@@ -113,3 +113,14 @@ class CloudClient(ABC):
     @abstractmethod
     def user_message(self, identifier: str, title: str, message: str) -> None:
         """Create a message for user to UI."""
+
+
+    @abstractmethod
+    async def async_create_repair_issue(
+        self,
+        identifier: str,
+        *,
+        placeholders: dict[str, str] | None = None,
+        severity: Literal["warning", "error"] = "warning"
+    ) -> None:
+        """Create a repair issue."""
