@@ -114,13 +114,12 @@ class CloudClient(ABC):
     def user_message(self, identifier: str, title: str, message: str) -> None:
         """Create a message for user to UI."""
 
-
     @abstractmethod
     async def async_create_repair_issue(
         self,
         identifier: str,
         *,
         placeholders: dict[str, str] | None = None,
-        severity: Literal["warning", "error"] = "warning"
+        severity: Literal["warning", "error"] = "warning",
     ) -> None:
         """Create a repair issue."""
