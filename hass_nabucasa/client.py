@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from aiohttp import web

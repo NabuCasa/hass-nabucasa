@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 import tempfile
-from typing import Any, Coroutine, Literal
+from typing import Any, Coroutine
 from unittest.mock import Mock
 
 from hass_nabucasa.client import CloudClient
