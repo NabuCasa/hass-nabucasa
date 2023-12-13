@@ -238,7 +238,7 @@ class RemoteUI:
 
         self._info_loaded.set()
 
-        should_create_cert = not self._acme.certificate_available
+        should_create_cert = await self._should_renew_certificates()
 
         if (
             should_create_cert
@@ -255,6 +255,7 @@ class RemoteUI:
                     "Home Assistant Cloud",
                     const.MESSAGE_REMOTE_SETUP,
                 )
+                self._certificate_status = CertificateStatus.ERROR
                 return False
 
             if should_create_cert:
@@ -483,14 +484,11 @@ class RemoteUI:
                         await asyncio.sleep(10)
                     continue
 
-                # We can not get here without this being set, but mypy does not know that.
-                assert self._acme is not None
+                if TYPE_CHECKING:
+                    assert self._acme is not None
 
                 # Renew certificate?
-                if self._acme.expire_date is not None and (
-                    self._acme.expire_date
-                    > (utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS))
-                ):
+                if not await self._should_renew_certificates():
                     continue
 
                 # Renew certificate
@@ -512,6 +510,7 @@ class RemoteUI:
                         self._certificate_status = CertificateStatus.ERROR
                     else:
                         meth = _LOGGER.debug
+                        self._certificate_status = CertificateStatus.READY
 
                     meth("Renewal of ACME certificate failed. Trying again later")
 
@@ -524,3 +523,81 @@ class RemoteUI:
 
         _LOGGER.debug("Stopping Remote UI loop")
         await self.close_backend()
+
+    async def _check_get_cname(self, hostname: str) -> list[str]:
+        """Get CNAME records for hostname."""
+        try:
+            return await cloud_api.async_resolve_cname(self.cloud, hostname)
+        except (asyncio.TimeoutError, aiohttp.ClientError):
+            _LOGGER.error("Can't resolve CNAME for %s", hostname)
+        return []
+
+    async def _should_renew_certificates(self) -> bool:
+        """Check if certificates should be renewed."""
+        bad_alias = []
+
+        if TYPE_CHECKING:
+            assert self._acme is not None
+
+        if not self._acme.certificate_available:
+            return True
+
+        if self._acme.expire_date is not None and (
+            self._acme.expire_date
+            > (utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS))
+        ):
+            return False
+
+        check_alias = [
+            domain for domain in self._acme.domains if domain != self.instance_domain
+        ]
+
+        if len(check_alias) == 0:
+            return True
+
+        # Check if defined alias is still valid:
+        for alias in check_alias:
+            # Check primary entry
+            if self.instance_domain not in await self._check_get_cname(alias):
+                bad_alias.append(alias)
+                continue
+
+            # Check LE entry
+            if (
+                f"_acme-challenge.{self.instance_domain}"
+                not in await self._check_get_cname(f"_acme-challenge.{alias}")
+            ):
+                bad_alias.append(alias)
+
+        print(bad_alias)
+
+        if len(bad_alias) == 0:
+            # No bad configuration detected
+            return True
+
+        if self._acme.expire_date is not None and (
+            self._acme.expire_date
+            > (utils.utcnow() + timedelta(days=WARN_RENEW_FAILED_DAYS))
+        ):
+            await self.cloud.client.async_create_repair_issue(
+                identifier=f"warn_bad_custom_domain_configuration_{self._acme.expire_date.timestamp()}",
+                translation_key="warn_bad_custom_domain_configuration",
+                placeholders={"custom_domains": ",".join(bad_alias)},
+                severity="warning",
+            )
+            return False
+
+        # Recreate the acme client with working domains
+        await self.cloud.client.async_create_repair_issue(
+            identifier=f"reset_bad_custom_domain_configuration_{'_'.join(bad_alias)}",
+            translation_key="reset_bad_custom_domain_configuration",
+            placeholders={"custom_domains": ",".join(bad_alias)},
+            severity="error",
+        )
+        await self._acme.reset_acme()
+        self._acme = AcmeHandler(
+            self.cloud,
+            [domain for domain in self._acme.domains if domain not in bad_alias],
+            self._acme.email,
+        )
+        return True

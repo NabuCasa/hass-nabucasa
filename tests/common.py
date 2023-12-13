@@ -163,6 +163,13 @@ class MockAcme:
         self.expire_date = None
         self.fingerprint = None
 
+        self.email = "test@nabucasa.inc"
+
+    @property
+    def domains(self):
+        """Return all domains."""
+        return self.alternative_names
+
     def set_false(self):
         """Set certificate as not valid."""
         self.is_valid = False

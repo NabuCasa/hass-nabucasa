@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from functools import wraps
+import json
 import logging
 from typing import (
     TYPE_CHECKING,
@@ -181,4 +182,18 @@ async def async_migrate_paypal_agreement(cloud: Cloud[_ClientT]) -> dict[str, An
     _do_log_response(resp)
     resp.raise_for_status()
     data: dict[str, Any] = await resp.json()
+    return data
+
+
+@_check_token
+async def async_resolve_cname(cloud: Cloud[_ClientT], hostname: str) -> list[str]:
+    """Resolve DNS CNAME."""
+    resp = await cloud.websession.post(
+        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
+        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
+        data=json.dumps({"hostname": hostname}),
+    )
+    _do_log_response(resp)
+    resp.raise_for_status()
+    data: list[str] = await resp.json()
     return data
