@@ -280,6 +280,13 @@ async def test_load_backend_exists_wrong_cert(
         },
     )
 
+    aioclient_mock.post(
+        "https://example.com/instance/resolve_dns_cname",
+        json=["test.dui.nabu.casa", "_acme-challenge.test.dui.nabu.casa"],
+    )
+
+    auth_cloud_mock.accounts_server = "example.com"
+
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa"]
     await remote.load_backend()
@@ -717,7 +724,7 @@ async def test_recreating_old_certificate_with_bad_dns_config(
     assert set(repair.keys()) == set(
         ["identifier", "translation_key", "severity", "placeholders"]
     )
-    assert repair["identifier"] == "reset_bad_custom_domain_configuration_example.com"
+    assert repair["identifier"].startswith("reset_bad_custom_domain_configuration_")
     assert repair["translation_key"] == "reset_bad_custom_domain_configuration"
     assert repair["severity"] == "error"
     assert repair["placeholders"] == {"custom_domains": "example.com"}

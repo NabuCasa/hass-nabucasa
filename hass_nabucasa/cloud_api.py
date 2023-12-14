@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from functools import wraps
-import json
 import logging
 from typing import (
     TYPE_CHECKING,
@@ -191,7 +190,7 @@ async def async_resolve_cname(cloud: Cloud[_ClientT], hostname: str) -> list[str
     resp = await cloud.websession.post(
         f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
         headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
-        data=json.dumps({"hostname": hostname}),
+        json={"hostname": hostname},
     )
     _do_log_response(resp)
     resp.raise_for_status()
