@@ -76,6 +76,16 @@ class AcmeHandler:
         self._email = email
 
     @property
+    def email(self) -> str:
+        """Return the email."""
+        return self._email
+
+    @property
+    def domains(self) -> list[str]:
+        """Return the domains."""
+        return self._domains
+
+    @property
     def path_account_key(self) -> Path:
         """Return path of account key."""
         return Path(self.cloud.path(FILE_ACCOUNT_KEY))
