@@ -583,7 +583,7 @@ class RemoteUI:
             domain for domain in self._acme.domains if domain != self.instance_domain
         ]
 
-        if len(check_alias) == 0:
+        if not check_alias:
             return True
 
         # Check if defined alias is still valid:
@@ -594,7 +594,7 @@ class RemoteUI:
             ):
                 bad_alias.append(alias)
 
-        if len(bad_alias) == 0:
+        if not bad_alias:
             # No bad configuration detected
             return True
 
