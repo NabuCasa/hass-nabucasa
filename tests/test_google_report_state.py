@@ -12,7 +12,6 @@ async def create_grs(ws_server, server_msg_handler) -> GoogleReportState:
     """Create a grs instance."""
     client = await ws_server(server_msg_handler)
     mock_cloud = Mock(
-        run_task=asyncio.create_task,
         subscription_expired=False,
         remotestate_server="mock-report-state-url.com",
         auth=Mock(async_check_token=AsyncMock()),

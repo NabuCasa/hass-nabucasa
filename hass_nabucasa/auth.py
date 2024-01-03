@@ -95,7 +95,7 @@ class CognitoAuth:
 
     async def on_connect(self) -> None:
         """When the instance is connected."""
-        self._refresh_task = self.cloud.run_task(self._async_handle_token_refresh())
+        self._refresh_task = asyncio.create_task(self._async_handle_token_refresh())
 
     async def on_disconnect(self) -> None:
         """When the instance is disconnected."""
@@ -206,7 +206,7 @@ class CognitoAuth:
                 )
 
                 # Don't await it because it could cancel this task
-                self.cloud.run_task(self.cloud.logout())
+                asyncio.create_task(self.cloud.logout())
                 raise
 
     async def async_renew_access_token(self) -> None:

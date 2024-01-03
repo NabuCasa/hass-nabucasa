@@ -172,7 +172,7 @@ class Cloud(Generic[_ClientT]):
 
         if not self.started and not self.subscription_expired:
             self.started = True
-            return self.run_task(self._start())
+            return asyncio.create_task(self._start())
 
         if self.started and self.subscription_expired:
             self.started = False
@@ -203,13 +203,6 @@ class Cloud(Generic[_ClientT]):
         Async friendly.
         """
         return Path(self.client.base_path, CONFIG_DIR, *parts)
-
-    def run_task(self, coro: Coroutine) -> asyncio.Task:
-        """Schedule a task.
-
-        Return a task.
-        """
-        return self.client.loop.create_task(coro)
 
     def run_executor(self, callback: Callable, *args: Any) -> asyncio.Future:
         """Run function inside executore.
@@ -295,7 +288,7 @@ class Cloud(Generic[_ClientT]):
         self.access_token = info["access_token"]
         self.refresh_token = info["refresh_token"]
 
-        self._init_task = self.run_task(self._finish_initialize())
+        self._init_task = asyncio.create_task(self._finish_initialize())
 
     async def _finish_initialize(self) -> None:
         """Finish initializing the cloud component (load auth and maybe start)."""
