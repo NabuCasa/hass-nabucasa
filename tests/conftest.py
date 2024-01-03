@@ -12,20 +12,24 @@ from .common import MockClient
 logging.basicConfig(level=logging.DEBUG)
 
 
+@pytest.fixture(name="loop")
+async def loop_fixture():
+    """Return the event loop."""
+    return asyncio.get_running_loop()
+
+
 @pytest.fixture
-async def aioclient_mock(event_loop):
+async def aioclient_mock(loop):
     """Fixture to mock aioclient calls."""
-    loop = event_loop
     with mock_aiohttp_client(loop) as mock_session:
         yield mock_session
 
 
 @pytest.fixture
-async def cloud_mock(event_loop, aioclient_mock):
+async def cloud_mock(loop, aioclient_mock):
     """Yield a simple cloud mock."""
-    loop = event_loop
     cloud = MagicMock(name="Mock Cloud", is_logged_in=True)
-    cloud.run_task = loop.create_task
+    cloud.run_task = asyncio.create_task
 
     def _executor(call, *args):
         """Run executor."""

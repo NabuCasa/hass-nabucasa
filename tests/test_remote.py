@@ -451,10 +451,9 @@ async def test_get_certificate_details(
 
 
 async def test_certificate_task_no_backend(
-    event_loop, auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
-    loop = event_loop
     valid = utcnow() + timedelta(days=1)
     auth_cloud_mock.servicehandlers_server = "test.local"
     remote = RemoteUI(auth_cloud_mock)
@@ -482,7 +481,9 @@ async def test_certificate_task_no_backend(
     with patch("hass_nabucasa.utils.next_midnight", return_value=0), patch(
         "random.randint", return_value=0
     ):
-        acme_task = remote._acme_task = loop.create_task(remote._certificate_handler())
+        acme_task = remote._acme_task = asyncio.create_task(
+            remote._certificate_handler()
+        )
         await asyncio.sleep(0.1)
         assert acme_mock.call_issue
         assert snitun_mock.call_start
@@ -494,10 +495,9 @@ async def test_certificate_task_no_backend(
 
 
 async def test_certificate_task_renew_cert(
-    event_loop, auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
 ):
     """Initialize backend."""
-    loop = event_loop
     valid = utcnow() + timedelta(days=1)
     auth_cloud_mock.servicehandlers_server = "test.local"
     remote = RemoteUI(auth_cloud_mock)
@@ -525,7 +525,9 @@ async def test_certificate_task_renew_cert(
     with patch("hass_nabucasa.utils.next_midnight", return_value=0), patch(
         "random.randint", return_value=0
     ):
-        acme_task = remote._acme_task = loop.create_task(remote._certificate_handler())
+        acme_task = remote._acme_task = asyncio.create_task(
+            remote._certificate_handler()
+        )
 
         await remote.load_backend()
         await asyncio.sleep(0.1)
