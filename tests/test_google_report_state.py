@@ -8,11 +8,11 @@ from hass_nabucasa.google_report_state import GoogleReportState, ErrorResponse
 from .common import MockClient
 
 
-async def create_grs(loop, ws_server, server_msg_handler) -> GoogleReportState:
+async def create_grs(ws_server, server_msg_handler) -> GoogleReportState:
     """Create a grs instance."""
     client = await ws_server(server_msg_handler)
     mock_cloud = Mock(
-        run_task=loop.create_task,
+        run_task=asyncio.create_task,
         subscription_expired=False,
         remotestate_server="mock-report-state-url.com",
         auth=Mock(async_check_token=AsyncMock()),
@@ -30,9 +30,8 @@ async def test_ws_server_url():
     )
 
 
-async def test_send_messages(event_loop, ws_server):
+async def test_send_messages(ws_server):
     """Test that we connect if we are not connected."""
-    loop = event_loop
     server_msgs = []
 
     async def handle_server_msg(msg):
@@ -51,7 +50,7 @@ async def test_send_messages(event_loop, ws_server):
             "message": "mock-message",
         }
 
-    grs = await create_grs(loop, ws_server, handle_server_msg)
+    grs = await create_grs(ws_server, handle_server_msg)
     assert grs.state == iot_base.STATE_DISCONNECTED
 
     # Test we can handle two simultaneous messages while disconnected
@@ -76,9 +75,8 @@ async def test_send_messages(event_loop, ws_server):
     assert grs._message_sender_task is None
 
 
-async def test_max_queue_message(event_loop, ws_server):
+async def test_max_queue_message(ws_server):
     """Test that we connect if we are not connected."""
-    loop = event_loop
     server_msgs = []
 
     async def handle_server_msg(msg):
@@ -87,7 +85,7 @@ async def test_max_queue_message(event_loop, ws_server):
         server_msgs.append(incoming["payload"])
         return {"msgid": incoming["msgid"], "payload": incoming["payload"]["hello"]}
 
-    grs = await create_grs(loop, ws_server, handle_server_msg)
+    grs = await create_grs(ws_server, handle_server_msg)
 
     # Test we can handle sending more messages than queue fits
     with patch.object(grs, "_async_message_sender"):
