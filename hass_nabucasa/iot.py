@@ -62,7 +62,7 @@ class CloudIoT(iot_base.BaseIoT):
         """Start the CloudIoT server."""
         if self.cloud.subscription_expired:
             return
-        self.cloud.run_task(self.connect())
+        asyncio.create_task(self.connect())
 
     async def async_send_message(
         self,
@@ -99,7 +99,7 @@ class CloudIoT(iot_base.BaseIoT):
                 response_handler.set_exception(ErrorMessage(msg["error"]))
             return
 
-        self.cloud.run_task(self._async_handle_handler_message(msg))
+        asyncio.create_task(self._async_handle_handler_message(msg))
 
     async def _async_handle_handler_message(self, message: dict[str, Any]) -> None:
         """Handle incoming IoT message."""

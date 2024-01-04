@@ -64,7 +64,7 @@ class GoogleReportState(iot_base.BaseIoT):
         # Since connect is async, guard against send_message called twice in parallel.
         async with self._connect_lock:
             if self.state == iot_base.STATE_DISCONNECTED:
-                self.cloud.run_task(self.connect())
+                asyncio.create_task(self.connect())
                 # Give connect time to start up and change state.
                 await asyncio.sleep(0)
 
@@ -100,7 +100,7 @@ class GoogleReportState(iot_base.BaseIoT):
 
     async def _async_on_connect(self) -> None:
         """On Connect handler."""
-        self._message_sender_task = self.cloud.run_task(self._async_message_sender())
+        self._message_sender_task = asyncio.create_task(self._async_message_sender())
 
     async def _async_on_disconnect(self) -> None:
         """On disconnect handler."""

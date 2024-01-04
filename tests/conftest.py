@@ -29,7 +29,6 @@ async def aioclient_mock(loop):
 async def cloud_mock(loop, aioclient_mock):
     """Yield a simple cloud mock."""
     cloud = MagicMock(name="Mock Cloud", is_logged_in=True)
-    cloud.run_task = asyncio.create_task
 
     def _executor(call, *args):
         """Run executor."""

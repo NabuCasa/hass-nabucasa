@@ -112,7 +112,7 @@ class RemoteUI:
         """Start remote UI loop."""
         if self.cloud.subscription_expired:
             return
-        self._acme_task = self.cloud.run_task(self._certificate_handler())
+        self._acme_task = asyncio.create_task(self._certificate_handler())
         await self._info_loaded.wait()
 
     async def stop(self) -> None:
@@ -308,7 +308,7 @@ class RemoteUI:
         )
         # Connect to remote is autostart enabled
         if self.cloud.client.remote_autostart:
-            self.cloud.run_task(self.connect())
+            asyncio.create_task(self.connect())
 
         return True
 
@@ -442,11 +442,11 @@ class RemoteUI:
                 and not self._reconnect_task
                 and not (insecure or forbidden)
             ):
-                self._reconnect_task = self.cloud.run_task(self._reconnect_snitun())
+                self._reconnect_task = asyncio.create_task(self._reconnect_snitun())
 
             # Disconnect if the instance is mark as insecure and we're in reconnect mode
             elif self._reconnect_task and (insecure or forbidden):
-                self.cloud.run_task(self.disconnect())
+                asyncio.create_task(self.disconnect())
 
     async def disconnect(self, clear_snitun_token: bool = False) -> None:
         """Disconnect from snitun server."""
