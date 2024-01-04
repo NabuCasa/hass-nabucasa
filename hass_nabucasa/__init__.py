@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import json
 import logging
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Coroutine, Generic, Mapping, TypeVar
+from typing import Any, Awaitable, Callable, Generic, Mapping, TypeVar
 
 import aiohttp
 from atomicwrites import atomic_write
