@@ -34,7 +34,7 @@ setup(
         "snitun==0.36.2",
         "ciso8601>=2.3.0",
         "acme==2.8.0",
-        "cryptography>=2.8",
+        "cryptography>=42.0.0",
         "attrs>=19.3",
         "aiohttp>=3.6.1",
         "atomicwrites-homeassistant==1.4.1",
