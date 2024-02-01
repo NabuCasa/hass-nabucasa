@@ -22,7 +22,6 @@ from cryptography.x509.extensions import SubjectAlternativeName
 import josepy as jose
 
 from . import cloud_api
-from .utils import UTC
 
 FILE_ACCOUNT_KEY = "acme_account.pem"
 FILE_PRIVATE_KEY = "remote_private.pem"
@@ -113,16 +112,16 @@ class AcmeHandler:
     @property
     def is_valid_certificate(self) -> bool:
         """Validate date of a certificate and return True is valid."""
-        if not self._x509:
+        if self.expire_date is None:
             return False
-        return self._x509.not_valid_after > datetime.utcnow()
+        return self.expire_date > datetime.utcnow()
 
     @property
     def expire_date(self) -> datetime | None:
         """Return datetime of expire date for certificate."""
         if not self._x509:
             return None
-        return self._x509.not_valid_after.replace(tzinfo=UTC)
+        return self._x509.not_valid_after_utc
 
     @property
     def common_name(self) -> str | None:
