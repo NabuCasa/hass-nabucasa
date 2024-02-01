@@ -112,7 +112,7 @@ class AcmeHandler:
     @property
     def is_valid_certificate(self) -> bool:
         """Validate date of a certificate and return True is valid."""
-        if expire_date := self.expire_date is None:
+        if (expire_date := self.expire_date) is None:
             return False
         return expire_date > datetime.utcnow()
 
