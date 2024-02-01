@@ -30,7 +30,7 @@ setup(
     package_data={"hass_nabucasa": ["py.typed"]},
     python_requires=">=3.10",
     install_requires=[
-        "pycognito==2023.5.0",
+        "pycognito==2024.1.0",
         "snitun==0.36.2",
         "ciso8601>=2.3.0",
         "acme==2.8.0",
