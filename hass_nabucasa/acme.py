@@ -153,10 +153,24 @@ class AcmeHandler:
 
     def _generate_csr(self) -> bytes:
         """Load or create private key."""
+        key_pem: bytes | None = None
         if self.path_private_key.exists():
             _LOGGER.debug("Load private keyfile: %s", self.path_private_key)
-            key_pem = self.path_private_key.read_bytes()
-        else:
+            _key_pem = self.path_private_key.read_bytes()
+
+            # Validate the certificate
+            try:
+                _loaded = OpenSSL.crypto.load_privatekey(
+                    OpenSSL.crypto.FILETYPE_PEM, _key_pem
+                )
+            except OpenSSL.crypto.Error:
+                _LOGGER.error("Invalid private keyfile: %s", self.path_private_key)
+                self.path_private_key.unlink()
+            else:
+                if _loaded.check():
+                    key_pem = _key_pem
+
+        if key_pem is None:
             _LOGGER.debug("create private keyfile: %s", self.path_private_key)
             key = OpenSSL.crypto.PKey()
             key.generate_key(OpenSSL.crypto.TYPE_RSA, PRIVATE_KEY_SIZE)
