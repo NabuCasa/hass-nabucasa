@@ -8,6 +8,9 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Concatenate,
+    Coroutine,
+    ParamSpec,
     TypeVar,
 )
 from aiohttp import ClientResponse
@@ -16,6 +19,7 @@ from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
 
 _LOGGER = logging.getLogger(__name__)
 
+P = ParamSpec("P")
 T = TypeVar("T")
 
 if TYPE_CHECKING:
@@ -28,27 +32,36 @@ def _do_log_response(resp: ClientResponse) -> None:
     meth("Fetched %s (%s)", resp.url, resp.status)
 
 
-def _check_token(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
+def _check_token(
+    func: Callable[Concatenate[Cloud[_ClientT], P], Awaitable[T]]
+) -> Callable[Concatenate[Cloud[_ClientT], P], Coroutine[Any, Any, T]]:
     """Decorate a function to verify valid token."""
 
     @wraps(func)
-    async def check_token(cloud: Cloud[_ClientT], *args: Any) -> T:
+    async def check_token(
+        cloud: Cloud[_ClientT],
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> T:
         """Validate token, then call func."""
         await cloud.auth.async_check_token()
-        return await func(cloud, *args)
+        return await func(cloud, *args, **kwargs)
 
     return check_token
 
 
 def _log_response(
-    func: Callable[..., Awaitable[ClientResponse]]
-) -> Callable[..., Awaitable[ClientResponse]]:
+    func: Callable[Concatenate[P], Awaitable[ClientResponse]]
+) -> Callable[Concatenate[P], Coroutine[Any, Any, ClientResponse]]:
     """Decorate a function to log bad responses."""
 
     @wraps(func)
-    async def log_response(*args: Any) -> ClientResponse:
+    async def log_response(
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> ClientResponse:
         """Log response if it's bad."""
-        resp = await func(*args)
+        resp = await func(*args, **kwargs)
         _do_log_response(resp)
         return resp
 
