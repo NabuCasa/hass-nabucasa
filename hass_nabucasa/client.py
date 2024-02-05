@@ -20,7 +20,7 @@ class RemoteActivationNotAllowed(HandlerError):
 
     def __init__(self) -> None:
         """Initialize Error Message."""
-        super().__init__(self, "remote_activation_not_allowed")
+        super().__init__("remote_activation_not_allowed")
 
 
 class CloudClient(ABC):
