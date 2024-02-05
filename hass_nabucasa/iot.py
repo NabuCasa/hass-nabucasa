@@ -132,6 +132,7 @@ class CloudIoT(iot_base.BaseIoT):
             response["error"] = "unknown-handler"
 
         except HandlerError as err:
+            self._logger.warning("Error handling message: %s", err.error)
             response["error"] = err.error
 
         except Exception:  # pylint: disable=broad-except
