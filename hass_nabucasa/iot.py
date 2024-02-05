@@ -28,7 +28,7 @@ class ErrorMessage(Exception):
 
     def __init__(self, error: Any) -> None:
         """Initialize Error Message."""
-        super().__init__(self, "Error in Cloud")
+        super().__init__("Error in Cloud")
         self.error = error
 
 
@@ -37,7 +37,7 @@ class HandlerError(Exception):
 
     def __init__(self, error: str) -> None:
         """Initialize Error Message."""
-        super().__init__(self, "Error in handler")
+        super().__init__("Error in handler")
         self.error = error
 
 
