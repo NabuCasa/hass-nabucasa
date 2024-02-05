@@ -75,7 +75,11 @@ class CloudClient(ABC):
 
     @abstractmethod
     async def async_cloud_connect_update(self, connect: bool) -> None:
-        """Process cloud remote message to client."""
+        """Process cloud remote message to client.
+
+        If it's not allowed to remotely enable remote control, the implementation
+        should raise HandlerError("remote_activation_not_allowed")
+        """
 
     @abstractmethod
     async def async_cloud_connection_info(

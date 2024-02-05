@@ -32,6 +32,15 @@ class ErrorMessage(Exception):
         self.error = error
 
 
+class HandlerError(Exception):
+    """Exception raised when the handler failed."""
+
+    def __init__(self, error: str) -> None:
+        """Initialize Error Message."""
+        super().__init__(self, "Error in handler")
+        self.error = error
+
+
 class CloudIoT(iot_base.BaseIoT):
     """Class to manage the IoT connection."""
 
@@ -121,6 +130,9 @@ class CloudIoT(iot_base.BaseIoT):
 
         except UnknownHandler:
             response["error"] = "unknown-handler"
+
+        except HandlerError as err:
+            response["error"] = err.error
 
         except Exception:  # pylint: disable=broad-except
             self._logger.exception("Error handling message")
