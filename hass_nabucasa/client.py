@@ -9,8 +9,18 @@ from typing import TYPE_CHECKING, Any, Literal
 import aiohttp
 from aiohttp import web
 
+from .iot import HandlerError
+
 if TYPE_CHECKING:
     from . import Cloud
+
+
+class RemoteActivationNotAllowed(HandlerError):
+    """Raised when it's not allowed to remotely activate remote UI."""
+
+    def __init__(self) -> None:
+        """Initialize Error Message."""
+        super().__init__(self, "remote_activation_not_allowed")
 
 
 class CloudClient(ABC):
@@ -78,7 +88,7 @@ class CloudClient(ABC):
         """Process cloud remote message to client.
 
         If it's not allowed to remotely enable remote control, the implementation
-        should raise HandlerError("remote_activation_not_allowed")
+        should raise RemoteActivationNotAllowed
         """
 
     @abstractmethod
