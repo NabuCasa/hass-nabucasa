@@ -133,7 +133,8 @@ async def test_connection_msg_for_handler_raising_handler_error(
     )
 
     with patch.dict(
-        iot.HANDLERS, {"test-handler": Mock(side_effect=iot.HandlerError("specific_error"))}
+        iot.HANDLERS,
+        {"test-handler": Mock(side_effect=iot.HandlerError("specific_error"))},
     ):
         await conn.connect()
 
