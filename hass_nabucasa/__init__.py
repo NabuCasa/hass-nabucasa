@@ -238,7 +238,7 @@ class Cloud(Generic[_ClientT]):
             raise ValueError("Cloud not stopped")
 
         try:
-            await self.remote._acme.reset_acme()
+            await self.remote.reset_acme()
         finally:
             await self.run_executor(self._remove_data)
 

@@ -622,3 +622,9 @@ class RemoteUI:
             self._acme.email,
         )
         return True
+
+    async def reset_acme(self) -> None:
+        """Reset the ACME client."""
+        if not self._acme:
+            return
+        await self._acme.reset_acme()
