@@ -46,6 +46,10 @@ class AcmeChallengeError(AcmeClientError):
     """Raise if a challenge fails."""
 
 
+class AcmeJWSVerificationError(AcmeClientError):
+    """Raise if a JWS verification fails."""
+
+
 class AcmeNabuCasaError(AcmeClientError):
     """Raise erros on nabucasa API."""
 
@@ -268,10 +272,18 @@ class AcmeHandler:
         assert self._acme_client is not None
         try:
             return self._acme_client.new_order(csr_pem)
-        except errors.Error as err:
+        except (messages.Error, errors.Error) as err:
+            if (
+                isinstance(err, messages.Error)
+                and err.typ == "urn:ietf:params:acme:error:malformed"
+                and err.detail == "JWS verification error"
+            ):
+                raise AcmeJWSVerificationError(
+                    f"JWS verification failed: {err}"
+                ) from err
             raise AcmeChallengeError(
                 f"Can't order a new ACME challenge: {err}"
-            ) from None
+            ) from err
 
     def _start_challenge(self, order: messages.OrderResource) -> list[ChallengeHandler]:
         """Initialize domain challenge and return token."""
