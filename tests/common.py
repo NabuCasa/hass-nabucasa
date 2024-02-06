@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-import tempfile
 from typing import Any, Coroutine, Literal
 from unittest.mock import Mock
 
@@ -13,7 +12,7 @@ from hass_nabucasa.client import CloudClient
 class MockClient(CloudClient):
     """Interface class for Home Assistant."""
 
-    def __init__(self, loop, websession):
+    def __init__(self, base_path, loop, websession):
         """Initialize MockClient."""
         self._loop = loop
         self._websession = websession
@@ -31,15 +30,13 @@ class MockClient(CloudClient):
         self.mock_connection_info = []
 
         self.mock_return = []
-        self._base_path = None
+        self._base_path = base_path
 
         self.pref_should_connect = False
 
     @property
-    def base_path(self):
+    def base_path(self) -> Path:
         """Return path to base dir."""
-        if self._base_path is None:
-            self._base_path = Path(tempfile.gettempdir())
         return self._base_path
 
     @property
