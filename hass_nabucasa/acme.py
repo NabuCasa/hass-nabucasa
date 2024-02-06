@@ -46,7 +46,7 @@ class AcmeChallengeError(AcmeClientError):
     """Raise if a challenge fails."""
 
 
-class AcmeJWTVerificationError(AcmeClientError):
+class AcmeJWSVerificationError(AcmeClientError):
     """Raise if a JWS verification fails."""
 
 
@@ -278,7 +278,7 @@ class AcmeHandler:
                 and err.typ == "urn:ietf:params:acme:error:malformed"
                 and err.detail == "JWS verification error"
             ):
-                raise AcmeJWTVerificationError(
+                raise AcmeJWSVerificationError(
                     f"JWS verification failed: {err}"
                 ) from None
             raise AcmeChallengeError(
