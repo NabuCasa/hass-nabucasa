@@ -46,7 +46,7 @@ class AcmeChallengeError(AcmeClientError):
     """Raise if a challenge fails."""
 
 
-class AcmeJWSVerificationError(AcmeClientError):
+class AcmeJWTVerificationError(AcmeClientError):
     """Raise if a JWS verification fails."""
 
 
@@ -278,12 +278,12 @@ class AcmeHandler:
                 and err.typ == "urn:ietf:params:acme:error:malformed"
                 and err.detail == "JWS verification error"
             ):
-                raise AcmeJWSVerificationError(
+                raise AcmeJWTVerificationError(
                     f"JWS verification failed: {err}"
-                ) from err
+                ) from None
             raise AcmeChallengeError(
                 f"Can't order a new ACME challenge: {err}"
-            ) from err
+            ) from None
 
     def _start_challenge(self, order: messages.OrderResource) -> list[ChallengeHandler]:
         """Initialize domain challenge and return token."""
