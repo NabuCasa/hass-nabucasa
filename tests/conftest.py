@@ -26,7 +26,7 @@ async def aioclient_mock(loop):
 
 
 @pytest.fixture
-async def cloud_mock(loop, aioclient_mock):
+async def cloud_mock(loop, aioclient_mock, tmp_path):
     """Yield a simple cloud mock."""
     cloud = MagicMock(name="Mock Cloud", is_logged_in=True)
 
@@ -37,7 +37,7 @@ async def cloud_mock(loop, aioclient_mock):
     cloud.run_executor = _executor
 
     cloud.websession = aioclient_mock.create_session(loop)
-    cloud.client = MockClient(loop, cloud.websession)
+    cloud.client = MockClient(tmp_path, loop, cloud.websession)
 
     async def update_token(id_token, access_token, refresh_token=None):
         cloud.id_token = id_token

@@ -3,8 +3,12 @@ import asyncio
 import json
 from unittest.mock import AsyncMock, patch, MagicMock, Mock, PropertyMock
 
+import pytest
+
 import hass_nabucasa as cloud
 from hass_nabucasa.utils import utcnow
+
+from .common import MockClient
 
 
 def test_constructor_loads_info_from_constant(cloud_client):
@@ -184,6 +188,43 @@ async def test_logout_clears_info(cloud_client):
     assert cl.access_token is None
     assert cl.refresh_token is None
     assert info_file.unlink.called
+
+
+async def test_remove_data(cloud_client: MockClient) -> None:
+    """Test removing data."""
+    cloud_dir = (cloud_client.base_path/".cloud")
+    cloud_dir.mkdir()
+    open(cloud_dir/"unexpected_file", "w")
+
+    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
+    await cl.remove_data()
+
+    assert not cloud_dir.exists()
+
+
+async def test_remove_data_file(cloud_client: MockClient) -> None:
+    """Test removing data when .cloud is not a directory."""
+    cloud_dir = (cloud_client.base_path/".cloud")
+    open(cloud_dir, "w")
+
+    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
+    await cl.remove_data()
+
+    assert not cloud_dir.exists()
+
+
+async def test_remove_data_started(cloud_client: MockClient) -> None:
+    """Test removing data when cloud is started."""
+    cloud_dir = (cloud_client.base_path/".cloud")
+    cloud_dir.mkdir()
+
+    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
+    cl.started = True
+    with pytest.raises(ValueError):
+        await cl.remove_data()
+
+    assert cloud_dir.exists()
+    cloud_dir.rmdir()
 
 
 def test_write_user_info(cloud_client):
