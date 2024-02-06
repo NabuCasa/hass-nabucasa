@@ -410,6 +410,14 @@ class AcmeHandler:
         except errors.Error as err:
             raise AcmeClientError(f"Can't deactivate account: {err}") from err
 
+    def _have_any_file(self) -> bool:
+        return (
+            self.path_registration_info.exists()
+            or self.path_account_key.exists()
+            or self.path_fullchain.exists()
+            or self.path_private_key.exists()
+        )
+
     def _remove_files(self) -> None:
         self.path_registration_info.unlink(missing_ok=True)
         self.path_account_key.unlink(missing_ok=True)
@@ -477,6 +485,15 @@ class AcmeHandler:
     async def reset_acme(self) -> None:
         """Revoke and deactivate acme certificate/account."""
         _LOGGER.info("Revoke and deactivate ACME user/certificate")
+        if (
+            self._acme_client is None
+            and self._account_jwk is None
+            and self._x509 is None
+            and not await self.cloud.run_executor(self._have_any_file)
+        ):
+            _LOGGER.info("ACME user/certificates already cleaned up")
+            return
+
         if not self._acme_client:
             await self.cloud.run_executor(self._create_client)
 
