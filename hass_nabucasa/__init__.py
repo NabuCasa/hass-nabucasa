@@ -5,8 +5,10 @@ import asyncio
 from datetime import datetime, timedelta
 import json
 import logging
+import os
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Generic, Mapping, TypeVar
+import shutil
+from typing import Any, Awaitable, Callable, Generic, Literal, Mapping, TypeVar
 
 import aiohttp
 from atomicwrites import atomic_write
@@ -40,7 +42,7 @@ class Cloud(Generic[_ClientT]):
     def __init__(
         self,
         client: _ClientT,
-        mode: str,
+        mode: Literal["development", "production"],
         *,
         cognito_client_id: str | None = None,
         user_pool_id: str | None = None,
@@ -229,6 +231,28 @@ class Cloud(Generic[_ClientT]):
             await self.run_executor(self.user_info_path.unlink)
 
         await self.client.logout_cleanups()
+
+    async def remove_data(self) -> None:
+        """Remove all stored data."""
+        if self.started:
+            raise ValueError("Cloud not stopped")
+
+        try:
+            await self.remote.reset_acme()
+        finally:
+            await self.run_executor(self._remove_data)
+
+    def _remove_data(self) -> None:
+        """Remove all stored data."""
+        base_path = self.path()
+
+        # Recursively remove .cloud
+        if os.path.isdir(base_path):
+            shutil.rmtree(base_path)
+
+        # Guard against .cloud not being a directory
+        if base_path.exists():
+            base_path.unlink()
 
     def _write_user_info(self) -> None:
         """Write user info to a file."""

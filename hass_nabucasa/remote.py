@@ -18,7 +18,7 @@ from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
 from . import cloud_api, const, utils
-from .acme import AcmeClientError, AcmeHandler
+from .acme import AcmeClientError, AcmeHandler, AcmeJWSVerificationError
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -262,7 +262,9 @@ class RemoteUI:
             try:
                 self._certificate_status = CertificateStatus.GENERATING
                 await self._acme.issue_certificate()
-            except AcmeClientError:
+            except (AcmeJWSVerificationError, AcmeClientError) as err:
+                if isinstance(err, AcmeJWSVerificationError):
+                    await self._recreate_acme(domains, email)
                 self.cloud.client.user_message(
                     "cloud_remote_acme",
                     "Home Assistant Cloud",
@@ -622,3 +624,9 @@ class RemoteUI:
             self._acme.email,
         )
         return True
+
+    async def reset_acme(self) -> None:
+        """Reset the ACME client."""
+        if not self._acme:
+            return
+        await self._acme.reset_acme()
