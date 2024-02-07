@@ -1,4 +1,5 @@
 """Test cloud API."""
+
 from unittest.mock import patch, AsyncMock
 
 from hass_nabucasa import cloud_api

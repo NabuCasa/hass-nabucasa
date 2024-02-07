@@ -1,4 +1,5 @@
 """Base class to keep a websocket connection open to a server."""
+
 from __future__ import annotations
 
 import asyncio

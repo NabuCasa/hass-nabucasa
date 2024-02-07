@@ -1,4 +1,5 @@
 """Test the cloud component."""
+
 import asyncio
 import json
 from unittest.mock import AsyncMock, patch, MagicMock, Mock, PropertyMock

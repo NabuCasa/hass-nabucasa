@@ -1,4 +1,5 @@
 """Constants for the hass-nabucasa."""
+
 from __future__ import annotations
 
 CONFIG_DIR = ".cloud"

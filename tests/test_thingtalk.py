@@ -1,4 +1,5 @@
 """Tests for ThingTalk."""
+
 import pytest
 
 import aiohttp

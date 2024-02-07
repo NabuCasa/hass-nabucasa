@@ -1,4 +1,5 @@
 """Test cloud cloudhooks."""
+
 from unittest.mock import AsyncMock, Mock
 
 import pytest

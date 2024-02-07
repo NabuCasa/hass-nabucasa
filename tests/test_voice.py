@@ -1,4 +1,5 @@
 """Test for voice functions."""
+
 from datetime import timedelta
 
 import pytest

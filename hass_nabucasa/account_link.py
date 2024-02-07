@@ -1,4 +1,5 @@
 """Helpers to help with account linking."""
+
 from __future__ import annotations
 
 import asyncio

@@ -1,4 +1,5 @@
 """Test the cloud.iot module."""
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 

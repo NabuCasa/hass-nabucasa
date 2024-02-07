@@ -1,4 +1,5 @@
 """Set up some common test helper things."""
+
 import asyncio
 import logging
 from unittest.mock import patch, MagicMock, PropertyMock, AsyncMock

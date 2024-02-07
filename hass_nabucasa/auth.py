@@ -1,4 +1,5 @@
 """Package to communicate with the authentication API."""
+
 from __future__ import annotations
 
 import asyncio

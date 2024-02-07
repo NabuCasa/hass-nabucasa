@@ -1,4 +1,5 @@
 """Tests for Google Report State."""
+
 import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
