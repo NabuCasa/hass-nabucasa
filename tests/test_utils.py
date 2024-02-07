@@ -1,4 +1,5 @@
 """Tests for hass_nabucaa utils."""
+
 import pytest
 
 from hass_nabucasa import utils

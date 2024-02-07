@@ -1,4 +1,5 @@
 """Test Account Linking tools."""
+
 import asyncio
 from unittest.mock import AsyncMock, Mock
 

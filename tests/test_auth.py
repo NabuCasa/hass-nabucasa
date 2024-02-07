@@ -1,4 +1,5 @@
 """Tests for the tools to communicate with the cloud."""
+
 import asyncio
 from unittest.mock import MagicMock, patch
 

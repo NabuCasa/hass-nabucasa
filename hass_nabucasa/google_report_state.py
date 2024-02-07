@@ -1,4 +1,5 @@
 """Module to handle Google Report State."""
+
 from __future__ import annotations
 
 import asyncio
