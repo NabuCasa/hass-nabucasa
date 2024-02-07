@@ -3,8 +3,12 @@ import asyncio
 from datetime import timedelta
 from unittest.mock import patch
 
+from acme import client, messages
+
+
 import pytest
 from hass_nabucasa import utils
+from hass_nabucasa.acme import AcmeHandler
 
 from hass_nabucasa.const import (
     DISPATCH_REMOTE_BACKEND_DOWN,
@@ -868,3 +872,93 @@ async def test_regeneration_without_warning_for_good_dns_config(
     await asyncio.sleep(0.1)
 
     assert snitun_mock.call_disconnect
+
+
+@pytest.mark.parametrize(
+    ("json_error", "should_reset"),
+    (
+        (
+            {
+                "type": "urn:ietf:params:acme:error:malformed",
+                "detail": "JWS verification error",
+            },
+            True,
+        ),
+        (
+            {
+                "type": "urn:ietf:params:acme:error:malformed",
+                "detail": "Some other malformed reason",
+            },
+            False,
+        ),
+        (
+            {
+                "type": "about:blank",
+                "detail": "Boom",
+            },
+            False,
+        ),
+    ),
+)
+async def test_acme_client_new_order_errors(
+    auth_cloud_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
+    json_error,
+    should_reset,
+):
+    """Initialize backend."""
+    auth_cloud_mock.servicehandlers_server = "test.local"
+
+    class _MockAcmeClient(client.ClientV2):
+        def __init__(self) -> None:
+            pass
+
+        def new_order(self, _):
+            raise messages.Error.from_json(json_error)
+
+    class _MockAcme(AcmeHandler):
+        call_reset = False
+        cloud = auth_cloud_mock
+
+        @property
+        def certificate_available(self):
+            return True
+
+        @property
+        def alternative_names(self):
+            return ["test.dui.nabu.casa"]
+
+        def _generate_csr(self):
+            return b""
+
+        def _create_client(self):
+            self._acme_client = _MockAcmeClient()
+
+        async def reset_acme(self):
+            self.call_reset = True
+
+    remote = RemoteUI(auth_cloud_mock)
+
+    aioclient_mock.post(
+        "https://test.local/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+
+    with patch(
+        "hass_nabucasa.remote.AcmeHandler",
+        return_value=_MockAcme(auth_cloud_mock, [], "test@nabucasa.inc"),
+    ):
+        assert remote._certificate_status is None
+        await remote.load_backend()
+
+    await asyncio.sleep(0.1)
+    assert remote._acme.call_reset == should_reset
+    assert remote._certificate_status is CertificateStatus.ERROR
+
+    await remote.stop()
