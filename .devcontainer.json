@@ -1,7 +1,7 @@
 {
   "name": "Hass-NabuCasa Dev",
   "context": ".",
-  "image": "mcr.microsoft.com/vscode/devcontainers/python:0-3.10",
+  "image": "mcr.microsoft.com/vscode/devcontainers/python:0-3.11",
   "postCreateCommand": "pip3 install -r requirements_tests.txt",
   "postStartCommand": "pip3 install -e .",
   "containerUser": "vscode",
