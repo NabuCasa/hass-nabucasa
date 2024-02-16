@@ -417,7 +417,7 @@ class RemoteUI:
         except SniTunConnectionError as err:
             reconnecting = self._reconnect_task is not None
             _LOGGER.log(
-                 logging.ERROR if reconnecting else logging.INFO,
+                logging.ERROR if reconnecting else logging.INFO,
                 "Connection problem to snitun server%s (%s)",
                 ", reconnecting" if not reconnecting else "",
                 err,
