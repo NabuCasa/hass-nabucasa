@@ -415,11 +415,9 @@ class RemoteUI:
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout connecting to snitun server")
         except SniTunConnectionError as err:
-            can_reconnect = self._snitun and not self._reconnect_task
             _LOGGER.log(
-                logging.INFO if can_reconnect else logging.ERROR,
-                "Connection problem to snitun server%s (%s)",
-                ", reconnecting" if can_reconnect else "",
+                logging.ERROR if self._reconnect_task is not None else logging.INFO,
+                "Connection problem to snitun server (%s)",
                 err,
             )
         except RemoteBackendError:
