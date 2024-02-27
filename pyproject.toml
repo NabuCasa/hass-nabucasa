@@ -1,0 +1,137 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=62.3"]
+
+[project]
+authors = [
+  {name = "Nabu Casa, Inc.", email = "opensource@nabucasa.com"},
+]
+classifiers = [
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Topic :: Internet :: Proxy Servers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "acme==2.8.0",
+    "aiohttp>=3.6.1",
+    "atomicwrites-homeassistant==1.4.1",
+    "attrs>=19.3",
+    "ciso8601>=2.3.0",
+    "cryptography>=42.0.0",
+    "pycognito==2024.1.0",
+    "snitun==0.36.2",
+]
+description = "Home Assistant cloud integration by Nabu Casa, Inc."
+license = {text = "GPL v3"}
+name = "hass-nabucasa"
+readme = "README.md"
+requires-python = ">=3.11"
+version = "0.78.0"
+
+
+[project.optional-dependencies]
+test = [
+    "black==24.1.1",
+    "mypy==1.8.0",
+    "pylint==3.0.3",
+    "pytest-aiohttp==1.0.5",
+    "pytest-timeout==2.2.0",
+    "pytest==8.0.0",
+    "types_atomicwrites==1.4.5.1",
+    "types_pyOpenSSL==24.0.0.20240130",
+    "xmltodict==0.13.0",
+    "syrupy==4.6.1",
+]
+
+[tool.setuptools]
+include-package-data = true
+platforms = ["any"]
+zip-safe = false
+
+[tool.setuptools.package-data]
+hass_nabucasa = ["py.typed"]
+
+[tool.setuptools.packages.find]
+include = ["hass_nabucasa*"]
+
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.isort]
+profile = "black"
+force_sort_within_sections = true
+forced_separate = "tests"
+combine_as_imports = true
+
+[tool.mypy]
+show_error_codes = true
+ignore_missing_imports = true
+strict_equality = true
+no_implicit_optional = true
+warn_incomplete_stub = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unused_ignores = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+warn_return_any = true
+warn_unreachable = true
+
+[tool.pylint.MASTER]
+reports=false
+ignore=["tests_*"]
+
+# Reasons disabled:
+# locally-disabled - it spams too much
+# duplicate-code - unavoidable
+# cyclic-import - doesn't test if both import on load
+# unused-argument - generic callbacks and setup methods create a lot of warnings
+# global-statement - used for the on-demand requirement installation
+# redefined-variable-type - this is Python, we're duck typing!
+# too-many-* - are not enforced for the sake of readability
+# too-few-* - same as too-many-*
+# abstract-method - with intro of async there are always methods missing
+
+[tool.pylint.BASIC]
+good-names= ["id","i","j","k","ex","Run","_","fp","T","cb"]
+
+generated-members=["botocore.errorfactory"]
+extension-pkg-whitelist=["ciso8601"]
+
+disable = [
+  "abstract-method",
+  "cyclic-import",
+  "duplicate-code",
+  "global-statement",
+  "locally-disabled",
+  "not-context-manager",
+  "too-few-public-methods",
+  "too-many-arguments",
+  "too-many-branches",
+  "too-many-instance-attributes",
+  "too-many-lines",
+  "too-many-locals",
+  "too-many-public-methods",
+  "too-many-return-statements",
+  "too-many-statements",
+  "unused-argument",
+  "missing-docstring",
+  "line-too-long",
+  "too-few-public-methods",
+  "too-many-locals",
+  "too-many-branches"
+]
+
+[tool.pylint.EXCEPTIONS]
+overgeneral-exceptions=["builtins.Exception"]

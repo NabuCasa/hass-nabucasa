@@ -19,20 +19,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version-file: pyproject.toml
           cache: 'pip'
-          cache-dependency-path: |
-            setup.py
-            requirements_tests
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install -e .
-          python3 -m pip install -r requirements_tests.txt
+          python3 -m pip install -e .[test]
 
       - name: Run lint checks
         run: scripts/lint
@@ -55,15 +52,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-          cache-dependency-path: |
-            setup.py
-            requirements_tests
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install -e .
-          python3 -m pip install -r requirements_tests.txt
+          python3 -m pip install -e .[test]
 
       - name: Run Tests
         run: scripts/test
