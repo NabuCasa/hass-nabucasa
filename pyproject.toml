@@ -48,6 +48,9 @@ test = [
     "syrupy==4.6.1",
 ]
 
+[tool.black]
+target-version = ['py38']
+
 [tool.setuptools]
 include-package-data = true
 platforms = ["any"]
