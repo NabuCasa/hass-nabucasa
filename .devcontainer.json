@@ -1,6 +1,5 @@
 {
   "name": "Hass-NabuCasa Dev",
-  "context": ".",
   "image": "mcr.microsoft.com/vscode/devcontainers/python:0-3.11",
   "postCreateCommand": "pip3 install -r requirements_tests.txt",
   "postStartCommand": "pip3 install -e .",
@@ -8,30 +7,34 @@
   "containerEnv": {
     "GIT_EDITOR": "code --wait"
   },
-  "extensions": [
-    "ms-python.python",
-    "ms-python.vscode-pylance",
-    "visualstudioexptteam.vscodeintellicode",
-    "esbenp.prettier-vscode"
-  ],
-  "settings": {
-    "python.pythonPath": "/usr/local/bin/python",
-    "python.linting.pylintEnabled": true,
-    "python.linting.enabled": true,
-    "python.formatting.provider": "black",
-    "python.formatting.blackArgs": [
-      "--target-version",
-      "py38"
-    ],
-    "editor.formatOnPaste": false,
-    "editor.formatOnSave": true,
-    "editor.formatOnType": true,
-    "files.trimTrailingWhitespace": true,
-    "terminal.integrated.profiles.linux": {
-      "zsh": {
-        "path": "/usr/bin/zsh"
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "visualstudioexptteam.vscodeintellicode",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "python.pythonPath": "/usr/local/bin/python",
+        "python.linting.pylintEnabled": true,
+        "python.linting.enabled": true,
+        "python.formatting.provider": "black",
+        "python.formatting.blackArgs": [
+          "--target-version",
+          "py38"
+        ],
+        "editor.formatOnPaste": false,
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "files.trimTrailingWhitespace": true,
+        "terminal.integrated.profiles.linux": {
+          "zsh": {
+            "path": "/usr/bin/zsh"
+          }
+        },
+        "terminal.integrated.defaultProfile.linux": "zsh"
       }
-    },
-    "terminal.integrated.defaultProfile.linux": "zsh"
+    }
   }
 }
