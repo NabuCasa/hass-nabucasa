@@ -1,8 +1,14 @@
 """Test cloud API."""
 
-from unittest.mock import patch, AsyncMock
+from collections.abc import Generator
+from typing import Any
+from unittest.mock import MagicMock, patch, AsyncMock
+from aiohttp import ClientResponseError
+
+import pytest
 
 from hass_nabucasa import cloud_api
+from tests.utils.aiohttp import AiohttpClientMocker
 
 
 async def test_create_cloudhook(auth_cloud_mock, aioclient_mock):
@@ -171,3 +177,82 @@ async def test_migrate_paypal_agreement(auth_cloud_mock, aioclient_mock):
     assert data == {
         "url": "https://example.com/some/path",
     }
+
+
+async def test_async_files_upload_detils(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_upload_details function."""
+    aioclient_mock.get(
+        "https://example.com/files/upload_details",
+        json={
+            "url": "https://example.com/some/path",
+            "fields": {"key": "value"},
+        },
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    base64md5hash = "dGVzdA=="
+
+    details = await cloud_api.async_files_upload_details(
+        cloud=auth_cloud_mock,
+        storage_type="test",
+        filename="test.txt",
+        base64md5hash=base64md5hash,
+        size=2,
+    )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "filename": "test.txt",
+        "storage_type": "test",
+        "md5": base64md5hash,
+        "size": 2,
+    }
+
+    assert details == {
+        "url": "https://example.com/some/path",
+        "fields": {"key": "value"},
+    }
+    assert "Fetched https://example.com/files/upload_details (200)" in caplog.text
+
+
+async def test_async_files_upload_details_error(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_upload_details function with error generating upload URL."""
+    aioclient_mock.get(
+        "https://example.com/files/upload_details",
+        status=400,
+        json={"message": "Boom!"},
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    base64md5hash = "dGVzdA=="
+
+    with pytest.raises(ClientResponseError):
+        await cloud_api.async_files_upload_details(
+            cloud=auth_cloud_mock,
+            storage_type="test",
+            filename="test.txt",
+            base64md5hash=base64md5hash,
+            size=2,
+        )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "filename": "test.txt",
+        "storage_type": "test",
+        "md5": base64md5hash,
+        "size": 2,
+    }
+
+    assert "Fetched https://example.com/files/upload_details (400) Boom!" in caplog.text
