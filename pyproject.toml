@@ -34,7 +34,6 @@ readme = "README.md"
 requires-python = ">=3.11"
 version = "0.78.0"
 
-
 [project.optional-dependencies]
 test = [
     "black==24.1.1",
@@ -59,7 +58,6 @@ hass_nabucasa = ["py.typed"]
 
 [tool.setuptools.packages.find]
 include = ["hass_nabucasa*"]
-
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
