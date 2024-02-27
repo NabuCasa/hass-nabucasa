@@ -1,17 +1,42 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
-
-name: Run Tests
+name: CI
 
 on:
   push:
-    branches: [master]
+    branches:
+      - master
   pull_request:
-    branches: [master]
+    branches:
+      - master
 
 jobs:
-  Tox:
+  lint:
     runs-on: ubuntu-latest
+    name: Lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+          cache-dependency-path: |
+            setup.py
+            requirements_tests
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e .
+          python3 -m pip install -r requirements_tests.txt
+
+      - name: Run lint checks
+        run: scripts/lint
+
+  test:
+    runs-on: ubuntu-latest
+    name: Run tests with Python ${{ matrix.python-version }}
+    needs: lint
     strategy:
       matrix:
         python-version:
@@ -20,14 +45,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            setup.py
+            requirements_tests
+
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install tox tox-gh-actions
-      - name: Run Tox
-        run: |
-          tox
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e .
+          python3 -m pip install -r requirements_tests.txt
+
+      - name: Run Tests
+        run: scripts/test
