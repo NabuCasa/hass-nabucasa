@@ -31,8 +31,8 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install -e .[test]
 
-      - name: Run lint checks
-        run: scripts/lint
+      - name: Lint/test with pre-commit
+        run: SKIP=no-commit-to-branch pre-commit run --all-files
 
   test:
     runs-on: ubuntu-latest

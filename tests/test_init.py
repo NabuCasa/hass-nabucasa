@@ -100,9 +100,7 @@ async def test_initialize_loads_info(cloud_client):
     ), patch(
         "hass_nabucasa.Cloud.user_info_path",
         new_callable=PropertyMock(return_value=info_file),
-    ), patch(
-        "hass_nabucasa.auth.CognitoAuth.async_check_token"
-    ):
+    ), patch("hass_nabucasa.auth.CognitoAuth.async_check_token"):
         await cl.initialize()
         await start_done_event.wait()
 

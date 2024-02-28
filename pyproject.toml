@@ -38,8 +38,10 @@ version = "0.78.0"
 
 [project.optional-dependencies]
 test = [
-    "black==24.1.1",
+    "codespell==2.2.6",
     "mypy==1.8.0",
+    "pre-commit==3.6.2",
+    "pre-commit-hooks==4.5.0",
     "pylint==3.0.3",
     "pytest-aiohttp==1.0.5",
     "pytest-timeout==2.2.0",
@@ -48,7 +50,9 @@ test = [
     "types_atomicwrites==1.4.5.1",
     "types_pyOpenSSL==24.0.0.20240130",
     "xmltodict==0.13.0",
+    "safety==3.0.1",
     "syrupy==4.6.1",
+    "tomli==2.0.1",
 ]
 
 [tool.black]

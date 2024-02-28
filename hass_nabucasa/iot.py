@@ -196,7 +196,7 @@ async def async_handle_cloud(cloud: Cloud[_ClientT], payload: dict[str, Any]) ->
             "You have been logged out from Home Assistant cloud: %s", payload["reason"]
         )
     elif action == "disconnect_remote":
-        # Disconect Remote connection
+        # Disconnect Remote connection
         await cloud.remote.disconnect(clear_snitun_token=True)
     elif action == "evaluate_remote_security":
 

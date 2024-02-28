@@ -1253,7 +1253,7 @@ class Voice:
         language: str,
         force_token_renewal: bool = False,
     ) -> STTResponse:
-        """Stream Audio to Azure congnitive instance."""
+        """Stream Audio to Azure cognitive instance."""
         if language not in STT_LANGUAGES:
             raise VoiceError(f"Language {language} not supported")
 

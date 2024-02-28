@@ -34,7 +34,7 @@ def _do_log_response(resp: ClientResponse) -> None:
 
 
 def _check_token(
-    func: Callable[Concatenate[Cloud[_ClientT], P], Awaitable[T]]
+    func: Callable[Concatenate[Cloud[_ClientT], P], Awaitable[T]],
 ) -> Callable[Concatenate[Cloud[_ClientT], P], Coroutine[Any, Any, T]]:
     """Decorate a function to verify valid token."""
 
@@ -52,7 +52,7 @@ def _check_token(
 
 
 def _log_response(
-    func: Callable[Concatenate[P], Awaitable[ClientResponse]]
+    func: Callable[Concatenate[P], Awaitable[ClientResponse]],
 ) -> Callable[Concatenate[P], Coroutine[Any, Any, ClientResponse]]:
     """Decorate a function to log bad responses."""
 
