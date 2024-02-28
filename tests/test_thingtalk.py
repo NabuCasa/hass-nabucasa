@@ -1,8 +1,7 @@
 """Tests for ThingTalk."""
 
-import pytest
-
 import aiohttp
+import pytest
 
 from hass_nabucasa import thingtalk
 

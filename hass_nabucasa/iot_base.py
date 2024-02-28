@@ -12,12 +12,12 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from aiohttp import (
     ClientError,
+    ClientWebSocketResponse,
     WSMessage,
     WSMsgType,
     WSServerHandshakeError,
     client_exceptions,
     hdrs,
-    ClientWebSocketResponse,
 )
 
 from .auth import CloudError

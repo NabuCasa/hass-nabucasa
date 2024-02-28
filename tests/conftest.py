@@ -2,13 +2,13 @@
 
 import asyncio
 import logging
-from unittest.mock import patch, MagicMock, PropertyMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 from aiohttp import web
 import pytest
 
-from .utils.aiohttp import mock_aiohttp_client
 from .common import MockClient
+from .utils.aiohttp import mock_aiohttp_client
 
 logging.basicConfig(level=logging.DEBUG)
 

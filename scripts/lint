@@ -2,6 +2,7 @@
 
 cd "$(dirname "$0")/.."
 
+python3 -m isort hass_nabucasa tests
 python3 -m black --check hass_nabucasa tests setup.py
 python3 -m flake8 hass_nabucasa setup.py tests
 python3 -m pylint --rcfile pylintrc hass_nabucasa

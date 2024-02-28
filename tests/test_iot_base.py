@@ -2,10 +2,10 @@
 
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-from aiohttp import WSMsgType, client_exceptions, WSMessage
+from aiohttp import WSMessage, WSMsgType, client_exceptions
 import pytest
 
-from hass_nabucasa import iot_base, auth as auth_api
+from hass_nabucasa import auth as auth_api, iot_base
 
 
 class MockIoT(iot_base.BaseIoT):

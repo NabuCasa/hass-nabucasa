@@ -4,7 +4,7 @@ import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 from hass_nabucasa import iot_base
-from hass_nabucasa.google_report_state import GoogleReportState, ErrorResponse
+from hass_nabucasa.google_report_state import ErrorResponse, GoogleReportState
 
 from .common import MockClient
 

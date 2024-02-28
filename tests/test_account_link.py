@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 from aiohttp import web
 import pytest
+
 from hass_nabucasa import account_link
 
 

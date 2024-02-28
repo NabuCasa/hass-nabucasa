@@ -14,8 +14,8 @@ from typing import (
     ParamSpec,
     TypeVar,
 )
-from aiohttp import ClientResponse
 
+from aiohttp import ClientResponse
 from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
 
 _LOGGER = logging.getLogger(__name__)

@@ -5,12 +5,10 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from acme import client, messages
-
-
 import pytest
+
 from hass_nabucasa import utils
 from hass_nabucasa.acme import AcmeHandler
-
 from hass_nabucasa.const import (
     DISPATCH_REMOTE_BACKEND_DOWN,
     DISPATCH_REMOTE_BACKEND_UP,
@@ -19,10 +17,10 @@ from hass_nabucasa.const import (
 )
 from hass_nabucasa.remote import (
     RENEW_IF_EXPIRES_DAYS,
+    WARN_RENEW_FAILED_DAYS,
     CertificateStatus,
     RemoteUI,
     SubscriptionExpired,
-    WARN_RENEW_FAILED_DAYS,
 )
 from hass_nabucasa.utils import utcnow
 

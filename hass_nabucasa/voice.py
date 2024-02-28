@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, AsyncIterable
 import logging
+from typing import TYPE_CHECKING, AsyncIterable
 import xml.etree.ElementTree as ET
 
 from aiohttp.hdrs import ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT
