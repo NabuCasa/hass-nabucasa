@@ -2,6 +2,4 @@
 
 cd "$(dirname "$0")/.."
 
-python3 -m black --check hass_nabucasa tests
-python3 -m pylint hass_nabucasa
-python3 -m mypy hass_nabucasa
+pre-commit run --all-files

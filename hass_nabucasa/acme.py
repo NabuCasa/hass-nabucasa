@@ -52,7 +52,7 @@ class AcmeJWSVerificationError(AcmeClientError):
 
 
 class AcmeNabuCasaError(AcmeClientError):
-    """Raise erros on nabucasa API."""
+    """Raise errors on nabucasa API."""
 
 
 @attr.s
