@@ -46,6 +46,7 @@ test = [
     "pytest-aiohttp==1.0.5",
     "pytest-timeout==2.2.0",
     "pytest==8.0.0",
+    "ruff==0.2.2",
     "types_atomicwrites==1.4.5.1",
     "types_pyOpenSSL==24.0.0.20240130",
     "xmltodict==0.13.0",
@@ -128,6 +129,83 @@ reports=false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+[tool.ruff]
+fix = false
+line-length = 88
+show-fixes = true
+target-version = "py38"
+
+[tool.ruff.lint]
+ignore = [
+  "ANN101",
+  "ANN401",
+  "COM812",
+  "PLR2004",
+  "S101",
+  "TRY003",
+  "S303",
+
+  "ARG001", # TEMPORARY DISABLED
+  "ARG002", # TEMPORARY DISABLED
+  "C901", # TEMPORARY DISABLED
+  "D100", # TEMPORARY DISABLED
+  "D103", # TEMPORARY DISABLED
+  "D202", # TEMPORARY DISABLED
+  "D205", # TEMPORARY DISABLED
+  "D401", # TEMPORARY DISABLED
+  "D403", # TEMPORARY DISABLED
+  "DTZ003", # TEMPORARY DISABLED
+  "DTZ005", # TEMPORARY DISABLED
+  "E501", # TEMPORARY DISABLED
+  "EM101", # TEMPORARY DISABLED
+  "EM102", # TEMPORARY DISABLED
+  "FBT001", # TEMPORARY DISABLED
+  "FBT002", # TEMPORARY DISABLED
+  "FBT003", # TEMPORARY DISABLED
+  "I001", # TEMPORARY DISABLED
+  "N817", # TEMPORARY DISABLED
+  "N818", # TEMPORARY DISABLED
+  "PERF401", # TEMPORARY DISABLED
+  "PGH004", # TEMPORARY DISABLED
+  "PLR0911", # TEMPORARY DISABLED
+  "PLR0912", # TEMPORARY DISABLED
+  "PLR0915", # TEMPORARY DISABLED
+  "PTH112", # TEMPORARY DISABLED
+  "RSE102", # TEMPORARY DISABLED
+  "RUF006", # TEMPORARY DISABLED
+  "RUF100", # TEMPORARY DISABLED
+  "S311", # TEMPORARY DISABLED
+  "SIM114", # TEMPORARY DISABLED
+  "TCH002", # TEMPORARY DISABLED
+  "TCH003", # TEMPORARY DISABLED
+  "TRY300", # TEMPORARY DISABLED
+  "TRY301", # TEMPORARY DISABLED
+  "TRY400", # TEMPORARY DISABLED
+  "UP006", # TEMPORARY DISABLED
+]
+
+select = [
+  "ALL",
+]
+
+[tool.ruff.lint.pydocstyle]
+# Use Google-style docstrings.
+convention = "pep257"
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-sort-within-sections = true
+known-first-party = [
+  "hass_nabucasa",
+]
+
+[tool.ruff.lint.pylint]
+max-args = 15
 
 [tool.setuptools]
 include-package-data = true
