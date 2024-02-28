@@ -20,14 +20,7 @@ jobs:
           python-version: "3.x"
 
       - name: Verify version
-        shell: python
-        run: |
-          import tomllib
-          expected = "${{ github.event.release.tag_name }}"
-          with open("pyproject.toml", "rb") as fp:
-              version = tomllib.load(fp)["project"]["version"]
-              if version != expected:
-                  exit(f"Defined version {version} does not match expected version {expected}")
+        uses: home-assistant/actions/helpers/verify-version@master
 
       - name: Install dependencies
         run: |
