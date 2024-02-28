@@ -1,6 +1,8 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = ["setuptools>=62.3"]
+requires = [
+  "setuptools>=62.3",
+]
 
 [project]
 authors = [
@@ -70,26 +72,6 @@ warn_unused_configs = true
 warn_unused_ignores = true
 
 [tool.pylint.BASIC]
-good-names= [
-  "_",
-  "cb",
-  "ex",
-  "fp",
-  "i",
-  "id",
-  "j",
-  "k",
-  "Run",
-  "T",
-]
-
-generated-members=[
-  "botocore.errorfactory",
-]
-extension-pkg-allow-list=[
-  "ciso8601",
-]
-
 disable = [
   "abstract-method",
   "cyclic-import",
@@ -110,6 +92,24 @@ disable = [
   "too-many-statements",
   "unused-argument",
 ]
+extension-pkg-allow-list=[
+  "ciso8601",
+]
+generated-members=[
+  "botocore.errorfactory",
+]
+good-names= [
+  "_",
+  "cb",
+  "ex",
+  "fp",
+  "i",
+  "id",
+  "j",
+  "k",
+  "Run",
+  "T",
+]
 
 [tool.pylint.EXCEPTIONS]
 overgeneral-exceptions=[
@@ -117,10 +117,10 @@ overgeneral-exceptions=[
 ]
 
 [tool.pylint.MAIN]
-reports=false
 ignore=[
   "tests_*",
 ]
+reports=false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
