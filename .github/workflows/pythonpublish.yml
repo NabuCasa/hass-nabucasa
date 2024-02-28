@@ -13,24 +13,27 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
 
+      - name: Verify version
+        uses: home-assistant/actions/helpers/verify-version@master
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install setuptools wheel twine
+          pip install setuptools build twine
 
-      - name: Verify version
+      - name: Build
         run: |
-          [[ "$(python3 setup.py --version)" == "${{ github.event.release.tag_name }}" ]]
+          python -m build
 
-      - name: Build and publish
+      - name: Publish
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
-          python setup.py sdist bdist_wheel
           twine upload dist/*

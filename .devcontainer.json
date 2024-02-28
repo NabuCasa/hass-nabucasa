@@ -1,8 +1,8 @@
 {
   "name": "Hass-NabuCasa Dev",
   "image": "mcr.microsoft.com/vscode/devcontainers/python:0-3.11",
-  "postCreateCommand": "pip3 install -r requirements_tests.txt",
-  "postStartCommand": "pip3 install -e .",
+  "postCreateCommand": "python3 -m pip install -e .[test]",
+  "postStartCommand": "python3 -m pip install -e .",
   "containerUser": "vscode",
   "containerEnv": {
     "GIT_EDITOR": "code --wait"
