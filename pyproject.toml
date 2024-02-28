@@ -51,71 +51,53 @@ test = [
 [tool.black]
 target-version = ['py38']
 
-[tool.setuptools]
-include-package-data = true
-platforms = ["any"]
-zip-safe = false
-
-[tool.setuptools.package-data]
-hass_nabucasa = ["py.typed"]
-
-[tool.setuptools.packages.find]
-include = ["hass_nabucasa*"]
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-
-[tool.isort]
-profile = "black"
-force_sort_within_sections = true
-forced_separate = "tests"
-combine_as_imports = true
-
 [tool.mypy]
-show_error_codes = true
-ignore_missing_imports = true
-strict_equality = true
-no_implicit_optional = true
-warn_incomplete_stub = true
-warn_redundant_casts = true
-warn_unused_configs = true
-warn_unused_ignores = true
 check_untyped_defs = true
 disallow_incomplete_defs = true
 disallow_subclassing_any = true
 disallow_untyped_calls = true
 disallow_untyped_decorators = true
 disallow_untyped_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+show_error_codes = true
+strict_equality = true
+warn_incomplete_stub = true
+warn_redundant_casts = true
 warn_return_any = true
 warn_unreachable = true
-
-[tool.pylint.MASTER]
-reports=false
-ignore=["tests_*"]
-
-# Reasons disabled:
-# locally-disabled - it spams too much
-# duplicate-code - unavoidable
-# cyclic-import - doesn't test if both import on load
-# unused-argument - generic callbacks and setup methods create a lot of warnings
-# global-statement - used for the on-demand requirement installation
-# redefined-variable-type - this is Python, we're duck typing!
-# too-many-* - are not enforced for the sake of readability
-# too-few-* - same as too-many-*
-# abstract-method - with intro of async there are always methods missing
+warn_unused_configs = true
+warn_unused_ignores = true
 
 [tool.pylint.BASIC]
-good-names= ["id","i","j","k","ex","Run","_","fp","T","cb"]
+good-names= [
+  "_",
+  "cb",
+  "ex",
+  "fp",
+  "i",
+  "id",
+  "j",
+  "k",
+  "Run",
+  "T",
+]
 
-generated-members=["botocore.errorfactory"]
-extension-pkg-whitelist=["ciso8601"]
+generated-members=[
+  "botocore.errorfactory",
+]
+extension-pkg-allow-list=[
+  "ciso8601",
+]
 
 disable = [
   "abstract-method",
   "cyclic-import",
   "duplicate-code",
   "global-statement",
+  "line-too-long",
   "locally-disabled",
+  "missing-docstring",
   "not-context-manager",
   "too-few-public-methods",
   "too-many-arguments",
@@ -127,12 +109,35 @@ disable = [
   "too-many-return-statements",
   "too-many-statements",
   "unused-argument",
-  "missing-docstring",
-  "line-too-long",
-  "too-few-public-methods",
-  "too-many-locals",
-  "too-many-branches"
 ]
 
 [tool.pylint.EXCEPTIONS]
-overgeneral-exceptions=["builtins.Exception"]
+overgeneral-exceptions=[
+  "builtins.Exception",
+]
+
+[tool.pylint.MAIN]
+reports=false
+ignore=[
+  "tests_*",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.setuptools]
+include-package-data = true
+platforms = [
+  "any",
+]
+zip-safe = false
+
+[tool.setuptools.package-data]
+hass_nabucasa = [
+  "py.typed",
+]
+
+[tool.setuptools.packages.find]
+include = [
+  "hass_nabucasa*",
+]
