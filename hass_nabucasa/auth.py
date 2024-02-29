@@ -6,7 +6,7 @@ import asyncio
 from functools import partial
 import logging
 import random
-from typing import TYPE_CHECKING, Any, Type
+from typing import TYPE_CHECKING, Any
 
 import async_timeout
 import boto3
@@ -57,7 +57,7 @@ class UnknownError(CloudError):
     """Raised when an unknown error occurs."""
 
 
-AWS_EXCEPTIONS: dict[str, Type[CloudError]] = {
+AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
     "UserNotFoundException": UserNotFound,
     "UserNotConfirmedException": UserNotConfirmed,
     "UsernameExistsException": UserExists,
