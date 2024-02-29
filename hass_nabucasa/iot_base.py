@@ -8,7 +8,8 @@ import logging
 import pprint
 import random
 from socket import gaierror
-from typing import TYPE_CHECKING, Any, Awaitable, Callable
+from typing import TYPE_CHECKING, Any
+from collections.abc import Awaitable, Callable
 
 from aiohttp import (
     ClientError,
@@ -215,7 +216,7 @@ class BaseIoT:
                 msg: WSMessage | None | str = None
                 try:
                     msg = await self.client.receive(55)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     await self.client.ping()
                     continue
 

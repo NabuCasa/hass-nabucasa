@@ -203,7 +203,7 @@ class RemoteUI:
             async with async_timeout.timeout(30):
                 resp = await cloud_api.async_remote_register(self.cloud)
             resp.raise_for_status()
-        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+        except (TimeoutError, aiohttp.ClientError) as err:
             msg = "Can't update remote details from Home Assistant cloud"
             if isinstance(err, aiohttp.ClientResponseError):
                 msg += f" ({err.status})"  # pylint: disable=no-member
@@ -370,7 +370,7 @@ class RemoteUI:
                     raise RemoteForbidden(msg)
                 if resp.status not in (200, 201):
                     raise RemoteBackendError()
-        except (asyncio.TimeoutError, aiohttp.ClientError):
+        except (TimeoutError, aiohttp.ClientError):
             raise RemoteBackendError() from None
 
         data = await resp.json()
@@ -412,7 +412,7 @@ class RemoteUI:
             _LOGGER.debug("Connected")
 
             self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             _LOGGER.error("Timeout connecting to snitun server")
         except SniTunConnectionError as err:
             _LOGGER.log(
@@ -541,7 +541,7 @@ class RemoteUI:
         """Get CNAME records for hostname."""
         try:
             return await cloud_api.async_resolve_cname(self.cloud, hostname)
-        except (asyncio.TimeoutError, aiohttp.ClientError):
+        except (TimeoutError, aiohttp.ClientError):
             _LOGGER.error("Can't resolve CNAME for %s", hostname)
         return []
 

@@ -6,12 +6,13 @@ import asyncio
 import datetime as dt
 import logging
 import ssl
-from typing import Awaitable, Callable, TypeVar
+from typing import TypeVar
+from collections.abc import Awaitable, Callable
 
 import ciso8601
 
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # noqa pylint: disable=invalid-name
-UTC = dt.timezone.utc
+UTC = dt.UTC
 
 
 def utcnow() -> dt.datetime:
@@ -73,7 +74,7 @@ async def gather_callbacks(
     logger: logging.Logger, name: str, callbacks: list[Callable[[], Awaitable[None]]]
 ) -> None:
     results = await asyncio.gather(*[cb() for cb in callbacks], return_exceptions=True)
-    for result, callback in zip(results, callbacks):
+    for result, callback in zip(results, callbacks, strict=False):
         if not isinstance(result, Exception):
             continue
         logger.error("Unexpected error in %s %s", name, callback, exc_info=result)
