@@ -2,7 +2,8 @@ name: Upload Python Package
 
 on:
   release:
-    types: [published]
+    types:
+      - published
 
 permissions: {}
 
@@ -10,10 +11,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.0.0
         with:
           python-version: "3.x"
 
@@ -29,8 +30,8 @@ jobs:
         run: |
           python -m build
 
-      - name: "Upload dists"
-        uses: "actions/upload-artifact@v4"
+      - name: Upload dists
+        uses: actions/upload-artifact@v4.3.1
         with:
           name: "dist"
           path: "dist/"
@@ -47,11 +48,11 @@ jobs:
     permissions:
       id-token: write
     steps:
-    - name: "Download dists"
-      uses: "actions/download-artifact@v4"
+    - name: Download dists
+      uses: actions/download-artifact@v4.1.3
       with:
         name: "dist"
         path: "dist/"
 
-    - name: "Publish dists to PyPI"
-      uses: "pypa/gh-action-pypi-publish@e53eb8b103ffcb59469888563dc324e3c8ba6f06" # v1.8.12
+    - name: Publish dists to PyPI
+      uses: pypa/gh-action-pypi-publish@e53eb8b103ffcb59469888563dc324e3c8ba6f06 # v1.8.12
