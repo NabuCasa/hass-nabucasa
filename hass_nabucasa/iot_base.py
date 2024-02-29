@@ -215,6 +215,7 @@ class BaseIoT:
                 try:
                     msg = await self.client.receive(55)
                 except asyncio.TimeoutError:
+                    self._logger.warning("Timeout while waiting to receive message")
                     await self.client.ping()
                     continue
 
