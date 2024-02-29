@@ -27,10 +27,10 @@ if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
 
-def _do_log_response(resp: ClientResponse) -> None:
+def _do_log_response(resp: ClientResponse, content: str = "") -> None:
     """Log the response."""
     meth = _LOGGER.debug if resp.status < 400 else _LOGGER.warning
-    meth("Fetched %s (%s)", resp.url, resp.status)
+    meth("Fetched %s (%s) %s", resp.url, resp.status, content)
 
 
 def _check_token(
@@ -151,6 +151,36 @@ async def async_voice_connection_details(cloud: Cloud[_ClientT]) -> ClientRespon
         url,
         headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
     )
+
+
+@_check_token
+async def async_files_upload_details(
+    cloud: Cloud[_ClientT],
+    *,
+    storage_type: str,
+    filename: str,
+    base64md5hash: str,
+    size: int,
+) -> dict[str, Any]:
+    """Get files upload details."""
+    resp = await cloud.websession.get(
+        f"https://{cloud.servicehandlers_server}/files/upload_details",
+        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
+        json={
+            "storage_type": storage_type,
+            "filename": filename,
+            "md5": base64md5hash,
+            "size": size,
+        },
+    )
+
+    data: dict[str, Any] = await resp.json()
+    _do_log_response(
+        resp,
+        data["message"] if "message" in data and resp.status == 400 else "",
+    )
+    resp.raise_for_status()
+    return data
 
 
 @_check_token
