@@ -7,13 +7,11 @@ import logging
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
-    Callable,
     Concatenate,
-    Coroutine,
     ParamSpec,
     TypeVar,
 )
+from collections.abc import Awaitable, Callable, Coroutine
 from aiohttp import ClientResponse
 
 from aiohttp.hdrs import AUTHORIZATION, USER_AGENT

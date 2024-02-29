@@ -101,7 +101,7 @@ class AuthorizeAccountHelper:
 
         if "error" in response:
             if response["error"] == ERR_TIMEOUT:
-                raise asyncio.TimeoutError()
+                raise TimeoutError()
 
             raise AccountLinkException(response["error"])
 
