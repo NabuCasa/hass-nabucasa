@@ -201,6 +201,7 @@ class BaseIoT:
         try:
             self.client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
+                heartbeat=300,
                 headers={
                     hdrs.AUTHORIZATION: f"Bearer {self.cloud.id_token}",
                     hdrs.USER_AGENT: self.cloud.client.client_name,
