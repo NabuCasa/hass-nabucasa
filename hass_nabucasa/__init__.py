@@ -9,7 +9,8 @@ import logging
 import os
 from pathlib import Path
 import shutil
-from typing import Any, Awaitable, Callable, Generic, Literal, Mapping, TypeVar
+from typing import Any, Generic, Literal, TypeVar
+from collections.abc import Awaitable, Callable, Mapping
 
 import aiohttp
 from atomicwrites import atomic_write

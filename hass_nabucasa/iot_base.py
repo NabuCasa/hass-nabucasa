@@ -8,7 +8,8 @@ import logging
 import pprint
 import random
 from socket import gaierror
-from typing import TYPE_CHECKING, Any, Awaitable, Callable
+from typing import TYPE_CHECKING, Any
+from collections.abc import Awaitable, Callable
 
 from aiohttp import (
     ClientError,
@@ -214,7 +215,12 @@ class BaseIoT:
                 msg: WSMessage | None | str = None
                 try:
                     msg = await self.client.receive(55)
-                except asyncio.TimeoutError:
+                except TimeoutError:
+                    # This is logged as info instead of warning because when
+                    # this hits there is not really much that can be done about it.
+                    # But the context is still valuable to have while
+                    # troubleshooting.
+                    self._logger.info("Timeout while waiting to receive message")
                     await self.client.ping()
                     continue
 
