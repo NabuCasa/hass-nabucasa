@@ -172,9 +172,10 @@ async def test_async_setup(cloud_mock):
     on_connect = cloud_mock.iot.mock_calls[0][1][0]
     on_disconnect = cloud_mock.iot.mock_calls[1][1][0]
 
-    with patch("random.randint", return_value=0), patch(
-        "hass_nabucasa.auth.CognitoAuth.async_renew_access_token"
-    ) as mock_renew:
+    with (
+        patch("random.randint", return_value=0),
+        patch("hass_nabucasa.auth.CognitoAuth.async_renew_access_token") as mock_renew,
+    ):
         await on_connect()
         # Let handle token sleep once
         await asyncio.sleep(0)
