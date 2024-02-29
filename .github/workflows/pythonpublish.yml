@@ -55,4 +55,5 @@ jobs:
         path: "dist/"
 
     - name: Publish dists to PyPI
+      # Pinned to a commit for security purposes
       uses: pypa/gh-action-pypi-publish@e53eb8b103ffcb59469888563dc324e3c8ba6f06 # v1.8.12
