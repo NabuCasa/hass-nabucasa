@@ -458,7 +458,7 @@ class AcmeHandler:
                             self.cloud, challenge.validation
                         )
                     assert resp.status in (200, 201)
-                except (asyncio.TimeoutError, AssertionError):
+                except (TimeoutError, AssertionError):
                     raise AcmeNabuCasaError(
                         "Can't set challenge token to NabuCasa DNS!"
                     ) from None
@@ -485,7 +485,7 @@ class AcmeHandler:
                     await cloud_api.async_remote_challenge_cleanup(
                         self.cloud, dns_challenges[-1].validation
                     )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
 
         # Finish validation
