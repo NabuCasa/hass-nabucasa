@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterable
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
-from collections.abc import AsyncIterable
 import logging
+from typing import TYPE_CHECKING
 import xml.etree.ElementTree as ET
 
 from aiohttp.hdrs import ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT
@@ -1238,7 +1238,7 @@ class Voice:
         """Update token details."""
         resp = await cloud_api.async_voice_connection_details(self.cloud)
         if resp.status != 200:
-            raise VoiceTokenError()
+            raise VoiceTokenError
 
         data = await resp.json()
         self._token = data["authorized_key"]
@@ -1285,13 +1285,14 @@ class Voice:
                 )
             if resp.status not in (200, 201):
                 raise VoiceReturnError(
-                    f"Error processing {language} speech: {resp.status} {await resp.text()}"
+                    f"Error processing {language} speech: {resp.status} {await resp.text()}",
                 )
             data = await resp.json()
 
         # Parse Answer
         return STTResponse(
-            data["RecognitionStatus"] == "Success", data.get("DisplayText")
+            data["RecognitionStatus"] == "Success",
+            data.get("DisplayText"),
         )
 
     async def process_tts(
@@ -1365,6 +1366,6 @@ class Voice:
                 )
             if resp.status not in (200, 201):
                 raise VoiceReturnError(
-                    f"Error receiving TTS with {language}/{voice}: {resp.status} {await resp.text()}"
+                    f"Error receiving TTS with {language}/{voice}: {resp.status} {await resp.text()}",
                 )
             return await resp.read()

@@ -120,13 +120,13 @@ class CognitoAuth:
                         email,
                         password,
                         client_metadata=client_metadata,
-                    )
+                    ),
                 )
 
         except ClientError as err:
             raise _map_aws_exception(err) from err
         except BotoCoreError as err:
-            raise UnknownError() from err
+            raise UnknownError from err
 
     async def async_resend_email_confirm(self, email: str) -> None:
         """Resend email confirmation."""
@@ -139,12 +139,12 @@ class CognitoAuth:
                         cognito.client.resend_confirmation_code,
                         Username=email,
                         ClientId=cognito.client_id,
-                    )
+                    ),
                 )
         except ClientError as err:
             raise _map_aws_exception(err) from err
         except BotoCoreError as err:
-            raise UnknownError() from err
+            raise UnknownError from err
 
     async def async_forgot_password(self, email: str) -> None:
         """Initialize forgotten password flow."""
@@ -157,7 +157,7 @@ class CognitoAuth:
         except ClientError as err:
             raise _map_aws_exception(err) from err
         except BotoCoreError as err:
-            raise UnknownError() from err
+            raise UnknownError from err
 
     async def async_login(self, email: str, password: str) -> None:
         """Log user in and fetch certificate."""
@@ -170,24 +170,26 @@ class CognitoAuth:
 
                 async with async_timeout.timeout(30):
                     await self.cloud.run_executor(
-                        partial(cognito.authenticate, password=password)
+                        partial(cognito.authenticate, password=password),
                     )
 
                 task = await self.cloud.update_token(
-                    cognito.id_token, cognito.access_token, cognito.refresh_token
+                    cognito.id_token,
+                    cognito.access_token,
+                    cognito.refresh_token,
                 )
 
             if task:
                 await task
 
         except ForceChangePasswordException as err:
-            raise PasswordChangeRequired() from err
+            raise PasswordChangeRequired from err
 
         except ClientError as err:
             raise _map_aws_exception(err) from err
 
         except BotoCoreError as err:
-            raise UnknownError() from err
+            raise UnknownError from err
 
     async def async_check_token(self) -> None:
         """Check that the token is valid and renew if necessary."""
@@ -230,7 +232,7 @@ class CognitoAuth:
             raise _map_aws_exception(err) from err
 
         except BotoCoreError as err:
-            raise UnknownError() from err
+            raise UnknownError from err
 
     @property
     def _authenticated_cognito(self) -> pycognito.Cognito:
@@ -239,7 +241,8 @@ class CognitoAuth:
             raise Unauthenticated("No authentication found")
 
         return self._cognito(
-            access_token=self.cloud.access_token, refresh_token=self.cloud.refresh_token
+            access_token=self.cloud.access_token,
+            refresh_token=self.cloud.refresh_token,
         )
 
     def _cognito(self, **kwargs: Any) -> pycognito.Cognito:

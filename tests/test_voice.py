@@ -144,7 +144,10 @@ async def test_process_tts_bad_voice(voice_api):
 
 
 async def test_process_tss_429(
-    voice_api, mock_voice_connection_details, aioclient_mock, caplog
+    voice_api,
+    mock_voice_connection_details,
+    aioclient_mock,
+    caplog,
 ):
     """Test handling of voice with 429."""
     aioclient_mock.post(
@@ -166,7 +169,10 @@ async def test_process_tss_429(
 
 
 async def test_process_stt_429(
-    voice_api, mock_voice_connection_details, aioclient_mock, caplog
+    voice_api,
+    mock_voice_connection_details,
+    aioclient_mock,
+    caplog,
 ):
     """Test handling of voice with 429."""
     aioclient_mock.post(

@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 import datetime as dt
-import logging
+from logging import Logger
 import ssl
 from typing import TypeVar
-from collections.abc import Awaitable, Callable
 
 import ciso8601
 
-CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # noqa pylint: disable=invalid-name
+CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 UTC = dt.UTC
 
 
@@ -56,7 +56,7 @@ def server_context_modern() -> ssl.SSLContext:
         "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:"
         "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"
         "ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:"
-        "ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256"
+        "ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256",
     )
 
     return context
@@ -65,13 +65,18 @@ def server_context_modern() -> ssl.SSLContext:
 def next_midnight() -> float:
     """Return the seconds till next local midnight."""
     midnight = dt.datetime.now().replace(
-        hour=0, minute=0, second=0, microsecond=0
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
     ) + dt.timedelta(days=1)
     return (midnight - dt.datetime.now()).total_seconds()
 
 
 async def gather_callbacks(
-    logger: logging.Logger, name: str, callbacks: list[Callable[[], Awaitable[None]]]
+    logger: Logger,
+    name: str,
+    callbacks: list[Callable[[], Awaitable[None]]],
 ) -> None:
     results = await asyncio.gather(*[cb() for cb in callbacks], return_exceptions=True)
     for result, callback in zip(results, callbacks, strict=False):

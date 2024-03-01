@@ -35,7 +35,8 @@ from .common import MockAcme, MockSnitun
 def ignore_context():
     """Ignore ssl context."""
     with patch(
-        "hass_nabucasa.remote.RemoteUI._create_context", return_value=None
+        "hass_nabucasa.remote.RemoteUI._create_context",
+        return_value=None,
     ) as context:
         yield context
 
@@ -72,7 +73,11 @@ def test_init_remote(auth_cloud_mock):
 
 
 async def test_load_backend_exists_cert(
-    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    valid_acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -142,7 +147,11 @@ async def test_load_backend_exists_cert(
 
 
 async def test_load_backend_not_exists_cert(
-    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -200,7 +209,11 @@ async def test_load_backend_not_exists_cert(
 
 
 async def test_load_and_unload_backend(
-    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    valid_acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -259,7 +272,11 @@ async def test_load_and_unload_backend(
 
 
 async def test_load_backend_exists_wrong_cert(
-    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    valid_acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -323,7 +340,11 @@ async def test_load_backend_exists_wrong_cert(
 
 
 async def test_call_disconnect(
-    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -361,7 +382,11 @@ async def test_call_disconnect(
 
 
 async def test_load_backend_no_autostart(
-    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    valid_acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -411,7 +436,11 @@ async def test_load_backend_no_autostart(
 
 
 async def test_get_certificate_details(
-    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -456,7 +485,11 @@ async def test_get_certificate_details(
 
 
 async def test_certificate_task_no_backend(
-    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -488,7 +521,7 @@ async def test_certificate_task_no_backend(
         patch("random.randint", return_value=0),
     ):
         acme_task = remote._acme_task = asyncio.create_task(
-            remote._certificate_handler()
+            remote._certificate_handler(),
         )
         await asyncio.sleep(0.1)
         assert acme_mock.call_issue
@@ -501,7 +534,11 @@ async def test_certificate_task_no_backend(
 
 
 async def test_certificate_task_renew_cert(
-    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -533,7 +570,7 @@ async def test_certificate_task_renew_cert(
         patch("random.randint", return_value=0),
     ):
         acme_task = remote._acme_task = asyncio.create_task(
-            remote._certificate_handler()
+            remote._certificate_handler(),
         )
 
         await remote.load_backend()
@@ -555,7 +592,11 @@ async def test_refresh_token_no_sub(auth_cloud_mock):
 
 
 async def test_load_connect_insecure(
-    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    valid_acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -597,7 +638,12 @@ async def test_load_connect_insecure(
 
 
 async def test_load_connect_forbidden(
-    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock, caplog
+    auth_cloud_mock,
+    valid_acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
+    caplog,
 ):
     """Initialize backend."""
     auth_cloud_mock.servicehandlers_server = "test.local"
@@ -634,7 +680,11 @@ async def test_load_connect_forbidden(
 
 
 async def test_call_disconnect_clean_token(
-    auth_cloud_mock, acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -673,7 +723,11 @@ async def test_call_disconnect_clean_token(
 
 
 async def test_recreating_old_certificate_with_bad_dns_config(
-    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    valid_acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Test recreating old certificate with bad DNS config for alias."""
     valid = utcnow() + timedelta(days=1)
@@ -708,7 +762,7 @@ async def test_recreating_old_certificate_with_bad_dns_config(
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "example.com"]
     valid_acme_mock.expire_date = utils.utcnow() + timedelta(
-        days=WARN_RENEW_FAILED_DAYS
+        days=WARN_RENEW_FAILED_DAYS,
     )
     await remote.load_backend()
     await asyncio.sleep(0.1)
@@ -731,7 +785,7 @@ async def test_recreating_old_certificate_with_bad_dns_config(
     assert len(auth_cloud_mock.client.mock_repairs) == 1
     repair = auth_cloud_mock.client.mock_repairs[0]
     assert set(repair.keys()) == set(
-        ["identifier", "translation_key", "severity", "placeholders"]
+        ["identifier", "translation_key", "severity", "placeholders"],
     )
     assert repair["identifier"].startswith("reset_bad_custom_domain_configuration_")
     assert repair["translation_key"] == "reset_bad_custom_domain_configuration"
@@ -749,7 +803,11 @@ async def test_recreating_old_certificate_with_bad_dns_config(
 
 
 async def test_warn_about_bad_dns_config_for_old_certificate(
-    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    valid_acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Test warn about old certificate with bad DNS config for alias."""
     valid = utcnow() + timedelta(days=1)
@@ -799,7 +857,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
     assert len(auth_cloud_mock.client.mock_repairs) == 1
     repair = auth_cloud_mock.client.mock_repairs[0]
     assert set(repair.keys()) == set(
-        ["identifier", "translation_key", "severity", "placeholders"]
+        ["identifier", "translation_key", "severity", "placeholders"],
     )
     assert repair["identifier"].startswith("warn_bad_custom_domain_configuration_")
     assert repair["translation_key"] == "warn_bad_custom_domain_configuration"
@@ -817,7 +875,11 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
 
 
 async def test_regeneration_without_warning_for_good_dns_config(
-    auth_cloud_mock, valid_acme_mock, mock_cognito, aioclient_mock, snitun_mock
+    auth_cloud_mock,
+    valid_acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
 ):
     """Test no warning for good dns config."""
     valid = utcnow() + timedelta(days=1)

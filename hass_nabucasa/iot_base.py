@@ -3,22 +3,22 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 import dataclasses
 import logging
 import pprint
 import random
 from socket import gaierror
 from typing import TYPE_CHECKING, Any
-from collections.abc import Awaitable, Callable
 
 from aiohttp import (
     ClientError,
+    ClientWebSocketResponse,
     WSMessage,
     WSMsgType,
     WSServerHandshakeError,
     client_exceptions,
     hdrs,
-    ClientWebSocketResponse,
 )
 
 from .auth import CloudError
@@ -104,7 +104,8 @@ class BaseIoT:
         self._on_connect.append(on_connect_cb)
 
     def register_on_disconnect(
-        self, on_disconnect_cb: Callable[[], Awaitable[None]]
+        self,
+        on_disconnect_cb: Callable[[], Awaitable[None]],
     ) -> None:
         """Register an async on_disconnect callback."""
         self._on_disconnect.append(on_disconnect_cb)
@@ -172,7 +173,7 @@ class BaseIoT:
         """Wait until it's time till the next retry."""
         # Sleep 2^tries + 0…tries*3 seconds between retries
         self.retry_task = asyncio.create_task(
-            asyncio.sleep(2 ** min(9, self.tries) + random.randint(0, self.tries * 3))
+            asyncio.sleep(2 ** min(9, self.tries) + random.randint(0, self.tries * 3)),
         )
         await self.retry_task
         self.retry_task = None
@@ -183,14 +184,17 @@ class BaseIoT:
             await self.cloud.auth.async_check_token()
         except CloudError as err:
             self._logger.warning(
-                "Cannot connect because unable to refresh token: %s", err
+                "Cannot connect because unable to refresh token: %s",
+                err,
             )
             return
 
         if self.require_subscription and self.cloud.subscription_expired:
             self._logger.debug("Cloud subscription expired. Cancelling connecting.")
             self.cloud.client.user_message(
-                "cloud_subscription_expired", "Home Assistant Cloud", MESSAGE_EXPIRATION
+                "cloud_subscription_expired",
+                "Home Assistant Cloud",
+                MESSAGE_EXPIRATION,
             )
             self.close_requested = True
             return
@@ -256,7 +260,8 @@ class BaseIoT:
 
                 if self._logger.isEnabledFor(logging.DEBUG):
                     self._logger.debug(
-                        "Received message:\n%s\n", pprint.pformat(msg_content)
+                        "Received message:\n%s\n",
+                        pprint.pformat(msg_content),
                     )
 
                 try:

@@ -15,7 +15,8 @@ class ThingTalkConversionError(Exception):
 async def async_convert(cloud: Cloud[_ClientT], query: str) -> dict[str, Any]:
     """Convert sentence."""
     resp = await cloud.client.websession.post(
-        f"https://{cloud.thingtalk_server}/convert", json={"query": query}
+        f"https://{cloud.thingtalk_server}/convert",
+        json={"query": query},
     )
     if resp.status in (200, 201):
         content: dict[str, Any] = await resp.json()

@@ -66,7 +66,9 @@ async def test_login(mock_cognito, mock_cloud):
 
     assert len(mock_cognito.authenticate.mock_calls) == 1
     mock_cloud.update_token.assert_called_once_with(
-        "test_id_token", "test_access_token", "test_refresh_token"
+        "test_id_token",
+        "test_access_token",
+        "test_refresh_token",
     )
 
 
@@ -74,7 +76,9 @@ async def test_register(mock_cognito, cloud_mock):
     """Test registering an account."""
     auth = auth_api.CognitoAuth(cloud_mock)
     await auth.async_register(
-        "email@home-assistant.io", "password", client_metadata={"test": "metadata"}
+        "email@home-assistant.io",
+        "password",
+        client_metadata={"test": "metadata"},
     )
     assert len(mock_cognito.register.mock_calls) == 1
 

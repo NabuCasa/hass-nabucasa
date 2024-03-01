@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 import logging
 import random
-import ssl
+from ssl import SSLContext
 from typing import TYPE_CHECKING, cast
 
 import aiohttp
@@ -23,6 +23,7 @@ from .acme import AcmeClientError, AcmeHandler, AcmeJWSVerificationError
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -168,7 +169,7 @@ class RemoteUI:
             alternative_names=self._acme.alternative_names,
         )
 
-    async def _create_context(self) -> ssl.SSLContext:
+    async def _create_context(self) -> SSLContext:
         """Create SSL context with acme certificate."""
         context = utils.server_context_modern()
 
@@ -244,14 +245,16 @@ class RemoteUI:
         ):
             for alias in self.alias or []:
                 if not await self._custom_domain_dns_configuration_is_valid(
-                    instance_domain, alias
+                    instance_domain,
+                    alias,
                 ):
                     domains.remove(alias)
 
         if ca_domains != set(domains):
             if ca_domains:
                 _LOGGER.warning(
-                    "Invalid certificate found for: (%s)", ",".join(ca_domains)
+                    "Invalid certificate found for: (%s)",
+                    ",".join(ca_domains),
                 )
             await self._recreate_acme(domains, email)
 
@@ -307,7 +310,8 @@ class RemoteUI:
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_UP)
 
         _LOGGER.debug(
-            "Connecting remote backend: %s", self.cloud.client.remote_autostart
+            "Connecting remote backend: %s",
+            self.cloud.client.remote_autostart,
         )
         # Connect to remote is autostart enabled
         if self.cloud.client.remote_autostart:
@@ -354,7 +358,7 @@ class RemoteUI:
             return
 
         if self.cloud.subscription_expired:
-            raise SubscriptionExpired()
+            raise SubscriptionExpired
 
         # Generate session token
         aes_key, aes_iv = generate_aes_keyset()
@@ -362,16 +366,16 @@ class RemoteUI:
             async with async_timeout.timeout(30):
                 resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
                 if resp.status == 409:
-                    raise RemoteInsecureVersion()
+                    raise RemoteInsecureVersion
                 if resp.status == 403:
                     msg = ""
                     if "application/json" in (resp.content_type or ""):
                         msg = (await resp.json()).get("message", "")
                     raise RemoteForbidden(msg)
                 if resp.status not in (200, 201):
-                    raise RemoteBackendError()
+                    raise RemoteBackendError
         except (TimeoutError, aiohttp.ClientError):
-            raise RemoteBackendError() from None
+            raise RemoteBackendError from None
 
         data = await resp.json()
         self._token = SniTunToken(
@@ -546,7 +550,9 @@ class RemoteUI:
         return []
 
     async def _custom_domain_dns_configuration_is_valid(
-        self, instance_domain: str, custom_domain: str
+        self,
+        instance_domain: str,
+        custom_domain: str,
     ) -> bool:
         """Validate custom domain."""
         # Check primary entry
@@ -555,7 +561,7 @@ class RemoteUI:
 
         # Check LE entry
         if f"_acme-challenge.{instance_domain}" not in await self._check_cname(
-            f"_acme-challenge.{custom_domain}"
+            f"_acme-challenge.{custom_domain}",
         ):
             return False
 
@@ -591,9 +597,10 @@ class RemoteUI:
         for alias in check_alias:
             # Check primary entry
             if not await self._custom_domain_dns_configuration_is_valid(
-                self.instance_domain, alias
+                self.instance_domain,
+                alias,
             ):
-                bad_alias.append(alias)
+                bad_alias.append(alias)  # noqa: PERF401
 
         if not bad_alias:
             # No bad configuration detected

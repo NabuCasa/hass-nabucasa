@@ -22,7 +22,7 @@ def test_constructor_loads_info_from_constant(cloud_client):
                     "cognito_client_id": "test-cognito_client_id",
                     "user_pool_id": "test-user_pool_id",
                     "region": "test-region",
-                }
+                },
             },
         ),
         patch.dict(
@@ -38,7 +38,7 @@ def test_constructor_loads_info_from_constant(cloud_client):
                     "account_link": "test-account-link-url",
                     "servicehandlers": "test-servicehandlers-url",
                     "thingtalk": "test-thingtalk-url",
-                }
+                },
             },
         ),
     ):
@@ -77,8 +77,8 @@ async def test_initialize_loads_info(cloud_client):
                     "id_token": "test-id-token",
                     "access_token": "test-access-token",
                     "refresh_token": "test-refresh-token",
-                }
-            )
+                },
+            ),
         ),
         exists=Mock(return_value=True),
     )
@@ -164,7 +164,8 @@ async def test_logout_clears_info(cloud_client):
     cl._on_stop.clear()
 
     info_file = MagicMock(
-        exists=Mock(return_value=True), unlink=Mock(return_value=True)
+        exists=Mock(return_value=True),
+        unlink=Mock(return_value=True),
     )
 
     cl.id_token = "id_token"
@@ -181,7 +182,7 @@ async def test_logout_clears_info(cloud_client):
     cl.remote.disconnect = AsyncMock()
 
     cl._on_stop.extend(
-        [cl.iot.disconnect, cl.remote.disconnect, cl.google_report_state.disconnect]
+        [cl.iot.disconnect, cl.remote.disconnect, cl.google_report_state.disconnect],
     )
 
     with patch(
@@ -277,7 +278,12 @@ def test_subscription_expired(cloud_client):
         patch(
             "hass_nabucasa.utcnow",
             return_value=utcnow().replace(
-                year=2017, month=11, day=19, hour=23, minute=59, second=59
+                year=2017,
+                month=11,
+                day=19,
+                hour=23,
+                minute=59,
+                second=59,
             ),
         ),
     ):
@@ -288,7 +294,12 @@ def test_subscription_expired(cloud_client):
         patch(
             "hass_nabucasa.utcnow",
             return_value=utcnow().replace(
-                year=2017, month=11, day=20, hour=0, minute=0, second=0
+                year=2017,
+                month=11,
+                day=20,
+                hour=0,
+                minute=0,
+                second=0,
             ),
         ),
     ):

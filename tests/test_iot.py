@@ -35,7 +35,7 @@ def mock_handler_message(conn, mock_iot_client, msg):
 
     mock_iot_client.receive = receive_mock
     mock_iot_client.send_json = AsyncMock(
-        side_effect=lambda _: handler_respond_set.set()
+        side_effect=lambda _: handler_respond_set.set(),
     )
 
 
@@ -98,7 +98,7 @@ async def test_connection_msg_for_unknown_handler(mock_iot_client, cloud_mock_io
                     "msgid": "test-msg-id",
                     "handler": "non-existing-test-handler",
                     "payload": "test-payload",
-                }
+                },
             ),
         ),
     )
@@ -114,7 +114,8 @@ async def test_connection_msg_for_unknown_handler(mock_iot_client, cloud_mock_io
 
 
 async def test_connection_msg_for_handler_raising_handler_error(
-    mock_iot_client, cloud_mock_iot
+    mock_iot_client,
+    cloud_mock_iot,
 ):
     """Test we sent error when handler raises HandlerError exception."""
     conn = iot.CloudIoT(cloud_mock_iot)
@@ -128,7 +129,7 @@ async def test_connection_msg_for_handler_raising_handler_error(
                     "msgid": "test-msg-id",
                     "handler": "test-handler",
                     "payload": "test-payload",
-                }
+                },
             ),
         ),
     )
@@ -160,13 +161,14 @@ async def test_connection_msg_for_handler_raising(mock_iot_client, cloud_mock_io
                     "msgid": "test-msg-id",
                     "handler": "test-handler",
                     "payload": "test-payload",
-                }
+                },
             ),
         ),
     )
 
     with patch.dict(
-        iot.HANDLERS, {"test-handler": Mock(side_effect=Exception("Broken"))}
+        iot.HANDLERS,
+        {"test-handler": Mock(side_effect=Exception("Broken"))},
     ):
         await conn.connect()
 
@@ -182,7 +184,8 @@ async def test_handling_core_messages_logout(cloud_mock_iot):
     """Test handling core messages."""
     cloud_mock_iot.logout = AsyncMock()
     await iot.async_handle_cloud(
-        cloud_mock_iot, {"action": "logout", "reason": "Logged in at two places."}
+        cloud_mock_iot,
+        {"action": "logout", "reason": "Logged in at two places."},
     )
     assert len(cloud_mock_iot.logout.mock_calls) == 1
 
@@ -264,7 +267,7 @@ async def test_send_message_answer(cloud_mock_iot):
 
     with patch("hass_nabucasa.iot.uuid.uuid4", return_value=MagicMock(hex=uuid)):
         send_task = asyncio.create_task(
-            cloud_iot.async_send_message("webhook", {"msg": "yo"})
+            cloud_iot.async_send_message("webhook", {"msg": "yo"}),
         )
         await asyncio.sleep(0)
 

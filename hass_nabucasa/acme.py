@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 import urllib
 
-import OpenSSL
 from acme import challenges, client, crypto_util, errors, messages
 import async_timeout
 from atomicwrites import atomic_write
@@ -18,9 +17,10 @@ import attr
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID
 from cryptography.x509.extensions import SubjectAlternativeName
+from cryptography.x509.oid import NameOID
 import josepy as jose
+import OpenSSL
 
 from . import cloud_api
 
@@ -134,7 +134,7 @@ class AcmeHandler:
         if not self._x509:
             return None
         return str(
-            self._x509.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+            self._x509.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value,
         )
 
     @property
@@ -144,7 +144,7 @@ class AcmeHandler:
             return None
 
         alternative_names = self._x509.extensions.get_extension_for_class(
-            SubjectAlternativeName
+            SubjectAlternativeName,
         ).value
         return [str(entry.value) for entry in alternative_names]
 
@@ -182,7 +182,8 @@ class AcmeHandler:
         else:
             _LOGGER.debug("Create new RSA keyfile: %s", self.path_account_key)
             key = rsa.generate_private_key(
-                public_exponent=65537, key_size=ACCOUNT_KEY_SIZE
+                public_exponent=65537,
+                key_size=ACCOUNT_KEY_SIZE,
             )
 
             # Store it to file
@@ -203,7 +204,7 @@ class AcmeHandler:
         if self.path_registration_info.exists():
             _LOGGER.info("Load exists ACME registration")
             regr = messages.RegistrationResource.json_loads(
-                self.path_registration_info.read_text(encoding="utf-8")
+                self.path_registration_info.read_text(encoding="utf-8"),
             )
 
             acme_url = urllib.parse.urlparse(self._acme_server)
@@ -255,15 +256,17 @@ class AcmeHandler:
             )
             regr = self._acme_client.new_account(
                 messages.NewRegistration.from_data(
-                    email=self._email, terms_of_service_agreed=True
-                )
+                    email=self._email,
+                    terms_of_service_agreed=True,
+                ),
             )
         except errors.Error as err:
             raise AcmeClientError(f"Can't register to ACME server: {err}") from err
 
         # Store registration info
         self.path_registration_info.write_text(
-            regr.json_dumps_pretty(), encoding="utf-8"
+            regr.json_dumps_pretty(),
+            encoding="utf-8",
         )
         self.path_registration_info.chmod(0o600)
 
@@ -280,10 +283,10 @@ class AcmeHandler:
                 and err.detail == "JWS verification error"
             ):
                 raise AcmeJWSVerificationError(
-                    f"JWS verification failed: {err}"
+                    f"JWS verification failed: {err}",
                 ) from None
             raise AcmeChallengeError(
-                f"Can't order a new ACME challenge: {err}"
+                f"Can't order a new ACME challenge: {err}",
             ) from None
 
     def _start_challenge(self, order: messages.OrderResource) -> list[ChallengeHandler]:
@@ -307,14 +310,14 @@ class AcmeHandler:
         for dns_challenge in dns_challenges:
             try:
                 response, validation = dns_challenge.response_and_validation(
-                    self._account_jwk
+                    self._account_jwk,
                 )
             except errors.Error as err:
                 raise AcmeChallengeError(
-                    f"Can't validate the new ACME challenge: {err}"
+                    f"Can't validate the new ACME challenge: {err}",
                 ) from None
             handlers.append(
-                ChallengeHandler(dns_challenge, order, response, validation)
+                ChallengeHandler(dns_challenge, order, response, validation),
             )
 
         return handlers
@@ -338,14 +341,16 @@ class AcmeHandler:
         try:
             order = self._acme_client.poll_authorizations(order, deadline)
             order = self._acme_client.finalize_order(
-                order, deadline, fetch_alternative_chains=True
+                order,
+                deadline,
+                fetch_alternative_chains=True,
             )
         except errors.Error as err:
             raise AcmeChallengeError(f"Wait of ACME challenge fails: {err}") from err
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception while finalizing order")
             raise AcmeChallengeError(
-                "Unexpected exception while finalizing order"
+                "Unexpected exception while finalizing order",
             ) from None
 
         # Cleanup the old stuff
@@ -385,8 +390,9 @@ class AcmeHandler:
 
         fullchain = jose.ComparableX509(
             OpenSSL.crypto.load_certificate(
-                OpenSSL.crypto.FILETYPE_PEM, self.path_fullchain.read_bytes()
-            )
+                OpenSSL.crypto.FILETYPE_PEM,
+                self.path_fullchain.read_bytes(),
+            ),
         )
 
         _LOGGER.info("Revoke certificate")
@@ -397,10 +403,10 @@ class AcmeHandler:
             pass
         except errors.Error as err:
             # Ignore errors where certificate did not exist
-            if "No such certificate" in str(err):
+            if "No such certificate" in str(err):  # noqa: SIM114
                 pass
             # Ignore errors where certificate has expired
-            elif "Certificate is expired" in str(err):
+            elif "Certificate is expired" in str(err):  # noqa: SIM114
                 pass
             # Ignore errors where unrecognized issuer (happens dev/prod switch)
             elif "Certificate from unrecognized issuer" in str(err):
@@ -415,7 +421,7 @@ class AcmeHandler:
 
         _LOGGER.info("Load exists ACME registration")
         regr = messages.RegistrationResource.json_loads(
-            self.path_registration_info.read_text(encoding="utf-8")
+            self.path_registration_info.read_text(encoding="utf-8"),
         )
 
         try:
@@ -446,7 +452,8 @@ class AcmeHandler:
         csr = await self.cloud.run_executor(self._generate_csr)
         order = await self.cloud.run_executor(self._create_order, csr)
         dns_challenges: list[ChallengeHandler] = await self.cloud.run_executor(
-            self._start_challenge, order
+            self._start_challenge,
+            order,
         )
 
         try:
@@ -455,18 +462,19 @@ class AcmeHandler:
                 try:
                     async with async_timeout.timeout(30):
                         resp = await cloud_api.async_remote_challenge_txt(
-                            self.cloud, challenge.validation
+                            self.cloud,
+                            challenge.validation,
                         )
                     assert resp.status in (200, 201)
                 except (TimeoutError, AssertionError):
                     raise AcmeNabuCasaError(
-                        "Can't set challenge token to NabuCasa DNS!"
+                        "Can't set challenge token to NabuCasa DNS!",
                     ) from None
 
                 # Answer challenge
                 try:
                     _LOGGER.info(
-                        "Waiting 60 seconds for publishing DNS to ACME provider"
+                        "Waiting 60 seconds for publishing DNS to ACME provider",
                     )
                     await asyncio.sleep(60)
                     await self.cloud.run_executor(self._answer_challenge, challenge)
@@ -483,7 +491,8 @@ class AcmeHandler:
                 async with async_timeout.timeout(30):
                     # We only need to cleanup for the last entry
                     await cloud_api.async_remote_challenge_cleanup(
-                        self.cloud, dns_challenges[-1].validation
+                        self.cloud,
+                        dns_challenges[-1].validation,
                     )
             except TimeoutError:
                 _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")

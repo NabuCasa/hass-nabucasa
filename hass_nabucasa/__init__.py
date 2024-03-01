@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime, timedelta
 import json
 import logging
-import os
 from pathlib import Path
 import shutil
 from typing import Any, Generic, Literal, TypeVar
-from collections.abc import Awaitable, Callable, Mapping
 
-import aiohttp
+from aiohttp import ClientSession
 from atomicwrites import atomic_write
 from jose import jwt
 
@@ -21,9 +20,9 @@ from .client import CloudClient
 from .cloudhooks import Cloudhooks
 from .const import (
     CONFIG_DIR,
-    MODE_DEV,
     DEFAULT_SERVERS,
     DEFAULT_VALUES,
+    MODE_DEV,
     STATE_CONNECTED,
 )
 from .google_report_state import GoogleReportState
@@ -127,7 +126,7 @@ class Cloud(Generic[_ClientT]):
         return self.iot.state == STATE_CONNECTED
 
     @property
-    def websession(self) -> aiohttp.ClientSession:
+    def websession(self) -> ClientSession:
         """Return websession for connections."""
         return self.client.websession
 
@@ -141,7 +140,7 @@ class Cloud(Generic[_ClientT]):
         """Return the subscription expiration as a UTC datetime object."""
         if (parsed_date := parse_date(self.claims["custom:sub-exp"])) is None:
             raise ValueError(
-                f"Invalid expiration date ({self.claims['custom:sub-exp']})"
+                f"Invalid expiration date ({self.claims['custom:sub-exp']})",
             )
         return datetime.combine(parsed_date, datetime.min.time()).replace(tzinfo=UTC)
 
@@ -161,7 +160,10 @@ class Cloud(Generic[_ClientT]):
         return self.path(f"{self.mode}_auth.json")
 
     async def update_token(
-        self, id_token: str, access_token: str, refresh_token: str | None = None
+        self,
+        id_token: str,
+        access_token: str,
+        refresh_token: str | None = None,
     ) -> asyncio.Task | None:
         """Update the id and access token."""
         self.id_token = id_token
@@ -185,7 +187,8 @@ class Cloud(Generic[_ClientT]):
         return None
 
     def register_on_initialized(
-        self, on_initialized_cb: Callable[[], Awaitable[None]]
+        self,
+        on_initialized_cb: Callable[[], Awaitable[None]],
     ) -> None:
         """Register an async on_initialized callback.
 
@@ -249,7 +252,7 @@ class Cloud(Generic[_ClientT]):
         base_path = self.path()
 
         # Recursively remove .cloud
-        if os.path.isdir(base_path):
+        if base_path.is_dir():
             shutil.rmtree(base_path)
 
         # Guard against .cloud not being a directory
@@ -271,7 +274,7 @@ class Cloud(Generic[_ClientT]):
                         "refresh_token": self.refresh_token,
                     },
                     indent=4,
-                )
+                ),
             )
         self.user_info_path.chmod(0o600)
 
@@ -287,11 +290,11 @@ class Cloud(Generic[_ClientT]):
 
             if not self.user_info_path.exists():
                 return None
+
             try:
                 content: dict[str, Any] = json.loads(
-                    self.user_info_path.read_text(encoding="utf-8")
+                    self.user_info_path.read_text(encoding="utf-8"),
                 )
-                return content
             except (ValueError, OSError) as err:
                 path = self.user_info_path.relative_to(self.client.base_path)
                 self.client.user_message(
@@ -300,9 +303,13 @@ class Cloud(Generic[_ClientT]):
                     f"Unable to load authentication from {path}. [Please login again](/config/cloud)",
                 )
                 _LOGGER.warning(
-                    "Error loading cloud authentication info from %s: %s", path, err
+                    "Error loading cloud authentication info from %s: %s",
+                    path,
+                    err,
                 )
                 return None
+
+            return content
 
         info = await self.run_executor(load_config)
         if info is None:
