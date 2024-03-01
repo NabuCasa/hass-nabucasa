@@ -10,23 +10,26 @@
   "customizations": {
     "vscode": {
       "extensions": [
+        "charliermarsh.ruff",
+        "esbenp.prettier-vscode",
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "visualstudioexptteam.vscodeintellicode",
-        "esbenp.prettier-vscode"
+        "visualstudioexptteam.vscodeintellicode"
       ],
       "settings": {
         "python.pythonPath": "/usr/local/bin/python",
-        "python.linting.pylintEnabled": true,
-        "python.linting.enabled": true,
-        "python.formatting.provider": "black",
-        "python.formatting.blackArgs": [
-          "--target-version",
-          "py311"
-        ],
+        "python.formatting.provider": "ruff",
         "editor.formatOnPaste": false,
         "editor.formatOnSave": true,
         "editor.formatOnType": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.rulers": [
+          88
+        ],
+        "editor.codeActionsOnSave": {
+          "source.fixAll": "always",
+          "source.organizeImports": "always"
+        },
         "files.trimTrailingWhitespace": true,
         "terminal.integrated.profiles.linux": {
           "zsh": {
