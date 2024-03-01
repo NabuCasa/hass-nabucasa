@@ -29,12 +29,14 @@ async def create_account_link_server(aiohttp_client, handle_server_msgs):
 
 
 async def create_helper_instance(
-    aiohttp_client, handle_server_msgs, service
+    aiohttp_client,
+    handle_server_msgs,
+    service,
 ) -> account_link.AuthorizeAccountHelper:
     """Create a auth helper instance."""
     client = await create_account_link_server(aiohttp_client, handle_server_msgs)
     mock_cloud = Mock(
-        client=Mock(websession=Mock(ws_connect=AsyncMock(return_value=client)))
+        client=Mock(websession=Mock(ws_connect=AsyncMock(return_value=client))),
     )
     return account_link.AuthorizeAccountHelper(mock_cloud, service)
 

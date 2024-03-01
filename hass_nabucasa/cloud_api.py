@@ -11,8 +11,7 @@ from typing import (
     ParamSpec,
     TypeVar,
 )
-from collections.abc import Awaitable, Callable, Coroutine
-from aiohttp import ClientResponse
+
 
 from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
 
@@ -23,6 +22,8 @@ T = TypeVar("T")
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
+    from collections.abc import Awaitable, Callable, Coroutine
+    from aiohttp import ClientResponse
 
 
 def _do_log_response(resp: ClientResponse, content: str = "") -> None:
@@ -91,7 +92,9 @@ async def async_remote_register(cloud: Cloud[_ClientT]) -> ClientResponse:
 @_check_token
 @_log_response
 async def async_remote_token(
-    cloud: Cloud[_ClientT], aes_key: bytes, aes_iv: bytes
+    cloud: Cloud[_ClientT],
+    aes_key: bytes,
+    aes_iv: bytes,
 ) -> ClientResponse:
     """Create a remote snitun token."""
     url = f"https://{cloud.servicehandlers_server}/instance/snitun_token"
@@ -105,7 +108,8 @@ async def async_remote_token(
 @_check_token
 @_log_response
 async def async_remote_challenge_txt(
-    cloud: Cloud[_ClientT], txt: str
+    cloud: Cloud[_ClientT],
+    txt: str,
 ) -> ClientResponse:
     """Set DNS challenge."""
     url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_txt"
@@ -119,7 +123,8 @@ async def async_remote_challenge_txt(
 @_check_token
 @_log_response
 async def async_remote_challenge_cleanup(
-    cloud: Cloud[_ClientT], txt: str
+    cloud: Cloud[_ClientT],
+    txt: str,
 ) -> ClientResponse:
     """Remove DNS challenge."""
     url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_cleanup"

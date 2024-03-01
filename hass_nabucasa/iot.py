@@ -89,7 +89,7 @@ class CloudIoT(iot_base.BaseIoT):
 
         try:
             await self.async_send_json_message(
-                {"msgid": msgid, "handler": handler, "payload": payload}
+                {"msgid": msgid, "handler": handler, "payload": payload},
             )
 
             if expect_answer and fut is not None:
@@ -119,7 +119,7 @@ class CloudIoT(iot_base.BaseIoT):
             handler = HANDLERS.get(message["handler"])
 
             if handler is None:
-                raise UnknownHandler()
+                raise UnknownHandler
 
             result = await handler(self.cloud, message.get("payload"))
 
@@ -170,7 +170,8 @@ async def async_handle_system(cloud: Cloud[_ClientT], payload: dict[str, Any]) -
 
 @HANDLERS.register("alexa")
 async def async_handle_alexa(
-    cloud: Cloud[_ClientT], payload: dict[str, Any]
+    cloud: Cloud[_ClientT],
+    payload: dict[str, Any],
 ) -> dict[str, Any]:
     """Handle an incoming IoT message for Alexa."""
     return await cloud.client.async_alexa_message(payload)
@@ -178,7 +179,8 @@ async def async_handle_alexa(
 
 @HANDLERS.register("google_actions")
 async def async_handle_google_actions(
-    cloud: Cloud[_ClientT], payload: dict[str, Any]
+    cloud: Cloud[_ClientT],
+    payload: dict[str, Any],
 ) -> dict[str, Any]:
     """Handle an incoming IoT message for Google Actions."""
     return await cloud.client.async_google_message(payload)
@@ -193,7 +195,8 @@ async def async_handle_cloud(cloud: Cloud[_ClientT], payload: dict[str, Any]) ->
         # Log out of Home Assistant Cloud
         await cloud.logout()
         _LOGGER.error(
-            "You have been logged out from Home Assistant cloud: %s", payload["reason"]
+            "You have been logged out from Home Assistant cloud: %s",
+            payload["reason"],
         )
     elif action == "disconnect_remote":
         # Disconnect Remote connection
@@ -240,7 +243,8 @@ async def async_handle_connection_info(
 
 @HANDLERS.register("webhook")
 async def async_handle_webhook(
-    cloud: Cloud[_ClientT], payload: dict[str, Any]
+    cloud: Cloud[_ClientT],
+    payload: dict[str, Any],
 ) -> dict[str, Any]:
     """Handle an incoming IoT message for cloud webhooks."""
     return await cloud.client.async_webhook_message(payload)

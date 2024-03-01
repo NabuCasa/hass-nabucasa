@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
-from typing import Any, Literal
-from collections.abc import Coroutine
+
+from typing import TYPE_CHECKING, Any, Literal
+
 from unittest.mock import Mock
 
 from hass_nabucasa.client import CloudClient
+
+if TYPE_CHECKING:
+    from pathlib import Path
+    from collections.abc import Coroutine
 
 
 class MockClient(CloudClient):
@@ -141,7 +145,7 @@ class MockClient(CloudClient):
                 "translation_key": translation_key,
                 "placeholders": placeholders,
                 "severity": severity,
-            }
+            },
         )
 
 
@@ -248,7 +252,11 @@ class MockSnitun:
         self.call_stop = True
 
     async def connect(
-        self, token: bytes, aes_key: bytes, aes_iv: bytes, throttling=None
+        self,
+        token: bytes,
+        aes_key: bytes,
+        aes_iv: bytes,
+        throttling=None,
     ):
         """Connect snitun."""
         self.call_connect = True

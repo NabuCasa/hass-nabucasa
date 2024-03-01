@@ -138,13 +138,16 @@ target-version = "py311"
 
 [tool.ruff.lint]
 ignore = [
-  "ANN101",
-  "ANN401",
-  "COM812",
-  "PLR2004",
-  "S101",
-  "TRY003",
-  "S303",
+  "ANN101", # https://docs.astral.sh/ruff/rules/missing-type-self/
+  "ANN401", # https://docs.astral.sh/ruff/rules/any-type/
+  "PLR2004", # https://docs.astral.sh/ruff/rules/magic-value-comparison/
+  "RUF006", # https://docs.astral.sh/ruff/rules/asyncio-dangling-task/
+  "S101", # https://docs.astral.sh/ruff/rules/assert/
+  "S303", # https://docs.astral.sh/ruff/rules/suspicious-insecure-hash-usage/
+  "S311", # https://docs.astral.sh/ruff/rules/suspicious-non-cryptographic-random-usage/
+  "TRY003", # https://docs.astral.sh/ruff/rules/raise-vanilla-args/
+  "TRY301", # https://docs.astral.sh/ruff/rules/raise-within-try/
+  "TRY400", # https://docs.astral.sh/ruff/rules/error-instead-of-exception/
 
   "ARG001", # TEMPORARY DISABLED
   "ARG002", # TEMPORARY DISABLED
@@ -166,23 +169,6 @@ ignore = [
   "I001", # TEMPORARY DISABLED
   "N817", # TEMPORARY DISABLED
   "N818", # TEMPORARY DISABLED
-  "PERF401", # TEMPORARY DISABLED
-  "PGH004", # TEMPORARY DISABLED
-  "PLR0911", # TEMPORARY DISABLED
-  "PLR0912", # TEMPORARY DISABLED
-  "PLR0915", # TEMPORARY DISABLED
-  "PTH112", # TEMPORARY DISABLED
-  "RSE102", # TEMPORARY DISABLED
-  "RUF006", # TEMPORARY DISABLED
-  "RUF100", # TEMPORARY DISABLED
-  "S311", # TEMPORARY DISABLED
-  "SIM114", # TEMPORARY DISABLED
-  "TCH002", # TEMPORARY DISABLED
-  "TCH003", # TEMPORARY DISABLED
-  "TRY300", # TEMPORARY DISABLED
-  "TRY301", # TEMPORARY DISABLED
-  "TRY400", # TEMPORARY DISABLED
-  "UP006", # TEMPORARY DISABLED
 ]
 
 select = [
@@ -206,6 +192,9 @@ known-first-party = [
 
 [tool.ruff.lint.pylint]
 max-args = 15
+max-branches = 30
+max-returns = 7
+max-statements = 80
 
 [tool.setuptools]
 include-package-data = true
