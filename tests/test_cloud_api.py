@@ -130,7 +130,9 @@ async def test_subscription_info(auth_cloud_mock, aioclient_mock):
     auth_cloud_mock.accounts_server = "example.com"
 
     with patch.object(
-        auth_cloud_mock.auth, "async_renew_access_token", AsyncMock()
+        auth_cloud_mock.auth,
+        "async_renew_access_token",
+        AsyncMock(),
     ) as mock_renew:
         data = await cloud_api.async_subscription_info(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
@@ -149,7 +151,9 @@ async def test_subscription_info(auth_cloud_mock, aioclient_mock):
         },
     )
     with patch.object(
-        auth_cloud_mock.auth, "async_renew_access_token", AsyncMock()
+        auth_cloud_mock.auth,
+        "async_renew_access_token",
+        AsyncMock(),
     ) as mock_renew:
         data = await cloud_api.async_subscription_info(auth_cloud_mock)
 

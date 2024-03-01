@@ -14,30 +14,33 @@ from .common import MockClient
 
 def test_constructor_loads_info_from_constant(cloud_client):
     """Test non-dev mode loads info from SERVERS constant."""
-    with patch.dict(
-        cloud.DEFAULT_VALUES,
-        {
-            "beer": {
-                "cognito_client_id": "test-cognito_client_id",
-                "user_pool_id": "test-user_pool_id",
-                "region": "test-region",
-            }
-        },
-    ), patch.dict(
-        cloud.DEFAULT_SERVERS,
-        {
-            "beer": {
-                "relayer": "test-relayer",
-                "accounts": "test-subscription-info-url",
-                "cloudhook": "test-cloudhook_server",
-                "alexa": "test-alexa-token-url",
-                "acme": "test-acme-directory-server",
-                "remotestate": "test-google-actions-report-state-url",
-                "account_link": "test-account-link-url",
-                "servicehandlers": "test-servicehandlers-url",
-                "thingtalk": "test-thingtalk-url",
-            }
-        },
+    with (
+        patch.dict(
+            cloud.DEFAULT_VALUES,
+            {
+                "beer": {
+                    "cognito_client_id": "test-cognito_client_id",
+                    "user_pool_id": "test-user_pool_id",
+                    "region": "test-region",
+                },
+            },
+        ),
+        patch.dict(
+            cloud.DEFAULT_SERVERS,
+            {
+                "beer": {
+                    "relayer": "test-relayer",
+                    "accounts": "test-subscription-info-url",
+                    "cloudhook": "test-cloudhook_server",
+                    "alexa": "test-alexa-token-url",
+                    "acme": "test-acme-directory-server",
+                    "remotestate": "test-google-actions-report-state-url",
+                    "account_link": "test-account-link-url",
+                    "servicehandlers": "test-servicehandlers-url",
+                    "thingtalk": "test-thingtalk-url",
+                },
+            },
+        ),
     ):
         cl = cloud.Cloud(cloud_client, "beer")
 
@@ -74,8 +77,8 @@ async def test_initialize_loads_info(cloud_client):
                     "id_token": "test-id-token",
                     "access_token": "test-access-token",
                     "refresh_token": "test-refresh-token",
-                }
-            )
+                },
+            ),
         ),
         exists=Mock(return_value=True),
     )
@@ -94,13 +97,17 @@ async def test_initialize_loads_info(cloud_client):
     cl._on_start.extend([cl.iot.connect, cl.remote.connect])
     cl.register_on_initialized(start_done)
 
-    with patch(
-        "hass_nabucasa.Cloud._decode_claims",
-        return_value={"custom:sub-exp": "2080-01-01"},
-    ), patch(
-        "hass_nabucasa.Cloud.user_info_path",
-        new_callable=PropertyMock(return_value=info_file),
-    ), patch("hass_nabucasa.auth.CognitoAuth.async_check_token"):
+    with (
+        patch(
+            "hass_nabucasa.Cloud._decode_claims",
+            return_value={"custom:sub-exp": "2080-01-01"},
+        ),
+        patch(
+            "hass_nabucasa.Cloud.user_info_path",
+            new_callable=PropertyMock(return_value=info_file),
+        ),
+        patch("hass_nabucasa.auth.CognitoAuth.async_check_token"),
+    ):
         await cl.initialize()
         await start_done_event.wait()
 
@@ -129,9 +136,12 @@ async def test_initialize_loads_invalid_info(cloud_client, caplog):
 
     cl._on_start.extend([cl.iot.connect, cl.remote.connect])
 
-    with patch("hass_nabucasa.Cloud._decode_claims"), patch(
-        "hass_nabucasa.Cloud.user_info_path",
-        new_callable=PropertyMock(return_value=info_file),
+    with (
+        patch("hass_nabucasa.Cloud._decode_claims"),
+        patch(
+            "hass_nabucasa.Cloud.user_info_path",
+            new_callable=PropertyMock(return_value=info_file),
+        ),
     ):
         await cl.initialize()
 
@@ -154,7 +164,8 @@ async def test_logout_clears_info(cloud_client):
     cl._on_stop.clear()
 
     info_file = MagicMock(
-        exists=Mock(return_value=True), unlink=Mock(return_value=True)
+        exists=Mock(return_value=True),
+        unlink=Mock(return_value=True),
     )
 
     cl.id_token = "id_token"
@@ -171,7 +182,7 @@ async def test_logout_clears_info(cloud_client):
     cl.remote.disconnect = AsyncMock()
 
     cl._on_stop.extend(
-        [cl.iot.disconnect, cl.remote.disconnect, cl.google_report_state.disconnect]
+        [cl.iot.disconnect, cl.remote.disconnect, cl.google_report_state.disconnect],
     )
 
     with patch(
@@ -253,24 +264,43 @@ def test_subscription_expired(cloud_client):
     cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
     token_val = {"custom:sub-exp": "2017-11-13"}
-    with patch.object(cl, "_decode_claims", return_value=token_val), patch(
-        "hass_nabucasa.utcnow",
-        return_value=utcnow().replace(year=2017, month=11, day=13),
-    ):
-        assert not cl.subscription_expired
-
-    with patch.object(cl, "_decode_claims", return_value=token_val), patch(
-        "hass_nabucasa.utcnow",
-        return_value=utcnow().replace(
-            year=2017, month=11, day=19, hour=23, minute=59, second=59
+    with (
+        patch.object(cl, "_decode_claims", return_value=token_val),
+        patch(
+            "hass_nabucasa.utcnow",
+            return_value=utcnow().replace(year=2017, month=11, day=13),
         ),
     ):
         assert not cl.subscription_expired
 
-    with patch.object(cl, "_decode_claims", return_value=token_val), patch(
-        "hass_nabucasa.utcnow",
-        return_value=utcnow().replace(
-            year=2017, month=11, day=20, hour=0, minute=0, second=0
+    with (
+        patch.object(cl, "_decode_claims", return_value=token_val),
+        patch(
+            "hass_nabucasa.utcnow",
+            return_value=utcnow().replace(
+                year=2017,
+                month=11,
+                day=19,
+                hour=23,
+                minute=59,
+                second=59,
+            ),
+        ),
+    ):
+        assert not cl.subscription_expired
+
+    with (
+        patch.object(cl, "_decode_claims", return_value=token_val),
+        patch(
+            "hass_nabucasa.utcnow",
+            return_value=utcnow().replace(
+                year=2017,
+                month=11,
+                day=20,
+                hour=0,
+                minute=0,
+                second=0,
+            ),
         ),
     ):
         assert cl.subscription_expired
@@ -281,8 +311,23 @@ def test_subscription_not_expired(cloud_client):
     cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
     token_val = {"custom:sub-exp": "2017-11-13"}
-    with patch.object(cl, "_decode_claims", return_value=token_val), patch(
-        "hass_nabucasa.utcnow",
-        return_value=utcnow().replace(year=2017, month=11, day=9),
+    with (
+        patch.object(cl, "_decode_claims", return_value=token_val),
+        patch(
+            "hass_nabucasa.utcnow",
+            return_value=utcnow().replace(year=2017, month=11, day=9),
+        ),
     ):
         assert not cl.subscription_expired
+
+
+async def test_claims_decoding(cloud_client):
+    """Test decoding claims."""
+    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
+
+    payload = {"cognito:username": "abc123", "some": "value"}
+    encoded_token = cloud.jwt.encode(payload, key="secret")
+
+    await cl.update_token(encoded_token, None)
+    assert cl.claims == payload
+    assert cl.username == "abc123"

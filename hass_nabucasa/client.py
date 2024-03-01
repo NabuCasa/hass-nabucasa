@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-import asyncio
+from asyncio import AbstractEventLoop
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-import aiohttp
-from aiohttp import web
+from aiohttp import ClientSession
+from aiohttp.web import AppRunner
 
 from .iot import HandlerError
 
@@ -36,12 +36,12 @@ class CloudClient(ABC):
 
     @property
     @abstractmethod
-    def loop(self) -> asyncio.AbstractEventLoop:
+    def loop(self) -> AbstractEventLoop:
         """Return client loop."""
 
     @property
     @abstractmethod
-    def websession(self) -> aiohttp.ClientSession:
+    def websession(self) -> ClientSession:
         """Return client session for aiohttp."""
 
     @property
@@ -51,7 +51,7 @@ class CloudClient(ABC):
 
     @property
     @abstractmethod
-    def aiohttp_runner(self) -> web.AppRunner | None:
+    def aiohttp_runner(self) -> AppRunner | None:
         """Return client webinterface aiohttp application."""
 
     @property
@@ -94,7 +94,8 @@ class CloudClient(ABC):
 
     @abstractmethod
     async def async_cloud_connection_info(
-        self, payload: dict[str, Any]
+        self,
+        payload: dict[str, Any],
     ) -> dict[str, Any]:
         """Process cloud connection info message to client."""
 

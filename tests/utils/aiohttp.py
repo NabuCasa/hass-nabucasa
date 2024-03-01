@@ -64,8 +64,14 @@ class AiohttpClientMocker:
 
         self._mocks.append(
             AiohttpClientMockResponse(
-                method, url, status, content, cookies, exc, headers
-            )
+                method,
+                url,
+                status,
+                content,
+                cookies,
+                exc,
+                headers,
+            ),
         )
 
     def get(self, *args, **kwargs):
@@ -136,7 +142,9 @@ class AiohttpClientMocker:
                 return response
 
         assert False, "No mock registered for {} {} {}".format(
-            method.upper(), url, params
+            method.upper(),
+            url,
+            params,
         )
 
 
@@ -144,7 +152,14 @@ class AiohttpClientMockResponse:
     """Mock Aiohttp client response."""
 
     def __init__(
-        self, method, url, status, response, cookies=None, exc=None, headers=None
+        self,
+        method,
+        url,
+        status,
+        response,
+        cookies=None,
+        exc=None,
+        headers=None,
     ):
         """Initialize a fake response."""
         self.method = method
@@ -234,7 +249,10 @@ class AiohttpClientMockResponse:
         """Raise error if status is 400 or higher."""
         if self.status >= 400:
             raise ClientResponseError(
-                None, None, status=self.status, headers=self.headers
+                None,
+                None,
+                status=self.status,
+                headers=self.headers,
             )
 
     def close(self):
@@ -250,7 +268,8 @@ def mock_aiohttp_client(loop):
     mocker = AiohttpClientMocker()
 
     with mock.patch(
-        "hass_nabucasa.Cloud.websession", new_callable=mock.PropertyMock
+        "hass_nabucasa.Cloud.websession",
+        new_callable=mock.PropertyMock,
     ) as mock_websession:
         session = mocker.create_session(loop)
         mock_websession.return_value = session
