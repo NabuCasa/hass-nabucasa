@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch, MagicMock, Mock, PropertyMock
 
 import pytest
 
-import hass_nabucasa as cloud, jwt  # noqa: E401
+import hass_nabucasa as cloud
 from hass_nabucasa.utils import utcnow
 
 from .common import MockClient
@@ -293,7 +293,7 @@ async def test_claims_decoding(cloud_client):
     cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
     payload = {"cognito:username": "abc123", "some": "value"}
-    encoded_token = jwt.encode(payload, key="secret")
+    encoded_token = cloud.jwt.encode(payload, key="secret")
 
     await cl.update_token(encoded_token, None)
     assert cl.claims == payload
