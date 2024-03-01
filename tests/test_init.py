@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch, MagicMock, Mock, PropertyMock
 import pytest
 
 import hass_nabucasa as cloud
+import jwt
 from hass_nabucasa.utils import utcnow
 
 from .common import MockClient
@@ -286,3 +287,15 @@ def test_subscription_not_expired(cloud_client):
         return_value=utcnow().replace(year=2017, month=11, day=9),
     ):
         assert not cl.subscription_expired
+
+
+async def test_claims_decoding(cloud_client):
+    """Test decoding claims."""
+    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
+
+    payload = {"cognito:username": "abc123", "some": "value"}
+    encoded_token = jwt.encode(payload, key="secret")
+
+    await cl.update_token(encoded_token, None)
+    assert cl.claims == payload
+    assert cl.username == "abc123"
