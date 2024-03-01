@@ -357,6 +357,7 @@ class Cloud(Generic[_ClientT]):
     def _decode_claims(token: str) -> Mapping[str, Any]:
         """Decode the claims in a token."""
         decoded: Mapping[str, Any] = jwt.decode(
-            token, options={"verify_signature": False}
+            token,
+            options={"verify_signature": False},
         )
         return decoded
