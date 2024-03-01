@@ -2,16 +2,16 @@
 
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-from aiohttp import WSMsgType, client_exceptions, WSMessage
+from aiohttp import WSMessage, WSMsgType, client_exceptions
 import pytest
 
-from hass_nabucasa import iot_base, auth as auth_api
+from hass_nabucasa import auth as auth_api, iot_base
 
 
 class MockIoT(iot_base.BaseIoT):
     """Mock class for IoT."""
 
-    def __init__(self, cloud, require_subscription=True):
+    def __init__(self, cloud, require_subscription=True) -> None:
         """Initialize test IoT class."""
         super().__init__(cloud)
         self.received = []
@@ -60,7 +60,8 @@ def cloud_mock_iot(auth_cloud_mock):
             ],
             iot_base.DisconnectReason(
                 True,
-                "Connection closed: Closed by server. Another instance connected (4002)",
+                "Connection closed: Closed by server. "
+                "Another instance connected (4002)",
             ),
         ),
         (
@@ -74,7 +75,8 @@ def cloud_mock_iot(auth_cloud_mock):
             ],
             iot_base.DisconnectReason(
                 False,
-                "Connection closed: Closed by server. Another instance connected (4002)",
+                "Connection closed: Closed by server. "
+                "Another instance connected (4002)",
             ),
         ),
         (
@@ -93,7 +95,8 @@ def cloud_mock_iot(auth_cloud_mock):
             ],
             iot_base.DisconnectReason(
                 True,
-                "Connection closed: Closed by server. Another instance connected (4002)",
+                "Connection closed: Closed by server. "
+                "Another instance connected (4002)",
             ),
         ),
     ],

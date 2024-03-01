@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from unittest.mock import AsyncMock, patch, MagicMock, Mock, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
 
 import pytest
 
@@ -149,8 +149,8 @@ async def test_initialize_loads_invalid_info(cloud_client, caplog):
     assert len(cl.iot.connect.mock_calls) == 0
     assert len(cl.remote.connect.mock_calls) == 0
     assert (
-        "Error loading cloud authentication info from .cloud/production_auth.json: Expecting value: line 1 column 1 (char 0)"
-        in caplog.text
+        "Error loading cloud authentication info from .cloud/production_auth.json: "
+        "Expecting value: line 1 column 1 (char 0)" in caplog.text
     )
 
 
@@ -230,7 +230,7 @@ async def test_remove_data_started(cloud_client: MockClient) -> None:
 
     cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
     cl.started = True
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Cloud not stopped"):
         await cl.remove_data()
 
     assert cloud_dir.exists()

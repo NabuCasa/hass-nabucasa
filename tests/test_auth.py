@@ -196,10 +196,15 @@ async def test_async_setup(cloud_mock):
         assert len(mock_renew.mock_calls) == 1
 
 
-async def test_guard_no_login_authenticated_cognito():
+@pytest.mark.parametrize(
+    "auth_mock_kwargs",
+    (
+        {"access_token": None},
+        {"refresh_token": None},
+    ),
+)
+async def test_guard_no_login_authenticated_cognito(auth_mock_kwargs: dict[str, None]):
     """Test that not authenticated cognito login raises."""
+    auth = auth_api.CognitoAuth(MagicMock(**auth_mock_kwargs))
     with pytest.raises(auth_api.Unauthenticated):
-        auth_api.CognitoAuth(MagicMock(access_token=None))._authenticated_cognito
-
-    with pytest.raises(auth_api.Unauthenticated):
-        auth_api.CognitoAuth(MagicMock(refresh_token=None))._authenticated_cognito
+        auth._authenticated_cognito  # noqa: B018

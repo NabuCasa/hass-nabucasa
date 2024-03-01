@@ -2,13 +2,13 @@
 
 import asyncio
 import logging
-from unittest.mock import patch, MagicMock, PropertyMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 from aiohttp import web
 import pytest
 
-from .utils.aiohttp import mock_aiohttp_client
 from .common import MockClient
+from .utils.aiohttp import mock_aiohttp_client
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -64,7 +64,7 @@ def auth_cloud_mock(cloud_mock):
 @pytest.fixture
 def cloud_client(cloud_mock):
     """Return cloud client impl."""
-    yield cloud_mock.client
+    return cloud_mock.client
 
 
 @pytest.fixture
@@ -121,7 +121,8 @@ async def ws_server(aiohttp_client):
         async def websocket_handler(request):
             ws = web.WebSocketResponse()
             await ws.prepare(request)
-            # Send a message to trigger IoTBase with `mark_connected_after_first_message`
+            # Send a message to trigger IoTBase with
+            # `mark_connected_after_first_message`
             await ws.send_json({"msgid": 0, "handler": "hello"})
 
             async for msg in ws:

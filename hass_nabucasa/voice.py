@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 import logging
 from typing import TYPE_CHECKING
-import xml.etree.ElementTree as ET
+from xml.etree import ElementTree
 
 from aiohttp.hdrs import ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT
 import attr
@@ -1285,7 +1285,8 @@ class Voice:
                 )
             if resp.status not in (200, 201):
                 raise VoiceReturnError(
-                    f"Error processing {language} speech: {resp.status} {await resp.text()}",
+                    f"Error processing {language} speech: "
+                    f"{resp.status} {await resp.text()}",
                 )
             data = await resp.json()
 
@@ -1324,9 +1325,9 @@ class Voice:
             await self._update_token()
 
         # SSML
-        xml_body = ET.Element("speak", version="1.0")
+        xml_body = ElementTree.Element("speak", version="1.0")
         xml_body.set("{http://www.w3.org/XML/1998/namespace}lang", language)
-        voice_el = ET.SubElement(xml_body, "voice")
+        voice_el = ElementTree.SubElement(xml_body, "voice")
         voice_el.set("{http://www.w3.org/XML/1998/namespace}lang", language)
         voice_el.set(
             "name",
@@ -1351,7 +1352,7 @@ class Voice:
                 "X-Microsoft-OutputFormat": output_header,
                 USER_AGENT: self.cloud.client.client_name,
             },
-            data=ET.tostring(xml_body),
+            data=ElementTree.tostring(xml_body),
         ) as resp:
             if resp.status == 429 and not force_token_renewal:
                 # By checking the force_token_renewal argument, we limit retries to 1.
@@ -1366,6 +1367,7 @@ class Voice:
                 )
             if resp.status not in (200, 201):
                 raise VoiceReturnError(
-                    f"Error receiving TTS with {language}/{voice}: {resp.status} {await resp.text()}",
+                    f"Error receiving TTS with {language}/{voice}: "
+                    f"{resp.status} {await resp.text()}",
                 )
             return await resp.read()

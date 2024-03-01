@@ -130,7 +130,6 @@ class CognitoAuth:
 
     async def async_resend_email_confirm(self, email: str) -> None:
         """Resend email confirmation."""
-
         try:
             async with self._request_lock:
                 cognito = self._cognito(username=email)
@@ -148,7 +147,6 @@ class CognitoAuth:
 
     async def async_forgot_password(self, email: str) -> None:
         """Initialize forgotten password flow."""
-
         try:
             async with self._request_lock:
                 cognito = self._cognito(username=email)
@@ -161,7 +159,6 @@ class CognitoAuth:
 
     async def async_login(self, email: str, password: str) -> None:
         """Log user in and fetch certificate."""
-
         try:
             async with self._request_lock:
                 assert not self.cloud.is_logged_in, "Cannot login if already logged in."

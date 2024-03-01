@@ -138,6 +138,11 @@ target-version = "py311"
 ignore = [
   "ANN101", # https://docs.astral.sh/ruff/rules/missing-type-self/
   "ANN401", # https://docs.astral.sh/ruff/rules/any-type/
+  "DTZ005", # https://docs.astral.sh/ruff/rules/call-datetime-now-without-tzinfo/
+  "EM101", # https://docs.astral.sh/ruff/rules/raw-string-in-exception/
+  "EM102", # https://docs.astral.sh/ruff/rules/f-string-in-exception/
+  "FBT", # https://docs.astral.sh/ruff/rules/#flake8-boolean-trap-fbt
+  "N818", # https://docs.astral.sh/ruff/rules/error-suffix-on-exception-name/
   "PLR2004", # https://docs.astral.sh/ruff/rules/magic-value-comparison/
   "RUF006", # https://docs.astral.sh/ruff/rules/asyncio-dangling-task/
   "S101", # https://docs.astral.sh/ruff/rules/assert/
@@ -148,36 +153,16 @@ ignore = [
   "TRY003", # https://docs.astral.sh/ruff/rules/raise-vanilla-args/
   "TRY301", # https://docs.astral.sh/ruff/rules/raise-within-try/
   "TRY400", # https://docs.astral.sh/ruff/rules/error-instead-of-exception/
-
-  "ARG001", # TEMPORARY DISABLED
-  "ARG002", # TEMPORARY DISABLED
-  "C901", # TEMPORARY DISABLED
-  "D100", # TEMPORARY DISABLED
-  "D103", # TEMPORARY DISABLED
-  "D202", # TEMPORARY DISABLED
-  "D205", # TEMPORARY DISABLED
-  "D401", # TEMPORARY DISABLED
-  "D403", # TEMPORARY DISABLED
-  "DTZ003", # TEMPORARY DISABLED
-  "DTZ005", # TEMPORARY DISABLED
-  "E501", # TEMPORARY DISABLED
-  "EM101", # TEMPORARY DISABLED
-  "EM102", # TEMPORARY DISABLED
-  "FBT001", # TEMPORARY DISABLED
-  "FBT002", # TEMPORARY DISABLED
-  "FBT003", # TEMPORARY DISABLED
-  "I001", # TEMPORARY DISABLED
-  "N817", # TEMPORARY DISABLED
-  "N818", # TEMPORARY DISABLED
 ]
 
 select = [
   "ALL",
 ]
 
-[tool.ruff.lint.pydocstyle]
-# Use Google-style docstrings.
-convention = "pep257"
+[tool.ruff.lint.extend-per-file-ignores]
+"py.typed" = [
+  "D100",
+]
 
 [tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses = false
@@ -189,6 +174,13 @@ force-sort-within-sections = true
 known-first-party = [
   "hass_nabucasa",
 ]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 22
+
+[tool.ruff.lint.pydocstyle]
+# Use Google-style docstrings.
+convention = "pep257"
 
 [tool.ruff.lint.pylint]
 max-args = 15

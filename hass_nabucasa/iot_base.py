@@ -239,8 +239,9 @@ class BaseIoT:
                     disconnect_reason = f"Closed by server. {msg.extra} ({msg.data})"
                     break
 
-                # Do this inside the loop because if 2 clients are connected, it can happen that
-                # we get connected with valid auth, but then server decides to drop our connection.
+                # Do this inside the loop because if 2 clients are connected,
+                # it can happen that we get connected with valid auth,
+                # but then server decides to drop our connection.
                 if self.state != STATE_CONNECTED:
                     await self._connected()
 

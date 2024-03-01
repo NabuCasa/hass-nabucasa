@@ -7,10 +7,10 @@ from unittest import mock
 from urllib.parse import parse_qs
 
 from aiohttp import ClientSession
-from aiohttp.streams import StreamReader
-from yarl import URL
-
 from aiohttp.client_exceptions import ClientResponseError
+from aiohttp.streams import StreamReader
+import pytest
+from yarl import URL
 
 retype = type(re.compile(""))
 
@@ -27,7 +27,7 @@ def mock_stream(data):
 class AiohttpClientMocker:
     """Mock Aiohttp client requests."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the request mocker."""
         self._mocks = []
         self._cookies = {}
@@ -45,7 +45,7 @@ class AiohttpClientMocker:
         content=None,
         json=None,
         params=None,
-        headers={},
+        headers=None,
         exc=None,
         cookies=None,
     ):
@@ -70,7 +70,7 @@ class AiohttpClientMocker:
                 content,
                 cookies,
                 exc,
-                headers,
+                headers or {},
             ),
         )
 
@@ -141,11 +141,7 @@ class AiohttpClientMocker:
                     raise response.exc
                 return response
 
-        assert False, "No mock registered for {} {} {}".format(
-            method.upper(),
-            url,
-            params,
-        )
+        pytest.fail(f"No mock registered for {method.upper()} {url} {params}")
 
 
 class AiohttpClientMockResponse:
@@ -160,7 +156,7 @@ class AiohttpClientMockResponse:
         cookies=None,
         exc=None,
         headers=None,
-    ):
+    ) -> None:
         """Initialize a fake response."""
         self.method = method
         self._url = url

@@ -342,7 +342,7 @@ class RemoteUI:
 
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_DOWN)
 
-    async def handle_connection_requests(self, caller_ip: str) -> None:
+    async def handle_connection_requests(self, caller_ip: str) -> None:  # noqa: ARG002
         """Handle connection requests."""
         if not self._snitun:
             raise RemoteNotConnected("Can't handle request-connection without backend")
@@ -433,7 +433,9 @@ class RemoteUI:
             self.cloud.client.user_message(
                 "connect_remote_insecure",
                 "Home Assistant Cloud error",
-                "Remote connection is disabled because this Home Assistant instance is marked as insecure. For more information and to enable it again, visit the [Nabu Casa Account page](https://account.nabucasa.com).",
+                "Remote connection is disabled because this Home Assistant instance "
+                "is marked as insecure. For more information and to enable it again, "
+                "visit the [Nabu Casa Account page](https://account.nabucasa.com).",
             )
             insecure = True
         except SubscriptionExpired:

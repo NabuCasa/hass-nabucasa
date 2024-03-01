@@ -13,7 +13,7 @@ from hass_nabucasa import iot, iot_base
 def cloud_mock_iot(auth_cloud_mock):
     """Mock cloud class."""
     auth_cloud_mock.subscription_expired = False
-    yield auth_cloud_mock
+    return auth_cloud_mock
 
 
 def mock_handler_message(conn, mock_iot_client, msg):

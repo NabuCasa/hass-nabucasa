@@ -5,7 +5,7 @@ from datetime import timedelta
 import pytest
 import xmltodict
 
-import hass_nabucasa.voice as voice
+from hass_nabucasa import voice
 
 
 @pytest.fixture
