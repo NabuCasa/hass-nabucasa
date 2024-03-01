@@ -27,6 +27,7 @@ dependencies = [
     "ciso8601>=2.3.0",
     "cryptography>=42.0.0",
     "pycognito==2024.1.0",
+    "PyJWT>=2.8.0",
     "snitun==0.36.2",
 ]
 description = "Home Assistant cloud integration by Nabu Casa, Inc."

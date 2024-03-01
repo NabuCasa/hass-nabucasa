@@ -13,7 +13,7 @@ from typing import Any, Generic, Literal, TypeVar
 
 from aiohttp import ClientSession
 from atomicwrites import atomic_write
-from jose import jwt
+import jwt
 
 from .auth import CloudError, CognitoAuth
 from .client import CloudClient
@@ -356,5 +356,8 @@ class Cloud(Generic[_ClientT]):
     @staticmethod
     def _decode_claims(token: str) -> Mapping[str, Any]:
         """Decode the claims in a token."""
-        decoded: Mapping[str, Any] = jwt.get_unverified_claims(token)
+        decoded: Mapping[str, Any] = jwt.decode(
+            token,
+            options={"verify_signature": False},
+        )
         return decoded
