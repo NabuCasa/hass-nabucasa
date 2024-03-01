@@ -230,7 +230,7 @@ async def async_handle_cloud(cloud: Cloud[_ClientT], payload: dict[str, Any]) ->
 @HANDLERS.register("remote_sni")
 async def async_handle_remote_sni(
     cloud: Cloud[_ClientT],
-    payload: dict[str, Any],
+    payload: dict[str, Any],  # noqa: ARG001
 ) -> dict[str, Any]:
     """Handle remote UI requests for cloud."""
     await cloud.client.async_cloud_connect_update(True)

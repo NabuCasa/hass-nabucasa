@@ -2,9 +2,9 @@
 
 from collections.abc import Generator
 from typing import Any
-from unittest.mock import MagicMock, patch, AsyncMock
-from aiohttp import ClientResponseError
+from unittest.mock import AsyncMock, MagicMock, patch
 
+from aiohttp import ClientResponseError
 import pytest
 
 from hass_nabucasa import cloud_api

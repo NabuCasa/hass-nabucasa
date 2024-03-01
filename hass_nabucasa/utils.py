@@ -34,7 +34,9 @@ def parse_date(dt_str: str) -> dt.date | None:
 
 
 def server_context_modern() -> ssl.SSLContext:
-    """Return an SSL context following the Mozilla recommendations.
+    """
+    Return an SSL context following the Mozilla recommendations.
+
     TLS configuration follows the best-practice guidelines specified here:
     https://wiki.mozilla.org/Security/Server_Side_TLS
     Modern guidelines are followed.
@@ -78,6 +80,7 @@ async def gather_callbacks(
     name: str,
     callbacks: list[Callable[[], Awaitable[None]]],
 ) -> None:
+    """Gather callbacks and log exceptions."""
     results = await asyncio.gather(*[cb() for cb in callbacks], return_exceptions=True)
     for result, callback in zip(results, callbacks, strict=False):
         if not isinstance(result, Exception):

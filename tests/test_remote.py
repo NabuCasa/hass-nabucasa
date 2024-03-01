@@ -5,12 +5,10 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from acme import client, messages
-
-
 import pytest
+
 from hass_nabucasa import utils
 from hass_nabucasa.acme import AcmeHandler
-
 from hass_nabucasa.const import (
     DISPATCH_REMOTE_BACKEND_DOWN,
     DISPATCH_REMOTE_BACKEND_UP,
@@ -19,10 +17,10 @@ from hass_nabucasa.const import (
 )
 from hass_nabucasa.remote import (
     RENEW_IF_EXPIRES_DAYS,
+    WARN_RENEW_FAILED_DAYS,
     CertificateStatus,
     RemoteUI,
     SubscriptionExpired,
-    WARN_RENEW_FAILED_DAYS,
 )
 from hass_nabucasa.utils import utcnow
 
@@ -784,9 +782,13 @@ async def test_recreating_old_certificate_with_bad_dns_config(
 
     assert len(auth_cloud_mock.client.mock_repairs) == 1
     repair = auth_cloud_mock.client.mock_repairs[0]
-    assert set(repair.keys()) == set(
-        ["identifier", "translation_key", "severity", "placeholders"],
-    )
+    assert set(repair.keys()) == {
+        "identifier",
+        "translation_key",
+        "severity",
+        "placeholders",
+    }
+
     assert repair["identifier"].startswith("reset_bad_custom_domain_configuration_")
     assert repair["translation_key"] == "reset_bad_custom_domain_configuration"
     assert repair["severity"] == "error"
@@ -856,9 +858,12 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
 
     assert len(auth_cloud_mock.client.mock_repairs) == 1
     repair = auth_cloud_mock.client.mock_repairs[0]
-    assert set(repair.keys()) == set(
-        ["identifier", "translation_key", "severity", "placeholders"],
-    )
+    assert set(repair.keys()) == {
+        "identifier",
+        "translation_key",
+        "severity",
+        "placeholders",
+    }
     assert repair["identifier"].startswith("warn_bad_custom_domain_configuration_")
     assert repair["translation_key"] == "warn_bad_custom_domain_configuration"
     assert repair["severity"] == "warning"

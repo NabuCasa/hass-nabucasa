@@ -57,7 +57,7 @@ class Cloud(Generic[_ClientT]):
         remotestate_server: str | None = None,
         thingtalk_server: str | None = None,
         servicehandlers_server: str | None = None,
-        **kwargs: Any,
+        **kwargs: Any,  # noqa: ARG002
     ) -> None:
         """Create an instance of Cloud."""
         self._on_initialized: list[Callable[[], Awaitable[None]]] = []
@@ -300,7 +300,8 @@ class Cloud(Generic[_ClientT]):
                 self.client.user_message(
                     "load_auth_data",
                     "Home Assistant Cloud error",
-                    f"Unable to load authentication from {path}. [Please login again](/config/cloud)",
+                    f"Unable to load authentication from {path}. "
+                    "[Please login again](/config/cloud)",
                 )
                 _LOGGER.warning(
                     "Error loading cloud authentication info from %s: %s",

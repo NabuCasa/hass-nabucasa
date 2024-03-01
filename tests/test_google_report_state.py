@@ -4,7 +4,7 @@ import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 from hass_nabucasa import iot_base
-from hass_nabucasa.google_report_state import GoogleReportState, ErrorResponse
+from hass_nabucasa.google_report_state import ErrorResponse, GoogleReportState
 
 from .common import MockClient
 
@@ -94,14 +94,14 @@ async def test_max_queue_message(ws_server):
             return_exceptions=True,
         )
         # One per message
-        for i in range(150):
+        for _ in range(150):
             await asyncio.sleep(0)
 
     # Start handling messages.
     await grs._async_on_connect()
 
     # One per message
-    for i in range(150):
+    for _ in range(150):
         await asyncio.sleep(0)
 
     assert len(server_msgs) == 100

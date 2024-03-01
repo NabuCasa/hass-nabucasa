@@ -129,7 +129,6 @@ async def async_fetch_available_services(
     cloud: Cloud[_ClientT],
 ) -> list[dict[str, Any]]:
     """Fetch available services."""
-
     resp = await cloud.client.websession.get(
         f"https://{cloud.account_link_server}/services",
     )

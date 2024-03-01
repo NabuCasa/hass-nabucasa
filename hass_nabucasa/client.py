@@ -66,23 +66,23 @@ class CloudClient(ABC):
 
     @abstractmethod
     async def cloud_connected(self) -> None:
-        """Called when cloud connected."""
+        """Cloud connected."""
 
     @abstractmethod
     async def cloud_disconnected(self) -> None:
-        """Called when cloud disconnected."""
+        """Cloud disconnected."""
 
     @abstractmethod
     async def cloud_started(self) -> None:
-        """Called when cloud started with active subscription."""
+        """Cloud started with an active subscription."""
 
     @abstractmethod
     async def cloud_stopped(self) -> None:
-        """Called when cloud is stopping."""
+        """Cloud stopped."""
 
     @abstractmethod
     async def logout_cleanups(self) -> None:
-        """Called on logout."""
+        """Cleanup before logout."""
 
     @abstractmethod
     async def async_cloud_connect_update(self, connect: bool) -> None:
@@ -101,11 +101,11 @@ class CloudClient(ABC):
 
     @abstractmethod
     async def async_alexa_message(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """process cloud alexa message to client."""
+        """Process cloud alexa message to client."""
 
     @abstractmethod
     async def async_system_message(self, payload: dict[str, Any]) -> None:
-        """process cloud system message to client."""
+        """Process cloud system message to client."""
 
     @abstractmethod
     async def async_google_message(self, payload: dict[str, Any]) -> dict[str, Any]:

@@ -14,7 +14,7 @@ from hass_nabucasa.client import CloudClient
 class MockClient(CloudClient):
     """Interface class for Home Assistant."""
 
-    def __init__(self, base_path, loop, websession):
+    def __init__(self, base_path, loop, websession) -> None:
         """Initialize MockClient."""
         self._loop = loop
         self._websession = websession
@@ -135,6 +135,7 @@ class MockClient(CloudClient):
         placeholders: dict[str, str] | None = None,
         severity: Literal["error", "warning"] = "warning",
     ) -> None:
+        """Create a repair issue."""
         self.mock_repairs.append(
             {
                 "identifier": identifier,
@@ -148,7 +149,7 @@ class MockClient(CloudClient):
 class MockAcme:
     """Mock AcmeHandler."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize MockAcme."""
         self.is_valid = True
         self.call_issue = False
@@ -199,7 +200,7 @@ class MockAcme:
         """Hardening files."""
         self.call_hardening = True
 
-    def __call__(self, *args):
+    def __call__(self, *args) -> MockAcme:
         """Init."""
         self.init_args = args
         return self
@@ -208,7 +209,7 @@ class MockAcme:
 class MockSnitun:
     """Mock Snitun client."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize MockAcme."""
         self.call_start = False
         self.call_stop = False
@@ -263,7 +264,7 @@ class MockSnitun:
         self.wait_task.set()
         self.call_disconnect = True
 
-    def __call__(self, *args, **kwarg):
+    def __call__(self, *args, **kwarg) -> MockSnitun:
         """Init."""
         self.init_args = args
         self.init_kwarg = kwarg

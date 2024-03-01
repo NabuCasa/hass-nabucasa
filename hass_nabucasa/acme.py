@@ -23,6 +23,7 @@ import josepy as jose
 import OpenSSL
 
 from . import cloud_api
+from .utils import utcnow
 
 FILE_ACCOUNT_KEY = "acme_account.pem"
 FILE_PRIVATE_KEY = "remote_private.pem"
@@ -119,7 +120,7 @@ class AcmeHandler:
         """Validate date of a certificate and return True is valid."""
         if (expire_date := self.expire_date) is None:
             return False
-        return expire_date > datetime.utcnow()
+        return expire_date > utcnow()
 
     @property
     def expire_date(self) -> datetime | None:

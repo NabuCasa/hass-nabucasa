@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 from aiohttp import web
 import pytest
+
 from hass_nabucasa import account_link
 
 
@@ -79,7 +80,7 @@ async def test_auth_helper_unknown_service(aiohttp_client):
 
     with pytest.raises(account_link.AccountLinkException) as err:
         await helper.async_get_authorize_url()
-        assert err.value.code == "unknown"
+    assert err.value.code == "unknown"
 
 
 async def test_auth_helper_token_timeout(aiohttp_client):
