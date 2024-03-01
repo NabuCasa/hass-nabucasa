@@ -55,9 +55,6 @@ test = [
     "tomli==2.0.1",
 ]
 
-[tool.black]
-target-version = ['py311']
-
 [tool.mypy]
 check_untyped_defs = true
 disallow_incomplete_defs = true
