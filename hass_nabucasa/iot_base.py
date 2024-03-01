@@ -77,6 +77,11 @@ class BaseIoT:
         raise NotImplementedError
 
     @property
+    def ws_heartbeat(self) -> float | None:
+        """Server to connect to."""
+        return None
+
+    @property
     def ws_server_url(self) -> str:
         """Server to connect to."""
         raise NotImplementedError
@@ -207,6 +212,7 @@ class BaseIoT:
         try:
             self.client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
+                heartbeat=self.ws_heartbeat,
                 headers={
                     hdrs.AUTHORIZATION: f"Bearer {self.cloud.id_token}",
                     hdrs.USER_AGENT: self.cloud.client.client_name,

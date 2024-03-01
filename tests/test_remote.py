@@ -516,9 +516,9 @@ async def test_certificate_task_no_backend(
 
     acme_mock.expire_date = valid
 
-    with patch("hass_nabucasa.utils.next_midnight", return_value=0), patch(
-        "random.randint",
-        return_value=0,
+    with (
+        patch("hass_nabucasa.utils.next_midnight", return_value=0),
+        patch("random.randint", return_value=0),
     ):
         acme_task = remote._acme_task = asyncio.create_task(
             remote._certificate_handler(),
@@ -565,9 +565,9 @@ async def test_certificate_task_renew_cert(
 
     acme_mock.expire_date = utcnow() + timedelta(days=-40)
 
-    with patch("hass_nabucasa.utils.next_midnight", return_value=0), patch(
-        "random.randint",
-        return_value=0,
+    with (
+        patch("hass_nabucasa.utils.next_midnight", return_value=0),
+        patch("random.randint", return_value=0),
     ):
         acme_task = remote._acme_task = asyncio.create_task(
             remote._certificate_handler(),
