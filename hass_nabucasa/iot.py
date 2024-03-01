@@ -64,6 +64,11 @@ class CloudIoT(iot_base.BaseIoT):
         return __name__
 
     @property
+    def ws_heartbeat(self) -> float | None:
+        """Server to connect to."""
+        return 300
+
+    @property
     def ws_server_url(self) -> str:
         """Server to connect to."""
         return f"wss://{self.cloud.relayer_server}/websocket"
