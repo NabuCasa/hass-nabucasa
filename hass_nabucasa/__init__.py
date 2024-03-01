@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime, timedelta
 import json
 import logging
 from pathlib import Path
 import shutil
-from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
-
+from aiohttp import ClientSession
 from atomicwrites import atomic_write
 from jose import jwt
 
@@ -19,9 +20,9 @@ from .client import CloudClient
 from .cloudhooks import Cloudhooks
 from .const import (
     CONFIG_DIR,
-    MODE_DEV,
     DEFAULT_SERVERS,
     DEFAULT_VALUES,
+    MODE_DEV,
     STATE_CONNECTED,
 )
 from .google_report_state import GoogleReportState
@@ -34,10 +35,6 @@ _ClientT = TypeVar("_ClientT", bound=CloudClient)
 
 
 _LOGGER = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Mapping
-    from aiohttp import ClientSession
 
 
 class Cloud(Generic[_ClientT]):

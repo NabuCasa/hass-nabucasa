@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-
+from collections.abc import AsyncIterable
+from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
-
 import logging
+from typing import TYPE_CHECKING
 import xml.etree.ElementTree as ET
 
 from aiohttp.hdrs import ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT
@@ -17,9 +17,6 @@ from .utils import utc_from_timestamp, utcnow
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
-
-    from datetime import datetime
-    from collections.abc import AsyncIterable
 
 
 _LOGGER = logging.getLogger(__name__)

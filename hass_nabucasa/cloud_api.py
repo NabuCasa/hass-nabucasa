@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable, Coroutine
 from functools import wraps
 import logging
 from typing import (
@@ -12,7 +13,7 @@ from typing import (
     TypeVar,
 )
 
-
+from aiohttp import ClientResponse
 from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,8 +23,6 @@ T = TypeVar("T")
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
-    from collections.abc import Awaitable, Callable, Coroutine
-    from aiohttp import ClientResponse
 
 
 def _do_log_response(resp: ClientResponse, content: str = "") -> None:

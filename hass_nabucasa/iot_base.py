@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 import dataclasses
 import logging
 import pprint
@@ -10,15 +11,14 @@ import random
 from socket import gaierror
 from typing import TYPE_CHECKING, Any
 
-
 from aiohttp import (
     ClientError,
+    ClientWebSocketResponse,
     WSMessage,
     WSMsgType,
     WSServerHandshakeError,
     client_exceptions,
     hdrs,
-    ClientWebSocketResponse,
 )
 
 from .auth import CloudError
@@ -32,7 +32,6 @@ from .utils import gather_callbacks
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
-    from collections.abc import Awaitable, Callable
 
 
 @dataclasses.dataclass

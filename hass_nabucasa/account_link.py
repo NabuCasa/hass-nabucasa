@@ -6,10 +6,10 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
+from aiohttp.client_ws import ClientWebSocketResponse
+
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
-
-    from aiohttp.client_ws import ClientWebSocketResponse
 
 _LOGGER = logging.getLogger(__name__)
 

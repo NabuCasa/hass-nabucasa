@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-
+from asyncio import AbstractEventLoop
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
+
+from aiohttp import ClientSession
+from aiohttp.web import AppRunner
 
 from .iot import HandlerError
 
 if TYPE_CHECKING:
     from . import Cloud
-
-    from asyncio import AbstractEventLoop
-    from aiohttp import ClientSession
-    from aiohttp.web import AppRunner
-    from pathlib import Path
 
 
 class RemoteActivationNotAllowed(HandlerError):

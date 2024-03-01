@@ -3,21 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 import datetime as dt
+from logging import Logger
 import ssl
-from typing import TYPE_CHECKING, TypeVar
-
+from typing import TypeVar
 
 import ciso8601
 
-
+CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 UTC = dt.UTC
-
-if TYPE_CHECKING:
-    from logging import Logger
-    from collections.abc import Awaitable, Callable
-
-    CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 
 
 def utcnow() -> dt.datetime:

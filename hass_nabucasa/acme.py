@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 import urllib
 
-import OpenSSL
 from acme import challenges, client, crypto_util, errors, messages
 import async_timeout
 from atomicwrites import atomic_write
@@ -18,9 +17,10 @@ import attr
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID
 from cryptography.x509.extensions import SubjectAlternativeName
+from cryptography.x509.oid import NameOID
 import josepy as jose
+import OpenSSL
 
 from . import cloud_api
 

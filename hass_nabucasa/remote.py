@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 import logging
 import random
-
+from ssl import SSLContext
 from typing import TYPE_CHECKING, cast
 
 import aiohttp
@@ -23,7 +23,7 @@ from .acme import AcmeClientError, AcmeHandler, AcmeJWSVerificationError
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
-    from ssl import SSLContext
+
 
 _LOGGER = logging.getLogger(__name__)
 

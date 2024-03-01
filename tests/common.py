@@ -3,16 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-
-from typing import TYPE_CHECKING, Any, Literal
-
+from collections.abc import Coroutine
+from pathlib import Path
+from typing import Any, Literal
 from unittest.mock import Mock
 
 from hass_nabucasa.client import CloudClient
-
-if TYPE_CHECKING:
-    from pathlib import Path
-    from collections.abc import Coroutine
 
 
 class MockClient(CloudClient):
