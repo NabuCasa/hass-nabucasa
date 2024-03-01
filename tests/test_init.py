@@ -6,8 +6,7 @@ from unittest.mock import AsyncMock, patch, MagicMock, Mock, PropertyMock
 
 import pytest
 
-import hass_nabucasa as cloud
-import jwt
+import hass_nabucasa as cloud, jwt  # noqa: E401
 from hass_nabucasa.utils import utcnow
 
 from .common import MockClient
