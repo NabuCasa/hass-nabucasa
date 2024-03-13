@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import timedelta
+from ssl import SSLError
 from unittest.mock import patch
 
 from acme import client, messages
@@ -1023,6 +1024,59 @@ async def test_acme_client_new_order_errors(
     with patch(
         "hass_nabucasa.remote.AcmeHandler",
         return_value=_MockAcme(auth_cloud_mock, [], "test@nabucasa.inc"),
+    ):
+        assert remote._certificate_status is None
+        await remote.load_backend()
+
+    await asyncio.sleep(0.1)
+    assert remote._acme.call_reset == should_reset
+    assert remote._certificate_status is CertificateStatus.ERROR
+
+    await remote.stop()
+
+
+@pytest.mark.parametrize(
+    ("reason", "should_reset"),
+    (
+        (
+            "KEY_VALUES_MISMATCH",
+            True,
+        ),
+        (
+            "Boom",
+            False,
+        ),
+    ),
+)
+async def test_context_error_handling(
+    auth_cloud_mock,
+    mock_cognito,
+    valid_acme_mock,
+    aioclient_mock,
+    snitun_mock,
+    reason,
+    should_reset,
+):
+    """Test that we reset if we hit an error reason that require resetting."""
+    auth_cloud_mock.servicehandlers_server = "test.local"
+
+    remote = RemoteUI(auth_cloud_mock)
+
+    aioclient_mock.post(
+        "https://test.local/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+
+    ssl_error = SSLError()
+    ssl_error.reason = reason
+
+    with patch(
+        "hass_nabucasa.remote.RemoteUI._create_context",
+        side_effect=ssl_error,
     ):
         assert remote._certificate_status is None
         await remote.load_backend()
