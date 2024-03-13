@@ -63,3 +63,8 @@ MESSAGE_REMOTE_SETUP = """
 Unable to create a certificate. We will automatically
 retry it and notify you when it's available.
 """
+
+MESSAGE_LOAD_CERTIFICATE_FAILURE = """
+Unable to load the certificate. We will automatically
+recreate it and notify you when it's available.
+"""

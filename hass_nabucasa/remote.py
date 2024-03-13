@@ -294,8 +294,6 @@ class RemoteUI:
             while self.cloud.client.aiohttp_runner is None:
                 await asyncio.sleep(1)
 
-        # Setup snitun / aiohttp wrapper
-        _LOGGER.debug("Initializing SniTun")
         try:
             context = await self._create_context()
         except SSLError as err:
@@ -303,12 +301,14 @@ class RemoteUI:
                 self.cloud.client.user_message(
                     "cloud_remote_acme",
                     "Home Assistant Cloud",
-                    const.MESSAGE_REMOTE_SETUP,
+                    const.MESSAGE_LOAD_CERTIFICATE_FAILURE,
                 )
                 await self._recreate_acme(domains, email)
             self._certificate_status = CertificateStatus.ERROR
             return False
 
+        # Setup snitun / aiohttp wrapper
+        _LOGGER.debug("Initializing SniTun")
         self._snitun = SniTunClientAioHttp(
             self.cloud.client.aiohttp_runner,
             context,
