@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 import logging
 import random
-from ssl import SSLContext
+from ssl import SSLContext, SSLError
 from typing import TYPE_CHECKING, cast
 
 import aiohttp
@@ -294,9 +294,21 @@ class RemoteUI:
             while self.cloud.client.aiohttp_runner is None:
                 await asyncio.sleep(1)
 
+        try:
+            context = await self._create_context()
+        except SSLError as err:
+            if err.reason == "KEY_VALUES_MISMATCH":
+                self.cloud.client.user_message(
+                    "cloud_remote_acme",
+                    "Home Assistant Cloud",
+                    const.MESSAGE_LOAD_CERTIFICATE_FAILURE,
+                )
+                await self._recreate_acme(domains, email)
+            self._certificate_status = CertificateStatus.ERROR
+            return False
+
         # Setup snitun / aiohttp wrapper
         _LOGGER.debug("Initializing SniTun")
-        context = await self._create_context()
         self._snitun = SniTunClientAioHttp(
             self.cloud.client.aiohttp_runner,
             context,
