@@ -183,6 +183,136 @@ async def test_migrate_paypal_agreement(auth_cloud_mock, aioclient_mock):
     }
 
 
+async def test_async_files_download_detils(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_download_details function."""
+    aioclient_mock.get(
+        "https://example.com/files/download_details",
+        json={
+            "url": "https://example.com/some/path",
+        },
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    details = await cloud_api.async_files_download_details(
+        cloud=auth_cloud_mock,
+        storage_type="test",
+        filename="test.txt",
+    )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "filename": "test.txt",
+        "storage_type": "test",
+    }
+
+    assert details == {
+        "url": "https://example.com/some/path",
+    }
+    assert "Fetched https://example.com/files/download_details (200)" in caplog.text
+
+
+async def test_async_files_download_details_error(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_download_details function with error."""
+    aioclient_mock.get(
+        "https://example.com/files/download_details",
+        status=400,
+        json={"message": "Boom!"},
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    with pytest.raises(ClientResponseError):
+        await cloud_api.async_files_download_details(
+            cloud=auth_cloud_mock,
+            storage_type="test",
+            filename="test.txt",
+        )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "filename": "test.txt",
+        "storage_type": "test",
+    }
+
+    assert (
+        "Fetched https://example.com/files/download_details (400) Boom!" in caplog.text
+    )
+
+
+async def test_async_files_list(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_list function."""
+    aioclient_mock.get(
+        "https://example.com/files/list",
+        json=[{"key": "test.txt", "last_modified": "2021-01-01T00:00:00Z", "size": 2}],
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    details = await cloud_api.async_files_list(
+        cloud=auth_cloud_mock,
+        storage_type="test",
+    )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "storage_type": "test",
+    }
+
+    assert details == [
+        {
+            "key": "test.txt",
+            "last_modified": "2021-01-01T00:00:00Z",
+            "size": 2,
+        },
+    ]
+    assert "Fetched https://example.com/files/list (200)" in caplog.text
+
+
+async def test_async_files_list_error(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_list function with error listing files."""
+    aioclient_mock.get(
+        "https://example.com/files/list",
+        status=400,
+        json={"message": "Boom!"},
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    with pytest.raises(ClientResponseError):
+        await cloud_api.async_files_list(
+            cloud=auth_cloud_mock,
+            storage_type="test",
+        )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "storage_type": "test",
+    }
+
+    assert "Fetched https://example.com/files/list (400) Boom!" in caplog.text
+
+
 async def test_async_files_upload_detils(
     auth_cloud_mock: MagicMock,
     aioclient_mock: Generator[AiohttpClientMocker, Any, None],
