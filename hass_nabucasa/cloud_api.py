@@ -216,6 +216,7 @@ async def async_files_upload_details(
     filename: str,
     base64md5hash: str,
     size: int,
+    homeassistant_version: str | None = None,
 ) -> dict[str, Any]:
     """Get files upload details."""
     resp = await cloud.websession.get(
@@ -224,6 +225,7 @@ async def async_files_upload_details(
         json={
             "storage_type": storage_type,
             "filename": filename,
+            "homeassistant_version": homeassistant_version,
             "md5": base64md5hash,
             "size": size,
         },

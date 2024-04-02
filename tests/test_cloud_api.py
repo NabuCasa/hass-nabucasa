@@ -337,6 +337,7 @@ async def test_async_files_upload_detils(
         filename="test.txt",
         base64md5hash=base64md5hash,
         size=2,
+        homeassistant_version="1970.1.1",
     )
 
     assert len(aioclient_mock.mock_calls) == 1
@@ -344,6 +345,7 @@ async def test_async_files_upload_detils(
     assert aioclient_mock.mock_calls[0][2] == {
         "filename": "test.txt",
         "storage_type": "test",
+        "homeassistant_version": "1970.1.1",
         "md5": base64md5hash,
         "size": 2,
     }
@@ -385,6 +387,7 @@ async def test_async_files_upload_details_error(
     assert aioclient_mock.mock_calls[0][2] == {
         "filename": "test.txt",
         "storage_type": "test",
+        "homeassistant_version": None,
         "md5": base64md5hash,
         "size": 2,
     }
