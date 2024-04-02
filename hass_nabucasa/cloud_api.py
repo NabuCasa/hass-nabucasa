@@ -11,6 +11,7 @@ from typing import (
     Concatenate,
     ParamSpec,
     TypeVar,
+    cast,
 )
 
 from aiohttp import ClientResponse
@@ -153,6 +154,58 @@ async def async_voice_connection_details(cloud: Cloud[_ClientT]) -> ClientRespon
         url,
         headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
     )
+
+
+@_check_token
+async def async_files_download_details(
+    cloud: Cloud[_ClientT],
+    *,
+    storage_type: str,
+    filename: str,
+) -> dict[str, Any]:
+    """Get files download details."""
+    resp = await cloud.websession.get(
+        f"https://{cloud.servicehandlers_server}/files/download_details",
+        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
+        json={
+            "storage_type": storage_type,
+            "filename": filename,
+        },
+    )
+
+    data: dict[str, Any] = await resp.json()
+    _do_log_response(
+        resp,
+        data["message"] if resp.status == 400 and "message" in data else "",
+    )
+    resp.raise_for_status()
+    return data
+
+
+@_check_token
+async def async_files_list(
+    cloud: Cloud[_ClientT],
+    *,
+    storage_type: str,
+) -> list[dict[str, Any]]:
+    """List files for storage type."""
+    resp = await cloud.websession.get(
+        f"https://{cloud.servicehandlers_server}/files/list",
+        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
+        json={
+            "storage_type": storage_type,
+        },
+    )
+
+    data: dict[str, Any] | list[dict[str, Any]] = await resp.json()
+    _do_log_response(
+        resp,
+        data["message"]
+        if resp.status == 400 and isinstance(data, dict) and "message" in data
+        else "",
+    )
+    resp.raise_for_status()
+    return cast(list[dict[str, Any]], data)
 
 
 @_check_token
