@@ -42,7 +42,7 @@ test = [
     "codespell==2.2.6",
     "mypy==1.9.0",
     "pre-commit==3.7.0",
-    "pre-commit-hooks==4.5.0",
+    "pre-commit-hooks==4.6.0",
     "pylint==3.1.0",
     "pytest-aiohttp==1.0.5",
     "pytest-timeout==2.3.1",
