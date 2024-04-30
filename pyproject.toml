@@ -28,7 +28,7 @@ dependencies = [
     "cryptography>=42.0.0",
     "pycognito==2024.2.0",
     "PyJWT>=2.8.0",
-    "snitun==0.36.2",
+    "snitun==0.38.1",
 ]
 description = "Home Assistant cloud integration by Nabu Casa, Inc."
 license = {text = "GPL v3"}
