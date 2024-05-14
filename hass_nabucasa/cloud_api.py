@@ -10,6 +10,7 @@ from typing import (
     Any,
     Concatenate,
     ParamSpec,
+    TypedDict,
     TypeVar,
     cast,
 )
@@ -24,6 +25,31 @@ T = TypeVar("T")
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
+
+
+class _FilesHandlerUrlResponse(TypedDict):
+    """URL Response from files handler."""
+
+    url: str
+
+
+class FilesHandlerDownloadDetails(_FilesHandlerUrlResponse):
+    """Download details from files handler."""
+
+
+class FilesHandlerUploadDetails(_FilesHandlerUrlResponse):
+    """Upload details from files handler."""
+
+    fields: dict[str, str]
+
+
+class FilesHandlerListEntry(TypedDict):
+    """List entry for files handlers."""
+
+    key: str
+    size: int
+    last_modified: str
+    tags: dict[str, Any]
 
 
 def _do_log_response(resp: ClientResponse, content: str = "") -> None:
@@ -162,7 +188,7 @@ async def async_files_download_details(
     *,
     storage_type: str,
     filename: str,
-) -> dict[str, Any]:
+) -> FilesHandlerDownloadDetails:
     """Get files download details."""
     resp = await cloud.websession.get(
         f"https://{cloud.servicehandlers_server}/files/download_details",
@@ -179,7 +205,7 @@ async def async_files_download_details(
         data["message"] if resp.status == 400 and "message" in data else "",
     )
     resp.raise_for_status()
-    return data
+    return cast(FilesHandlerDownloadDetails, data)
 
 
 @_check_token
@@ -187,7 +213,7 @@ async def async_files_list(
     cloud: Cloud[_ClientT],
     *,
     storage_type: str,
-) -> list[dict[str, Any]]:
+) -> list[FilesHandlerListEntry]:
     """List files for storage type."""
     resp = await cloud.websession.get(
         f"https://{cloud.servicehandlers_server}/files/list",
@@ -205,7 +231,7 @@ async def async_files_list(
         else "",
     )
     resp.raise_for_status()
-    return cast(list[dict[str, Any]], data)
+    return cast(list[FilesHandlerListEntry], data)
 
 
 @_check_token
@@ -217,7 +243,7 @@ async def async_files_upload_details(
     base64md5hash: str,
     size: int,
     homeassistant_version: str | None = None,
-) -> dict[str, Any]:
+) -> FilesHandlerUploadDetails:
     """Get files upload details."""
     resp = await cloud.websession.get(
         f"https://{cloud.servicehandlers_server}/files/upload_details",
@@ -237,7 +263,7 @@ async def async_files_upload_details(
         data["message"] if "message" in data and resp.status == 400 else "",
     )
     resp.raise_for_status()
-    return data
+    return cast(FilesHandlerUploadDetails, data)
 
 
 @_check_token
