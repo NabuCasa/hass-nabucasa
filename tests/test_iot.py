@@ -1,4 +1,5 @@
 """Test the cloud.iot module."""
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 
@@ -12,7 +13,7 @@ from hass_nabucasa import iot, iot_base
 def cloud_mock_iot(auth_cloud_mock):
     """Mock cloud class."""
     auth_cloud_mock.subscription_expired = False
-    yield auth_cloud_mock
+    return auth_cloud_mock
 
 
 def mock_handler_message(conn, mock_iot_client, msg):
@@ -34,7 +35,7 @@ def mock_handler_message(conn, mock_iot_client, msg):
 
     mock_iot_client.receive = receive_mock
     mock_iot_client.send_json = AsyncMock(
-        side_effect=lambda _: handler_respond_set.set()
+        side_effect=lambda _: handler_respond_set.set(),
     )
 
 
@@ -97,7 +98,7 @@ async def test_connection_msg_for_unknown_handler(mock_iot_client, cloud_mock_io
                     "msgid": "test-msg-id",
                     "handler": "non-existing-test-handler",
                     "payload": "test-payload",
-                }
+                },
             ),
         ),
     )
@@ -109,6 +110,41 @@ async def test_connection_msg_for_unknown_handler(mock_iot_client, cloud_mock_io
     assert mock_iot_client.send_json.mock_calls[0][1][0] == {
         "msgid": "test-msg-id",
         "error": "unknown-handler",
+    }
+
+
+async def test_connection_msg_for_handler_raising_handler_error(
+    mock_iot_client,
+    cloud_mock_iot,
+):
+    """Test we sent error when handler raises HandlerError exception."""
+    conn = iot.CloudIoT(cloud_mock_iot)
+    mock_handler_message(
+        conn,
+        mock_iot_client,
+        MagicMock(
+            type=WSMsgType.text,
+            json=MagicMock(
+                return_value={
+                    "msgid": "test-msg-id",
+                    "handler": "test-handler",
+                    "payload": "test-payload",
+                },
+            ),
+        ),
+    )
+
+    with patch.dict(
+        iot.HANDLERS,
+        {"test-handler": Mock(side_effect=iot.HandlerError("specific_error"))},
+    ):
+        await conn.connect()
+
+    # Check that we sent the correct error
+    assert len(mock_iot_client.send_json.mock_calls) == 1
+    assert mock_iot_client.send_json.mock_calls[0][1][0] == {
+        "msgid": "test-msg-id",
+        "error": "specific_error",
     }
 
 
@@ -125,13 +161,14 @@ async def test_connection_msg_for_handler_raising(mock_iot_client, cloud_mock_io
                     "msgid": "test-msg-id",
                     "handler": "test-handler",
                     "payload": "test-payload",
-                }
+                },
             ),
         ),
     )
 
     with patch.dict(
-        iot.HANDLERS, {"test-handler": Mock(side_effect=Exception("Broken"))}
+        iot.HANDLERS,
+        {"test-handler": Mock(side_effect=Exception("Broken"))},
     ):
         await conn.connect()
 
@@ -147,7 +184,8 @@ async def test_handling_core_messages_logout(cloud_mock_iot):
     """Test handling core messages."""
     cloud_mock_iot.logout = AsyncMock()
     await iot.async_handle_cloud(
-        cloud_mock_iot, {"action": "logout", "reason": "Logged in at two places."}
+        cloud_mock_iot,
+        {"action": "logout", "reason": "Logged in at two places."},
     )
     assert len(cloud_mock_iot.logout.mock_calls) == 1
 
@@ -179,6 +217,15 @@ async def test_handler_webhook(cloud_mock):
     assert resp == {"test": 5}
 
 
+async def test_handler_system(cloud_mock):
+    """Test handler system."""
+    cloud_mock.client.mock_return.append({"test": 5})
+    resp = await iot.async_handle_system(cloud_mock, {"test-discovery": True})
+
+    assert len(cloud_mock.client.mock_system) == 1
+    assert resp == {"test": 5}
+
+
 async def test_handler_remote_sni(cloud_mock):
     """Test handler Webhook."""
     assert not cloud_mock.client.pref_should_connect
@@ -187,6 +234,13 @@ async def test_handler_remote_sni(cloud_mock):
 
     assert cloud_mock.client.pref_should_connect
     assert resp == {"server": "1.1.1.1"}
+
+
+async def test_handler_remote_sni_action(cloud_mock):
+    """Test connection info."""
+    cloud_mock.client.mock_return.append({"test": 5})
+    resp = await iot.async_handle_connection_info(cloud_mock, {})
+    assert resp == {"test": 5}
 
 
 async def test_send_message_no_answer(cloud_mock_iot):
@@ -203,9 +257,8 @@ async def test_send_message_no_answer(cloud_mock_iot):
     assert msg["payload"] == {"msg": "yo"}
 
 
-async def test_send_message_answer(event_loop, cloud_mock_iot):
+async def test_send_message_answer(cloud_mock_iot):
     """Test sending a message that expects an answer."""
-    loop = event_loop
     cloud_iot = iot.CloudIoT(cloud_mock_iot)
     cloud_iot.state = iot_base.STATE_CONNECTED
     cloud_iot.client = MagicMock(send_json=AsyncMock())
@@ -213,8 +266,8 @@ async def test_send_message_answer(event_loop, cloud_mock_iot):
     uuid = 5
 
     with patch("hass_nabucasa.iot.uuid.uuid4", return_value=MagicMock(hex=uuid)):
-        send_task = loop.create_task(
-            cloud_iot.async_send_message("webhook", {"msg": "yo"})
+        send_task = asyncio.create_task(
+            cloud_iot.async_send_message("webhook", {"msg": "yo"}),
         )
         await asyncio.sleep(0)
 

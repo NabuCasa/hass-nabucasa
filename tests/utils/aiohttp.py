@@ -1,4 +1,5 @@
 """Aiohttp test utils."""
+
 from contextlib import contextmanager
 import json as _json
 import re
@@ -6,10 +7,10 @@ from unittest import mock
 from urllib.parse import parse_qs
 
 from aiohttp import ClientSession
-from aiohttp.streams import StreamReader
-from yarl import URL
-
 from aiohttp.client_exceptions import ClientResponseError
+from aiohttp.streams import StreamReader
+import pytest
+from yarl import URL
 
 retype = type(re.compile(""))
 
@@ -26,7 +27,7 @@ def mock_stream(data):
 class AiohttpClientMocker:
     """Mock Aiohttp client requests."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the request mocker."""
         self._mocks = []
         self._cookies = {}
@@ -44,7 +45,7 @@ class AiohttpClientMocker:
         content=None,
         json=None,
         params=None,
-        headers={},
+        headers=None,
         exc=None,
         cookies=None,
     ):
@@ -63,8 +64,14 @@ class AiohttpClientMocker:
 
         self._mocks.append(
             AiohttpClientMockResponse(
-                method, url, status, content, cookies, exc, headers
-            )
+                method,
+                url,
+                status,
+                content,
+                cookies,
+                exc,
+                headers or {},
+            ),
         )
 
     def get(self, *args, **kwargs):
@@ -134,17 +141,22 @@ class AiohttpClientMocker:
                     raise response.exc
                 return response
 
-        assert False, "No mock registered for {} {} {}".format(
-            method.upper(), url, params
-        )
+        pytest.fail(f"No mock registered for {method.upper()} {url} {params}")
 
 
 class AiohttpClientMockResponse:
     """Mock Aiohttp client response."""
 
     def __init__(
-        self, method, url, status, response, cookies=None, exc=None, headers=None
-    ):
+        self,
+        method,
+        url,
+        status,
+        response,
+        cookies=None,
+        exc=None,
+        headers=None,
+    ) -> None:
         """Initialize a fake response."""
         self.method = method
         self._url = url
@@ -233,11 +245,17 @@ class AiohttpClientMockResponse:
         """Raise error if status is 400 or higher."""
         if self.status >= 400:
             raise ClientResponseError(
-                None, None, status=self.status, headers=self.headers
+                None,
+                None,
+                status=self.status,
+                headers=self.headers,
             )
 
     def close(self):
         """Mock close."""
+
+    async def wait_for_close(self):
+        """Mock wait_for_close."""
 
 
 @contextmanager
@@ -246,7 +264,8 @@ def mock_aiohttp_client(loop):
     mocker = AiohttpClientMocker()
 
     with mock.patch(
-        "hass_nabucasa.Cloud.websession", new_callable=mock.PropertyMock
+        "hass_nabucasa.Cloud.websession",
+        new_callable=mock.PropertyMock,
     ) as mock_websession:
         session = mocker.create_session(loop)
         mock_websession.return_value = session

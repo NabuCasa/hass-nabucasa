@@ -1,0 +1,205 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+  "setuptools>=62.3",
+]
+
+[project]
+authors = [
+  {name = "Nabu Casa, Inc.", email = "opensource@nabucasa.com"},
+]
+classifiers = [
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Topic :: Internet :: Proxy Servers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "acme==2.10.0",
+    "aiohttp>=3.6.1",
+    "atomicwrites-homeassistant==1.4.1",
+    "attrs>=19.3",
+    "ciso8601>=2.3.0",
+    "cryptography>=42.0.0",
+    "pycognito==2024.2.0",
+    "PyJWT>=2.8.0",
+    "snitun==0.36.2",
+]
+description = "Home Assistant cloud integration by Nabu Casa, Inc."
+license = {text = "GPL v3"}
+name = "hass-nabucasa"
+readme = "README.md"
+requires-python = ">=3.11"
+version = "0.80.0"
+
+[project.optional-dependencies]
+test = [
+    "codespell==2.2.6",
+    "mypy==1.10.0",
+    "pre-commit==3.7.0",
+    "pre-commit-hooks==4.6.0",
+    "pylint==3.1.0",
+    "pytest-aiohttp==1.0.5",
+    "pytest-timeout==2.3.1",
+    "pytest==8.2.0",
+    "ruff==0.4.4",
+    "types_atomicwrites==1.4.5.1",
+    "types_pyOpenSSL==24.1.0.20240425",
+    "xmltodict==0.13.0",
+    "syrupy==4.6.1",
+    "tomli==2.0.1",
+]
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+show_error_codes = true
+strict_equality = true
+warn_incomplete_stub = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+
+[tool.pylint.BASIC]
+disable = [
+  "abstract-method",
+  "cyclic-import",
+  "duplicate-code",
+  "global-statement",
+  "line-too-long",
+  "locally-disabled",
+  "missing-docstring",
+  "not-context-manager",
+  "too-few-public-methods",
+  "too-many-arguments",
+  "too-many-branches",
+  "too-many-instance-attributes",
+  "too-many-lines",
+  "too-many-locals",
+  "too-many-public-methods",
+  "too-many-return-statements",
+  "too-many-statements",
+  "unused-argument",
+]
+extension-pkg-allow-list=[
+  "ciso8601",
+]
+generated-members=[
+  "botocore.errorfactory",
+]
+good-names= [
+  "_",
+  "cb",
+  "ex",
+  "fp",
+  "i",
+  "id",
+  "j",
+  "k",
+  "Run",
+  "T",
+]
+
+[tool.pylint.EXCEPTIONS]
+overgeneral-exceptions=[
+  "builtins.Exception",
+]
+
+[tool.pylint.MAIN]
+ignore=[
+  "tests_*",
+]
+reports=false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.ruff]
+fix = true
+line-length = 88
+show-fixes = true
+target-version = "py311"
+
+[tool.ruff.lint]
+ignore = [
+  "ANN101", # https://docs.astral.sh/ruff/rules/missing-type-self/
+  "ANN401", # https://docs.astral.sh/ruff/rules/any-type/
+  "DTZ005", # https://docs.astral.sh/ruff/rules/call-datetime-now-without-tzinfo/
+  "EM101", # https://docs.astral.sh/ruff/rules/raw-string-in-exception/
+  "EM102", # https://docs.astral.sh/ruff/rules/f-string-in-exception/
+  "FBT", # https://docs.astral.sh/ruff/rules/#flake8-boolean-trap-fbt
+  "N818", # https://docs.astral.sh/ruff/rules/error-suffix-on-exception-name/
+  "PLR2004", # https://docs.astral.sh/ruff/rules/magic-value-comparison/
+  "RUF006", # https://docs.astral.sh/ruff/rules/asyncio-dangling-task/
+  "S101", # https://docs.astral.sh/ruff/rules/assert/
+  "S303", # https://docs.astral.sh/ruff/rules/suspicious-insecure-hash-usage/
+  "S311", # https://docs.astral.sh/ruff/rules/suspicious-non-cryptographic-random-usage/
+  "TCH002", # https://docs.astral.sh/ruff/rules/typing-only-third-party-import/
+  "TCH003", # https://docs.astral.sh/ruff/rules/typing-only-standard-library-import/
+  "TRY003", # https://docs.astral.sh/ruff/rules/raise-vanilla-args/
+  "TRY301", # https://docs.astral.sh/ruff/rules/raise-within-try/
+  "TRY400", # https://docs.astral.sh/ruff/rules/error-instead-of-exception/
+]
+
+select = [
+  "ALL",
+]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"py.typed" = [
+  "D100",
+]
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-sort-within-sections = true
+known-first-party = [
+  "hass_nabucasa",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 22
+
+[tool.ruff.lint.pydocstyle]
+# Use Google-style docstrings.
+convention = "pep257"
+
+[tool.ruff.lint.pylint]
+max-args = 15
+max-branches = 30
+max-returns = 7
+max-statements = 80
+
+[tool.setuptools]
+include-package-data = true
+platforms = [
+  "any",
+]
+zip-safe = false
+
+[tool.setuptools.package-data]
+hass_nabucasa = [
+  "py.typed",
+]
+
+[tool.setuptools.packages.find]
+include = [
+  "hass_nabucasa*",
+]

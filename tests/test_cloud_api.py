@@ -1,7 +1,14 @@
 """Test cloud API."""
-from unittest.mock import patch, AsyncMock
+
+from collections.abc import Generator
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from aiohttp import ClientResponseError
+import pytest
 
 from hass_nabucasa import cloud_api
+from tests.utils.aiohttp import AiohttpClientMocker
 
 
 async def test_create_cloudhook(auth_cloud_mock, aioclient_mock):
@@ -24,7 +31,7 @@ async def test_create_cloudhook(auth_cloud_mock, aioclient_mock):
 async def test_remote_register(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post(
-        "https://example.com/bla/register_instance",
+        "https://example.com/bla/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -32,7 +39,7 @@ async def test_remote_register(auth_cloud_mock, aioclient_mock):
         },
     )
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.remote_sni_server = "example.com/bla"
+    auth_cloud_mock.servicehandlers_server = "example.com/bla"
 
     resp = await cloud_api.async_remote_register(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
@@ -46,7 +53,7 @@ async def test_remote_register(auth_cloud_mock, aioclient_mock):
 async def test_remote_token(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post(
-        "https://example.com/snitun_token",
+        "https://example.com/instance/snitun_token",
         json={
             "token": "123456",
             "server": "rest-remote.nabu.casa",
@@ -55,7 +62,7 @@ async def test_remote_token(auth_cloud_mock, aioclient_mock):
         },
     )
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.remote_sni_server = "example.com"
+    auth_cloud_mock.servicehandlers_server = "example.com"
 
     resp = await cloud_api.async_remote_token(auth_cloud_mock, b"aes", b"iv")
     assert len(aioclient_mock.mock_calls) == 1
@@ -70,9 +77,9 @@ async def test_remote_token(auth_cloud_mock, aioclient_mock):
 
 async def test_remote_challenge_txt(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
-    aioclient_mock.post("https://example.com/challenge_txt")
+    aioclient_mock.post("https://example.com/instance/dns_challenge_txt")
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.remote_sni_server = "example.com"
+    auth_cloud_mock.servicehandlers_server = "example.com"
 
     await cloud_api.async_remote_challenge_txt(auth_cloud_mock, "123456")
     assert len(aioclient_mock.mock_calls) == 1
@@ -81,9 +88,9 @@ async def test_remote_challenge_txt(auth_cloud_mock, aioclient_mock):
 
 async def test_remote_challenge_cleanup(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
-    aioclient_mock.post("https://example.com/challenge_cleanup")
+    aioclient_mock.post("https://example.com/instance/dns_challenge_cleanup")
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.remote_sni_server = "example.com"
+    auth_cloud_mock.servicehandlers_server = "example.com"
 
     await cloud_api.async_remote_challenge_cleanup(auth_cloud_mock, "123456")
     assert len(aioclient_mock.mock_calls) == 1
@@ -102,9 +109,9 @@ async def test_get_access_token(auth_cloud_mock, aioclient_mock):
 
 async def test_voice_connection_details(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
-    aioclient_mock.get("https://example.com/connection_details")
+    aioclient_mock.get("https://example.com/voice/connection_details")
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.voice_server = "example.com"
+    auth_cloud_mock.servicehandlers_server = "example.com"
 
     await cloud_api.async_voice_connection_details(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
@@ -123,7 +130,9 @@ async def test_subscription_info(auth_cloud_mock, aioclient_mock):
     auth_cloud_mock.accounts_server = "example.com"
 
     with patch.object(
-        auth_cloud_mock.auth, "async_renew_access_token", AsyncMock()
+        auth_cloud_mock.auth,
+        "async_renew_access_token",
+        AsyncMock(),
     ) as mock_renew:
         data = await cloud_api.async_subscription_info(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
@@ -142,7 +151,9 @@ async def test_subscription_info(auth_cloud_mock, aioclient_mock):
         },
     )
     with patch.object(
-        auth_cloud_mock.auth, "async_renew_access_token", AsyncMock()
+        auth_cloud_mock.auth,
+        "async_renew_access_token",
+        AsyncMock(),
     ) as mock_renew:
         data = await cloud_api.async_subscription_info(auth_cloud_mock)
 
@@ -157,7 +168,7 @@ async def test_subscription_info(auth_cloud_mock, aioclient_mock):
 async def test_migrate_paypal_agreement(auth_cloud_mock, aioclient_mock):
     """Test a paypal agreement from legacy."""
     aioclient_mock.post(
-        "https://example.com/migrate_paypal_agreement",
+        "https://example.com/payments/migrate_paypal_agreement",
         json={
             "url": "https://example.com/some/path",
         },
@@ -170,3 +181,215 @@ async def test_migrate_paypal_agreement(auth_cloud_mock, aioclient_mock):
     assert data == {
         "url": "https://example.com/some/path",
     }
+
+
+async def test_async_files_download_detils(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_download_details function."""
+    aioclient_mock.get(
+        "https://example.com/files/download_details",
+        json={
+            "url": "https://example.com/some/path",
+        },
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    details = await cloud_api.async_files_download_details(
+        cloud=auth_cloud_mock,
+        storage_type="test",
+        filename="test.txt",
+    )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "filename": "test.txt",
+        "storage_type": "test",
+    }
+
+    assert details == {
+        "url": "https://example.com/some/path",
+    }
+    assert "Fetched https://example.com/files/download_details (200)" in caplog.text
+
+
+async def test_async_files_download_details_error(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_download_details function with error."""
+    aioclient_mock.get(
+        "https://example.com/files/download_details",
+        status=400,
+        json={"message": "Boom!"},
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    with pytest.raises(ClientResponseError):
+        await cloud_api.async_files_download_details(
+            cloud=auth_cloud_mock,
+            storage_type="test",
+            filename="test.txt",
+        )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "filename": "test.txt",
+        "storage_type": "test",
+    }
+
+    assert (
+        "Fetched https://example.com/files/download_details (400) Boom!" in caplog.text
+    )
+
+
+async def test_async_files_list(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_list function."""
+    aioclient_mock.get(
+        "https://example.com/files/list",
+        json=[{"key": "test.txt", "last_modified": "2021-01-01T00:00:00Z", "size": 2}],
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    details = await cloud_api.async_files_list(
+        cloud=auth_cloud_mock,
+        storage_type="test",
+    )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "storage_type": "test",
+    }
+
+    assert details == [
+        {
+            "key": "test.txt",
+            "last_modified": "2021-01-01T00:00:00Z",
+            "size": 2,
+        },
+    ]
+    assert "Fetched https://example.com/files/list (200)" in caplog.text
+
+
+async def test_async_files_list_error(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_list function with error listing files."""
+    aioclient_mock.get(
+        "https://example.com/files/list",
+        status=400,
+        json={"message": "Boom!"},
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    with pytest.raises(ClientResponseError):
+        await cloud_api.async_files_list(
+            cloud=auth_cloud_mock,
+            storage_type="test",
+        )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "storage_type": "test",
+    }
+
+    assert "Fetched https://example.com/files/list (400) Boom!" in caplog.text
+
+
+async def test_async_files_upload_detils(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_upload_details function."""
+    aioclient_mock.get(
+        "https://example.com/files/upload_details",
+        json={
+            "url": "https://example.com/some/path",
+            "fields": {"key": "value"},
+        },
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    base64md5hash = "dGVzdA=="
+
+    details = await cloud_api.async_files_upload_details(
+        cloud=auth_cloud_mock,
+        storage_type="test",
+        filename="test.txt",
+        base64md5hash=base64md5hash,
+        size=2,
+        homeassistant_version="1970.1.1",
+    )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "filename": "test.txt",
+        "storage_type": "test",
+        "homeassistant_version": "1970.1.1",
+        "md5": base64md5hash,
+        "size": 2,
+    }
+
+    assert details == {
+        "url": "https://example.com/some/path",
+        "fields": {"key": "value"},
+    }
+    assert "Fetched https://example.com/files/upload_details (200)" in caplog.text
+
+
+async def test_async_files_upload_details_error(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_upload_details function with error generating upload URL."""
+    aioclient_mock.get(
+        "https://example.com/files/upload_details",
+        status=400,
+        json={"message": "Boom!"},
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    base64md5hash = "dGVzdA=="
+
+    with pytest.raises(ClientResponseError):
+        await cloud_api.async_files_upload_details(
+            cloud=auth_cloud_mock,
+            storage_type="test",
+            filename="test.txt",
+            base64md5hash=base64md5hash,
+            size=2,
+        )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "filename": "test.txt",
+        "storage_type": "test",
+        "homeassistant_version": None,
+        "md5": base64md5hash,
+        "size": 2,
+    }
+
+    assert "Fetched https://example.com/files/upload_details (400) Boom!" in caplog.text

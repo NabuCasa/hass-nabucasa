@@ -1,12 +1,15 @@
 """Helpers to help with account linking."""
+
+from __future__ import annotations
+
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any
 
 from aiohttp.client_ws import ClientWebSocketResponse
 
 if TYPE_CHECKING:
-    from . import Cloud
+    from . import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,13 +35,13 @@ ERR_TIMEOUT = "timeout"
 class AccountLinkException(Exception):
     """Base exception for when account link errors happen."""
 
-    def __init__(self, code: str):
+    def __init__(self, code: str) -> None:
         """Initialize the exception."""
         super().__init__(code)
         self.code = code
 
 
-def _update_token_response(tokens, service):
+def _update_token_response(tokens: dict[str, str], service: str) -> None:
     """Update token response in place."""
     tokens["service"] = service
 
@@ -46,11 +49,11 @@ def _update_token_response(tokens, service):
 class AuthorizeAccountHelper:
     """Class to help the user authorize a third party account with Home Assistant."""
 
-    def __init__(self, cloud: "Cloud", service: str):
+    def __init__(self, cloud: Cloud[_ClientT], service: str) -> None:
         """Initialize the authorize account helper."""
         self.cloud = cloud
         self.service = service
-        self._client: Optional[ClientWebSocketResponse] = None
+        self._client: ClientWebSocketResponse | None = None
 
     async def async_get_authorize_url(self) -> str:
         """Generate the url where the user can authorize Home Assistant."""
@@ -60,7 +63,7 @@ class AuthorizeAccountHelper:
         _LOGGER.debug("Opening connection for %s", self.service)
 
         self._client = await self.cloud.client.websession.ws_connect(
-            f"https://{self.cloud.account_link_server}/v1"
+            f"https://{self.cloud.account_link_server}/v1",
         )
         await self._client.send_json({"service": self.service})
 
@@ -71,9 +74,10 @@ class AuthorizeAccountHelper:
             self._client = None
             raise
 
-        return response["authorize_url"]
+        authorize_url: str = response["authorize_url"]
+        return authorize_url
 
-    async def async_get_tokens(self) -> dict:
+    async def async_get_tokens(self) -> dict[str, str]:
         """Return the tokens when the user finishes authorizing."""
         if self._client is None:
             raise AccountLinkException(ERR_NOT_CONNECTED)
@@ -85,24 +89,30 @@ class AuthorizeAccountHelper:
             self._client = None
 
         _LOGGER.debug("Received tokens for %s", self.service)
+        tokens: dict[str, str] = response["tokens"]
 
-        _update_token_response(response["tokens"], self.service)
-        return response["tokens"]
+        _update_token_response(tokens, self.service)
+        return tokens
 
-    async def _get_response(self) -> dict:
+    async def _get_response(self) -> dict[str, Any]:
         """Read a response from the connection and handle errors."""
-        response = await self._client.receive_json()
+        assert self._client is not None
+        response: dict[str, Any] = await self._client.receive_json()
 
         if "error" in response:
             if response["error"] == ERR_TIMEOUT:
-                raise asyncio.TimeoutError()
+                raise TimeoutError
 
             raise AccountLinkException(response["error"])
 
         return response
 
 
-async def async_fetch_access_token(cloud: "Cloud", service: str, refresh_token: str):
+async def async_fetch_access_token(
+    cloud: Cloud[_ClientT],
+    service: str,
+    refresh_token: str,
+) -> dict[str, str]:
     """Fetch access tokens using a refresh token."""
     _LOGGER.debug("Fetching tokens for %s", service)
     resp = await cloud.client.websession.post(
@@ -110,15 +120,18 @@ async def async_fetch_access_token(cloud: "Cloud", service: str, refresh_token: 
         json={"refresh_token": refresh_token},
     )
     resp.raise_for_status()
-    tokens = await resp.json()
+    tokens: dict[str, str] = await resp.json()
     _update_token_response(tokens, service)
     return tokens
 
 
-async def async_fetch_available_services(cloud: "Cloud"):
+async def async_fetch_available_services(
+    cloud: Cloud[_ClientT],
+) -> list[dict[str, Any]]:
     """Fetch available services."""
-    resp = await cloud.client.websession.post(
-        f"https://{cloud.account_link_server}/services"
+    resp = await cloud.client.websession.get(
+        f"https://{cloud.account_link_server}/services",
     )
     resp.raise_for_status()
-    return await resp.json()
+    content: list[dict[str, Any]] = await resp.json()
+    return content

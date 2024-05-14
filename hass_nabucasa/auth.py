@@ -1,8 +1,12 @@
 """Package to communicate with the authentication API."""
+
+from __future__ import annotations
+
 import asyncio
 from functools import partial
 import logging
 import random
+from typing import TYPE_CHECKING, Any
 
 import async_timeout
 import boto3
@@ -12,6 +16,9 @@ import pycognito
 from pycognito.exceptions import ForceChangePasswordException
 
 from .const import MESSAGE_AUTH_FAIL
+
+if TYPE_CHECKING:
+    from . import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,7 +48,7 @@ class PasswordChangeRequired(CloudError):
 
     # https://github.com/PyCQA/pylint/issues/1085
     # pylint: disable=useless-super-delegation
-    def __init__(self, message="Password change required."):
+    def __init__(self, message: str = "Password change required.") -> None:
         """Initialize a password change required error."""
         super().__init__(message)
 
@@ -50,7 +57,7 @@ class UnknownError(CloudError):
     """Raised when an unknown error occurs."""
 
 
-AWS_EXCEPTIONS = {
+AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
     "UserNotFoundException": UserNotFound,
     "UserNotConfirmedException": UserNotConfirmed,
     "UsernameExistsException": UserExists,
@@ -62,17 +69,17 @@ AWS_EXCEPTIONS = {
 class CognitoAuth:
     """Handle cloud auth."""
 
-    def __init__(self, cloud):
+    def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Configure the auth api."""
         self.cloud = cloud
-        self._refresh_task = None
+        self._refresh_task: asyncio.Task | None = None
         self._session = boto3.session.Session()
         self._request_lock = asyncio.Lock()
 
         cloud.iot.register_on_connect(self.on_connect)
         cloud.iot.register_on_disconnect(self.on_disconnect)
 
-    async def _async_handle_token_refresh(self):
+    async def _async_handle_token_refresh(self) -> None:
         """Handle Cloud access token refresh."""
         sleep_time = random.randint(2400, 3600)
         while True:
@@ -87,21 +94,22 @@ class CognitoAuth:
 
             sleep_time = random.randint(3100, 3600)
 
-    async def on_connect(self):
+    async def on_connect(self) -> None:
         """When the instance is connected."""
-        self._refresh_task = self.cloud.run_task(self._async_handle_token_refresh())
+        self._refresh_task = asyncio.create_task(self._async_handle_token_refresh())
 
-    async def on_disconnect(self):
+    async def on_disconnect(self) -> None:
         """When the instance is disconnected."""
-        self._refresh_task.cancel()
+        if self._refresh_task is not None:
+            self._refresh_task.cancel()
 
     async def async_register(
         self,
-        email,
-        password,
+        email: str,
+        password: str,
         *,
-        client_metadata=None,
-    ):
+        client_metadata: Any | None = None,
+    ) -> None:
         """Register a new account."""
         try:
             async with self._request_lock:
@@ -112,17 +120,16 @@ class CognitoAuth:
                         email,
                         password,
                         client_metadata=client_metadata,
-                    )
+                    ),
                 )
 
         except ClientError as err:
             raise _map_aws_exception(err) from err
         except BotoCoreError as err:
-            raise UnknownError() from err
+            raise UnknownError from err
 
-    async def async_resend_email_confirm(self, email):
+    async def async_resend_email_confirm(self, email: str) -> None:
         """Resend email confirmation."""
-
         try:
             async with self._request_lock:
                 cognito = self._cognito(username=email)
@@ -131,16 +138,15 @@ class CognitoAuth:
                         cognito.client.resend_confirmation_code,
                         Username=email,
                         ClientId=cognito.client_id,
-                    )
+                    ),
                 )
         except ClientError as err:
             raise _map_aws_exception(err) from err
         except BotoCoreError as err:
-            raise UnknownError() from err
+            raise UnknownError from err
 
-    async def async_forgot_password(self, email):
+    async def async_forgot_password(self, email: str) -> None:
         """Initialize forgotten password flow."""
-
         try:
             async with self._request_lock:
                 cognito = self._cognito(username=email)
@@ -149,11 +155,10 @@ class CognitoAuth:
         except ClientError as err:
             raise _map_aws_exception(err) from err
         except BotoCoreError as err:
-            raise UnknownError() from err
+            raise UnknownError from err
 
-    async def async_login(self, email, password):
+    async def async_login(self, email: str, password: str) -> None:
         """Log user in and fetch certificate."""
-
         try:
             async with self._request_lock:
                 assert not self.cloud.is_logged_in, "Cannot login if already logged in."
@@ -162,23 +167,28 @@ class CognitoAuth:
 
                 async with async_timeout.timeout(30):
                     await self.cloud.run_executor(
-                        partial(cognito.authenticate, password=password)
+                        partial(cognito.authenticate, password=password),
                     )
 
-                await self.cloud.update_token(
-                    cognito.id_token, cognito.access_token, cognito.refresh_token
+                task = await self.cloud.update_token(
+                    cognito.id_token,
+                    cognito.access_token,
+                    cognito.refresh_token,
                 )
 
+            if task:
+                await task
+
         except ForceChangePasswordException as err:
-            raise PasswordChangeRequired() from err
+            raise PasswordChangeRequired from err
 
         except ClientError as err:
             raise _map_aws_exception(err) from err
 
         except BotoCoreError as err:
-            raise UnknownError() from err
+            raise UnknownError from err
 
-    async def async_check_token(self):
+    async def async_check_token(self) -> None:
         """Check that the token is valid and renew if necessary."""
         async with self._request_lock:
             if not self._authenticated_cognito.check_token(renew=False):
@@ -196,15 +206,15 @@ class CognitoAuth:
                 )
 
                 # Don't await it because it could cancel this task
-                self.cloud.run_task(self.cloud.logout())
+                asyncio.create_task(self.cloud.logout())
                 raise
 
-    async def async_renew_access_token(self):
+    async def async_renew_access_token(self) -> None:
         """Renew access token."""
         async with self._request_lock:
             await self._async_renew_access_token()
 
-    async def _async_renew_access_token(self):
+    async def _async_renew_access_token(self) -> None:
         """Renew access token internals.
 
         Does not consume lock.
@@ -219,19 +229,20 @@ class CognitoAuth:
             raise _map_aws_exception(err) from err
 
         except BotoCoreError as err:
-            raise UnknownError() from err
+            raise UnknownError from err
 
     @property
-    def _authenticated_cognito(self):
+    def _authenticated_cognito(self) -> pycognito.Cognito:
         """Return an authenticated cognito instance."""
         if self.cloud.access_token is None or self.cloud.refresh_token is None:
             raise Unauthenticated("No authentication found")
 
         return self._cognito(
-            access_token=self.cloud.access_token, refresh_token=self.cloud.refresh_token
+            access_token=self.cloud.access_token,
+            refresh_token=self.cloud.refresh_token,
         )
 
-    def _cognito(self, **kwargs):
+    def _cognito(self, **kwargs: Any) -> pycognito.Cognito:
         """Get the client credentials."""
         return pycognito.Cognito(
             user_pool_id=self.cloud.user_pool_id,
@@ -243,7 +254,7 @@ class CognitoAuth:
         )
 
 
-def _map_aws_exception(err):
+def _map_aws_exception(err: ClientError) -> CloudError:
     """Map AWS exception to our exceptions."""
     ex = AWS_EXCEPTIONS.get(err.response["Error"]["Code"], UnknownError)
     return ex(err.response["Error"]["Message"])

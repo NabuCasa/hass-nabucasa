@@ -1,20 +1,33 @@
 """Client interface for Home Assistant to cloud."""
-from abc import ABC, abstractmethod
-import asyncio
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional
 
-import aiohttp
-from aiohttp import web
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from asyncio import AbstractEventLoop
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal
+
+from aiohttp import ClientSession
+from aiohttp.web import AppRunner
+
+from .iot import HandlerError
 
 if TYPE_CHECKING:
-    from . import Cloud  # noqa
+    from . import Cloud
+
+
+class RemoteActivationNotAllowed(HandlerError):
+    """Raised when it's not allowed to remotely activate remote UI."""
+
+    def __init__(self) -> None:
+        """Initialize Error Message."""
+        super().__init__("remote_activation_not_allowed")
 
 
 class CloudClient(ABC):
     """Interface class for Home Assistant."""
 
-    cloud: Optional["Cloud"] = None
+    cloud: Cloud
 
     @property
     @abstractmethod
@@ -23,22 +36,27 @@ class CloudClient(ABC):
 
     @property
     @abstractmethod
-    def loop(self) -> asyncio.BaseEventLoop:
+    def loop(self) -> AbstractEventLoop:
         """Return client loop."""
 
     @property
     @abstractmethod
-    def websession(self) -> aiohttp.ClientSession:
+    def websession(self) -> ClientSession:
         """Return client session for aiohttp."""
 
     @property
     @abstractmethod
-    def aiohttp_runner(self) -> web.AppRunner:
+    def client_name(self) -> str:
+        """Return name of the client, this will be used as the user-agent."""
+
+    @property
+    @abstractmethod
+    def aiohttp_runner(self) -> AppRunner | None:
         """Return client webinterface aiohttp application."""
 
     @property
     @abstractmethod
-    def cloudhooks(self) -> Dict[str, Dict[str, str]]:
+    def cloudhooks(self) -> dict[str, dict[str, str | bool]]:
         """Return list of cloudhooks."""
 
     @property
@@ -47,35 +65,61 @@ class CloudClient(ABC):
         """Return true if we want start a remote connection."""
 
     @abstractmethod
+    async def cloud_connected(self) -> None:
+        """Cloud connected."""
+
+    @abstractmethod
+    async def cloud_disconnected(self) -> None:
+        """Cloud disconnected."""
+
+    @abstractmethod
     async def cloud_started(self) -> None:
-        """Called when cloud started with active subscription ."""
+        """Cloud started with an active subscription."""
 
     @abstractmethod
     async def cloud_stopped(self) -> None:
-        """Called when cloud is stopping."""
+        """Cloud stopped."""
 
     @abstractmethod
     async def logout_cleanups(self) -> None:
-        """Called on logout."""
+        """Cleanup before logout."""
 
     @abstractmethod
     async def async_cloud_connect_update(self, connect: bool) -> None:
-        """Process cloud remote message to client."""
+        """Process cloud remote message to client.
+
+        If it's not allowed to remotely enable remote control, the implementation
+        should raise RemoteActivationNotAllowed
+        """
 
     @abstractmethod
-    async def async_alexa_message(self, payload: Dict[Any, Any]) -> Dict[Any, Any]:
-        """process cloud alexa message to client."""
+    async def async_cloud_connection_info(
+        self,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Process cloud connection info message to client."""
 
     @abstractmethod
-    async def async_google_message(self, payload: Dict[Any, Any]) -> Dict[Any, Any]:
+    async def async_alexa_message(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Process cloud alexa message to client."""
+
+    @abstractmethod
+    async def async_system_message(self, payload: dict[str, Any]) -> None:
+        """Process cloud system message to client."""
+
+    @abstractmethod
+    async def async_google_message(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Process cloud google message to client."""
 
     @abstractmethod
-    async def async_webhook_message(self, payload: Dict[Any, Any]) -> Dict[Any, Any]:
+    async def async_webhook_message(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Process cloud webhook message to client."""
 
     @abstractmethod
-    async def async_cloudhooks_update(self, data: Dict[str, Dict[str, str]]) -> None:
+    async def async_cloudhooks_update(
+        self,
+        data: dict[str, dict[str, str | bool]],
+    ) -> None:
         """Update local list of cloudhooks."""
 
     @abstractmethod
@@ -85,3 +129,14 @@ class CloudClient(ABC):
     @abstractmethod
     def user_message(self, identifier: str, title: str, message: str) -> None:
         """Create a message for user to UI."""
+
+    @abstractmethod
+    async def async_create_repair_issue(
+        self,
+        identifier: str,
+        translation_key: str,
+        *,
+        placeholders: dict[str, str] | None = None,
+        severity: Literal["error", "warning"] = "warning",
+    ) -> None:
+        """Create a repair issue."""

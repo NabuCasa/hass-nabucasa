@@ -1,14 +1,25 @@
 """Base class to keep a websocket connection open to a server."""
+
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 import dataclasses
 import logging
 import pprint
 import random
-from typing import Awaitable, Callable, List
+from socket import gaierror
+from typing import TYPE_CHECKING, Any
 
-from aiohttp import WSMsgType, client_exceptions, hdrs
+from aiohttp import (
+    ClientError,
+    ClientWebSocketResponse,
+    WSMessage,
+    WSMsgType,
+    WSServerHandshakeError,
+    client_exceptions,
+    hdrs,
+)
 
 from .auth import CloudError
 from .const import (
@@ -18,6 +29,9 @@ from .const import (
     STATE_DISCONNECTED,
 )
 from .utils import gather_callbacks
+
+if TYPE_CHECKING:
+    from . import Cloud, _ClientT
 
 
 @dataclasses.dataclass
@@ -37,29 +51,34 @@ class BaseIoT:
 
     mark_connected_after_first_message = False
 
-    def __init__(self, cloud):
+    def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Initialize the CloudIoT class."""
         self.cloud = cloud
         # The WebSocket client
-        self.client = None
+        self.client: ClientWebSocketResponse | None = None
         # Scheduled sleep task till next connection retry
-        self.retry_task = None
+        self.retry_task: asyncio.Task | None = None
         # Boolean to indicate if we wanted the connection to close
-        self.close_requested = False
+        self.close_requested: bool = False
         # The current number of attempts to connect, impacts wait time
-        self.tries = 0
+        self.tries: int = 0
         # Current state of the connection
-        self.state = STATE_DISCONNECTED
-        self._on_connect: List[Callable[[], Awaitable[None]]] = []
-        self._on_disconnect: List[Callable[[], Awaitable[None]]] = []
+        self.state: str = STATE_DISCONNECTED
+        self._on_connect: list[Callable[[], Awaitable[None]]] = []
+        self._on_disconnect: list[Callable[[], Awaitable[None]]] = []
         self._logger = logging.getLogger(self.package_name)
-        self._disconnect_event = None
+        self._disconnect_event: asyncio.Event | None = None
         self.last_disconnect_reason: DisconnectReason | None = None
 
     @property
     def package_name(self) -> str:
         """Return package name for logging."""
         raise NotImplementedError
+
+    @property
+    def ws_heartbeat(self) -> float | None:
+        """Server to connect to."""
+        return None
 
     @property
     def ws_server_url(self) -> str:
@@ -71,7 +90,7 @@ class BaseIoT:
         """If the server requires a valid subscription."""
         return True
 
-    def async_handle_message(self, msg) -> None:
+    def async_handle_message(self, msg: dict[str, Any]) -> None:
         """Handle incoming message.
 
         Run all async tasks in a wrapper to log appropriately.
@@ -80,25 +99,28 @@ class BaseIoT:
 
     # --- Do not override after this line ---
 
-    def register_on_connect(self, on_connect_cb: Callable[[], Awaitable[None]]):
+    def register_on_connect(self, on_connect_cb: Callable[[], Awaitable[None]]) -> None:
         """Register an async on_connect callback."""
         self._on_connect.append(on_connect_cb)
 
-    def register_on_disconnect(self, on_disconnect_cb: Callable[[], Awaitable[None]]):
+    def register_on_disconnect(
+        self,
+        on_disconnect_cb: Callable[[], Awaitable[None]],
+    ) -> None:
         """Register an async on_disconnect callback."""
         self._on_disconnect.append(on_disconnect_cb)
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         """Return if we're currently connected."""
         return self.state == STATE_CONNECTED
 
-    async def async_send_json_message(self, message):
+    async def async_send_json_message(self, message: dict[str, Any]) -> None:
         """Send a message.
 
         Raises NotConnected if client not connected.
         """
-        if self.state != STATE_CONNECTED:
+        if self.state != STATE_CONNECTED or self.client is None:
             raise NotConnected
 
         if self._logger.isEnabledFor(logging.DEBUG):
@@ -106,7 +128,7 @@ class BaseIoT:
 
         await self.client.send_json(message)
 
-    async def connect(self):
+    async def connect(self) -> None:
         """Connect to the IoT broker."""
         if self.state != STATE_DISCONNECTED:
             raise RuntimeError("Connect called while not disconnected")
@@ -125,10 +147,8 @@ class BaseIoT:
                 # Still adding it here to make sure we can always reconnect
                 self._logger.exception("Unexpected error")
 
-            if self.state == STATE_CONNECTED and self._on_disconnect:
-                await gather_callbacks(
-                    self._logger, "on_disconnect", self._on_disconnect
-                )
+            if self.state == STATE_CONNECTED:
+                await self._disconnected()
 
             if self.close_requested:
                 break
@@ -149,48 +169,68 @@ class BaseIoT:
         self._disconnect_event.set()
         self._disconnect_event = None
 
-    async def _wait_retry(self):
+    async def _wait_retry(self) -> None:
         """Wait until it's time till the next retry."""
         # Sleep 2^tries + 0…tries*3 seconds between retries
-        self.retry_task = self.cloud.run_task(
-            asyncio.sleep(2 ** min(9, self.tries) + random.randint(0, self.tries * 3))
+        self.retry_task = asyncio.create_task(
+            asyncio.sleep(2 ** min(9, self.tries) + random.randint(0, self.tries * 3)),
         )
         await self.retry_task
         self.retry_task = None
 
-    async def _handle_connection(self):
+    async def _handle_connection(self) -> None:
         """Connect to the IoT broker."""
         try:
             await self.cloud.auth.async_check_token()
         except CloudError as err:
             self._logger.warning(
-                "Cannot connect because unable to refresh token: %s", err
+                "Cannot connect because unable to refresh token: %s",
+                err,
             )
             return
 
         if self.require_subscription and self.cloud.subscription_expired:
             self._logger.debug("Cloud subscription expired. Cancelling connecting.")
             self.cloud.client.user_message(
-                "cloud_subscription_expired", "Home Assistant Cloud", MESSAGE_EXPIRATION
+                "cloud_subscription_expired",
+                "Home Assistant Cloud",
+                MESSAGE_EXPIRATION,
             )
             self.close_requested = True
             return
 
-        disconnect_clean = False
-        disconnect_reason = None
+        disconnect_clean: bool = False
+        disconnect_reason: (
+            str
+            | WSServerHandshakeError
+            | ClientError
+            | ConnectionResetError
+            | gaierror
+            | None
+        ) = None
         try:
             self.client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
-                headers={hdrs.AUTHORIZATION: f"Bearer {self.cloud.id_token}"},
+                heartbeat=self.ws_heartbeat,
+                headers={
+                    hdrs.AUTHORIZATION: f"Bearer {self.cloud.id_token}",
+                    hdrs.USER_AGENT: self.cloud.client.client_name,
+                },
             )
 
             if not self.mark_connected_after_first_message:
                 await self._connected()
 
             while not self.client.closed:
+                msg: WSMessage | None | str = None
                 try:
                     msg = await self.client.receive(55)
-                except asyncio.TimeoutError:
+                except TimeoutError:
+                    # This is logged as info instead of warning because when
+                    # this hits there is not really much that can be done about it.
+                    # But the context is still valuable to have while
+                    # troubleshooting.
+                    self._logger.info("Timeout while waiting to receive message")
                     await self.client.ping()
                     continue
 
@@ -199,8 +239,9 @@ class BaseIoT:
                     disconnect_reason = f"Closed by server. {msg.extra} ({msg.data})"
                     break
 
-                # Do this inside the loop because if 2 clients are connected, it can happen that
-                # we get connected with valid auth, but then server decides to drop our connection.
+                # Do this inside the loop because if 2 clients are connected,
+                # it can happen that we get connected with valid auth,
+                # but then server decides to drop our connection.
                 if self.state != STATE_CONNECTED:
                     await self._connected()
 
@@ -213,18 +254,21 @@ class BaseIoT:
                     break
 
                 try:
-                    msg = msg.json()
+                    msg_content: dict[str, Any] = msg.json()
                 except ValueError:
                     disconnect_reason = "Received invalid JSON."
                     break
 
                 if self._logger.isEnabledFor(logging.DEBUG):
-                    self._logger.debug("Received message:\n%s\n", pprint.pformat(msg))
+                    self._logger.debug(
+                        "Received message:\n%s\n",
+                        pprint.pformat(msg_content),
+                    )
 
                 try:
-                    self.async_handle_message(msg)
+                    self.async_handle_message(msg_content)
                 except Exception:  # pylint: disable=broad-except
-                    self._logger.exception("Unexpected error handling %s", msg)
+                    self._logger.exception("Unexpected error handling %s", msg_content)
 
             if self.client.closed:
                 if self.close_requested:
@@ -241,7 +285,7 @@ class BaseIoT:
             else:
                 disconnect_reason = err
 
-        except client_exceptions.ClientError as err:
+        except (client_exceptions.ClientError, ConnectionResetError, gaierror) as err:
             disconnect_reason = err
 
         except asyncio.CancelledError:
@@ -263,7 +307,7 @@ class BaseIoT:
             else:
                 self._logger.warning(msg)
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Disconnect the client."""
         self.close_requested = True
 
@@ -275,7 +319,7 @@ class BaseIoT:
         if self._disconnect_event is not None:
             await self._disconnect_event.wait()
 
-    async def _connected(self):
+    async def _connected(self) -> None:
         """Handle connected."""
         self.last_disconnect_reason = None
         self.tries = 0
@@ -284,3 +328,8 @@ class BaseIoT:
 
         if self._on_connect:
             await gather_callbacks(self._logger, "on_connect", self._on_connect)
+
+    async def _disconnected(self) -> None:
+        """Handle connected."""
+        if self._on_disconnect:
+            await gather_callbacks(self._logger, "on_disconnect", self._on_disconnect)

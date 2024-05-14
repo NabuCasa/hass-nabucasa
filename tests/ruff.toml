@@ -1,0 +1,22 @@
+extend = "../pyproject.toml"
+src = [
+  "tests",
+]
+[lint]
+ignore = [
+  "ARG001",
+  "ARG002",
+  "ANN001",
+  "ANN002",
+  "ANN003",
+  "ANN201",
+  "ANN202",
+  "ASYNC101",
+  "PT004",
+  "PT006",
+  "PT007",
+  "PTH123",
+  "S105",
+  "SIM115",
+ "SLF001",
+]

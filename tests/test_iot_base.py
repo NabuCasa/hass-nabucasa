@@ -1,16 +1,17 @@
 """Test the cloud.iot_base module."""
+
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-from aiohttp import WSMsgType, client_exceptions, WSMessage
+from aiohttp import WSMessage, WSMsgType, client_exceptions
 import pytest
 
-from hass_nabucasa import iot_base, auth as auth_api
+from hass_nabucasa import auth as auth_api, iot_base
 
 
 class MockIoT(iot_base.BaseIoT):
     """Mock class for IoT."""
 
-    def __init__(self, cloud, require_subscription=True):
+    def __init__(self, cloud, require_subscription=True) -> None:
         """Initialize test IoT class."""
         super().__init__(cloud)
         self.received = []
@@ -46,7 +47,7 @@ def cloud_mock_iot(auth_cloud_mock):
 
 
 @pytest.mark.parametrize(
-    "require_first_message,messages,disconnct_reason",
+    "require_first_message,messages,disconnect_reason",
     [
         (
             False,
@@ -59,7 +60,8 @@ def cloud_mock_iot(auth_cloud_mock):
             ],
             iot_base.DisconnectReason(
                 True,
-                "Connection closed: Closed by server. Another instance connected (4002)",
+                "Connection closed: Closed by server. "
+                "Another instance connected (4002)",
             ),
         ),
         (
@@ -69,11 +71,12 @@ def cloud_mock_iot(auth_cloud_mock):
                     type=WSMsgType.CLOSING,
                     data=4002,
                     extra="Another instance connected",
-                )
+                ),
             ],
             iot_base.DisconnectReason(
                 False,
-                "Connection closed: Closed by server. Another instance connected (4002)",
+                "Connection closed: Closed by server. "
+                "Another instance connected (4002)",
             ),
         ),
         (
@@ -92,7 +95,8 @@ def cloud_mock_iot(auth_cloud_mock):
             ],
             iot_base.DisconnectReason(
                 True,
-                "Connection closed: Closed by server. Another instance connected (4002)",
+                "Connection closed: Closed by server. "
+                "Another instance connected (4002)",
             ),
         ),
     ],
@@ -103,7 +107,7 @@ async def test_cloud_getting_disconnected_by_server(
     cloud_mock_iot,
     require_first_message,
     messages,
-    disconnct_reason,
+    disconnect_reason,
 ):
     """Test server disconnecting instance."""
     conn = MockIoT(cloud_mock_iot)
@@ -113,7 +117,7 @@ async def test_cloud_getting_disconnected_by_server(
     await conn.connect()
 
     assert "Connection closed" in caplog.text
-    assert conn.last_disconnect_reason == disconnct_reason
+    assert conn.last_disconnect_reason == disconnect_reason
 
 
 async def test_cloud_receiving_bytes(mock_iot_client, caplog, cloud_mock_iot):
@@ -131,8 +135,9 @@ async def test_cloud_sending_invalid_json(mock_iot_client, caplog, cloud_mock_io
     conn = MockIoT(cloud_mock_iot)
     mock_iot_client.receive = AsyncMock(
         return_value=MagicMock(
-            type=WSMsgType.TEXT, json=MagicMock(side_effect=ValueError)
-        )
+            type=WSMsgType.TEXT,
+            json=MagicMock(side_effect=ValueError),
+        ),
     )
 
     await conn.connect()
@@ -155,7 +160,9 @@ async def test_cloud_connect_invalid_auth(mock_iot_client, caplog, cloud_mock_io
     conn = MockIoT(cloud_mock_iot)
     request_info = Mock(real_url="http://example.com")
     mock_iot_client.receive.side_effect = client_exceptions.WSServerHandshakeError(
-        request_info=request_info, history=None, status=401
+        request_info=request_info,
+        history=None,
+        status=401,
     )
 
     await conn.connect()
@@ -164,18 +171,42 @@ async def test_cloud_connect_invalid_auth(mock_iot_client, caplog, cloud_mock_io
 
 
 async def test_cloud_unable_to_connect(
-    cloud_mock, caplog, cloud_mock_iot, mock_iot_client
+    cloud_mock,
+    caplog,
+    cloud_mock_iot,
+    mock_iot_client,
 ):
     """Test unable to connect error."""
     conn = MockIoT(cloud_mock_iot)
     cloud_mock.websession.ws_connect.side_effect = client_exceptions.ClientError(
-        "SSL Verification failed"
+        "SSL Verification failed",
     )
     await conn.connect()
     assert conn.last_disconnect_reason == iot_base.DisconnectReason(
-        False, "Unable to connect: SSL Verification failed"
+        False,
+        "Unable to connect: SSL Verification failed",
     )
     assert "Unable to connect:" in caplog.text
+
+
+async def test_cloud_connection_reset_exception(
+    mock_iot_client,
+    caplog,
+    cloud_mock_iot,
+):
+    """Test connection reset exception."""
+    conn = MockIoT(cloud_mock_iot)
+    mock_iot_client.receive.side_effect = ConnectionResetError(
+        "Cannot write to closing transport",
+    )
+
+    await conn.connect()
+
+    assert conn.last_disconnect_reason == iot_base.DisconnectReason(
+        False,
+        "Connection closed: Cannot write to closing transport",
+    )
+    assert "Cannot write to closing transport" in caplog.text
 
 
 async def test_cloud_random_exception(mock_iot_client, caplog, cloud_mock_iot):

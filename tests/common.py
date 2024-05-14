@@ -1,18 +1,21 @@
 """Test the helper method for writing tests."""
+
+from __future__ import annotations
+
 import asyncio
+from collections.abc import Coroutine
 from pathlib import Path
-import tempfile
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import Mock
 
 from hass_nabucasa.client import CloudClient
 
 
-class TestClient(CloudClient):
+class MockClient(CloudClient):
     """Interface class for Home Assistant."""
 
-    def __init__(self, loop, websession):
-        """Initialize TestClient."""
+    def __init__(self, base_path, loop, websession) -> None:
+        """Initialize MockClient."""
         self._loop = loop
         self._websession = websession
         self._cloudhooks = {}
@@ -24,17 +27,18 @@ class TestClient(CloudClient):
         self.mock_alexa = []
         self.mock_google = []
         self.mock_webhooks = []
+        self.mock_system = []
+        self.mock_repairs = []
+        self.mock_connection_info = []
 
         self.mock_return = []
-        self._base_path = None
+        self._base_path = base_path
 
         self.pref_should_connect = False
 
     @property
-    def base_path(self):
+    def base_path(self) -> Path:
         """Return path to base dir."""
-        if self._base_path is None:
-            self._base_path = Path(tempfile.gettempdir())
         return self._base_path
 
     @property
@@ -46,6 +50,11 @@ class TestClient(CloudClient):
     def websession(self):
         """Return client session for aiohttp."""
         return self._websession
+
+    @property
+    def client_name(self):
+        """Return name of the client, this will be used as the user-agent."""
+        return "hass-nabucasa/tests"
 
     @property
     def aiohttp_runner(self):
@@ -61,6 +70,12 @@ class TestClient(CloudClient):
     def remote_autostart(self) -> bool:
         """Return true if we want start a remote connection."""
         return self.prop_remote_autostart
+
+    async def cloud_connected(self):
+        """Handle cloud connected."""
+
+    async def cloud_disconnected(self):
+        """Handle cloud disconnected."""
 
     async def cloud_started(self):
         """Handle cloud started."""
@@ -98,15 +113,43 @@ class TestClient(CloudClient):
         self.mock_webhooks.append(payload)
         return self.mock_return.pop()
 
+    async def async_system_message(self, payload):
+        """Process cloud system message to client."""
+        self.mock_system.append(payload)
+        return self.mock_return.pop()
+
+    async def async_cloud_connection_info(self, payload) -> dict[Any, Any]:
+        """Process cloud connection info message to client."""
+        self.mock_connection_info.append(payload)
+        return self.mock_return.pop()
+
     async def async_cloudhooks_update(self, data):
         """Update internal cloudhooks data."""
         self._cloudhooks = data
+
+    async def async_create_repair_issue(
+        self,
+        identifier: str,
+        translation_key: str,
+        *,
+        placeholders: dict[str, str] | None = None,
+        severity: Literal["error", "warning"] = "warning",
+    ) -> None:
+        """Create a repair issue."""
+        self.mock_repairs.append(
+            {
+                "identifier": identifier,
+                "translation_key": translation_key,
+                "placeholders": placeholders,
+                "severity": severity,
+            },
+        )
 
 
 class MockAcme:
     """Mock AcmeHandler."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize MockAcme."""
         self.is_valid = True
         self.call_issue = False
@@ -116,8 +159,16 @@ class MockAcme:
         self.init_args = None
 
         self.common_name = None
+        self.alternative_names = None
         self.expire_date = None
         self.fingerprint = None
+
+        self.email = "test@nabucasa.inc"
+
+    @property
+    def domains(self):
+        """Return all domains."""
+        return self.alternative_names
 
     def set_false(self):
         """Set certificate as not valid."""
@@ -149,7 +200,7 @@ class MockAcme:
         """Hardening files."""
         self.call_hardening = True
 
-    def __call__(self, *args):
+    def __call__(self, *args) -> MockAcme:
         """Init."""
         self.init_args = args
         return self
@@ -158,7 +209,7 @@ class MockAcme:
 class MockSnitun:
     """Mock Snitun client."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize MockAcme."""
         self.call_start = False
         self.call_stop = False
@@ -169,6 +220,9 @@ class MockSnitun:
         self.init_kwarg = None
         self.wait_task = asyncio.Event()
 
+        self.start_whitelist = None
+        self.start_endpoint_connection_error_callback = None
+
     @property
     def is_connected(self):
         """Return if it is connected."""
@@ -178,8 +232,16 @@ class MockSnitun:
         """Return waitable object."""
         return self.wait_task.wait()
 
-    async def start(self):
+    async def start(
+        self,
+        whitelist: bool = False,
+        endpoint_connection_error_callback: Coroutine[Any, Any, None] | None = None,
+    ):
         """Start snitun."""
+        self.start_whitelist = whitelist
+        self.start_endpoint_connection_error_callback = (
+            endpoint_connection_error_callback
+        )
         self.call_start = True
 
     async def stop(self):
@@ -187,7 +249,11 @@ class MockSnitun:
         self.call_stop = True
 
     async def connect(
-        self, token: bytes, aes_key: bytes, aes_iv: bytes, throttling=None
+        self,
+        token: bytes,
+        aes_key: bytes,
+        aes_iv: bytes,
+        throttling=None,
     ):
         """Connect snitun."""
         self.call_connect = True
@@ -198,7 +264,7 @@ class MockSnitun:
         self.wait_task.set()
         self.call_disconnect = True
 
-    def __call__(self, *args, **kwarg):
+    def __call__(self, *args, **kwarg) -> MockSnitun:
         """Init."""
         self.init_args = args
         self.init_kwarg = kwarg

@@ -1,4 +1,5 @@
 """Test cloud cloudhooks."""
+
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -49,7 +50,7 @@ async def test_disable(mock_cloudhooks):
             "webhook_id": "mock-webhook-id",
             "cloudhook_id": "mock-cloud-id",
             "cloudhook_url": "https://hooks.nabu.casa/ZXCZCXZ",
-        }
+        },
     }
 
     await mock_cloudhooks.async_delete("mock-webhook-id")

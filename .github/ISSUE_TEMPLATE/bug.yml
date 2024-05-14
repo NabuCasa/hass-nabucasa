@@ -1,0 +1,35 @@
+name: Report an issue with the hass-nabucasa package
+description: Report an issue with the hass-nabucasa package.
+body:
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: The problem
+      description: >-
+        Describe the issue you are experiencing here, to communicate to the
+        maintainers. Tell us what you were trying to do and what happened.
+
+        Provide a clear and concise description of what the problem is.
+  - type: input
+    validations:
+      required: true
+    attributes:
+      label: What version of the package with the issue?
+  - type: input
+    validations:
+      required: true
+    attributes:
+      label: What python version are you using?
+  - type: input
+    attributes:
+      label: What was the last working version of the package?
+      description: >
+        If known, otherwise leave blank.
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Debug logs?
+      description: Here you can paste debug logs for the package.
+      render: txt

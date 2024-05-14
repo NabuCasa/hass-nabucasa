@@ -1,9 +1,11 @@
 """Test Account Linking tools."""
+
 import asyncio
 from unittest.mock import AsyncMock, Mock
 
 from aiohttp import web
 import pytest
+
 from hass_nabucasa import account_link
 
 
@@ -11,7 +13,6 @@ async def create_account_link_server(aiohttp_client, handle_server_msgs):
     """Create a websocket server."""
 
     async def websocket_handler(request):
-
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
@@ -29,12 +30,14 @@ async def create_account_link_server(aiohttp_client, handle_server_msgs):
 
 
 async def create_helper_instance(
-    aiohttp_client, handle_server_msgs, service
+    aiohttp_client,
+    handle_server_msgs,
+    service,
 ) -> account_link.AuthorizeAccountHelper:
     """Create a auth helper instance."""
     client = await create_account_link_server(aiohttp_client, handle_server_msgs)
     mock_cloud = Mock(
-        client=Mock(websession=Mock(ws_connect=AsyncMock(return_value=client)))
+        client=Mock(websession=Mock(ws_connect=AsyncMock(return_value=client))),
     )
     return account_link.AuthorizeAccountHelper(mock_cloud, service)
 
@@ -77,7 +80,7 @@ async def test_auth_helper_unknown_service(aiohttp_client):
 
     with pytest.raises(account_link.AccountLinkException) as err:
         await helper.async_get_authorize_url()
-        assert err.value.code == "unknown"
+    assert err.value.code == "unknown"
 
 
 async def test_auth_helper_token_timeout(aiohttp_client):

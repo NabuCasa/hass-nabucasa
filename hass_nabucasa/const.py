@@ -1,4 +1,7 @@
 """Constants for the hass-nabucasa."""
+
+from __future__ import annotations
+
 CONFIG_DIR = ".cloud"
 
 REQUEST_TIMEOUT = 10
@@ -15,7 +18,7 @@ DISPATCH_REMOTE_DISCONNECT = "remote_disconnect"
 DISPATCH_REMOTE_BACKEND_UP = "remote_backend_up"
 DISPATCH_REMOTE_BACKEND_DOWN = "remote_backend_down"
 
-DEFAULT_SERVERS = {
+DEFAULT_SERVERS: dict[str, dict[str, str]] = {
     "production": {
         "account_link": "account-link.nabucasa.com",
         "accounts": "accounts.nabucasa.com",
@@ -23,15 +26,14 @@ DEFAULT_SERVERS = {
         "alexa": "alexa-api.nabucasa.com",
         "cloudhook": "webhooks-api.nabucasa.com",
         "relayer": "cloud.nabucasa.com",
-        "remote_sni": "remote-sni-api.nabucasa.com",
         "remotestate": "remotestate.nabucasa.com",
+        "servicehandlers": "servicehandlers.nabucasa.com",
         "thingtalk": "thingtalk-api.nabucasa.com",
-        "voice": "voice-api.nabucasa.com",
     },
     "development": {},
 }
 
-DEFAULT_VALUES = {
+DEFAULT_VALUES: dict[str, dict[str, str]] = {
     "production": {
         "cognito_client_id": "60i2uvhvbiref2mftj7rgcrt9u",
         "user_pool_id": "us-east-1_87ll5WOP8",
@@ -53,9 +55,16 @@ using the service.
 
 MESSAGE_REMOTE_READY = """
 Your remote access is now available.
-You can manage your connectivity on the [Cloud Panel](/config/cloud) or with our [Portal](account.nabucasa.com/).
+You can manage your connectivity on the
+[Cloud panel](/config/cloud) or with our [portal](https://account.nabucasa.com/).
 """
 
 MESSAGE_REMOTE_SETUP = """
-Unable to create a certificate. We will automatically retry it and notify you when it's available.
+Unable to create a certificate. We will automatically
+retry it and notify you when it's available.
+"""
+
+MESSAGE_LOAD_CERTIFICATE_FAILURE = """
+Unable to load the certificate. We will automatically
+recreate it and notify you when it's available.
 """
