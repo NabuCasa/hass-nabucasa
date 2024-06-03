@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from functools import partial
+from functools import lru_cache, partial
 import logging
 import random
 from typing import TYPE_CHECKING, Any
@@ -73,7 +73,7 @@ class CognitoAuth:
         """Configure the auth api."""
         self.cloud = cloud
         self._refresh_task: asyncio.Task | None = None
-        self._session = boto3.session.Session()
+        self._session: boto3.Session | None = None
         self._request_lock = asyncio.Lock()
 
         cloud.iot.register_on_connect(self.on_connect)
@@ -113,7 +113,9 @@ class CognitoAuth:
         """Register a new account."""
         try:
             async with self._request_lock:
-                cognito = self._cognito()
+                cognito = await self.cloud.run_executor(
+                    self._create_cognito_client,
+                )
                 await self.cloud.run_executor(
                     partial(
                         cognito.register,
@@ -132,7 +134,9 @@ class CognitoAuth:
         """Resend email confirmation."""
         try:
             async with self._request_lock:
-                cognito = self._cognito(username=email)
+                cognito = await self.cloud.run_executor(
+                    partial(self._create_cognito_client, username=email),
+                )
                 await self.cloud.run_executor(
                     partial(
                         cognito.client.resend_confirmation_code,
@@ -149,7 +153,9 @@ class CognitoAuth:
         """Initialize forgotten password flow."""
         try:
             async with self._request_lock:
-                cognito = self._cognito(username=email)
+                cognito = await self.cloud.run_executor(
+                    partial(self._create_cognito_client, username=email),
+                )
                 await self.cloud.run_executor(cognito.initiate_forgot_password)
 
         except ClientError as err:
@@ -163,7 +169,9 @@ class CognitoAuth:
             async with self._request_lock:
                 assert not self.cloud.is_logged_in, "Cannot login if already logged in."
 
-                cognito = self._cognito(username=email)
+                cognito = await self.cloud.run_executor(
+                    partial(self._create_cognito_client, username=email),
+                )
 
                 async with async_timeout.timeout(30):
                     await self.cloud.run_executor(
@@ -191,7 +199,8 @@ class CognitoAuth:
     async def async_check_token(self) -> None:
         """Check that the token is valid and renew if necessary."""
         async with self._request_lock:
-            if not self._authenticated_cognito.check_token(renew=False):
+            cognito = await self._async_authenticated_cognito()
+            if not cognito.check_token(renew=False):
                 return
 
             try:
@@ -219,7 +228,7 @@ class CognitoAuth:
 
         Does not consume lock.
         """
-        cognito = self._authenticated_cognito
+        cognito = await self._async_authenticated_cognito()
 
         try:
             await self.cloud.run_executor(cognito.renew_access_token)
@@ -231,20 +240,28 @@ class CognitoAuth:
         except BotoCoreError as err:
             raise UnknownError from err
 
-    @property
-    def _authenticated_cognito(self) -> pycognito.Cognito:
+    async def _async_authenticated_cognito(self) -> pycognito.Cognito:
         """Return an authenticated cognito instance."""
         if self.cloud.access_token is None or self.cloud.refresh_token is None:
             raise Unauthenticated("No authentication found")
 
-        return self._cognito(
-            access_token=self.cloud.access_token,
-            refresh_token=self.cloud.refresh_token,
+        return await self.cloud.run_executor(
+            partial(
+                self._create_cognito_client,
+                access_token=self.cloud.access_token,
+                refresh_token=self.cloud.refresh_token,
+            ),
         )
 
-    def _cognito(self, **kwargs: Any) -> pycognito.Cognito:
-        """Get the client credentials."""
-        return pycognito.Cognito(
+    def _create_cognito_client(self, **kwargs: Any) -> pycognito.Cognito:
+        """Create a new cognito client.
+
+        NOTE: This will do I/O
+        """
+        if self._session is None:
+            self._session = boto3.session.Session()
+
+        return _cached_cognito(
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
@@ -258,3 +275,26 @@ def _map_aws_exception(err: ClientError) -> CloudError:
     """Map AWS exception to our exceptions."""
     ex = AWS_EXCEPTIONS.get(err.response["Error"]["Code"], UnknownError)
     return ex(err.response["Error"]["Message"])
+
+
+@lru_cache(maxsize=2)
+def _cached_cognito(
+    user_pool_id: str,
+    client_id: str,
+    user_pool_region: str,
+    botocore_config: Any,
+    session: Any,
+    **kwargs: Any,
+) -> pycognito.Cognito:
+    """Create a cached cognito client.
+
+    NOTE: This will do I/O
+    """
+    return pycognito.Cognito(
+        user_pool_id=user_pool_id,
+        client_id=client_id,
+        user_pool_region=user_pool_region,
+        botocore_config=botocore_config,
+        session=session,
+        **kwargs,
+    )
