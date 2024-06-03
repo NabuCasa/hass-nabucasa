@@ -207,4 +207,4 @@ async def test_guard_no_login_authenticated_cognito(auth_mock_kwargs: dict[str, 
     """Test that not authenticated cognito login raises."""
     auth = auth_api.CognitoAuth(MagicMock(**auth_mock_kwargs))
     with pytest.raises(auth_api.Unauthenticated):
-        auth._authenticated_cognito  # noqa: B018
+        await auth._async_authenticated_cognito()
