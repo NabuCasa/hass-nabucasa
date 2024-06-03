@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from functools import cache, partial
+from functools import lru_cache, partial
 import logging
 import random
 from typing import TYPE_CHECKING, Any
@@ -274,7 +274,7 @@ def _map_aws_exception(err: ClientError) -> CloudError:
     return ex(err.response["Error"]["Message"])
 
 
-@cache
+@lru_cache(maxsize=2)
 def _cached_cognito(
     user_pool_id: str,
     client_id: str,
