@@ -73,7 +73,7 @@ class CognitoAuth:
         """Configure the auth api."""
         self.cloud = cloud
         self._refresh_task: asyncio.Task | None = None
-        self._session = boto3.session.Session()
+        self._session: boto3.Session | None = None
         self._request_lock = asyncio.Lock()
 
         cloud.iot.register_on_connect(self.on_connect)
@@ -258,6 +258,9 @@ class CognitoAuth:
 
         NOTE: This will do I/O
         """
+        if self._session is None:
+            self._session = boto3.session.Session()
+
         return _cached_cognito(
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
