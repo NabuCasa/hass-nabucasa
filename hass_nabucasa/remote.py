@@ -574,12 +574,9 @@ class RemoteUI:
             return False
 
         # Check LE entry
-        if f"_acme-challenge.{instance_domain}" not in await self._check_cname(
+        return f"_acme-challenge.{instance_domain}" in await self._check_cname(
             f"_acme-challenge.{custom_domain}",
-        ):
-            return False
-
-        return True
+        )
 
     async def _should_renew_certificates(self) -> bool:
         """Check if certificates should be renewed."""

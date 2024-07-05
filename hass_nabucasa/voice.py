@@ -1230,9 +1230,7 @@ class Voice:
 
     def _validate_token(self) -> bool:
         """Validate token outside of coroutine."""
-        if self._valid and utcnow() < self._valid:
-            return True
-        return False
+        return bool(self._valid and utcnow() < self._valid)
 
     async def _update_token(self) -> None:
         """Update token details."""
