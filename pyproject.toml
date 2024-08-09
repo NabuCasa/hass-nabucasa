@@ -36,6 +36,7 @@ name = "hass-nabucasa"
 readme = "README.md"
 requires-python = ">=3.11"
 version = "0.81.1"
+repository = "https://github.com/NabuCasa/hass-nabucasa"
 
 [project.optional-dependencies]
 test = [
