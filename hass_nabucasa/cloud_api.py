@@ -98,6 +98,8 @@ def _log_response(
 @_log_response
 async def async_create_cloudhook(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Create a cloudhook."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     return await cloud.websession.post(
         f"https://{cloud.cloudhook_server}/generate",
         headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
@@ -108,6 +110,8 @@ async def async_create_cloudhook(cloud: Cloud[_ClientT]) -> ClientResponse:
 @_log_response
 async def async_remote_register(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Create/Get a remote URL."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     url = f"https://{cloud.servicehandlers_server}/instance/register"
     return await cloud.websession.post(
         url,
@@ -123,6 +127,8 @@ async def async_remote_token(
     aes_iv: bytes,
 ) -> ClientResponse:
     """Create a remote snitun token."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     url = f"https://{cloud.servicehandlers_server}/instance/snitun_token"
     return await cloud.websession.post(
         url,
@@ -138,6 +144,8 @@ async def async_remote_challenge_txt(
     txt: str,
 ) -> ClientResponse:
     """Set DNS challenge."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_txt"
     return await cloud.websession.post(
         url,
@@ -153,6 +161,8 @@ async def async_remote_challenge_cleanup(
     txt: str,
 ) -> ClientResponse:
     """Remove DNS challenge."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_cleanup"
     return await cloud.websession.post(
         url,
@@ -165,6 +175,8 @@ async def async_remote_challenge_cleanup(
 @_log_response
 async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Request Alexa access token."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     return await cloud.websession.post(
         f"https://{cloud.alexa_server}/access_token",
         headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
@@ -175,6 +187,8 @@ async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
 @_log_response
 async def async_voice_connection_details(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Return connection details for voice service."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     url = f"https://{cloud.servicehandlers_server}/voice/connection_details"
     return await cloud.websession.get(
         url,
@@ -190,6 +204,8 @@ async def async_files_download_details(
     filename: str,
 ) -> FilesHandlerDownloadDetails:
     """Get files download details."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     resp = await cloud.websession.get(
         f"https://{cloud.servicehandlers_server}/files/download_details",
         headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
@@ -215,6 +231,8 @@ async def async_files_list(
     storage_type: str,
 ) -> list[FilesHandlerListEntry]:
     """List files for storage type."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     resp = await cloud.websession.get(
         f"https://{cloud.servicehandlers_server}/files/list",
         headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
@@ -245,6 +263,8 @@ async def async_files_upload_details(
     homeassistant_version: str | None = None,
 ) -> FilesHandlerUploadDetails:
     """Get files upload details."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     resp = await cloud.websession.get(
         f"https://{cloud.servicehandlers_server}/files/upload_details",
         headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
@@ -282,6 +302,8 @@ async def async_google_actions_request_sync(cloud: Cloud[_ClientT]) -> ClientRes
 @_check_token
 async def async_subscription_info(cloud: Cloud[_ClientT]) -> dict[str, Any]:
     """Fetch subscription info."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     resp = await cloud.websession.get(
         f"https://{cloud.accounts_server}/payments/subscription_info",
         headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
@@ -301,6 +323,8 @@ async def async_subscription_info(cloud: Cloud[_ClientT]) -> dict[str, Any]:
 @_check_token
 async def async_migrate_paypal_agreement(cloud: Cloud[_ClientT]) -> dict[str, Any]:
     """Migrate a paypal agreement from legacy."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     resp = await cloud.websession.post(
         f"https://{cloud.accounts_server}/payments/migrate_paypal_agreement",
         headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
@@ -314,6 +338,8 @@ async def async_migrate_paypal_agreement(cloud: Cloud[_ClientT]) -> dict[str, An
 @_check_token
 async def async_resolve_cname(cloud: Cloud[_ClientT], hostname: str) -> list[str]:
     """Resolve DNS CNAME."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
     resp = await cloud.websession.post(
         f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
         headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
