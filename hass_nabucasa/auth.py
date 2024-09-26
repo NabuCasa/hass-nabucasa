@@ -119,7 +119,7 @@ class CognitoAuth:
                 await self.cloud.run_executor(
                     partial(
                         cognito.register,
-                        email,
+                        email.lower(),
                         password,
                         client_metadata=client_metadata,
                     ),
