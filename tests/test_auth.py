@@ -89,6 +89,17 @@ async def test_register(mock_cognito, cloud_mock):
     assert call.kwargs["client_metadata"] == {"test": "metadata"}
 
 
+async def test_register_lowercase_email(mock_cognito, cloud_mock):
+    """Test forcing lowercase email when registering an account."""
+    auth = auth_api.CognitoAuth(cloud_mock)
+    await auth.async_register("EMAIL@HOME-ASSISTANT.IO", "password")
+    assert len(mock_cognito.register.mock_calls) == 1
+
+    call = mock_cognito.register.mock_calls[0]
+    result_user = call.args[0]
+    assert result_user == "email@home-assistant.io"
+
+
 async def test_register_fails(mock_cognito, cloud_mock):
     """Test registering an account."""
     mock_cognito.register.side_effect = aws_error("SomeError")
