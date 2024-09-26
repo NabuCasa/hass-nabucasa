@@ -3,6 +3,8 @@
 from contextlib import contextmanager
 import json as _json
 import re
+from types import TracebackType
+from typing import Self
 from unittest import mock
 from urllib.parse import parse_qs
 
@@ -256,6 +258,18 @@ class AiohttpClientMockResponse:
 
     async def wait_for_close(self):
         """Mock wait_for_close."""
+
+    async def __aenter__(self) -> Self:
+        """Enter the context manager."""
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Exit the context manager."""
 
 
 @contextmanager
