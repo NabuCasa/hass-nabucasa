@@ -393,3 +393,53 @@ async def test_async_files_upload_details_error(
     }
 
     assert "Fetched https://example.com/files/upload_details (400) Boom!" in caplog.text
+
+
+async def test_async_ice_servers(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_ice_servers function."""
+    ice_servers_response = [
+        {
+            "urls": "turn:example.com:3478",
+            "username": "test-username",
+            "credential": "test-credential",
+        },
+    ]
+
+    aioclient_mock.get(
+        "https://example.com/webrtc/ice_servers",
+        json=ice_servers_response,
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    details = await cloud_api.async_ice_servers(cloud=auth_cloud_mock)
+
+    assert len(aioclient_mock.mock_calls) == 1
+
+    assert details == ice_servers_response
+    assert "Fetched https://example.com/webrtc/ice_servers (200)" in caplog.text
+
+
+async def test_async_ice_servers_error(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_ice_servers function with error fetching ice servers."""
+    aioclient_mock.get(
+        "https://example.com/webrtc/ice_servers",
+        status=400,
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    with pytest.raises(ClientResponseError):
+        await cloud_api.async_ice_servers(cloud=auth_cloud_mock)
+
+    assert len(aioclient_mock.mock_calls) == 1
+
+    assert "Fetched https://example.com/webrtc/ice_servers (400)" in caplog.text
