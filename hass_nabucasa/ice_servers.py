@@ -1,4 +1,6 @@
-"""Class to manage ICE servers."""
+"""Manage ICE servers."""
+
+from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
@@ -27,7 +29,7 @@ class IceServer(TypedDict):
 class IceServersListener(TypedDict):
     """ICE Servers Listener."""
 
-    register_ice_server_fn: Callable[[list[IceServer]], Awaitable[None]]
+    register_ice_server_fn: Callable[[IceServer], Awaitable[Callable[[], None]]]
     servers_unregister: list[Callable[[], None]]
 
 
@@ -46,6 +48,9 @@ class IceServers:
 
     async def _async_fetch_ice_servers(self) -> None:
         """Fetch ICE servers."""
+        if TYPE_CHECKING:
+            assert self.cloud.id_token is not None
+
         async with self.cloud.websession.get(
             f"https://{self.cloud.servicehandlers_server}/webrtc/ice_servers",
             headers={
@@ -114,7 +119,7 @@ class IceServers:
         servers_unregister = listener_obj["servers_unregister"]
 
         for unregister in servers_unregister:
-            await unregister()
+            unregister()
 
         if not self._ice_servers:
             self._ice_servers_listeners[listener_id]["servers_unregister"] = []
@@ -128,8 +133,8 @@ class IceServers:
 
     async def async_register_ice_servers_listener(
         self,
-        register_ice_server_fn: Callable[[list[IceServer]], Awaitable[None]],
-    ) -> None:
+        register_ice_server_fn: Callable[[IceServer], Awaitable[Callable[[], None]]],
+    ) -> Callable[[], None]:
         """Register a listener for ICE servers."""
         listener_id = str(id(register_ice_server_fn))
 
