@@ -52,14 +52,6 @@ class FilesHandlerListEntry(TypedDict):
     tags: dict[str, Any]
 
 
-class IceServer(TypedDict):
-    """ICE Server."""
-
-    urls: str
-    username: str
-    credential: str
-
-
 def _do_log_response(resp: ClientResponse, content: str = "") -> None:
     """Log the response."""
     meth = _LOGGER.debug if resp.status < 400 else _LOGGER.warning
@@ -356,19 +348,4 @@ async def async_resolve_cname(cloud: Cloud[_ClientT], hostname: str) -> list[str
     _do_log_response(resp)
     resp.raise_for_status()
     data: list[str] = await resp.json()
-    return data
-
-
-@_check_token
-async def async_ice_servers(cloud: Cloud[_ClientT]) -> list[IceServer]:
-    """Resolve ICE Servers."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    resp = await cloud.websession.get(
-        f"https://{cloud.servicehandlers_server}/webrtc/ice_servers",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
-    )
-    _do_log_response(resp)
-    resp.raise_for_status()
-    data: list[IceServer] = await resp.json()
     return data
