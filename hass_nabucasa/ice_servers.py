@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 import logging
 import time
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING
 
 from aiohttp import ClientResponseError
 from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
@@ -18,19 +19,13 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-class IceServer(TypedDict):
+@dataclass
+class IceServer:
     """ICE Server."""
 
     urls: str
     username: str
     credential: str
-
-
-class IceServersListener(TypedDict):
-    """ICE Servers Listener."""
-
-    register_ice_server_fn: Callable[[IceServer], Awaitable[Callable[[], None]]]
-    servers_unregister: list[Callable[[], None]]
 
 
 class IceServers:
@@ -41,7 +36,8 @@ class IceServers:
         self.cloud = cloud
         self._refresh_task: asyncio.Task | None = None
         self._ice_servers: list[IceServer] = []
-        self._ice_servers_listeners: dict[str, IceServersListener] = {}
+        self._ice_servers_listener: Callable[[], Awaitable[None]] | None = None
+        self._ice_servers_listener_unregister: list[Callable[[], None]] = []
 
         cloud.iot.register_on_connect(self.on_connect)
         cloud.iot.register_on_disconnect(self.on_disconnect)
@@ -66,15 +62,15 @@ class IceServers:
 
         self._ice_servers = data
 
-        for listener_id in self._ice_servers_listeners:
-            await self._perform_ice_server_listener_update(listener_id)
+        if self._ice_servers_listener is not None:
+            await self._ice_servers_listener()
 
     def _get_refresh_sleep_time(self) -> int:
         """Get the sleep time for refreshing ICE servers."""
         timestamps = [
-            int(server["username"].split(":")[0])
+            int(server.username.split(":")[0])
             for server in self._ice_servers
-            if server["urls"].startswith("turn:")
+            if server.urls.startswith("turn:")
         ]
 
         if not timestamps:
@@ -107,48 +103,38 @@ class IceServers:
             self._refresh_task.cancel()
             self._refresh_task = None
 
-    async def _perform_ice_server_listener_update(self, listener_id: str) -> None:
-        """Perform ICE server listener update."""
-        _LOGGER.debug("Performing ICE servers listener update: %s", listener_id)
-
-        listener_obj = self._ice_servers_listeners.get(listener_id)
-        if listener_obj is None:
-            return
-
-        register_ice_server_fn = listener_obj["register_ice_server_fn"]
-        servers_unregister = listener_obj["servers_unregister"]
-
-        for unregister in servers_unregister:
-            unregister()
-
-        if not self._ice_servers:
-            self._ice_servers_listeners[listener_id]["servers_unregister"] = []
-            return
-
-        self._ice_servers_listeners[listener_id]["servers_unregister"] = [
-            await register_ice_server_fn(ice_server) for ice_server in self._ice_servers
-        ]
-
-        _LOGGER.debug("ICE servers listener update done: %s", str(self._ice_servers))
-
     async def async_register_ice_servers_listener(
         self,
         register_ice_server_fn: Callable[[IceServer], Awaitable[Callable[[], None]]],
     ) -> Callable[[], None]:
         """Register a listener for ICE servers."""
-        listener_id = str(id(register_ice_server_fn))
+        _LOGGER.debug("Registering ICE servers listener")
 
-        _LOGGER.debug("Registering ICE servers listener: %s", listener_id)
+        async def perform_ice_server_update() -> None:
+            """Perform ICE server update."""
+            _LOGGER.debug("Updating ICE servers")
+
+            for unregister in self._ice_servers_listener_unregister:
+                unregister()
+
+            if not self._ice_servers:
+                self._ice_servers_listener_unregister = []
+                return
+
+            self._ice_servers_listener_unregister = [
+                await register_ice_server_fn(ice_server)
+                for ice_server in self._ice_servers
+            ]
+
+            _LOGGER.debug("ICE servers updated")
 
         def remove_listener() -> None:
             """Remove listener."""
-            self._ice_servers_listeners.pop(listener_id, None)
+            self._ice_servers_listener = None
 
-        self._ice_servers_listeners[listener_id] = {
-            "register_ice_server_fn": register_ice_server_fn,
-            "servers_unregister": [],
-        }
+        self._ice_servers_listener = perform_ice_server_update
 
-        await self._perform_ice_server_listener_update(listener_id)
+        if self._ice_servers:
+            await self._ice_servers_listener()
 
         return remove_listener
