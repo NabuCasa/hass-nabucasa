@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True)
 class IceServer:
     """ICE Server."""
 
@@ -54,13 +54,16 @@ class IceServers:
                 USER_AGENT: self.cloud.client.client_name,
             },
         ) as resp:
-            if resp.status >= 400:
-                _LOGGER.error("Failed to fetch ICE servers: %s", resp.status)
-
             resp.raise_for_status()
-            data: list[IceServer] = await resp.json()
 
-        self._ice_servers = data
+            self._ice_servers = [
+                IceServer(
+                    urls=item["urls"],
+                    username=item["username"],
+                    credential=item["credential"],
+                )
+                for item in await resp.json()
+            ]
 
         if self._ice_servers_listener is not None:
             await self._ice_servers_listener()
