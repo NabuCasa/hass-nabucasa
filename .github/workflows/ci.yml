@@ -36,15 +36,20 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    name: Run tests
+    name: Run tests with Python ${{ matrix.python-version }}
     needs: lint
+    strategy:
+      matrix:
+        python-version:
+          - "3.12"
+
     steps:
       - uses: actions/checkout@v4.2.2
 
-      - name: Set up Python "3.12"
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5.2.0
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: "pip"
           cache-dependency-path: pyproject.toml
 
