@@ -29,7 +29,7 @@ class IceServers:
         self._refresh_task: asyncio.Task | None = None
         self._ice_servers: list[RTCIceServer] = []
         self._ice_servers_listener: Callable[[], Awaitable[None]] | None = None
-        self._ice_servers_listener_unregister: list[Callable[[], None]] = []
+        self._ice_servers_listener_unregister: Callable[[], None] | None = None
 
     async def _async_fetch_ice_servers(self) -> None:
         """Fetch ICE servers."""
@@ -100,37 +100,39 @@ class IceServers:
 
     async def async_register_ice_servers_listener(
         self,
-        register_ice_server_fn: Callable[[RTCIceServer], Awaitable[Callable[[], None]]],
+        register_ice_server_fn: Callable[
+            [list[RTCIceServer]],
+            Awaitable[Callable[[], None]],
+        ],
     ) -> Callable[[], None]:
-        """Register a listener for ICE servers."""
+        """Register a listener for ICE servers and return unregister function."""
         _LOGGER.debug("Registering ICE servers listener")
 
         async def perform_ice_server_update() -> None:
-            """Perform ICE server update."""
+            """Perform ICE server update by unregistering and registering servers."""
             _LOGGER.debug("Updating ICE servers")
 
-            for unregister in self._ice_servers_listener_unregister:
-                unregister()
+            if self._ice_servers_listener_unregister is not None:
+                self._ice_servers_listener_unregister()
 
             if not self._ice_servers:
-                self._ice_servers_listener_unregister = []
+                self._ice_servers_listener_unregister = None
                 return
 
-            self._ice_servers_listener_unregister = [
-                await register_ice_server_fn(ice_server)
-                for ice_server in self._ice_servers
-            ]
+            self._ice_servers_listener_unregister = await register_ice_server_fn(
+                self._ice_servers,
+            )
 
             _LOGGER.debug("ICE servers updated")
 
         def remove_listener() -> None:
             """Remove listener."""
-            for unregister in self._ice_servers_listener_unregister:
-                unregister()
+            if self._ice_servers_listener_unregister is not None:
+                self._ice_servers_listener_unregister()
 
             self._ice_servers = []
             self._ice_servers_listener = None
-            self._ice_servers_listener_unregister = []
+            self._ice_servers_listener_unregister = None
 
             self._on_remove_listener()
 

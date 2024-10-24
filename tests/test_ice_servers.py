@@ -40,13 +40,14 @@ async def test_ice_servers_listener_registration_triggers_periodic_ice_servers_u
 
     ice_servers_api._get_refresh_sleep_time = lambda: -1
 
-    async def register_ice_server(ice_server: RTCIceServer):
+    async def register_ice_servers(ice_servers: list[RTCIceServer]):
         nonlocal times_register_called_successfully
 
         # There asserts will silently fail and variable will not be incremented
-        assert ice_server.urls == "turn:example.com:80"
-        assert ice_server.username == "12345678:test-user"
-        assert ice_server.credential == "secret-value"
+        assert len(ice_servers) == 1
+        assert ice_servers[0].urls == "turn:example.com:80"
+        assert ice_servers[0].username == "12345678:test-user"
+        assert ice_servers[0].credential == "secret-value"
 
         times_register_called_successfully += 1
 
@@ -56,7 +57,7 @@ async def test_ice_servers_listener_registration_triggers_periodic_ice_servers_u
         return unregister
 
     unregister = await ice_servers_api.async_register_ice_servers_listener(
-        register_ice_server,
+        register_ice_servers,
     )
 
     # Let the periodic update run once
@@ -71,7 +72,7 @@ async def test_ice_servers_listener_registration_triggers_periodic_ice_servers_u
     assert ice_servers_api._refresh_task is None
     assert ice_servers_api._ice_servers == []
     assert ice_servers_api._ice_servers_listener is None
-    assert ice_servers_api._ice_servers_listener_unregister == []
+    assert ice_servers_api._ice_servers_listener_unregister == None
 
 
 async def test_ice_servers_listener_deregistration_stops_periodic_ice_servers_update(
@@ -82,13 +83,14 @@ async def test_ice_servers_listener_deregistration_stops_periodic_ice_servers_up
 
     ice_servers_api._get_refresh_sleep_time = lambda: -1
 
-    async def register_ice_server(ice_server: RTCIceServer):
+    async def register_ice_servers(ice_servers: list[RTCIceServer]):
         nonlocal times_register_called_successfully
 
         # There asserts will silently fail and variable will not be incremented
-        assert ice_server.urls == "turn:example.com:80"
-        assert ice_server.username == "12345678:test-user"
-        assert ice_server.credential == "secret-value"
+        assert len(ice_servers) == 1
+        assert ice_servers[0].urls == "turn:example.com:80"
+        assert ice_servers[0].username == "12345678:test-user"
+        assert ice_servers[0].credential == "secret-value"
 
         times_register_called_successfully += 1
 
@@ -98,7 +100,7 @@ async def test_ice_servers_listener_deregistration_stops_periodic_ice_servers_up
         return unregister
 
     unregister = await ice_servers_api.async_register_ice_servers_listener(
-        register_ice_server,
+        register_ice_servers,
     )
 
     # Let the periodic update run once
@@ -114,7 +116,7 @@ async def test_ice_servers_listener_deregistration_stops_periodic_ice_servers_up
     assert ice_servers_api._refresh_task is None
     assert ice_servers_api._ice_servers == []
     assert ice_servers_api._ice_servers_listener is None
-    assert ice_servers_api._ice_servers_listener_unregister == []
+    assert ice_servers_api._ice_servers_listener_unregister == None
 
 
 def test_get_refresh_sleep_time(ice_servers_api: ice_servers.IceServers):
