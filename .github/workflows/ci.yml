@@ -19,11 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5.2.0
         with:
-          python-version: "3.11"
-          cache: 'pip'
+          python-version: "3.12"
+          cache: "pip"
           cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
@@ -36,22 +36,16 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    name: Run tests with Python ${{ matrix.python-version }}
+    name: Run tests
     needs: lint
-    strategy:
-      matrix:
-        python-version:
-          - "3.11"
-          - "3.12"
-
     steps:
       - uses: actions/checkout@v4.2.2
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python "3.12"
         uses: actions/setup-python@v5.2.0
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
+          python-version: "3.12"
+          cache: "pip"
           cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
