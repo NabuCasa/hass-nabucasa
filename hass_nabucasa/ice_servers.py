@@ -114,9 +114,9 @@ class IceServers:
 
             if self._ice_servers_listener_unregister is not None:
                 self._ice_servers_listener_unregister()
+                self._ice_servers_listener_unregister = None
 
             if not self._ice_servers:
-                self._ice_servers_listener_unregister = None
                 return
 
             self._ice_servers_listener_unregister = await register_ice_server_fn(
@@ -129,10 +129,10 @@ class IceServers:
             """Remove listener."""
             if self._ice_servers_listener_unregister is not None:
                 self._ice_servers_listener_unregister()
+                self._ice_servers_listener_unregister = None
 
             self._ice_servers = []
             self._ice_servers_listener = None
-            self._ice_servers_listener_unregister = None
 
             self._on_remove_listener()
 
