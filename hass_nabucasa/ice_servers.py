@@ -4,28 +4,19 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
 import logging
 import time
 from typing import TYPE_CHECKING
 
 from aiohttp import ClientResponseError
 from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
+from webrtc_models import RTCIceServer
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
 
 _LOGGER = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class IceServer:
-    """ICE Server."""
-
-    urls: str
-    username: str
-    credential: str
 
 
 class IceServers:
@@ -35,12 +26,9 @@ class IceServers:
         """Initialize ICE Servers."""
         self.cloud = cloud
         self._refresh_task: asyncio.Task | None = None
-        self._ice_servers: list[IceServer] = []
+        self._ice_servers: list[RTCIceServer] = []
         self._ice_servers_listener: Callable[[], Awaitable[None]] | None = None
         self._ice_servers_listener_unregister: list[Callable[[], None]] = []
-
-        cloud.iot.register_on_connect(self.on_connect)
-        cloud.iot.register_on_disconnect(self.on_disconnect)
 
     async def _async_fetch_ice_servers(self) -> None:
         """Fetch ICE servers."""
@@ -57,7 +45,7 @@ class IceServers:
             resp.raise_for_status()
 
             self._ice_servers = [
-                IceServer(
+                RTCIceServer(
                     urls=item["urls"],
                     username=item["username"],
                     credential=item["credential"],
@@ -96,11 +84,11 @@ class IceServers:
             sleep_time = self._get_refresh_sleep_time()
             await asyncio.sleep(sleep_time)
 
-    async def on_connect(self) -> None:
+    def _on_add_listener(self) -> None:
         """When the instance is connected."""
         self._refresh_task = asyncio.create_task(self._async_refresh_ice_servers())
 
-    async def on_disconnect(self) -> None:
+    def _on_remove_listener(self) -> None:
         """When the instance is disconnected."""
         if self._refresh_task is not None:
             self._refresh_task.cancel()
@@ -108,7 +96,7 @@ class IceServers:
 
     async def async_register_ice_servers_listener(
         self,
-        register_ice_server_fn: Callable[[IceServer], Awaitable[Callable[[], None]]],
+        register_ice_server_fn: Callable[[RTCIceServer], Awaitable[Callable[[], None]]],
     ) -> Callable[[], None]:
         """Register a listener for ICE servers."""
         _LOGGER.debug("Registering ICE servers listener")
@@ -133,11 +121,17 @@ class IceServers:
 
         def remove_listener() -> None:
             """Remove listener."""
+            for unregister in self._ice_servers_listener_unregister:
+                unregister()
+
+            self._ice_servers = []
             self._ice_servers_listener = None
+            self._ice_servers_listener_unregister = []
+
+            self._on_remove_listener()
 
         self._ice_servers_listener = perform_ice_server_update
 
-        if self._ice_servers:
-            await self._ice_servers_listener()
+        self._on_add_listener()
 
         return remove_listener
