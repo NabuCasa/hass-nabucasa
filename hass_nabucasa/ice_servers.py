@@ -62,7 +62,7 @@ class IceServers:
         timestamps = [
             int(server.username.split(":")[0])
             for server in self._ice_servers
-            if server.urls.startswith("turn:")
+            if server.username is not None and ":" in server.username
         ]
 
         if not timestamps:
