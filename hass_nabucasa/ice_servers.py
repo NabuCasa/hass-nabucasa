@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 import logging
+import random
 import time
 from typing import TYPE_CHECKING
 
@@ -67,8 +68,11 @@ class IceServers:
         if not timestamps:
             return 3600  # 1 hour
 
+        if (expiration := min(timestamps) - int(time.time()) - 3600) < 0:
+            return random.randint(100, 300)
+
         # 1 hour before the earliest expiration
-        return min(timestamps) - int(time.time()) - 3600
+        return expiration
 
     async def _async_refresh_ice_servers(self) -> None:
         """Handle ICE server refresh."""

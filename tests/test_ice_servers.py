@@ -38,6 +38,8 @@ async def test_ice_servers_listener_registration_triggers_periodic_ice_servers_u
     """Test that registering an ICE servers listener triggers a periodic update."""
     times_register_called_successfully = 0
 
+    ice_servers_api._get_refresh_sleep_time = lambda: -1
+
     async def register_ice_server(ice_server: RTCIceServer):
         nonlocal times_register_called_successfully
 
@@ -78,6 +80,8 @@ async def test_ice_servers_listener_deregistration_stops_periodic_ice_servers_up
     """Test that deregistering an ICE servers listener stops the periodic update."""
     times_register_called_successfully = 0
 
+    ice_servers_api._get_refresh_sleep_time = lambda: -1
+
     async def register_ice_server(ice_server: RTCIceServer):
         nonlocal times_register_called_successfully
 
@@ -115,12 +119,10 @@ async def test_ice_servers_listener_deregistration_stops_periodic_ice_servers_up
 
 def test_get_refresh_sleep_time(ice_servers_api: ice_servers.IceServers):
     """Test get refresh sleep time."""
-    assert ice_servers_api._get_refresh_sleep_time() == 3600
-
-    min_timestamp = 12345678
+    min_timestamp = 8888888888
 
     ice_servers_api._ice_servers = [
-        RTCIceServer(urls="turn:example.com:80", username="1234567890:test-user"),
+        RTCIceServer(urls="turn:example.com:80", username="9999999999:test-user"),
         RTCIceServer(
             urls="turn:example.com:80",
             username=f"{min_timestamp!s}:test-user",
@@ -131,3 +133,30 @@ def test_get_refresh_sleep_time(ice_servers_api: ice_servers.IceServers):
         ice_servers_api._get_refresh_sleep_time()
         == min_timestamp - int(time.time()) - 3600
     )
+
+
+def test_get_refresh_sleep_time_no_turn_servers(
+    ice_servers_api: ice_servers.IceServers,
+):
+    """Test get refresh sleep time."""
+    assert ice_servers_api._get_refresh_sleep_time() == 3600
+
+
+def test_get_refresh_sleep_time_expiration_less_than_one_hour(
+    ice_servers_api: ice_servers.IceServers,
+):
+    """Test get refresh sleep time."""
+    min_timestamp = 10
+
+    ice_servers_api._ice_servers = [
+        RTCIceServer(urls="turn:example.com:80", username="12345678:test-user"),
+        RTCIceServer(
+            urls="turn:example.com:80",
+            username=f"{min_timestamp!s}:test-user",
+        ),
+    ]
+
+    refresh_time = ice_servers_api._get_refresh_sleep_time()
+
+    assert refresh_time >= 100
+    assert refresh_time <= 300
