@@ -72,7 +72,7 @@ async def test_ice_servers_listener_registration_triggers_periodic_ice_servers_u
     assert ice_servers_api._refresh_task is None
     assert ice_servers_api._ice_servers == []
     assert ice_servers_api._ice_servers_listener is None
-    assert ice_servers_api._ice_servers_listener_unregister == None
+    assert ice_servers_api._ice_servers_listener_unregister is None
 
 
 async def test_ice_servers_listener_deregistration_stops_periodic_ice_servers_update(
@@ -116,7 +116,7 @@ async def test_ice_servers_listener_deregistration_stops_periodic_ice_servers_up
     assert ice_servers_api._refresh_task is None
     assert ice_servers_api._ice_servers == []
     assert ice_servers_api._ice_servers_listener is None
-    assert ice_servers_api._ice_servers_listener_unregister == None
+    assert ice_servers_api._ice_servers_listener_unregister is None
 
 
 def test_get_refresh_sleep_time(ice_servers_api: ice_servers.IceServers):
