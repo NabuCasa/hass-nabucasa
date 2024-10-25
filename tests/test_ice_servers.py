@@ -38,12 +38,12 @@ async def test_ice_servers_listener_registration_triggers_periodic_ice_servers_u
     """Test that registering an ICE servers listener triggers a periodic update."""
     times_register_called_successfully = 0
 
-    ice_servers_api._get_refresh_sleep_time = lambda: -1
+    ice_servers_api._get_refresh_sleep_time = lambda: 0
 
     async def register_ice_servers(ice_servers: list[RTCIceServer]):
         nonlocal times_register_called_successfully
 
-        # There asserts will silently fail and variable will not be incremented
+        # These asserts will silently fail and variable will not be incremented
         assert len(ice_servers) == 1
         assert ice_servers[0].urls == "turn:example.com:80"
         assert ice_servers[0].username == "12345678:test-user"
@@ -65,53 +65,14 @@ async def test_ice_servers_listener_registration_triggers_periodic_ice_servers_u
     # Let the periodic update run again
     await asyncio.sleep(0)
 
-    unregister()
-
     assert times_register_called_successfully == 2
-
-    assert ice_servers_api._refresh_task is None
-    assert ice_servers_api._ice_servers == []
-    assert ice_servers_api._ice_servers_listener is None
-    assert ice_servers_api._ice_servers_listener_unregister is None
-
-
-async def test_ice_servers_listener_deregistration_stops_periodic_ice_servers_update(
-    ice_servers_api: ice_servers.IceServers,
-):
-    """Test that deregistering an ICE servers listener stops the periodic update."""
-    times_register_called_successfully = 0
-
-    ice_servers_api._get_refresh_sleep_time = lambda: -1
-
-    async def register_ice_servers(ice_servers: list[RTCIceServer]):
-        nonlocal times_register_called_successfully
-
-        # There asserts will silently fail and variable will not be incremented
-        assert len(ice_servers) == 1
-        assert ice_servers[0].urls == "turn:example.com:80"
-        assert ice_servers[0].username == "12345678:test-user"
-        assert ice_servers[0].credential == "secret-value"
-
-        times_register_called_successfully += 1
-
-        def unregister():
-            pass
-
-        return unregister
-
-    unregister = await ice_servers_api.async_register_ice_servers_listener(
-        register_ice_servers,
-    )
-
-    # Let the periodic update run once
-    await asyncio.sleep(0)
 
     unregister()
 
     # The periodic update should not run again
     await asyncio.sleep(0)
 
-    assert times_register_called_successfully == 1
+    assert times_register_called_successfully == 2
 
     assert ice_servers_api._refresh_task is None
     assert ice_servers_api._ice_servers == []
