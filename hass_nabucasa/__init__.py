@@ -26,6 +26,7 @@ from .const import (
     STATE_CONNECTED,
 )
 from .google_report_state import GoogleReportState
+from .ice_servers import IceServers
 from .iot import CloudIoT
 from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
@@ -75,6 +76,7 @@ class Cloud(Generic[_ClientT]):
         self.remote = RemoteUI(self)
         self.auth = CognitoAuth(self)
         self.voice = Voice(self)
+        self.ice_servers = IceServers(self)
 
         self._init_task: asyncio.Task | None = None
 
