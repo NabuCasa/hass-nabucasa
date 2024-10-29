@@ -323,7 +323,7 @@ async def test_async_files_upload_detils(
         "https://example.com/files/upload_details",
         json={
             "url": "https://example.com/some/path",
-            "fields": {"key": "value"},
+            "headers": {"key": "value"},
         },
     )
     auth_cloud_mock.id_token = "mock-id-token"
@@ -337,7 +337,7 @@ async def test_async_files_upload_detils(
         filename="test.txt",
         base64md5hash=base64md5hash,
         size=2,
-        homeassistant_version="1970.1.1",
+        metadata={"homeassistant_version": "1970.1.1"},
     )
 
     assert len(aioclient_mock.mock_calls) == 1
@@ -345,14 +345,14 @@ async def test_async_files_upload_detils(
     assert aioclient_mock.mock_calls[0][2] == {
         "filename": "test.txt",
         "storage_type": "test",
-        "homeassistant_version": "1970.1.1",
+        "metadata": {"homeassistant_version": "1970.1.1"},
         "md5": base64md5hash,
         "size": 2,
     }
 
     assert details == {
         "url": "https://example.com/some/path",
-        "fields": {"key": "value"},
+        "headers": {"key": "value"},
     }
     assert "Fetched https://example.com/files/upload_details (200)" in caplog.text
 
@@ -387,9 +387,9 @@ async def test_async_files_upload_details_error(
     assert aioclient_mock.mock_calls[0][2] == {
         "filename": "test.txt",
         "storage_type": "test",
-        "homeassistant_version": None,
         "md5": base64md5hash,
         "size": 2,
+        "metadata": None,
     }
 
     assert "Fetched https://example.com/files/upload_details (400) Boom!" in caplog.text

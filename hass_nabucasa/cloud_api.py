@@ -40,7 +40,7 @@ class FilesHandlerDownloadDetails(_FilesHandlerUrlResponse):
 class FilesHandlerUploadDetails(_FilesHandlerUrlResponse):
     """Upload details from files handler."""
 
-    fields: dict[str, str]
+    headers: dict[str, str]
 
 
 class FilesHandlerListEntry(TypedDict):
@@ -260,7 +260,7 @@ async def async_files_upload_details(
     filename: str,
     base64md5hash: str,
     size: int,
-    homeassistant_version: str | None = None,
+    metadata: dict[str, str] | None = None,
 ) -> FilesHandlerUploadDetails:
     """Get files upload details."""
     if TYPE_CHECKING:
@@ -271,9 +271,9 @@ async def async_files_upload_details(
         json={
             "storage_type": storage_type,
             "filename": filename,
-            "homeassistant_version": homeassistant_version,
             "md5": base64md5hash,
             "size": size,
+            "metadata": metadata,
         },
     )
 
