@@ -63,7 +63,7 @@ class IceServers:
         ]
 
         if not timestamps:
-            return random.randint(2400, 3600)  # 40-60 minutes
+            return random.randint(3600, 3600 * 12)  # 1-12 hours
 
         if (expiration := min(timestamps) - int(time.time()) - 3600) < 0:
             return random.randint(100, 300)
