@@ -31,7 +31,7 @@ class IceServers:
         self._ice_servers_listener: Callable[[], Awaitable[None]] | None = None
         self._ice_servers_listener_unregister: Callable[[], None] | None = None
 
-    async def _async_fetch_ice_servers(self) -> None:
+    async def _async_fetch_ice_servers(self) -> list[RTCIceServer]:
         """Fetch ICE servers."""
         if TYPE_CHECKING:
             assert self.cloud.id_token is not None
@@ -45,7 +45,7 @@ class IceServers:
         ) as resp:
             resp.raise_for_status()
 
-            self._ice_servers = [
+            return [
                 RTCIceServer(
                     urls=item["urls"],
                     username=item["username"],
@@ -53,9 +53,6 @@ class IceServers:
                 )
                 for item in await resp.json()
             ]
-
-        if self._ice_servers_listener is not None:
-            await self._ice_servers_listener()
 
     def _get_refresh_sleep_time(self) -> int:
         """Get the sleep time for refreshing ICE servers."""
@@ -66,7 +63,7 @@ class IceServers:
         ]
 
         if not timestamps:
-            return 3600  # 1 hour
+            return random.randint(2400, 3600)  # 40-60 minutes
 
         if (expiration := min(timestamps) - int(time.time()) - 3600) < 0:
             return random.randint(100, 300)
@@ -78,7 +75,10 @@ class IceServers:
         """Handle ICE server refresh."""
         while True:
             try:
-                await self._async_fetch_ice_servers()
+                self._ice_servers = await self._async_fetch_ice_servers()
+
+                if self._ice_servers_listener is not None:
+                    await self._ice_servers_listener()
             except ClientResponseError as err:
                 _LOGGER.error("Can't refresh ICE servers: %s", err)
             except asyncio.CancelledError:

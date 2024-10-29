@@ -102,7 +102,10 @@ def test_get_refresh_sleep_time_no_turn_servers(
     ice_servers_api: ice_servers.IceServers,
 ):
     """Test get refresh sleep time."""
-    assert ice_servers_api._get_refresh_sleep_time() == 3600
+    refresh_time = ice_servers_api._get_refresh_sleep_time()
+
+    assert refresh_time >= 2400
+    assert refresh_time <= 3600
 
 
 def test_get_refresh_sleep_time_expiration_less_than_one_hour(
