@@ -7,14 +7,14 @@ repos:
         types: [python]
         entry: python3 -m ruff check --fix
         require_serial: true
-        stages: [commit, push, manual]
+        stages: [pre-commit, pre-push, manual]
       - id: ruff-format
         name: Ruff Formatter
         language: system
         types: [python]
         entry: python3 -m ruff format
         require_serial: true
-        stages: [commit, push, manual]
+        stages: [pre-commit, pre-push, manual]
       - id: check-ast
         name: Check Python AST
         language: system
@@ -34,7 +34,7 @@ repos:
         language: system
         types: [text, executable]
         entry: check-executables-have-shebangs
-        stages: [commit, push, manual]
+        stages: [pre-commit, pre-push, manual]
       - id: check-json
         name: Check JSON files
         language: system
@@ -65,7 +65,7 @@ repos:
         language: system
         types: [text]
         entry: end-of-file-fixer
-        stages: [commit, push, manual]
+        stages: [pre-commit, pre-push, manual]
       - id: no-commit-to-branch
         name: Don't commit to master branch
         language: system
@@ -86,7 +86,7 @@ repos:
         language: system
         types: [text]
         entry: trailing-whitespace-fixer
-        stages: [commit, push, manual]
+        stages: [pre-commit, pre-push, manual]
       - id: mypy
         name: mypy
         entry: python3 -m mypy
