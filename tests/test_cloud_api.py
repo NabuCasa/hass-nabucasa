@@ -276,9 +276,9 @@ async def test_async_files_list(
 
     assert details == [
         {
-            "key": "test.txt",
-            "last_modified": "2021-01-01T00:00:00Z",
-            "size": 2,
+            "Key": "test.txt",
+            "LastModified": "2021-01-01T00:00:00Z",
+            "Size": 2,
         },
     ]
     assert "Fetched https://example.com/files/list (200)" in caplog.text
