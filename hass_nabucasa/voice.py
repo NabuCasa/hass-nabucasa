@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 import logging
 from typing import TYPE_CHECKING
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 
 from aiohttp.hdrs import ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT
 import attr
@@ -1323,9 +1323,9 @@ class Voice:
             await self._update_token()
 
         # SSML
-        xml_body = ElementTree.Element("speak", version="1.0")
+        xml_body = ET.Element("speak", version="1.0")
         xml_body.set("{http://www.w3.org/XML/1998/namespace}lang", language)
-        voice_el = ElementTree.SubElement(xml_body, "voice")
+        voice_el = ET.SubElement(xml_body, "voice")
         voice_el.set("{http://www.w3.org/XML/1998/namespace}lang", language)
         voice_el.set(
             "name",
@@ -1350,7 +1350,7 @@ class Voice:
                 "X-Microsoft-OutputFormat": output_header,
                 USER_AGENT: self.cloud.client.client_name,
             },
-            data=ElementTree.tostring(xml_body),
+            data=ET.tostring(xml_body),
         ) as resp:
             if resp.status == 429 and not force_token_renewal:
                 # By checking the force_token_renewal argument, we limit retries to 1.
