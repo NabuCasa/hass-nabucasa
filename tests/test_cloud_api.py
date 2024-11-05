@@ -258,7 +258,7 @@ async def test_async_files_list(
     """Test the async_files_list function."""
     aioclient_mock.get(
         "https://example.com/files/list",
-        json=[{"key": "test.txt", "last_modified": "2021-01-01T00:00:00Z", "size": 2}],
+        json=[{"Key": "test.txt", "LastModified": "2021-01-01T00:00:00Z", "Size": 2}],
     )
     auth_cloud_mock.id_token = "mock-id-token"
     auth_cloud_mock.servicehandlers_server = "example.com"
