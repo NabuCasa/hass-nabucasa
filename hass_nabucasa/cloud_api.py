@@ -46,10 +46,10 @@ class FilesHandlerUploadDetails(_FilesHandlerUrlResponse):
 class FilesHandlerListEntry(TypedDict):
     """List entry for files handlers."""
 
-    key: str
-    size: int
-    last_modified: str
-    tags: dict[str, Any]
+    Key: str
+    Size: int
+    LastModified: str
+    Metadata: dict[str, str]
 
 
 def _do_log_response(resp: ClientResponse, content: str = "") -> None:
