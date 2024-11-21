@@ -183,7 +183,7 @@ async def test_migrate_paypal_agreement(auth_cloud_mock, aioclient_mock):
     }
 
 
-async def test_async_files_download_detils(
+async def test_async_files_download_details(
     auth_cloud_mock: MagicMock,
     aioclient_mock: Generator[AiohttpClientMocker, Any, None],
     caplog: pytest.LogCaptureFixture,
@@ -313,7 +313,7 @@ async def test_async_files_list_error(
     assert "Fetched https://example.com/files/list (400) Boom!" in caplog.text
 
 
-async def test_async_files_upload_detils(
+async def test_async_files_upload_details(
     auth_cloud_mock: MagicMock,
     aioclient_mock: Generator[AiohttpClientMocker, Any, None],
     caplog: pytest.LogCaptureFixture,
@@ -393,3 +393,62 @@ async def test_async_files_upload_details_error(
     }
 
     assert "Fetched https://example.com/files/upload_details (400) Boom!" in caplog.text
+
+
+async def test_async_files_delete_file(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_delete_file function."""
+    aioclient_mock.delete(
+        "https://example.com/files/delete",
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    await cloud_api.async_files_delete_file(
+        cloud=auth_cloud_mock,
+        storage_type="test",
+        filename="test.txt",
+    )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "filename": "test.txt",
+        "storage_type": "test",
+    }
+
+    assert "Fetched https://example.com/files/delete (200)" in caplog.text
+
+
+async def test_async_files_delete_file_error(
+    auth_cloud_mock: MagicMock,
+    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the async_files_delete_file function with error."""
+    aioclient_mock.delete(
+        "https://example.com/files/delete",
+        status=400,
+        json={"message": "Boom!"},
+    )
+    auth_cloud_mock.id_token = "mock-id-token"
+    auth_cloud_mock.servicehandlers_server = "example.com"
+
+    with pytest.raises(ClientResponseError):
+        await cloud_api.async_files_delete_file(
+            cloud=auth_cloud_mock,
+            storage_type="test",
+            filename="test.txt",
+        )
+
+    assert len(aioclient_mock.mock_calls) == 1
+    # 2 is the body
+    assert aioclient_mock.mock_calls[0][2] == {
+        "filename": "test.txt",
+        "storage_type": "test",
+    }
+
+    assert "Fetched https://example.com/files/delete (400) Boom!" in caplog.text
