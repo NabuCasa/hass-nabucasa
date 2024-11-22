@@ -16,7 +16,7 @@ from typing import (
     cast,
 )
 
-from aiohttp import ClientResponse
+from aiohttp import ClientResponse, ContentTypeError
 from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
 
 _LOGGER = logging.getLogger(__name__)
@@ -309,7 +309,7 @@ async def async_files_delete_file(
     # Successful delete returns no content
     try:
         data: dict[str, Any] = await resp.json()
-    except JSONDecodeError:
+    except (ContentTypeError, JSONDecodeError):
         data = {}
 
     _do_log_response(
