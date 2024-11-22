@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Coroutine
 from functools import wraps
+from json import JSONDecodeError
 import logging
 from typing import (
     TYPE_CHECKING,
@@ -49,7 +50,7 @@ class FilesHandlerListEntry(TypedDict):
     Key: str
     Size: int
     LastModified: str
-    Metadata: dict[str, str]
+    Metadata: dict[str, Any]
 
 
 def _do_log_response(resp: ClientResponse, content: str = "") -> None:
@@ -260,7 +261,7 @@ async def async_files_upload_details(
     filename: str,
     base64md5hash: str,
     size: int,
-    metadata: dict[str, str] | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> FilesHandlerUploadDetails:
     """Get files upload details."""
     if TYPE_CHECKING:
@@ -284,6 +285,38 @@ async def async_files_upload_details(
     )
     resp.raise_for_status()
     return cast(FilesHandlerUploadDetails, data)
+
+
+@_check_token
+async def async_files_delete_file(
+    cloud: Cloud[_ClientT],
+    *,
+    storage_type: str,
+    filename: str,
+) -> None:
+    """Delete a file."""
+    if TYPE_CHECKING:
+        assert cloud.id_token is not None
+    resp = await cloud.websession.delete(
+        f"https://{cloud.servicehandlers_server}/files/delete",
+        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
+        json={
+            "storage_type": storage_type,
+            "filename": filename,
+        },
+    )
+
+    # Successful delete returns no content
+    try:
+        data: dict[str, Any] = await resp.json()
+    except JSONDecodeError:
+        data = {}
+
+    _do_log_response(
+        resp,
+        data["message"] if resp.status == 400 and "message" in data else "",
+    )
+    resp.raise_for_status()
 
 
 @_check_token
