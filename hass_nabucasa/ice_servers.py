@@ -36,6 +36,9 @@ class IceServers:
         if TYPE_CHECKING:
             assert self.cloud.id_token is not None
 
+        if self.cloud.subscription_expired:
+            return []
+
         async with self.cloud.websession.get(
             f"https://{self.cloud.servicehandlers_server}/webrtc/ice_servers",
             headers={
@@ -80,7 +83,16 @@ class IceServers:
                 if self._ice_servers_listener is not None:
                     await self._ice_servers_listener()
             except ClientResponseError as err:
-                _LOGGER.error("Can't refresh ICE servers: %s", err)
+                _LOGGER.error("Can't refresh ICE servers: %s", err.message)
+
+                # We should not keep the existing ICE servers with old timestamps
+                # as that will retrigger a refresh almost immediately.
+                if err.status in (401, 403):
+                    self._ice_servers = []
+
+                # we should update the listener as the ICE servers might have changed
+                if self._ice_servers_listener is not None:
+                    await self._ice_servers_listener()
             except asyncio.CancelledError:
                 # Task is canceled, stop it.
                 break
@@ -115,9 +127,6 @@ class IceServers:
             if self._ice_servers_listener_unregister is not None:
                 self._ice_servers_listener_unregister()
                 self._ice_servers_listener_unregister = None
-
-            if not self._ice_servers:
-                return
 
             self._ice_servers_listener_unregister = await register_ice_server_fn(
                 self._ice_servers,
