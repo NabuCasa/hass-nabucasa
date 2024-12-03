@@ -208,12 +208,9 @@ async def async_files_download_details(
     if TYPE_CHECKING:
         assert cloud.id_token is not None
     resp = await cloud.websession.get(
-        f"https://{cloud.servicehandlers_server}/files/download_details",
+        f"https://{cloud.servicehandlers_server}/files"
+        f"/download_details/{storage_type}/{filename}",
         headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
-        json={
-            "storage_type": storage_type,
-            "filename": filename,
-        },
     )
 
     data: dict[str, Any] = await resp.json()
@@ -235,11 +232,8 @@ async def async_files_list(
     if TYPE_CHECKING:
         assert cloud.id_token is not None
     resp = await cloud.websession.get(
-        f"https://{cloud.servicehandlers_server}/files/list",
+        f"https://{cloud.servicehandlers_server}/files/{storage_type}",
         headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
-        json={
-            "storage_type": storage_type,
-        },
     )
 
     data: dict[str, Any] | list[dict[str, Any]] = await resp.json()
