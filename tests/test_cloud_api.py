@@ -190,7 +190,7 @@ async def test_async_files_download_details(
 ):
     """Test the async_files_download_details function."""
     aioclient_mock.get(
-        "https://example.com/files/download_details",
+        "https://example.com/files/download_details/test/test.txt",
         json={
             "url": "https://example.com/some/path",
         },
@@ -205,16 +205,13 @@ async def test_async_files_download_details(
     )
 
     assert len(aioclient_mock.mock_calls) == 1
-    # 2 is the body
-    assert aioclient_mock.mock_calls[0][2] == {
-        "filename": "test.txt",
-        "storage_type": "test",
-    }
-
     assert details == {
         "url": "https://example.com/some/path",
     }
-    assert "Fetched https://example.com/files/download_details (200)" in caplog.text
+    assert (
+        "Fetched https://example.com/files/download_details/test/test.txt (200)"
+        in caplog.text
+    )
 
 
 async def test_async_files_download_details_error(
@@ -224,7 +221,7 @@ async def test_async_files_download_details_error(
 ):
     """Test the async_files_download_details function with error."""
     aioclient_mock.get(
-        "https://example.com/files/download_details",
+        "https://example.com/files/download_details/test/test.txt",
         status=400,
         json={"message": "Boom!"},
     )
@@ -239,14 +236,9 @@ async def test_async_files_download_details_error(
         )
 
     assert len(aioclient_mock.mock_calls) == 1
-    # 2 is the body
-    assert aioclient_mock.mock_calls[0][2] == {
-        "filename": "test.txt",
-        "storage_type": "test",
-    }
-
     assert (
-        "Fetched https://example.com/files/download_details (400) Boom!" in caplog.text
+        "Fetched https://example.com/files/download_details/test/test.txt (400) Boom!"
+        in caplog.text
     )
 
 
@@ -257,7 +249,7 @@ async def test_async_files_list(
 ):
     """Test the async_files_list function."""
     aioclient_mock.get(
-        "https://example.com/files/list",
+        "https://example.com/files/test",
         json=[{"Key": "test.txt", "LastModified": "2021-01-01T00:00:00Z", "Size": 2}],
     )
     auth_cloud_mock.id_token = "mock-id-token"
@@ -269,11 +261,6 @@ async def test_async_files_list(
     )
 
     assert len(aioclient_mock.mock_calls) == 1
-    # 2 is the body
-    assert aioclient_mock.mock_calls[0][2] == {
-        "storage_type": "test",
-    }
-
     assert details == [
         {
             "Key": "test.txt",
@@ -281,7 +268,7 @@ async def test_async_files_list(
             "Size": 2,
         },
     ]
-    assert "Fetched https://example.com/files/list (200)" in caplog.text
+    assert "Fetched https://example.com/files/test (200)" in caplog.text
 
 
 async def test_async_files_list_error(
@@ -291,7 +278,7 @@ async def test_async_files_list_error(
 ):
     """Test the async_files_list function with error listing files."""
     aioclient_mock.get(
-        "https://example.com/files/list",
+        "https://example.com/files/test",
         status=400,
         json={"message": "Boom!"},
     )
@@ -305,12 +292,8 @@ async def test_async_files_list_error(
         )
 
     assert len(aioclient_mock.mock_calls) == 1
-    # 2 is the body
-    assert aioclient_mock.mock_calls[0][2] == {
-        "storage_type": "test",
-    }
 
-    assert "Fetched https://example.com/files/list (400) Boom!" in caplog.text
+    assert "Fetched https://example.com/files/test (400) Boom!" in caplog.text
 
 
 async def test_async_files_upload_details(
@@ -402,7 +385,7 @@ async def test_async_files_delete_file(
 ):
     """Test the async_files_delete_file function."""
     aioclient_mock.delete(
-        "https://example.com/files/delete",
+        "https://example.com/files",
     )
     auth_cloud_mock.id_token = "mock-id-token"
     auth_cloud_mock.servicehandlers_server = "example.com"
@@ -420,7 +403,7 @@ async def test_async_files_delete_file(
         "storage_type": "test",
     }
 
-    assert "Fetched https://example.com/files/delete (200)" in caplog.text
+    assert "Fetched https://example.com/files (200)" in caplog.text
 
 
 async def test_async_files_delete_file_error(
@@ -430,7 +413,7 @@ async def test_async_files_delete_file_error(
 ):
     """Test the async_files_delete_file function with error."""
     aioclient_mock.delete(
-        "https://example.com/files/delete",
+        "https://example.com/files",
         status=400,
         json={"message": "Boom!"},
     )
@@ -451,4 +434,4 @@ async def test_async_files_delete_file_error(
         "storage_type": "test",
     }
 
-    assert "Fetched https://example.com/files/delete (400) Boom!" in caplog.text
+    assert "Fetched https://example.com/files (400) Boom!" in caplog.text
