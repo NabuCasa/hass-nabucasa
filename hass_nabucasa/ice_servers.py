@@ -80,8 +80,6 @@ class IceServers:
             try:
                 self._ice_servers = await self._async_fetch_ice_servers()
 
-                if self._ice_servers_listener is not None:
-                    await self._ice_servers_listener()
             except ClientResponseError as err:
                 _LOGGER.error("Can't refresh ICE servers: %s", err.message)
 
@@ -90,12 +88,13 @@ class IceServers:
                 if err.status in (401, 403):
                     self._ice_servers = []
 
-                # we should update the listener as the ICE servers might have changed
-                if self._ice_servers_listener is not None:
-                    await self._ice_servers_listener()
             except asyncio.CancelledError:
                 # Task is canceled, stop it.
                 break
+
+            finally:
+                if self._ice_servers_listener is not None:
+                    await self._ice_servers_listener()
 
             sleep_time = self._get_refresh_sleep_time()
             await asyncio.sleep(sleep_time)
