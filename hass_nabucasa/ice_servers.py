@@ -92,9 +92,8 @@ class IceServers:
                 # Task is canceled, stop it.
                 break
 
-            finally:
-                if self._ice_servers_listener is not None:
-                    await self._ice_servers_listener()
+            if self._ice_servers_listener is not None:
+                await self._ice_servers_listener()
 
             sleep_time = self._get_refresh_sleep_time()
             await asyncio.sleep(sleep_time)
