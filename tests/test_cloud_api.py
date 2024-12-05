@@ -72,7 +72,8 @@ async def test_remote_token(auth_cloud_mock, aioclient_mock):
         "valid": 12345,
         "throttling": 400,
     }
-    assert aioclient_mock.mock_calls[0][2] == {"aes_iv": "6976", "aes_key": "616573"}
+    assert aioclient_mock.mock_calls[0][2] == {
+        "aes_iv": "6976", "aes_key": "616573"}
 
 
 async def test_remote_challenge_txt(auth_cloud_mock, aioclient_mock):
@@ -385,7 +386,7 @@ async def test_async_files_delete_file(
 ):
     """Test the async_files_delete_file function."""
     aioclient_mock.delete(
-        "https://example.com/files/delete",
+        "https://example.com/files",
     )
     auth_cloud_mock.id_token = "mock-id-token"
     auth_cloud_mock.servicehandlers_server = "example.com"
@@ -403,7 +404,7 @@ async def test_async_files_delete_file(
         "storage_type": "test",
     }
 
-    assert "Fetched https://example.com/files/delete (200)" in caplog.text
+    assert "Fetched https://example.com/files (200)" in caplog.text
 
 
 async def test_async_files_delete_file_error(
@@ -413,7 +414,7 @@ async def test_async_files_delete_file_error(
 ):
     """Test the async_files_delete_file function with error."""
     aioclient_mock.delete(
-        "https://example.com/files/delete",
+        "https://example.com/files",
         status=400,
         json={"message": "Boom!"},
     )
@@ -434,4 +435,4 @@ async def test_async_files_delete_file_error(
         "storage_type": "test",
     }
 
-    assert "Fetched https://example.com/files/delete (400) Boom!" in caplog.text
+    assert "Fetched https://example.com/files (400) Boom!" in caplog.text

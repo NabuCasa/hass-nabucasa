@@ -103,7 +103,8 @@ async def async_create_cloudhook(cloud: Cloud[_ClientT]) -> ClientResponse:
         assert cloud.id_token is not None
     return await cloud.websession.post(
         f"https://{cloud.cloudhook_server}/generate",
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={AUTHORIZATION: cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
     )
 
 
@@ -116,7 +117,8 @@ async def async_remote_register(cloud: Cloud[_ClientT]) -> ClientResponse:
     url = f"https://{cloud.servicehandlers_server}/instance/register"
     return await cloud.websession.post(
         url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={AUTHORIZATION: cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
     )
 
 
@@ -133,7 +135,8 @@ async def async_remote_token(
     url = f"https://{cloud.servicehandlers_server}/instance/snitun_token"
     return await cloud.websession.post(
         url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={AUTHORIZATION: cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
         json={"aes_key": aes_key.hex(), "aes_iv": aes_iv.hex()},
     )
 
@@ -150,7 +153,8 @@ async def async_remote_challenge_txt(
     url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_txt"
     return await cloud.websession.post(
         url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={AUTHORIZATION: cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
         json={"txt": txt},
     )
 
@@ -167,7 +171,8 @@ async def async_remote_challenge_cleanup(
     url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_cleanup"
     return await cloud.websession.post(
         url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={AUTHORIZATION: cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
         json={"txt": txt},
     )
 
@@ -180,7 +185,8 @@ async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
         assert cloud.id_token is not None
     return await cloud.websession.post(
         f"https://{cloud.alexa_server}/access_token",
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={AUTHORIZATION: cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
     )
 
 
@@ -193,7 +199,8 @@ async def async_voice_connection_details(cloud: Cloud[_ClientT]) -> ClientRespon
     url = f"https://{cloud.servicehandlers_server}/voice/connection_details"
     return await cloud.websession.get(
         url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={AUTHORIZATION: cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
     )
 
 
@@ -210,7 +217,8 @@ async def async_files_download_details(
     resp = await cloud.websession.get(
         f"https://{cloud.servicehandlers_server}/files"
         f"/download_details/{storage_type}/{filename}",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={"authorization": cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
     )
 
     data: dict[str, Any] = await resp.json()
@@ -233,7 +241,8 @@ async def async_files_list(
         assert cloud.id_token is not None
     resp = await cloud.websession.get(
         f"https://{cloud.servicehandlers_server}/files/{storage_type}",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={"authorization": cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
     )
 
     data: dict[str, Any] | list[dict[str, Any]] = await resp.json()
@@ -262,7 +271,8 @@ async def async_files_upload_details(
         assert cloud.id_token is not None
     resp = await cloud.websession.get(
         f"https://{cloud.servicehandlers_server}/files/upload_details",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={"authorization": cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
         json={
             "storage_type": storage_type,
             "filename": filename,
@@ -292,8 +302,9 @@ async def async_files_delete_file(
     if TYPE_CHECKING:
         assert cloud.id_token is not None
     resp = await cloud.websession.delete(
-        f"https://{cloud.servicehandlers_server}/files/delete",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
+        f"https://{cloud.servicehandlers_server}/files",
+        headers={"authorization": cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
         json={
             "storage_type": storage_type,
             "filename": filename,
@@ -333,7 +344,8 @@ async def async_subscription_info(cloud: Cloud[_ClientT]) -> dict[str, Any]:
         assert cloud.id_token is not None
     resp = await cloud.websession.get(
         f"https://{cloud.accounts_server}/payments/subscription_info",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={"authorization": cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
     )
     _do_log_response(resp)
     resp.raise_for_status()
@@ -341,7 +353,8 @@ async def async_subscription_info(cloud: Cloud[_ClientT]) -> dict[str, Any]:
 
     # If subscription info indicates we are subscribed, force a refresh of the token
     if data.get("provider") and not cloud.started:
-        _LOGGER.debug("Found disconnected account with valid subscription, connecting")
+        _LOGGER.debug(
+            "Found disconnected account with valid subscription, connecting")
         await cloud.auth.async_renew_access_token()
 
     return data
@@ -354,7 +367,8 @@ async def async_migrate_paypal_agreement(cloud: Cloud[_ClientT]) -> dict[str, An
         assert cloud.id_token is not None
     resp = await cloud.websession.post(
         f"https://{cloud.accounts_server}/payments/migrate_paypal_agreement",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={"authorization": cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
     )
     _do_log_response(resp)
     resp.raise_for_status()
@@ -369,7 +383,8 @@ async def async_resolve_cname(cloud: Cloud[_ClientT], hostname: str) -> list[str
         assert cloud.id_token is not None
     resp = await cloud.websession.post(
         f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
+        headers={"authorization": cloud.id_token,
+                 USER_AGENT: cloud.client.client_name},
         json={"hostname": hostname},
     )
     _do_log_response(resp)
