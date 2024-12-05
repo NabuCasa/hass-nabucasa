@@ -72,8 +72,7 @@ async def test_remote_token(auth_cloud_mock, aioclient_mock):
         "valid": 12345,
         "throttling": 400,
     }
-    assert aioclient_mock.mock_calls[0][2] == {
-        "aes_iv": "6976", "aes_key": "616573"}
+    assert aioclient_mock.mock_calls[0][2] == {"aes_iv": "6976", "aes_key": "616573"}
 
 
 async def test_remote_challenge_txt(auth_cloud_mock, aioclient_mock):
