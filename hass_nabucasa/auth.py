@@ -13,7 +13,7 @@ import boto3
 import botocore
 from botocore.exceptions import BotoCoreError, ClientError
 import pycognito
-from pycognito.exceptions import ForceChangePasswordException
+from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
 from .const import MESSAGE_AUTH_FAIL
 
@@ -29,6 +29,14 @@ class CloudError(Exception):
 
 class Unauthenticated(CloudError):
     """Raised when authentication failed."""
+
+
+class MFARequired(CloudError):
+    """Raised when MFA is required."""
+
+
+class InvalidTotpCode(CloudError):
+    """Raised when the TOTP code is invalid."""
 
 
 class UserNotFound(CloudError):
@@ -58,6 +66,7 @@ class UnknownError(CloudError):
 
 
 AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
+    "CodeMismatchException": InvalidTotpCode,
     "UserNotFoundException": UserNotFound,
     "UserNotConfirmedException": UserNotConfirmed,
     "UsernameExistsException": UserExists,
@@ -163,20 +172,38 @@ class CognitoAuth:
         except BotoCoreError as err:
             raise UnknownError from err
 
-    async def async_login(self, email: str, password: str) -> None:
+    async def async_login(
+        self,
+        email: str,
+        password: str,
+        totp_code: str | None = None,
+    ) -> None:
         """Log user in and fetch certificate."""
         try:
             async with self._request_lock:
                 assert not self.cloud.is_logged_in, "Cannot login if already logged in."
 
-                cognito = await self.cloud.run_executor(
+                cognito: pycognito.Cognito = await self.cloud.run_executor(
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with async_timeout.timeout(30):
-                    await self.cloud.run_executor(
-                        partial(cognito.authenticate, password=password),
-                    )
+                try:
+                    async with async_timeout.timeout(30):
+                        await self.cloud.run_executor(
+                            partial(cognito.authenticate, password=password),
+                        )
+                except MFAChallengeException as err:
+                    if totp_code is None:
+                        raise
+
+                    async with async_timeout.timeout(30):
+                        await self.cloud.run_executor(
+                            partial(
+                                cognito.respond_to_software_token_mfa_challenge,
+                                code=totp_code,
+                                mfa_tokens=err.get_tokens(),
+                            ),
+                        )
 
                 task = await self.cloud.update_token(
                     cognito.id_token,
@@ -186,6 +213,9 @@ class CognitoAuth:
 
             if task:
                 await task
+
+        except MFAChallengeException as err:
+            raise MFARequired from err
 
         except ForceChangePasswordException as err:
             raise PasswordChangeRequired from err
