@@ -13,7 +13,7 @@ import boto3
 import botocore
 from botocore.exceptions import BotoCoreError, ClientError
 import pycognito
-from pycognito.exceptions import ForceChangePasswordException
+from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
 from .const import MESSAGE_AUTH_FAIL
 
@@ -29,6 +29,14 @@ class CloudError(Exception):
 
 class Unauthenticated(CloudError):
     """Raised when authentication failed."""
+
+
+class MFARequired(CloudError):
+    """Raised when MFA is required."""
+
+
+class InvalidTotpCode(CloudError):
+    """Raised when the TOTP code is invalid."""
 
 
 class UserNotFound(CloudError):
@@ -58,6 +66,7 @@ class UnknownError(CloudError):
 
 
 AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
+    "CodeMismatchException": InvalidTotpCode,
     "UserNotFoundException": UserNotFound,
     "UserNotConfirmedException": UserNotConfirmed,
     "UsernameExistsException": UserExists,
@@ -169,7 +178,7 @@ class CognitoAuth:
             async with self._request_lock:
                 assert not self.cloud.is_logged_in, "Cannot login if already logged in."
 
-                cognito = await self.cloud.run_executor(
+                cognito: pycognito.Cognito = await self.cloud.run_executor(
                     partial(self._create_cognito_client, username=email),
                 )
 
@@ -187,8 +196,50 @@ class CognitoAuth:
             if task:
                 await task
 
+        except MFAChallengeException as err:
+            raise MFARequired from err
+
         except ForceChangePasswordException as err:
             raise PasswordChangeRequired from err
+
+        except ClientError as err:
+            raise _map_aws_exception(err) from err
+
+        except BotoCoreError as err:
+            raise UnknownError from err
+
+    async def async_login_verify_totp(
+        self,
+        email: str,
+        code: str,
+        mfa_tokens: dict[str, Any],
+    ) -> None:
+        """Log user in and fetch certificate if MFA is required."""
+        try:
+            async with self._request_lock:
+                assert not self.cloud.is_logged_in, "Cannot login if already logged in."
+
+                cognito: pycognito.Cognito = await self.cloud.run_executor(
+                    partial(self._create_cognito_client, username=email),
+                )
+
+                async with async_timeout.timeout(30):
+                    await self.cloud.run_executor(
+                        partial(
+                            cognito.respond_to_software_token_mfa_challenge,
+                            code=code,
+                            mfa_tokens=mfa_tokens,
+                        ),
+                    )
+
+                task = await self.cloud.update_token(
+                    cognito.id_token,
+                    cognito.access_token,
+                    cognito.refresh_token,
+                )
+
+            if task:
+                await task
 
         except ClientError as err:
             raise _map_aws_exception(err) from err
