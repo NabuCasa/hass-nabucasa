@@ -220,14 +220,13 @@ class Cloud(Generic[_ClientT]):
         """
         return self.client.loop.run_in_executor(None, callback, *args)
 
-    async def login(
-        self,
-        email: str,
-        password: str,
-        totp_code: str | None = None,
-    ) -> None:
+    async def login(self, email: str, password: str) -> None:
         """Log a user in."""
-        await self.auth.async_login(email, password, totp_code)
+        await self.auth.async_login(email, password)
+
+    async def login_verify_totp(self, code: str) -> None:
+        """Verify TOTP code during login."""
+        await self.auth.async_login_verify_totp(code)
 
     async def logout(self) -> None:
         """Close connection and remove all credentials."""

@@ -6,6 +6,8 @@ CONFIG_DIR = ".cloud"
 
 REQUEST_TIMEOUT = 10
 
+LOGIN_MFA_CHALLENGE_EXPIRATION = 60
+
 MODE_PROD = "production"
 MODE_DEV = "development"
 
