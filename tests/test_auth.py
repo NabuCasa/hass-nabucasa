@@ -67,21 +67,29 @@ async def test_login_user_mfa_required(mock_cognito, mock_cloud):
     assert len(mock_cloud.update_token.mock_calls) == 0
 
 
-async def test_login_user_mfa_required_and_code_provided(mock_cognito, mock_cloud):
+async def test_login_user_verify_totp_invalid_code(mock_cognito, mock_cloud):
+    """Test trying to login with MFA when it is required."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    mock_cognito.respond_to_software_token_mfa_challenge.side_effect = aws_error(
+        "CodeMismatchException",
+    )
+
+    with pytest.raises(auth_api.InvalidTotpCode):
+        await auth.async_login_verify_totp("user", "123456", {"session": "session"})
+
+    assert len(mock_cloud.update_token.mock_calls) == 0
+
+
+async def test_login_user_verify_totp(mock_cognito, mock_cloud):
     """Test trying to login with MFA when it is required."""
     auth = auth_api.CognitoAuth(mock_cloud)
     mock_cognito.id_token = "test_id_token"
     mock_cognito.access_token = "test_access_token"
     mock_cognito.refresh_token = "test_refresh_token"
 
-    mock_cognito.authenticate.side_effect = MFAChallengeException(
-        "MFA required",
-        {"session": "session"},
-    )
+    await auth.async_login_verify_totp("user", "123456", {"session": "session"})
 
-    await auth.async_login("user", "pass", "123456")
-
-    assert len(mock_cognito.authenticate.mock_calls) == 1
+    assert len(mock_cognito.respond_to_software_token_mfa_challenge.mock_calls) == 1
     mock_cloud.update_token.assert_called_once_with(
         "test_id_token",
         "test_access_token",
