@@ -34,6 +34,13 @@ class Unauthenticated(CloudError):
 class MFARequired(CloudError):
     """Raised when MFA is required."""
 
+    session_tokens: dict[str, str]
+
+    def __init__(self, session_tokens: dict[str, str]) -> None:
+        """Initialize MFA required error."""
+        super().__init__("MFA required.")
+        self.session_tokens = session_tokens
+
 
 class InvalidTotpCode(CloudError):
     """Raised when the TOTP code is invalid."""
@@ -197,7 +204,7 @@ class CognitoAuth:
                 await task
 
         except MFAChallengeException as err:
-            raise MFARequired from err
+            raise MFARequired(err.get_tokens()) from err
 
         except ForceChangePasswordException as err:
             raise PasswordChangeRequired from err
