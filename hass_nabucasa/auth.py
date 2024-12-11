@@ -229,7 +229,9 @@ class CognitoAuth:
         """Log user in and fetch certificate if MFA is required."""
         try:
             async with self._request_lock:
-                assert not self.cloud.is_logged_in, "Cannot login if already logged in."
+                assert (
+                    not self.cloud.is_logged_in
+                ), "Cannot verify TOTP if already logged in."
 
                 cognito: pycognito.Cognito = await self.cloud.run_executor(
                     partial(self._create_cognito_client, username=email),
