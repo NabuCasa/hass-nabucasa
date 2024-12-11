@@ -34,12 +34,17 @@ class Unauthenticated(CloudError):
 class MFARequired(CloudError):
     """Raised when MFA is required."""
 
-    session_tokens: dict[str, str]
+    _mfa_tokens: dict[str, Any]
 
-    def __init__(self, session_tokens: dict[str, str]) -> None:
+    def __init__(self, mfa_tokens: dict[str, Any]) -> None:
         """Initialize MFA required error."""
         super().__init__("MFA required.")
-        self.session_tokens = session_tokens
+        self._mfa_tokens = mfa_tokens
+
+    @property
+    def mfa_tokens(self) -> dict[str, Any]:
+        """Return MFA tokens."""
+        return self._mfa_tokens
 
 
 class InvalidTotpCode(CloudError):
