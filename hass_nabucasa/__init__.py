@@ -224,6 +224,15 @@ class Cloud(Generic[_ClientT]):
         """Log a user in."""
         await self.auth.async_login(email, password)
 
+    async def login_verify_totp(
+        self,
+        email: str,
+        code: str,
+        mfa_tokens: dict[str, Any],
+    ) -> None:
+        """Verify TOTP code during login."""
+        await self.auth.async_login_verify_totp(email, code, mfa_tokens)
+
     async def logout(self) -> None:
         """Close connection and remove all credentials."""
         self.id_token = None
