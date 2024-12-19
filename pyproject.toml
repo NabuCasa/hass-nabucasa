@@ -34,9 +34,9 @@ description = "Home Assistant cloud integration by Nabu Casa, Inc."
 license = {text = "GPL v3"}
 name = "hass-nabucasa"
 readme = "README.md"
+repository = "https://github.com/NabuCasa/hass-nabucasa"
 requires-python = ">=3.11"
 version = "0.81.1"
-repository = "https://github.com/NabuCasa/hass-nabucasa"
 
 [project.optional-dependencies]
 test = [
