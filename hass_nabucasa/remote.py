@@ -291,7 +291,7 @@ class RemoteUI:
             _LOGGER.debug("Waiting for aiohttp runner to come available")
 
             # aiohttp_runner comes available when Home Assistant has started.
-            while self.cloud.client.aiohttp_runner is None:
+            while self.cloud.client.aiohttp_runner is None:  # noqa: ASYNC110
                 await asyncio.sleep(1)
 
         try:

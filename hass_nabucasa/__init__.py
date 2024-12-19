@@ -26,6 +26,7 @@ from .const import (
     STATE_CONNECTED,
 )
 from .google_report_state import GoogleReportState
+from .ice_servers import IceServers
 from .iot import CloudIoT
 from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
@@ -75,6 +76,7 @@ class Cloud(Generic[_ClientT]):
         self.remote = RemoteUI(self)
         self.auth = CognitoAuth(self)
         self.voice = Voice(self)
+        self.ice_servers = IceServers(self)
 
         self._init_task: asyncio.Task | None = None
 
@@ -221,6 +223,15 @@ class Cloud(Generic[_ClientT]):
     async def login(self, email: str, password: str) -> None:
         """Log a user in."""
         await self.auth.async_login(email, password)
+
+    async def login_verify_totp(
+        self,
+        email: str,
+        code: str,
+        mfa_tokens: dict[str, Any],
+    ) -> None:
+        """Verify TOTP code during login."""
+        await self.auth.async_login_verify_totp(email, code, mfa_tokens)
 
     async def logout(self) -> None:
         """Close connection and remove all credentials."""
