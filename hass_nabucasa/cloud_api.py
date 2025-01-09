@@ -179,7 +179,7 @@ async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
     if TYPE_CHECKING:
         assert cloud.id_token is not None
     return await cloud.websession.post(
-        f"https://{cloud.alexa_server}/access_token",
+        f"https://{cloud.servicehandlers_server}/alexa/access_token",
         headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
     )
 

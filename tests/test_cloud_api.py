@@ -99,9 +99,9 @@ async def test_remote_challenge_cleanup(auth_cloud_mock, aioclient_mock):
 
 async def test_get_access_token(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
-    aioclient_mock.post("https://example.com/access_token")
+    aioclient_mock.post("https://example.com/alexa/access_token")
     auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.alexa_server = "example.com"
+    auth_cloud_mock.servicehandlers_server = "example.com"
 
     await cloud_api.async_alexa_access_token(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
