@@ -32,7 +32,6 @@ def test_constructor_loads_info_from_constant(cloud_client):
                     "relayer": "test-relayer",
                     "accounts": "test-subscription-info-url",
                     "cloudhook": "test-cloudhook_server",
-                    "alexa": "test-alexa-token-url",
                     "acme": "test-acme-directory-server",
                     "remotestate": "test-google-actions-report-state-url",
                     "account_link": "test-account-link-url",
@@ -51,7 +50,6 @@ def test_constructor_loads_info_from_constant(cloud_client):
     assert cl.relayer_server == "test-relayer"
     assert cl.accounts_server == "test-subscription-info-url"
     assert cl.cloudhook_server == "test-cloudhook_server"
-    assert cl.alexa_server == "test-alexa-token-url"
     assert cl.acme_server == "test-acme-directory-server"
     assert cl.remotestate_server == "test-google-actions-report-state-url"
     assert cl.account_link_server == "test-account-link-url"

@@ -52,7 +52,6 @@ class Cloud(Generic[_ClientT]):
         account_link_server: str | None = None,
         accounts_server: str | None = None,
         acme_server: str | None = None,
-        alexa_server: str | None = None,
         cloudhook_server: str | None = None,
         relayer_server: str | None = None,
         remotestate_server: str | None = None,
@@ -91,7 +90,6 @@ class Cloud(Generic[_ClientT]):
             self.account_link_server = account_link_server
             self.accounts_server = accounts_server
             self.acme_server = acme_server
-            self.alexa_server = alexa_server
             self.cloudhook_server = cloudhook_server
             self.relayer_server = relayer_server
             self.remotestate_server = remotestate_server
@@ -110,7 +108,6 @@ class Cloud(Generic[_ClientT]):
         self.account_link_server = _servers["account_link"]
         self.accounts_server = _servers["accounts"]
         self.acme_server = _servers["acme"]
-        self.alexa_server = _servers["alexa"]
         self.cloudhook_server = _servers["cloudhook"]
         self.relayer_server = _servers["relayer"]
         self.remotestate_server = _servers["remotestate"]
