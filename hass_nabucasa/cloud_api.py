@@ -173,15 +173,21 @@ async def async_remote_challenge_cleanup(
 
 
 @_check_token
-@_log_response
 async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Request Alexa access token."""
     if TYPE_CHECKING:
         assert cloud.id_token is not None
-    return await cloud.websession.post(
+    resp = await cloud.websession.post(
         f"https://{cloud.servicehandlers_server}/alexa/access_token",
         headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
     )
+    _LOGGER.log(
+        logging.DEBUG if resp.status < 400 else logging.INFO,
+        "Fetched %s (%s)",
+        resp.url,
+        resp.status,
+    )
+    return resp
 
 
 @_check_token
