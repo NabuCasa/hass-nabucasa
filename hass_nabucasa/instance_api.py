@@ -11,9 +11,6 @@ from aiohttp import (
 
 from .api import ApiBase, CloudApiError
 
-if TYPE_CHECKING:
-    from . import Cloud, _ClientT
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -30,15 +27,12 @@ class InstanceConnection(TypedDict):
 class InstanceApi(ApiBase):
     """Class to help communicate with the instance API."""
 
-    def __init__(
-        self,
-        cloud: Cloud[_ClientT],
-    ) -> None:
-        """Initialize instance API."""
+    @property
+    def hostname(self) -> str:
+        """Get the hostname."""
         if TYPE_CHECKING:
-            assert cloud.servicehandlers_server is not None
-        super().__init__(cloud, hostname=cloud.servicehandlers_server)
-        self._cloud = cloud
+            assert self._cloud.servicehandlers_server is not None
+        return self._cloud.servicehandlers_server
 
     async def connection(self) -> InstanceConnection:
         """Get the connection details."""

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 import contextlib
 from json import JSONDecodeError
 import logging
@@ -27,18 +28,17 @@ class CloudApiError(CloudError):
     """Exception raised when handling cloud API."""
 
 
-class ApiBase:
+class ApiBase(ABC):
     """Class to help communicate with the cloud API."""
 
-    def __init__(
-        self,
-        cloud: Cloud[_ClientT],
-        *,
-        hostname: str,
-    ) -> None:
+    def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Initialize the API base."""
         self._cloud = cloud
-        self._hostname = hostname
+
+    @property
+    @abstractmethod
+    def hostname(self) -> str:
+        """Get the hostname."""
 
     def _do_log_response(
         self,
@@ -47,7 +47,7 @@ class ApiBase:
     ) -> None:
         """Log the response."""
         isok = resp.status < 400
-        target = resp.url.path if resp.url.host == self._hostname else ""
+        target = resp.url.path if resp.url.host == self.hostname else ""
         _LOGGER.debug(
             "Response from %s%s (%s) %s",
             resp.url.host,
@@ -76,7 +76,7 @@ class ApiBase:
         try:
             resp = await self._cloud.websession.request(
                 method=method,
-                url=f"https://{self._hostname}{path}",
+                url=f"https://{self.hostname}{path}",
                 timeout=client_timeout or ClientTimeout(total=10),
                 headers={
                     hdrs.ACCEPT: "application/json",
