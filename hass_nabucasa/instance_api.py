@@ -44,6 +44,6 @@ class InstanceApi(ApiBase):
                     hdrs.AUTHORIZATION: self._cloud.access_token,
                 },
             )
-        except InstanceApiError as err:
+        except CloudApiError as err:
             raise InstanceApiError(f"Failed to get connection {err}") from err
         return details
