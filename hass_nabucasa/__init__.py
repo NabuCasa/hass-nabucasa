@@ -25,6 +25,7 @@ from .const import (
     MODE_DEV,
     STATE_CONNECTED,
 )
+from .files import Files
 from .google_report_state import GoogleReportState
 from .ice_servers import IceServers
 from .iot import CloudIoT
@@ -74,6 +75,7 @@ class Cloud(Generic[_ClientT]):
         self.cloudhooks = Cloudhooks(self)
         self.remote = RemoteUI(self)
         self.auth = CognitoAuth(self)
+        self.files = Files(self)
         self.voice = Voice(self)
         self.ice_servers = IceServers(self)
 

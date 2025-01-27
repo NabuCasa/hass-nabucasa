@@ -8,7 +8,7 @@ from typing import Self
 from unittest import mock
 from urllib.parse import parse_qs
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, RequestInfo
 from aiohttp.client_exceptions import ClientResponseError
 from aiohttp.streams import StreamReader
 import pytest
@@ -20,7 +20,7 @@ retype = type(re.compile(""))
 def mock_stream(data):
     """Mock a stream with data."""
     protocol = mock.Mock(_reading_paused=False)
-    stream = StreamReader(protocol)
+    stream = StreamReader(protocol, 1024)
     stream.feed_data(data)
     stream.feed_eof()
     return stream
@@ -247,7 +247,7 @@ class AiohttpClientMockResponse:
         """Raise error if status is 400 or higher."""
         if self.status >= 400:
             raise ClientResponseError(
-                None,
+                RequestInfo(self.url, self.method, headers=self.headers),
                 None,
                 status=self.status,
                 headers=self.headers,
