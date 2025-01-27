@@ -34,7 +34,7 @@ class InstanceConnection(TypedDict):
 
 
 class InstanceApi:
-    """Class to help comunicate with the instance API."""
+    """Class to help communicate with the instance API."""
 
     def __init__(
         self,
@@ -97,7 +97,7 @@ class InstanceApi:
 
         if data is None:
             raise InstanceApiError(
-                "Failed to parse response from instance API"
+                "Failed to parse response from instance API",
             ) from None
 
         resp.raise_for_status()
@@ -120,10 +120,11 @@ class InstanceApi:
             ) from err
         except ClientResponseError as err:
             raise InstanceApiError(
-                f"Failed to fetch connections: ({err.status}) {err.message}"
+                f"Failed to fetch connections: ({err.status}) {err.message}",
             ) from err
         except ClientError as err:
-            raise InstanceApiError(f"Failed to fetch connections: {err}") from err
+            raise InstanceApiError(
+                f"Failed to fetch connections: {err}") from err
         except Exception as err:
             raise InstanceApiError(
                 f"Unexpected error while getting connections: {err}",
