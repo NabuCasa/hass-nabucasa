@@ -17,12 +17,26 @@ from .api import ApiBase, CloudApiError
 _LOGGER = logging.getLogger(__name__)
 
 _FILE_TRANSFER_TIMEOUT = 43200.0  # 43200s == 12h
+_NON_RETRYABLE_ERROR_CODES = {
+    "NC-CE-02",
+    "NC-CE-03",
+    "NC-SH-FH-03",
+}
 
 type StorageType = Literal["backup"]
 
 
 class FilesError(CloudApiError):
     """Exception raised when handling files."""
+
+
+class FilesNonRetryableError(FilesError):
+    """Exception raised when handling files that should not be retried."""
+
+    def __init__(self, message: str, code: str) -> None:
+        """Initialize."""
+        super().__init__(message)
+        self.code = code
 
 
 class _FilesHandlerUrlResponse(TypedDict):
@@ -82,13 +96,15 @@ class Files(ApiBase):
                 details["url"],
                 data=await open_stream(),
                 headers=details["headers"] | {"content-length": str(size)},
-                timeout=ClientTimeout(connect=10.0, total=_FILE_TRANSFER_TIMEOUT),
+                timeout=ClientTimeout(
+                    connect=10.0, total=_FILE_TRANSFER_TIMEOUT),
             )
             self._do_log_response(response)
 
             response.raise_for_status()
         except TimeoutError as err:
-            raise FilesError("Timeout reached while trying to upload file") from err
+            raise FilesError(
+                "Timeout reached while trying to upload file") from err
         except ClientError as err:
             raise FilesError("Failed to upload file") from err
         except Exception as err:
@@ -111,17 +127,22 @@ class Files(ApiBase):
         try:
             response = await self._cloud.websession.get(
                 details["url"],
-                timeout=ClientTimeout(connect=10.0, total=_FILE_TRANSFER_TIMEOUT),
+                timeout=ClientTimeout(
+                    connect=10.0, total=_FILE_TRANSFER_TIMEOUT),
             )
 
             self._do_log_response(response)
 
             response.raise_for_status()
+        except FilesError:
+            raise
         except TimeoutError as err:
-            raise FilesError("Timeout reached while trying to download file") from err
+            raise FilesError(
+                "Timeout reached while trying to download file") from err
         except ClientError as err:
             raise FilesError("Failed to download file") from err
         except Exception as err:
-            raise FilesError("Unexpected error while downloading file") from err
+            raise FilesError(
+                "Unexpected error while downloading file") from err
 
         return response.content
