@@ -77,7 +77,7 @@ class ApiBase(ABC):
         *,
         path: str,
         method: str = "GET",
-        client_timeout: ClientTimeout = None,
+        client_timeout: ClientTimeout | None = None,
         jsondata: dict[str, Any] | None = None,
         headers: dict[str, Any] | None = None,
     ) -> Any:
