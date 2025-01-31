@@ -12,31 +12,17 @@ from aiohttp import (
     StreamReader,
 )
 
-from .api import ApiBase, CloudApiError
+from .api import ApiBase, CloudApiError, CloudApiRetryableError
 
 _LOGGER = logging.getLogger(__name__)
 
 _FILE_TRANSFER_TIMEOUT = 43200.0  # 43200s == 12h
-_NON_RETRYABLE_ERROR_CODES = {
-    "NC-CE-02",
-    "NC-CE-03",
-    "NC-SH-FH-03",
-}
 
 type StorageType = Literal["backup"]
 
 
 class FilesError(CloudApiError):
     """Exception raised when handling files."""
-
-
-class FilesNonRetryableError(FilesError):
-    """Exception raised when handling files that should not be retried."""
-
-    def __init__(self, message: str, code: str) -> None:
-        """Initialize."""
-        super().__init__(message)
-        self.code = code
 
 
 class _FilesHandlerUrlResponse(TypedDict):
@@ -65,6 +51,11 @@ class Files(ApiBase):
             assert self._cloud.servicehandlers_server is not None
         return self._cloud.servicehandlers_server
 
+    @property
+    def non_retryable_error_codes(self) -> set[str]:
+        """Get the non-retryable error codes."""
+        return {"NC-SH-FH-03"}
+
     async def upload(
         self,
         *,
@@ -88,6 +79,8 @@ class Files(ApiBase):
                     "metadata": metadata,
                 },
             )
+        except CloudApiRetryableError:
+            raise
         except CloudApiError as err:
             raise FilesError(err) from err
 
@@ -121,6 +114,8 @@ class Files(ApiBase):
             details: FilesHandlerDownloadDetails = await self._call_cloud_api(
                 path=f"/files/download_details/{storage_type}/{filename}",
             )
+        except CloudApiRetryableError:
+            raise
         except CloudApiError as err:
             raise FilesError(err) from err
 

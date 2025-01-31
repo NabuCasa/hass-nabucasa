@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 import contextlib
 from json import JSONDecodeError
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, final
 
 from aiohttp import (
     ClientError,
@@ -28,6 +28,15 @@ class CloudApiError(CloudError):
     """Exception raised when handling cloud API."""
 
 
+class CloudApiRetryableError(CloudApiError):
+    """Exception raised when handling cloud API that should be retried."""
+
+    def __init__(self, message: str, code: str) -> None:
+        """Initialize."""
+        super().__init__(message)
+        self.code = code
+
+
 class ApiBase(ABC):
     """Class to help communicate with the cloud API."""
 
@@ -39,6 +48,17 @@ class ApiBase(ABC):
     @abstractmethod
     def hostname(self) -> str:
         """Get the hostname."""
+
+    @property
+    def non_retryable_error_codes(self) -> set[str]:
+        """Get the non-retryable error codes."""
+        return set()
+
+    @property
+    @final
+    def _non_retryable_error_codes(self) -> set[str]:
+        """Get the non-retryable error codes."""
+        return {"NC-CE-02", "NC-CE-03"}.union(self.non_retryable_error_codes)
 
     def _do_log_response(
         self,
@@ -111,6 +131,15 @@ class ApiBase(ABC):
 
         if data is None:
             raise CloudApiError("Failed to parse API response") from None
+
+        if (
+            resp.status == 400
+            and isinstance(data, dict)
+            and (message := data.get("message"))
+            and (code := message.split(" ")[0])
+            and code in self._non_retryable_error_codes
+        ):
+            raise CloudApiRetryableError(message, code) from None
 
         try:
             resp.raise_for_status()

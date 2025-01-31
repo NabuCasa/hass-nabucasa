@@ -7,7 +7,8 @@ from aiohttp import ClientError
 import pytest
 
 from hass_nabucasa import Cloud
-from hass_nabucasa.files import Files, FilesError, FilesNonRetryableError
+from hass_nabucasa.api import CloudApiRetryableError
+from hass_nabucasa.files import Files, FilesError
 from tests.utils.aiohttp import AiohttpClientMocker
 
 API_HOSTNAME = "example.com"
@@ -99,6 +100,11 @@ async def test_upload_exceptions_while_uploading(
     [
         [
             FilesError,
+            {"status": 400, "json": {"message": "NC-CE-01"}},
+            "Response from example.com/files/upload_details (400) NC-CE-01",
+        ],
+        [
+            CloudApiRetryableError,
             {"status": 400, "json": {"message": "NC-CE-03"}},
             "Response from example.com/files/upload_details (400) NC-CE-03",
         ],
@@ -272,22 +278,22 @@ async def test_upload_exceptions_while_downloading(
     "exception,getmockargs,log_msg",
     [
         [
-            FilesNonRetryableError,
+            CloudApiRetryableError,
             {"status": 400, "json": {"message": "NC-SH-FH-03 (abc-123)"}},
             "Response from example.com/files/download_details/test/lorem.ipsum "
             "(400) NC-SH-FH-03 (abc-123)",
         ],
         [
-            FilesNonRetryableError,
+            CloudApiRetryableError,
             {"status": 400, "json": {"message": "NC-CE-03"}},
             "Response from example.com/files/download_details/test/lorem.ipsum "
             "(400) NC-CE-03",
         ],
         [
             FilesError,
-            {"status": 400, "json": {"message": "NC-CE-03"}},
+            {"status": 400, "json": {"message": "NC-CE-01"}},
             "Response from example.com/files/download_details/test/lorem.ipsum "
-            "(400) NC-CE-03",
+            "(400) NC-CE-01",
         ],
         [
             FilesError,
