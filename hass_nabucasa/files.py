@@ -24,12 +24,26 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 _FILE_TRANSFER_TIMEOUT = 43200.0  # 43200s == 12h
+_NON_RETRYABLE_ERROR_CODES = {
+    "NC-CE-02",
+    "NC-CE-03",
+    "NC-SH-FH-03",
+}
 
 type StorageType = Literal["backup"]
 
 
 class FilesError(CloudError):
     """Exception raised when handling files."""
+
+
+class FilesNonRetryableError(FilesError):
+    """Exception raised when handling files that should not be retried."""
+
+    def __init__(self, message: str, code: str) -> None:
+        """Initialize."""
+        super().__init__(message)
+        self.code = code
 
 
 class _FilesHandlerUrlResponse(TypedDict):
@@ -113,6 +127,15 @@ class Files:
         if data is None:
             raise FilesError("Failed to parse response from files handler") from None
 
+        if (
+            resp.status == 400
+            and isinstance(data, dict)
+            and (message := data.get("message"))
+            and (code := message.split(" ")[0])
+            and code in _NON_RETRYABLE_ERROR_CODES
+        ):
+            raise FilesNonRetryableError(message, code) from None
+
         resp.raise_for_status()
         return data
 
@@ -140,6 +163,8 @@ class Files:
                     "metadata": metadata,
                 },
             )
+        except FilesError:
+            raise
         except TimeoutError as err:
             raise FilesError(
                 "Timeout reached while trying to fetch upload details",
@@ -180,6 +205,8 @@ class Files:
                 method="GET",
                 path=f"/download_details/{storage_type}/{filename}",
             )
+        except FilesError:
+            raise
         except TimeoutError as err:
             raise FilesError(
                 "Timeout reached while trying to fetch download details",
@@ -200,6 +227,8 @@ class Files:
             self._do_log_response(response)
 
             response.raise_for_status()
+        except FilesError:
+            raise
         except TimeoutError as err:
             raise FilesError("Timeout reached while trying to download file") from err
         except ClientError as err:
