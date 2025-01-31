@@ -129,10 +129,12 @@ class Files:
 
         if (
             resp.status == 400
-            and "message" in data
-            and (code := data["message"].split(" ")[0]) in _NON_RETRYABLE_ERROR_CODES
+            and isinstance(data, dict)
+            and (message := data.get("message"))
+            and (code := message.split(" ")[0])
+            and code in _NON_RETRYABLE_ERROR_CODES
         ):
-            raise FilesNonRetryableError(data["message"], code) from None
+            raise FilesNonRetryableError(message, code) from None
 
         resp.raise_for_status()
         return data
