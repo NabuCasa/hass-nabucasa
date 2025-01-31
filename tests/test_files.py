@@ -31,9 +31,9 @@ def set_hostname(auth_cloud_mock: Cloud):
 @pytest.mark.parametrize(
     "exception,msg",
     [
-        [TimeoutError, "Timeout reached while trying to fetch upload details"],
-        [ClientError, "Failed to fetch upload details"],
-        [Exception, "Unexpected error while fetching upload details"],
+        [TimeoutError, "Timeout reached while calling API"],
+        [ClientError, "Failed to fetch"],
+        [Exception, "Unexpected error while calling API"],
     ],
 )
 async def test_upload_exceptions_while_getting_details(
@@ -213,9 +213,9 @@ async def test_upload(
 @pytest.mark.parametrize(
     "exception,msg",
     [
-        [TimeoutError, "Timeout reached while trying to fetch download details"],
-        [ClientError, "Failed to fetch download details"],
-        [Exception, "Unexpected error while fetching download details"],
+        [TimeoutError, "Timeout reached while calling API"],
+        [ClientError, "Failed to fetch"],
+        [Exception, "Unexpected error while calling API"],
     ],
 )
 async def test_download_exceptions_while_getting_details(
