@@ -82,22 +82,20 @@ class Files(ApiBase):
         except CloudApiNonRetryableError:
             raise
         except CloudApiError as err:
-            raise FilesError(err) from err
+            raise FilesError(err, orig_exc=err) from err
 
         try:
             response = await self._cloud.websession.put(
                 details["url"],
                 data=await open_stream(),
                 headers=details["headers"] | {"content-length": str(size)},
-                timeout=ClientTimeout(
-                    connect=10.0, total=_FILE_TRANSFER_TIMEOUT),
+                timeout=ClientTimeout(connect=10.0, total=_FILE_TRANSFER_TIMEOUT),
             )
             self._do_log_response(response)
 
             response.raise_for_status()
         except TimeoutError as err:
-            raise FilesError(
-                "Timeout reached while trying to upload file") from err
+            raise FilesError("Timeout reached while trying to upload file") from err
         except ClientError as err:
             raise FilesError("Failed to upload file") from err
         except Exception as err:
@@ -117,13 +115,12 @@ class Files(ApiBase):
         except CloudApiNonRetryableError:
             raise
         except CloudApiError as err:
-            raise FilesError(err) from err
+            raise FilesError(err, orig_exc=err) from err
 
         try:
             response = await self._cloud.websession.get(
                 details["url"],
-                timeout=ClientTimeout(
-                    connect=10.0, total=_FILE_TRANSFER_TIMEOUT),
+                timeout=ClientTimeout(connect=10.0, total=_FILE_TRANSFER_TIMEOUT),
             )
 
             self._do_log_response(response)
@@ -132,12 +129,10 @@ class Files(ApiBase):
         except FilesError:
             raise
         except TimeoutError as err:
-            raise FilesError(
-                "Timeout reached while trying to download file") from err
+            raise FilesError("Timeout reached while trying to download file") from err
         except ClientError as err:
             raise FilesError("Failed to download file") from err
         except Exception as err:
-            raise FilesError(
-                "Unexpected error while downloading file") from err
+            raise FilesError("Unexpected error while downloading file") from err
 
         return response.content

@@ -27,18 +27,23 @@ _LOGGER = logging.getLogger(__name__)
 class CloudApiError(CloudError):
     """Exception raised when handling cloud API."""
 
-    def __init__(self, message: str, *, orig_exc: Exception | None = None) -> None:
+    def __init__(
+        self,
+        context: str | Exception,
+        *,
+        orig_exc: Exception | None = None,
+    ) -> None:
         """Initialize."""
-        super().__init__(message)
+        super().__init__(context)
         self.orig_exc = orig_exc
 
 
-class CloudApiCodedError(CloudError):
+class CloudApiCodedError(CloudApiError):
     """Exception raised when handling cloud API."""
 
-    def __init__(self, message: str, *, code: str) -> None:
+    def __init__(self, context: str | Exception, *, code: str) -> None:
         """Initialize."""
-        super().__init__(message)
+        super().__init__(context)
         self.code = code
 
 
@@ -127,17 +132,20 @@ class ApiBase(ABC):
 
         except TimeoutError as err:
             raise CloudApiTimeoutError(
-                "Timeout reached while calling API", orig_exc=err) from err
+                "Timeout reached while calling API",
+                orig_exc=err,
+            ) from err
         except ClientResponseError as err:
             raise CloudApiClientError(
-                f"Failed to fetch: ({err.status}) {err.message}", orig_exc=err,
+                f"Failed to fetch: ({err.status}) {err.message}",
+                orig_exc=err,
             ) from err
         except ClientError as err:
-            raise CloudApiClientError(
-                f"Failed to fetch: {err}", orig_exc=err) from err
+            raise CloudApiClientError(f"Failed to fetch: {err}", orig_exc=err) from err
         except Exception as err:
             raise CloudApiError(
-                f"Unexpected error while calling API: {err}", orig_exc=err,
+                f"Unexpected error while calling API: {err}",
+                orig_exc=err,
             ) from err
 
         if resp.status < 500:
@@ -162,6 +170,7 @@ class ApiBase(ABC):
             resp.raise_for_status()
         except ClientResponseError as err:
             raise CloudApiError(
-                f"Failed to fetch: ({err.status}) {err.message}", orig_exc=err,
+                f"Failed to fetch: ({err.status}) {err.message}",
+                orig_exc=err,
             ) from err
         return data
