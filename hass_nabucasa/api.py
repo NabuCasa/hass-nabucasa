@@ -27,14 +27,31 @@ _LOGGER = logging.getLogger(__name__)
 class CloudApiError(CloudError):
     """Exception raised when handling cloud API."""
 
+    def __init__(self, message: str, *, orig_exc: Exception | None = None) -> None:
+        """Initialize."""
+        super().__init__(message)
+        self.orig_exc = orig_exc
 
-class CloudApiRetryableError(CloudApiError):
-    """Exception raised when handling cloud API that should be retried."""
 
-    def __init__(self, message: str, code: str) -> None:
+class CloudApiCodedError(CloudError):
+    """Exception raised when handling cloud API."""
+
+    def __init__(self, message: str, *, code: str) -> None:
         """Initialize."""
         super().__init__(message)
         self.code = code
+
+
+class CloudApiTimeoutError(CloudApiError):
+    """Exception raised when handling cloud API times out."""
+
+
+class CloudApiClientError(CloudApiError):
+    """Exception raised when handling cloud API client error."""
+
+
+class CloudApiNonRetryableError(CloudApiCodedError):
+    """Exception raised when handling cloud API non-retryable error."""
 
 
 class ApiBase(ABC):
@@ -109,18 +126,18 @@ class ApiBase(ABC):
             )
 
         except TimeoutError as err:
-            raise CloudApiError(
-                "Timeout reached while calling API",
-            ) from err
+            raise CloudApiTimeoutError(
+                "Timeout reached while calling API", orig_exc=err) from err
         except ClientResponseError as err:
-            raise CloudApiError(
-                f"Failed to fetch: ({err.status}) {err.message}",
+            raise CloudApiClientError(
+                f"Failed to fetch: ({err.status}) {err.message}", orig_exc=err,
             ) from err
         except ClientError as err:
-            raise CloudApiError(f"Failed to fetch: {err}") from err
+            raise CloudApiClientError(
+                f"Failed to fetch: {err}", orig_exc=err) from err
         except Exception as err:
             raise CloudApiError(
-                f"Unexpected error while calling API: {err}",
+                f"Unexpected error while calling API: {err}", orig_exc=err,
             ) from err
 
         if resp.status < 500:
@@ -139,12 +156,12 @@ class ApiBase(ABC):
             and (code := message.split(" ")[0])
             and code in self._non_retryable_error_codes
         ):
-            raise CloudApiRetryableError(message, code) from None
+            raise CloudApiNonRetryableError(message, code=code) from None
 
         try:
             resp.raise_for_status()
         except ClientResponseError as err:
             raise CloudApiError(
-                f"Failed to fetch: ({err.status}) {err.message}",
+                f"Failed to fetch: ({err.status}) {err.message}", orig_exc=err,
             ) from err
         return data
