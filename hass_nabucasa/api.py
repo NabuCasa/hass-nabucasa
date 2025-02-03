@@ -91,7 +91,8 @@ class ApiBase(ABC):
         isok = resp.status < 400
         target = resp.url.path if resp.url.host == self.hostname else ""
         _LOGGER.debug(
-            "Response from %s%s (%s) %s",
+            "Response for %s from %s%s (%s) %s",
+            resp.method,
             resp.url.host,
             target,
             resp.status,

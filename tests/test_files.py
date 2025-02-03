@@ -101,17 +101,17 @@ async def test_upload_exceptions_while_uploading(
         [
             FilesError,
             {"status": 400, "json": {"message": "NC-CE-01"}},
-            "Response from example.com/files/upload_details (400) NC-CE-01",
+            "Response for get from example.com/files/upload_details (400) NC-CE-01",
         ],
         [
             CloudApiNonRetryableError,
             {"status": 400, "json": {"message": "NC-CE-03"}},
-            "Response from example.com/files/upload_details (400) NC-CE-03",
+            "Response for get from example.com/files/upload_details (400) NC-CE-03",
         ],
         [
             FilesError,
             {"status": 500, "text": "Internal Server Error"},
-            "Response from example.com/files/upload_details (500)",
+            "Response for get from example.com/files/upload_details (500)",
         ],
     ],
 )
@@ -149,12 +149,12 @@ async def test_upload_bad_status_while_getting_upload_details(
         [
             FilesError,
             {"status": 400, "json": {"message": "Oh no!"}},
-            "Response from files.api.fakeurl (400)",
+            "Response for put from files.api.fakeurl (400)",
         ],
         [
             FilesError,
             {"status": 500, "text": "Internal Server Error"},
-            "Response from files.api.fakeurl (500)",
+            "Response for put from files.api.fakeurl (500)",
         ],
     ],
 )
@@ -212,8 +212,8 @@ async def test_upload(
     )
 
     assert "Uploading file lorem.ipsum" in caplog.text
-    assert "Response from example.com/files/upload_details (200)" in caplog.text
-    assert "Response from files.api.fakeurl (200)" in caplog.text
+    assert "Response for get from example.com/files/upload_details (200)" in caplog.text
+    assert "Response for put from files.api.fakeurl (200)" in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -280,25 +280,26 @@ async def test_upload_exceptions_while_downloading(
         [
             CloudApiNonRetryableError,
             {"status": 400, "json": {"message": "NC-SH-FH-03 (abc-123)"}},
-            "Response from example.com/files/download_details/test/lorem.ipsum "
+            "Response for get from example.com/files/download_details/test/lorem.ipsum "
             "(400) NC-SH-FH-03 (abc-123)",
         ],
         [
             CloudApiNonRetryableError,
             {"status": 400, "json": {"message": "NC-CE-03"}},
-            "Response from example.com/files/download_details/test/lorem.ipsum "
+            "Response for get from example.com/files/download_details/test/lorem.ipsum "
             "(400) NC-CE-03",
         ],
         [
             FilesError,
             {"status": 400, "json": {"message": "NC-CE-01"}},
-            "Response from example.com/files/download_details/test/lorem.ipsum "
+            "Response for get from example.com/files/download_details/test/lorem.ipsum "
             "(400) NC-CE-01",
         ],
         [
             FilesError,
             {"status": 500, "text": "Internal Server Error"},
-            "Response from example.com/files/download_details/test/lorem.ipsum (500)",
+            "Response for get from example.com/files/download_details/test/lorem.ipsum"
+            " (500)",
         ],
     ],
 )
@@ -332,12 +333,12 @@ async def test_upload_bad_status_while_getting_download_details(
         [
             FilesError,
             {"status": 400, "json": {"message": "Oh no!"}},
-            "Response from files.api.fakeurl (400)",
+            "Response for get from files.api.fakeurl (400)",
         ],
         [
             FilesError,
             {"status": 500, "text": "Internal Server Error"},
-            "Response from files.api.fakeurl (500)",
+            "Response for get from files.api.fakeurl (500)",
         ],
     ],
 )
@@ -387,7 +388,7 @@ async def test_downlaod(
     )
     assert "Downloading file lorem.ipsum" in caplog.text
     assert (
-        "Response from example.com/files/download_details/test/lorem.ipsum (200)"
-        in caplog.text
+        "Response for get from example.com/files/download_details/test/lorem.ipsum "
+        "(200)" in caplog.text
     )
-    assert "Response from files.api.fakeurl (200)" in caplog.text
+    assert "Response for get from files.api.fakeurl (200)" in caplog.text
