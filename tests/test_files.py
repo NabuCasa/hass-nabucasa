@@ -64,9 +64,9 @@ async def test_upload_exceptions_while_getting_details(
 @pytest.mark.parametrize(
     "exception,msg",
     [
-        [TimeoutError, "Timeout reached while trying to upload file"],
-        [ClientError, "Failed to upload file"],
-        [Exception, "Unexpected error while uploading file"],
+        [TimeoutError, "Timeout reached while calling API"],
+        [ClientError, "Failed to fetch"],
+        [Exception, "Unexpected error while calling API"],
     ],
 )
 async def test_upload_exceptions_while_uploading(
@@ -247,9 +247,9 @@ async def test_download_exceptions_while_getting_details(
 @pytest.mark.parametrize(
     "exception,msg",
     [
-        [TimeoutError, "Timeout reached while trying to download file"],
-        [ClientError, "Failed to download file"],
-        [Exception, "Unexpected error while downloading file"],
+        [TimeoutError, "Timeout reached while calling API"],
+        [ClientError, "Failed to fetch"],
+        [Exception, "Unexpected error while calling API"],
     ],
 )
 async def test_upload_exceptions_while_downloading(

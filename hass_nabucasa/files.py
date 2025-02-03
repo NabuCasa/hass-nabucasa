@@ -7,7 +7,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from aiohttp import (
-    ClientError,
+    ClientResponseError,
     ClientTimeout,
     StreamReader,
 )
@@ -85,21 +85,26 @@ class Files(ApiBase):
             raise FilesError(err, orig_exc=err) from err
 
         try:
-            response = await self._cloud.websession.put(
-                details["url"],
+            response = await self._call_raw_api(
+                method="PUT",
+                url=details["url"],
                 data=await open_stream(),
                 headers=details["headers"] | {"content-length": str(size)},
-                timeout=ClientTimeout(connect=10.0, total=_FILE_TRANSFER_TIMEOUT),
+                client_timeout=ClientTimeout(
+                    connect=10.0,
+                    total=_FILE_TRANSFER_TIMEOUT,
+                ),
             )
-            self._do_log_response(response)
 
+            self._do_log_response(response)
             response.raise_for_status()
-        except TimeoutError as err:
-            raise FilesError("Timeout reached while trying to upload file") from err
-        except ClientError as err:
-            raise FilesError("Failed to upload file") from err
-        except Exception as err:
-            raise FilesError("Unexpected error while uploading file") from err
+        except CloudApiError as err:
+            raise FilesError(err, orig_exc=err) from err
+        except ClientResponseError as err:
+            raise FilesError(
+                f"Failed to upload: ({err.status}) {err.message}",
+                orig_exc=err,
+            ) from err
 
     async def download(
         self,
@@ -118,21 +123,24 @@ class Files(ApiBase):
             raise FilesError(err, orig_exc=err) from err
 
         try:
-            response = await self._cloud.websession.get(
-                details["url"],
-                timeout=ClientTimeout(connect=10.0, total=_FILE_TRANSFER_TIMEOUT),
+            response = await self._call_raw_api(
+                method="GET",
+                headers={},
+                url=details["url"],
+                client_timeout=ClientTimeout(
+                    connect=10.0,
+                    total=_FILE_TRANSFER_TIMEOUT,
+                ),
             )
 
             self._do_log_response(response)
-
             response.raise_for_status()
-        except FilesError:
-            raise
-        except TimeoutError as err:
-            raise FilesError("Timeout reached while trying to download file") from err
-        except ClientError as err:
-            raise FilesError("Failed to download file") from err
-        except Exception as err:
-            raise FilesError("Unexpected error while downloading file") from err
+        except CloudApiError as err:
+            raise FilesError(err, orig_exc=err) from err
+        except ClientResponseError as err:
+            raise FilesError(
+                f"Failed to upload: ({err.status}) {err.message}",
+                orig_exc=err,
+            ) from err
 
         return response.content

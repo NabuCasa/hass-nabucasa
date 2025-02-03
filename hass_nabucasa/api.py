@@ -100,36 +100,26 @@ class ApiBase(ABC):
             else "",
         )
 
-    async def _call_cloud_api(
+    async def _call_raw_api(
         self,
         *,
-        path: str,
-        method: str = "GET",
-        client_timeout: ClientTimeout | None = None,
+        url: str,
+        method: str,
+        client_timeout: ClientTimeout,
+        headers: dict[str, Any],
         jsondata: dict[str, Any] | None = None,
-        headers: dict[str, Any] | None = None,
-    ) -> Any:
-        """Call cloud API."""
-        data: dict[str, Any] | list[Any] | str | None = None
-        await self._cloud.auth.async_check_token()
-        if TYPE_CHECKING:
-            assert self._cloud.id_token is not None
-
+        data: Any | None = None,
+    ) -> ClientResponse:
+        """Call raw API."""
         try:
             resp = await self._cloud.websession.request(
                 method=method,
-                url=f"https://{self.hostname}{path}",
-                timeout=client_timeout or ClientTimeout(total=10),
-                headers={
-                    hdrs.ACCEPT: "application/json",
-                    hdrs.AUTHORIZATION: self._cloud.id_token,
-                    hdrs.CONTENT_TYPE: "application/json",
-                    hdrs.USER_AGENT: self._cloud.client.client_name,
-                    **(headers or {}),
-                },
+                url=url,
+                timeout=client_timeout,
+                headers=headers,
                 json=jsondata,
+                data=data,
             )
-
         except TimeoutError as err:
             raise CloudApiTimeoutError(
                 "Timeout reached while calling API",
@@ -147,6 +137,37 @@ class ApiBase(ABC):
                 f"Unexpected error while calling API: {err}",
                 orig_exc=err,
             ) from err
+
+        return resp
+
+    async def _call_cloud_api(
+        self,
+        *,
+        path: str,
+        method: str = "GET",
+        client_timeout: ClientTimeout | None = None,
+        jsondata: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+    ) -> Any:
+        """Call cloud API."""
+        data: dict[str, Any] | list[Any] | str | None = None
+        await self._cloud.auth.async_check_token()
+        if TYPE_CHECKING:
+            assert self._cloud.id_token is not None
+
+        resp = await self._call_raw_api(
+            method=method,
+            url=f"https://{self.hostname}{path}",
+            client_timeout=client_timeout or ClientTimeout(total=10),
+            headers={
+                hdrs.ACCEPT: "application/json",
+                hdrs.AUTHORIZATION: self._cloud.id_token,
+                hdrs.CONTENT_TYPE: "application/json",
+                hdrs.USER_AGENT: self._cloud.client.client_name,
+                **(headers or {}),
+            },
+            jsondata=jsondata,
+        )
 
         if resp.status < 500:
             with contextlib.suppress(JSONDecodeError):
