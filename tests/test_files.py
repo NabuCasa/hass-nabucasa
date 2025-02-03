@@ -7,7 +7,8 @@ from aiohttp import ClientError
 import pytest
 
 from hass_nabucasa import Cloud
-from hass_nabucasa.files import Files, FilesError, FilesNonRetryableError
+from hass_nabucasa.api import CloudApiNonRetryableError
+from hass_nabucasa.files import Files, FilesError
 from tests.utils.aiohttp import AiohttpClientMocker
 
 API_HOSTNAME = "example.com"
@@ -31,9 +32,9 @@ def set_hostname(auth_cloud_mock: Cloud):
 @pytest.mark.parametrize(
     "exception,msg",
     [
-        [TimeoutError, "Timeout reached while trying to fetch upload details"],
-        [ClientError, "Failed to fetch upload details"],
-        [Exception, "Unexpected error while fetching upload details"],
+        [TimeoutError, "Timeout reached while calling API"],
+        [ClientError, "Failed to fetch"],
+        [Exception, "Unexpected error while calling API"],
     ],
 )
 async def test_upload_exceptions_while_getting_details(
@@ -63,9 +64,9 @@ async def test_upload_exceptions_while_getting_details(
 @pytest.mark.parametrize(
     "exception,msg",
     [
-        [TimeoutError, "Timeout reached while trying to upload file"],
-        [ClientError, "Failed to upload file"],
-        [Exception, "Unexpected error while uploading file"],
+        [TimeoutError, "Timeout reached while calling API"],
+        [ClientError, "Failed to fetch"],
+        [Exception, "Unexpected error while calling API"],
     ],
 )
 async def test_upload_exceptions_while_uploading(
@@ -99,13 +100,18 @@ async def test_upload_exceptions_while_uploading(
     [
         [
             FilesError,
+            {"status": 400, "json": {"message": "NC-CE-01"}},
+            "Response for get from example.com/files/upload_details (400) NC-CE-01",
+        ],
+        [
+            CloudApiNonRetryableError,
             {"status": 400, "json": {"message": "NC-CE-03"}},
-            "Response from example.com/files/upload_details (400) NC-CE-03",
+            "Response for get from example.com/files/upload_details (400) NC-CE-03",
         ],
         [
             FilesError,
             {"status": 500, "text": "Internal Server Error"},
-            "Response from example.com/files/upload_details (500)",
+            "Response for get from example.com/files/upload_details (500)",
         ],
     ],
 )
@@ -143,12 +149,12 @@ async def test_upload_bad_status_while_getting_upload_details(
         [
             FilesError,
             {"status": 400, "json": {"message": "Oh no!"}},
-            "Response from files.api.fakeurl (400)",
+            "Response for put from files.api.fakeurl (400)",
         ],
         [
             FilesError,
             {"status": 500, "text": "Internal Server Error"},
-            "Response from files.api.fakeurl (500)",
+            "Response for put from files.api.fakeurl (500)",
         ],
     ],
 )
@@ -206,16 +212,16 @@ async def test_upload(
     )
 
     assert "Uploading file lorem.ipsum" in caplog.text
-    assert "Response from example.com/files/upload_details (200)" in caplog.text
-    assert "Response from files.api.fakeurl (200)" in caplog.text
+    assert "Response for get from example.com/files/upload_details (200)" in caplog.text
+    assert "Response for put from files.api.fakeurl (200)" in caplog.text
 
 
 @pytest.mark.parametrize(
     "exception,msg",
     [
-        [TimeoutError, "Timeout reached while trying to fetch download details"],
-        [ClientError, "Failed to fetch download details"],
-        [Exception, "Unexpected error while fetching download details"],
+        [TimeoutError, "Timeout reached while calling API"],
+        [ClientError, "Failed to fetch"],
+        [Exception, "Unexpected error while calling API"],
     ],
 )
 async def test_download_exceptions_while_getting_details(
@@ -241,9 +247,9 @@ async def test_download_exceptions_while_getting_details(
 @pytest.mark.parametrize(
     "exception,msg",
     [
-        [TimeoutError, "Timeout reached while trying to download file"],
-        [ClientError, "Failed to download file"],
-        [Exception, "Unexpected error while downloading file"],
+        [TimeoutError, "Timeout reached while calling API"],
+        [ClientError, "Failed to fetch"],
+        [Exception, "Unexpected error while calling API"],
     ],
 )
 async def test_upload_exceptions_while_downloading(
@@ -272,27 +278,28 @@ async def test_upload_exceptions_while_downloading(
     "exception,getmockargs,log_msg",
     [
         [
-            FilesNonRetryableError,
+            CloudApiNonRetryableError,
             {"status": 400, "json": {"message": "NC-SH-FH-03 (abc-123)"}},
-            "Response from example.com/files/download_details/test/lorem.ipsum "
+            "Response for get from example.com/files/download_details/test/lorem.ipsum "
             "(400) NC-SH-FH-03 (abc-123)",
         ],
         [
-            FilesNonRetryableError,
+            CloudApiNonRetryableError,
             {"status": 400, "json": {"message": "NC-CE-03"}},
-            "Response from example.com/files/download_details/test/lorem.ipsum "
+            "Response for get from example.com/files/download_details/test/lorem.ipsum "
             "(400) NC-CE-03",
         ],
         [
             FilesError,
-            {"status": 400, "json": {"message": "NC-CE-03"}},
-            "Response from example.com/files/download_details/test/lorem.ipsum "
-            "(400) NC-CE-03",
+            {"status": 400, "json": {"message": "NC-CE-01"}},
+            "Response for get from example.com/files/download_details/test/lorem.ipsum "
+            "(400) NC-CE-01",
         ],
         [
             FilesError,
             {"status": 500, "text": "Internal Server Error"},
-            "Response from example.com/files/download_details/test/lorem.ipsum (500)",
+            "Response for get from example.com/files/download_details/test/lorem.ipsum"
+            " (500)",
         ],
     ],
 )
@@ -326,12 +333,12 @@ async def test_upload_bad_status_while_getting_download_details(
         [
             FilesError,
             {"status": 400, "json": {"message": "Oh no!"}},
-            "Response from files.api.fakeurl (400)",
+            "Response for get from files.api.fakeurl (400)",
         ],
         [
             FilesError,
             {"status": 500, "text": "Internal Server Error"},
-            "Response from files.api.fakeurl (500)",
+            "Response for get from files.api.fakeurl (500)",
         ],
     ],
 )
@@ -381,7 +388,7 @@ async def test_downlaod(
     )
     assert "Downloading file lorem.ipsum" in caplog.text
     assert (
-        "Response from example.com/files/download_details/test/lorem.ipsum (200)"
-        in caplog.text
+        "Response for get from example.com/files/download_details/test/lorem.ipsum "
+        "(200)" in caplog.text
     )
-    assert "Response from files.api.fakeurl (200)" in caplog.text
+    assert "Response for get from files.api.fakeurl (200)" in caplog.text
