@@ -79,9 +79,10 @@ async def test_problems_getting_services(
     assert log_msg in caplog.text
 
 
-@pytest.mark.parametrize("services_response", [
-    {"alexa": {"available": True}, "storage": {"available": False}}
-])
+@pytest.mark.parametrize(
+    "services_response",
+    [{"alexa": {"available": True}, "storage": {"available": False}}],
+)
 async def test_getting_services(
     aioclient_mock: AiohttpClientMocker,
     auth_cloud_mock: Cloud,
