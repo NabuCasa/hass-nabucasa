@@ -29,6 +29,7 @@ from .const import (
 from .files import Files
 from .google_report_state import GoogleReportState
 from .ice_servers import IceServers
+from .instance_api import InstanceApi
 from .iot import CloudIoT
 from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
@@ -78,6 +79,7 @@ class Cloud(Generic[_ClientT]):
         self.account = AccountApi(self)
         self.auth = CognitoAuth(self)
         self.files = Files(self)
+        self.instance = InstanceApi(self)
         self.voice = Voice(self)
         self.ice_servers = IceServers(self)
 
