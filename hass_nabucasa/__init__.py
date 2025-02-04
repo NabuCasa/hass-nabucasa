@@ -15,6 +15,7 @@ from aiohttp import ClientSession
 from atomicwrites import atomic_write
 import jwt
 
+from .account_api import AccountApi
 from .auth import CloudError, CognitoAuth
 from .client import CloudClient
 from .cloudhooks import Cloudhooks
@@ -74,6 +75,7 @@ class Cloud(Generic[_ClientT]):
         self.google_report_state = GoogleReportState(self)
         self.cloudhooks = Cloudhooks(self)
         self.remote = RemoteUI(self)
+        self.account = AccountApi(self)
         self.auth = CognitoAuth(self)
         self.files = Files(self)
         self.voice = Voice(self)
