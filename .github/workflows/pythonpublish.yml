@@ -11,6 +11,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Make sure tag_name is not empty
+        run: |
+          if [[ "${{ github.event.release.tag_name }}" == "" ]]; then
+            exit 1
+          fi
+
       - uses: actions/checkout@v4.2.2
 
       - name: Set up Python
@@ -18,15 +24,16 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Verify version
-        uses: home-assistant/actions/helpers/verify-version@master
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install setuptools build
 
-      - name: Build
+      - name: Set version ${{ github.event.release.tag_name }}
+        run: |
+          sed -i "s/^version = \".*\"/version = \"${{ github.event.release.tag_name }}\"/" pyproject.toml
+
+      - name: Build ${{ github.event.release.tag_name }}
         run: |
           python -m build
 
