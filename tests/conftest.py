@@ -40,7 +40,13 @@ async def cloud_mock(loop, aioclient_mock, tmp_path):
     cloud.websession = aioclient_mock.create_session(loop)
     cloud.client = MockClient(tmp_path, loop, cloud.websession)
 
-    async def update_token(id_token, access_token, refresh_token=None):
+    async def update_token(
+        id_token,
+        access_token,
+        refresh_token=None,
+        *,
+        check_connection: bool = False,
+    ):
         cloud.id_token = id_token
         cloud.access_token = access_token
         if refresh_token is not None:

@@ -149,10 +149,12 @@ class ApiBase(ABC):
         client_timeout: ClientTimeout | None = None,
         jsondata: dict[str, Any] | None = None,
         headers: dict[str, Any] | None = None,
+        skip_token_check: bool = False,
     ) -> Any:
         """Call cloud API."""
         data: dict[str, Any] | list[Any] | str | None = None
-        await self._cloud.auth.async_check_token()
+        if not skip_token_check:
+            await self._cloud.auth.async_check_token()
         if TYPE_CHECKING:
             assert self._cloud.id_token is not None
 
