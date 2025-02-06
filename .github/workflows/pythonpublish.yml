@@ -27,11 +27,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install setuptools build poetry
+          pip install setuptools build
 
       - name: Set version ${{ github.event.release.tag_name }}
         run: |
-          poetry version ${{ github.event.release.tag_name }}
+          sed -i "s/^version = \".*\"/version = \"${{ github.event.release.tag_name }}\"/" pyproject.toml
 
       - name: Build ${{ github.event.release.tag_name }}
         run: |
