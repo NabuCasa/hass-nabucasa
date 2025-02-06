@@ -176,7 +176,7 @@ class ApiBase(ABC):
 
         self._do_log_response(resp, data)
 
-        if data is None:
+        if data is None and resp.method.upper() != "DELETE":
             raise CloudApiError("Failed to parse API response") from None
 
         if (
