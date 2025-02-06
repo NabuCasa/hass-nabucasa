@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Literal, TypedDict
 
 from aiohttp import hdrs
 
 from .api import ApiBase, CloudApiError
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class InstanceApiError(CloudApiError):
@@ -48,6 +51,7 @@ class InstanceApi(ApiBase):
 
     async def connection(self) -> InstanceConnection:
         """Get the connection details."""
+        _LOGGER.debug("Getting instance connection details")
         try:
             details: InstanceConnection = await self._call_cloud_api(
                 path="/instance/connection",

@@ -81,7 +81,7 @@ class Files(ApiBase):
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Upload a file."""
-        _LOGGER.debug("Uploading file %s", filename)
+        _LOGGER.debug("Uploading %s file with name %s", storage_type, filename)
         try:
             details: FilesHandlerUploadDetails = await self._call_cloud_api(
                 path="/files/upload_details",
@@ -126,7 +126,7 @@ class Files(ApiBase):
         filename: str,
     ) -> StreamReader:
         """Download a file."""
-        _LOGGER.debug("Downloading file %s", filename)
+        _LOGGER.debug("Downloading %s file with name %s", storage_type, filename)
         try:
             details: FilesHandlerDownloadDetails = await self._call_cloud_api(
                 path=f"/files/download_details/{storage_type}/{filename}",
@@ -153,7 +153,7 @@ class Files(ApiBase):
             raise FilesError(err, orig_exc=err) from err
         except ClientResponseError as err:
             raise FilesError(
-                f"Failed to upload: ({err.status}) {err.message}",
+                f"Failed to download: ({err.status}) {err.message}",
                 orig_exc=err,
             ) from err
 

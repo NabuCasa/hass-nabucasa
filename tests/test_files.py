@@ -212,7 +212,7 @@ async def test_upload(
         metadata={"awesome": True},
     )
 
-    assert "Uploading file lorem.ipsum" in caplog.text
+    assert "Uploading test file with name lorem.ipsum" in caplog.text
     assert "Response for get from example.com/files/upload_details (200)" in caplog.text
     assert "Response for put from files.api.fakeurl (200)" in caplog.text
 
@@ -387,7 +387,7 @@ async def test_downlaod(
         storage_type="test",
         filename="lorem.ipsum",
     )
-    assert "Downloading file lorem.ipsum" in caplog.text
+    assert "Downloading test file with name lorem.ipsum" in caplog.text
     assert len(aioclient_mock.mock_calls) == 2
     assert (
         "Response for get from example.com/files/download_details/test/lorem.ipsum "
