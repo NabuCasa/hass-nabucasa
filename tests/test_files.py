@@ -432,8 +432,7 @@ async def test_exceptions_while_listing(
 ):
     """Test handling exceptions during file download."""
     files = Files(auth_cloud_mock)
-    aioclient_mock.get(
-        f"https://{API_HOSTNAME}/files/test", exc=exception("Boom!"))
+    aioclient_mock.get(f"https://{API_HOSTNAME}/files/test", exc=exception("Boom!"))
 
     with pytest.raises(FilesError, match=msg):
         await files.list(storage_type="test")
