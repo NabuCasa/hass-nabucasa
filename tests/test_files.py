@@ -1,5 +1,6 @@
 """Tests for Files."""
 
+import re
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -387,8 +388,106 @@ async def test_downlaod(
         filename="lorem.ipsum",
     )
     assert "Downloading file lorem.ipsum" in caplog.text
+    assert len(aioclient_mock.mock_calls) == 2
     assert (
         "Response for get from example.com/files/download_details/test/lorem.ipsum "
         "(200)" in caplog.text
     )
     assert "Response for get from files.api.fakeurl (200)" in caplog.text
+
+
+async def test_list(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test listing files."""
+    files = Files(auth_cloud_mock)
+    aioclient_mock.get(
+        f"https://{API_HOSTNAME}/files/test",
+        json=[STORED_BACKUP],
+    )
+
+    files = await files.list(storage_type="test")
+
+    assert files[0] == STORED_BACKUP
+    assert len(aioclient_mock.mock_calls) == 1
+    assert "Listing test files" in caplog.text
+    assert "Response for get from example.com/files/test (200)" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "exception,msg",
+    [
+        [TimeoutError, "Timeout reached while calling API"],
+        [ClientError, "Failed to fetch"],
+        [Exception, "Unexpected error while calling API"],
+    ],
+)
+async def test_exceptions_while_listing(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    exception: Exception,
+    msg: str,
+):
+    """Test handling exceptions during file download."""
+    files = Files(auth_cloud_mock)
+    aioclient_mock.get(f"https://{API_HOSTNAME}/files/test", exc=exception("Boom!"))
+
+    with pytest.raises(FilesError, match=msg):
+        await files.list(storage_type="test")
+
+    assert len(aioclient_mock.mock_calls) == 1
+
+
+async def test_delete(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test listing files."""
+    files = Files(auth_cloud_mock)
+    aioclient_mock.delete(f"https://{API_HOSTNAME}/files")
+
+    await files.delete(storage_type="test", filename="lorem.ipsum")
+
+    assert len(aioclient_mock.mock_calls) == 1
+    assert aioclient_mock.mock_calls[0][2] == {
+        "filename": "lorem.ipsum",
+        "storage_type": "test",
+    }
+    assert "Deleting test file with name lorem.ipsum" in caplog.text
+    assert "Response for delete from example.com/files (200)" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "exception_msg,deletemockargs,log_msg",
+    [
+        [
+            "Failed to fetch: (400) ",
+            {"status": 400, "json": {"message": "NC-CE-01"}},
+            "Response for delete from example.com/files (400) NC-CE-01",
+        ],
+        [
+            "Failed to fetch: (500) ",
+            {"status": 500, "text": "Internal Server Error"},
+            "Response for delete from example.com/files (500)",
+        ],
+    ],
+)
+async def test_exceptions_while_deleting(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    exception_msg: str,
+    log_msg: str,
+    deletemockargs: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test handling exceptions during file download."""
+    files = Files(auth_cloud_mock)
+    aioclient_mock.delete(f"https://{API_HOSTNAME}/files", **deletemockargs)
+
+    with pytest.raises(FilesError, match=re.escape(exception_msg)):
+        await files.delete(storage_type="test", filename="lorem.ipsum")
+    assert len(aioclient_mock.mock_calls) == 1
+    assert log_msg in caplog.text
