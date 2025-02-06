@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable, Coroutine
+from enum import StrEnum
 import logging
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from aiohttp import (
     ClientResponseError,
@@ -18,7 +19,11 @@ _LOGGER = logging.getLogger(__name__)
 
 _FILE_TRANSFER_TIMEOUT = 43200.0  # 43200s == 12h
 
-type StorageType = Literal["backup"]
+
+class StorageType(StrEnum):
+    """Storage types."""
+
+    BACKUP = "backup"
 
 
 class FilesError(CloudApiError):
