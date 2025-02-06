@@ -184,7 +184,13 @@ class CognitoAuth:
         except BotoCoreError as err:
             raise UnknownError from err
 
-    async def async_login(self, email: str, password: str) -> None:
+    async def async_login(
+        self,
+        email: str,
+        password: str,
+        *,
+        check_connection: bool = False,
+    ) -> None:
         """Log user in and fetch certificate."""
         try:
             async with self._request_lock:
@@ -203,6 +209,7 @@ class CognitoAuth:
                     cognito.id_token,
                     cognito.access_token,
                     cognito.refresh_token,
+                    check_connection=check_connection,
                 )
 
             if task:
@@ -225,6 +232,8 @@ class CognitoAuth:
         email: str,
         code: str,
         mfa_tokens: dict[str, Any],
+        *,
+        check_connection: bool = False,
     ) -> None:
         """Log user in and fetch certificate if MFA is required."""
         try:
@@ -250,6 +259,7 @@ class CognitoAuth:
                     cognito.id_token,
                     cognito.access_token,
                     cognito.refresh_token,
+                    check_connection=check_connection,
                 )
 
             if task:
