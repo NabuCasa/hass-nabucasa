@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable, Coroutine
+from enum import StrEnum
 import logging
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from aiohttp import (
     ClientResponseError,
@@ -18,7 +19,11 @@ _LOGGER = logging.getLogger(__name__)
 
 _FILE_TRANSFER_TIMEOUT = 43200.0  # 43200s == 12h
 
-type StorageType = Literal["backup"]
+
+class StorageType(StrEnum):
+    """Storage types."""
+
+    BACKUP = "backup"
 
 
 class FilesError(CloudApiError):
@@ -39,6 +44,15 @@ class FilesHandlerUploadDetails(_FilesHandlerUrlResponse):
     """Upload details from files handler."""
 
     headers: dict[str, str]
+
+
+class StoredFile(TypedDict):
+    """Stored file."""
+
+    Key: str
+    Size: int
+    LastModified: str
+    Metadata: dict[str, Any]
 
 
 class Files(ApiBase):
@@ -67,7 +81,7 @@ class Files(ApiBase):
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Upload a file."""
-        _LOGGER.debug("Uploading file %s", filename)
+        _LOGGER.debug("Uploading %s file with name %s", storage_type, filename)
         try:
             details: FilesHandlerUploadDetails = await self._call_cloud_api(
                 path="/files/upload_details",
@@ -112,7 +126,7 @@ class Files(ApiBase):
         filename: str,
     ) -> StreamReader:
         """Download a file."""
-        _LOGGER.debug("Downloading file %s", filename)
+        _LOGGER.debug("Downloading %s file with name %s", storage_type, filename)
         try:
             details: FilesHandlerDownloadDetails = await self._call_cloud_api(
                 path=f"/files/download_details/{storage_type}/{filename}",
@@ -139,8 +153,41 @@ class Files(ApiBase):
             raise FilesError(err, orig_exc=err) from err
         except ClientResponseError as err:
             raise FilesError(
-                f"Failed to upload: ({err.status}) {err.message}",
+                f"Failed to download: ({err.status}) {err.message}",
                 orig_exc=err,
             ) from err
 
         return response.content
+
+    async def list(
+        self,
+        storage_type: StorageType,
+    ) -> list[StoredFile]:
+        """List files."""
+        _LOGGER.debug("Listing %s files", storage_type)
+        try:
+            files: list[StoredFile] = await self._call_cloud_api(
+                path=f"/files/{storage_type}"
+            )
+        except CloudApiError as err:
+            raise FilesError(err, orig_exc=err) from err
+        return files
+
+    async def delete(
+        self,
+        storage_type: StorageType,
+        filename: str,
+    ) -> None:
+        """Delete a file."""
+        _LOGGER.debug("Deleting %s file with name %s", storage_type, filename)
+        try:
+            await self._call_cloud_api(
+                path="/files",
+                method="DELETE",
+                jsondata={
+                    "storage_type": storage_type,
+                    "filename": filename,
+                },
+            )
+        except CloudApiError as err:
+            raise FilesError(err, orig_exc=err) from err
