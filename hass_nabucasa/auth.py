@@ -205,11 +205,15 @@ class CognitoAuth:
                         partial(cognito.authenticate, password=password),
                     )
 
+                if check_connection:
+                    await self.cloud.ensure_not_connected(
+                        access_token=cognito.access_token
+                    )
+
                 task = await self.cloud.update_token(
                     cognito.id_token,
                     cognito.access_token,
                     cognito.refresh_token,
-                    check_connection=check_connection,
                 )
 
             if task:
@@ -255,11 +259,15 @@ class CognitoAuth:
                         ),
                     )
 
+                if check_connection:
+                    await self.cloud.ensure_not_connected(
+                        access_token=cognito.access_token
+                    )
+
                 task = await self.cloud.update_token(
                     cognito.id_token,
                     cognito.access_token,
                     cognito.refresh_token,
-                    check_connection=check_connection,
                 )
 
             if task:

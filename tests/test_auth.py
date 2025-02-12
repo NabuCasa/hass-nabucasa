@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError
 from pycognito.exceptions import MFAChallengeException
 import pytest
 
-from hass_nabucasa import AlreadyConnectedError, auth as auth_api
+from hass_nabucasa import auth as auth_api
 
 
 @pytest.fixture
@@ -94,7 +94,6 @@ async def test_login_user_verify_totp(mock_cognito, mock_cloud):
         "test_id_token",
         "test_access_token",
         "test_refresh_token",
-        check_connection=False,
     )
 
 
@@ -112,7 +111,6 @@ async def test_login(mock_cognito, mock_cloud):
         "test_id_token",
         "test_access_token",
         "test_refresh_token",
-        check_connection=False,
     )
 
 
@@ -130,24 +128,7 @@ async def test_login_with_check_connection(mock_cognito, mock_cloud):
         "test_id_token",
         "test_access_token",
         "test_refresh_token",
-        check_connection=True,
     )
-
-
-async def test_login_with_check_connection_failure(mock_cognito, mock_cloud):
-    """Test login with connection check failure."""
-    auth = auth_api.CognitoAuth(mock_cloud)
-
-    async def update_token(*args, check_connection: bool):
-        if check_connection:
-            raise AlreadyConnectedError(
-                details={"remote_ip_address": "127.0.0.1", "connected_at": "0"}
-            )
-
-    mock_cloud.update_token = MagicMock(side_effect=update_token)
-
-    with pytest.raises(AlreadyConnectedError, match="instance_already_connected"):
-        await auth.async_login("user", "pass", check_connection=True)
 
 
 async def test_register(mock_cognito, cloud_mock):

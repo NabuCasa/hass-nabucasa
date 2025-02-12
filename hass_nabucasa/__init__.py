@@ -31,9 +31,7 @@ from .google_report_state import GoogleReportState
 from .ice_servers import IceServers
 from .instance_api import (
     InstanceApi,
-    InstanceConnection,
     InstanceConnectionDetails,
-    InstanceConnectionDisconnected,
 )
 from .iot import CloudIoT
 from .remote import RemoteUI
@@ -178,27 +176,34 @@ class Cloud(Generic[_ClientT]):
         """Get path to the stored auth."""
         return self.path(f"{self.mode}_auth.json")
 
+    async def ensure_not_connected(
+        self,
+        *,
+        access_token: str,
+    ) -> None:
+        """Raise AlreadyConnectedError if already connected."""
+        try:
+            connection = await self.instance.connection(
+                skip_token_check=True,
+                access_token=access_token,
+            )
+        except CloudError:
+            return
+
+        if connection["connected"]:
+            raise AlreadyConnectedError(details=connection["details"])
+
     async def update_token(
         self,
         id_token: str,
         access_token: str,
         refresh_token: str | None = None,
-        *,
-        check_connection: bool = False,
     ) -> asyncio.Task | None:
         """Update the id and access token."""
         self.id_token = id_token
         self.access_token = access_token
         if refresh_token is not None:
             self.refresh_token = refresh_token
-
-        if (
-            check_connection
-            and (connection := await self._get_connection(skip_token_check=True))[
-                "connected"
-            ]
-        ):
-            raise AlreadyConnectedError(details=connection["details"])
 
         await self.run_executor(self._write_user_info)
 
@@ -391,17 +396,6 @@ class Cloud(Generic[_ClientT]):
 
         await self.client.cloud_stopped()
         await gather_callbacks(_LOGGER, "on_stop", self._on_stop)
-
-    async def _get_connection(
-        self,
-        *,
-        skip_token_check: bool = False,
-    ) -> InstanceConnection:
-        """Get connection details."""
-        try:
-            return await self.instance.connection(skip_token_check=skip_token_check)
-        except CloudError:
-            return InstanceConnectionDisconnected(connected=False)
 
     @staticmethod
     def _decode_claims(token: str) -> Mapping[str, Any]:

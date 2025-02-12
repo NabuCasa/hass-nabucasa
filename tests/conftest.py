@@ -44,8 +44,6 @@ async def cloud_mock(loop, aioclient_mock, tmp_path):
         id_token,
         access_token,
         refresh_token=None,
-        *,
-        check_connection: bool = False,
     ):
         cloud.id_token = id_token
         cloud.access_token = access_token
@@ -53,6 +51,7 @@ async def cloud_mock(loop, aioclient_mock, tmp_path):
             cloud.refresh_token = refresh_token
 
     cloud.update_token = MagicMock(side_effect=update_token)
+    cloud.ensure_not_connected = AsyncMock()
 
     yield cloud
 
