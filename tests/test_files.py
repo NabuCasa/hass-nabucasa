@@ -1,5 +1,6 @@
 """Tests for Files."""
 
+from collections.abc import AsyncIterator, Iterable
 import re
 from typing import Any
 from unittest.mock import AsyncMock
@@ -9,7 +10,7 @@ import pytest
 
 from hass_nabucasa import Cloud
 from hass_nabucasa.api import CloudApiNonRetryableError
-from hass_nabucasa.files import Files, FilesError
+from hass_nabucasa.files import Files, FilesError, calculate_b64md5
 from tests.utils.aiohttp import AiohttpClientMocker
 
 API_HOSTNAME = "example.com"
@@ -491,3 +492,24 @@ async def test_exceptions_while_deleting(
         await files.delete(storage_type="test", filename="lorem.ipsum")
     assert len(aioclient_mock.mock_calls) == 1
     assert log_msg in caplog.text
+
+
+async def aiter_from_iter(iterable: Iterable) -> AsyncIterator:
+    """Convert an iterable to an async iterator."""
+    for i in iterable:
+        yield i
+
+
+async def test_calculate_b64md5():
+    """Test calculating base64 md5 hash."""
+    async def open_stream() -> AsyncIterator[bytes]:
+        """Mock open stream."""
+        return aiter_from_iter((b"backup", b"data"))
+
+    assert await calculate_b64md5(open_stream, 10) == "p17gbFrsI2suQNBhkdO1Gw=="
+
+    with pytest.raises(
+        FilesError,
+        match="Indicated size 9 does not match actual size 10",
+    ):
+        await calculate_b64md5(open_stream, 9)
