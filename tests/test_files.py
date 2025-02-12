@@ -63,18 +63,42 @@ async def test_upload_exceptions_while_getting_details(
 
 
 @pytest.mark.parametrize(
-    "exception,msg",
+    "putmockargs,msg,logstring",
     [
-        [TimeoutError, "Timeout reached while calling API"],
-        [ClientError, "Failed to fetch"],
-        [Exception, "Unexpected error while calling API"],
+        [{"exc": TimeoutError("Boom!")}, "Timeout reached while calling API", ""],
+        [{"exc": ClientError("Boom!")}, "Failed to fetch", ""],
+        [{"exc": Exception("Boom!")}, "Unexpected error while calling API", ""],
+        [{"status": 400}, "Failed to upload: (400) ", ""],
+        [
+            {"status": 400, "text": "Unknown error structure"},
+            "Failed to upload: (400) ",
+            "Unknown error structure",
+        ],
+        [
+            {
+                "status": 400,
+                "text": "<Message>Pretty error\nWith a linebreak</Message>",
+            },
+            "Failed to upload: (400) Pretty error With a linebreak",
+            "",
+        ],
+        [
+            {
+                "status": 400,
+                "text": "<Message>What is this?",
+            },
+            "Failed to upload: (400) ",
+            "",
+        ],
     ],
 )
 async def test_upload_exceptions_while_uploading(
     aioclient_mock: AiohttpClientMocker,
     auth_cloud_mock: Cloud,
-    exception: Exception,
+    putmockargs: dict[str, Any],
     msg: str,
+    logstring: str,
+    caplog: pytest.LogCaptureFixture,
 ):
     """Test handling exceptions during file upload."""
     files = Files(auth_cloud_mock)
@@ -83,9 +107,9 @@ async def test_upload_exceptions_while_uploading(
         json={"url": FILES_API_URL, "headers": {}},
     )
 
-    aioclient_mock.put(FILES_API_URL, exc=exception("Boom!"))
+    aioclient_mock.put(FILES_API_URL, **putmockargs)
 
-    with pytest.raises(FilesError, match=msg):
+    with pytest.raises(FilesError, match=re.escape(msg)):
         await files.upload(
             storage_type="test",
             open_stream=AsyncMock(),
@@ -94,6 +118,8 @@ async def test_upload_exceptions_while_uploading(
             size=1337,
             metadata={"awesome": True},
         )
+
+    assert logstring in caplog.text
 
 
 @pytest.mark.parametrize(

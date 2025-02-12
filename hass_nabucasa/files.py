@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable, Coroutine
+import contextlib
 from enum import StrEnum
 import logging
 from typing import TYPE_CHECKING, Any, TypedDict
@@ -111,6 +112,20 @@ class Files(ApiBase):
             )
 
             self._do_log_response(response)
+            if response.status == 400:
+                # We can try to get some context.
+                error = await response.text()
+                if error and "<Message>" in error and "</Message>" in error:
+                    with contextlib.suppress(AttributeError, IndexError):
+                        # This is ugly but it's the best we can do, we have no control
+                        # over the error message structure, so we try what we can.
+                        parsed = (
+                            error.split("<Message>")[1]
+                            .split("</Message>")[0]
+                            .replace("\n", " ")
+                        )
+                        raise FilesError(f"Failed to upload: (400) {parsed}")
+                _LOGGER.debug(error)
             response.raise_for_status()
         except CloudApiError as err:
             raise FilesError(err, orig_exc=err) from err
