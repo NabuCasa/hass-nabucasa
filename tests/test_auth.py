@@ -117,7 +117,7 @@ async def test_login(mock_cognito, mock_cloud):
 
 
 async def test_login_with_check_connection(mock_cognito, mock_cloud):
-    """Test trying to login without confirming account."""
+    """Test login with connection check."""
     auth = auth_api.CognitoAuth(mock_cloud)
     mock_cognito.id_token = "test_id_token"
     mock_cognito.access_token = "test_access_token"
@@ -135,7 +135,7 @@ async def test_login_with_check_connection(mock_cognito, mock_cloud):
 
 
 async def test_login_with_check_connection_failure(mock_cognito, mock_cloud):
-    """Test trying to login without confirming account."""
+    """Test login with connection check failure."""
     auth = auth_api.CognitoAuth(mock_cloud)
 
     async def update_token(*args, check_connection: bool):
