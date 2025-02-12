@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import base64
 from collections.abc import AsyncIterator, Callable, Coroutine
 import contextlib
 from enum import StrEnum
+import hashlib
 import logging
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -54,6 +56,27 @@ class StoredFile(TypedDict):
     Size: int
     LastModified: str
     Metadata: dict[str, Any]
+
+
+async def calculate_b64md5(
+    open_stream: Callable[[], Coroutine[Any, Any, AsyncIterator[bytes]]],
+    size: int,
+) -> str:
+    """Calculate the MD5 hash of a file.
+
+    Raises FilesError if the bytes read from the stream does not match the size.
+    """
+    file_hash = hashlib.md5()  # noqa: S324 Disable warning about using md5
+    bytes_read = 0
+    stream = await open_stream()
+    async for chunk in stream:
+        bytes_read += len(chunk)
+        file_hash.update(chunk)
+    if bytes_read != size:
+        raise FilesError(
+            f"Indicated size {size} does not match actual size {bytes_read}"
+        )
+    return base64.b64encode(file_hash.digest()).decode()
 
 
 class Files(ApiBase):
