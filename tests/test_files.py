@@ -502,6 +502,7 @@ async def aiter_from_iter(iterable: Iterable) -> AsyncIterator:
 
 async def test_calculate_b64md5():
     """Test calculating base64 md5 hash."""
+
     async def open_stream() -> AsyncIterator[bytes]:
         """Mock open stream."""
         return aiter_from_iter((b"backup", b"data"))
