@@ -63,16 +63,16 @@ async def test_upload_exceptions_while_getting_details(
 
 
 @pytest.mark.parametrize(
-    "putmockargs,msg,logstring",
+    "putmockargs,msg",
     [
-        [{"exc": TimeoutError("Boom!")}, "Timeout reached while calling API", ""],
-        [{"exc": ClientError("Boom!")}, "Failed to fetch", ""],
-        [{"exc": Exception("Boom!")}, "Unexpected error while calling API", ""],
-        [{"status": 400}, "Failed to upload: (400) ", ""],
+        [{"exc": TimeoutError("Boom!")}, "Timeout reached while calling API"],
+        [{"exc": ClientError("Boom!")}, "Failed to fetch: Boom!"],
+        [{"exc": Exception("Boom!")},
+         "Unexpected error while calling API: Boom!"],
+        [{"status": 400}, "Failed to upload: (400) "],
         [
             {"status": 400, "text": "Unknown error structure"},
-            "Failed to upload: (400) ",
-            "Unknown error structure",
+            "Failed to upload: (400) Unknown error structure",
         ],
         [
             {
@@ -80,15 +80,20 @@ async def test_upload_exceptions_while_getting_details(
                 "text": "<Message>Pretty error\nWith a linebreak</Message>",
             },
             "Failed to upload: (400) Pretty error With a linebreak",
-            "",
         ],
         [
             {
                 "status": 400,
                 "text": "<Message>What is this?",
             },
-            "Failed to upload: (400) ",
-            "",
+            "Failed to upload: (400) <Message>What is this?",
+        ],
+        [
+            {
+                "status": 400,
+                "text": f"{'a' * 512}",
+            },
+            f"Failed to upload: (400) {'a' * 256}",
         ],
     ],
 )
@@ -97,8 +102,6 @@ async def test_upload_exceptions_while_uploading(
     auth_cloud_mock: Cloud,
     putmockargs: dict[str, Any],
     msg: str,
-    logstring: str,
-    caplog: pytest.LogCaptureFixture,
 ):
     """Test handling exceptions during file upload."""
     files = Files(auth_cloud_mock)
@@ -109,7 +112,7 @@ async def test_upload_exceptions_while_uploading(
 
     aioclient_mock.put(FILES_API_URL, **putmockargs)
 
-    with pytest.raises(FilesError, match=re.escape(msg)):
+    with pytest.raises(FilesError, match=f"^{re.escape(msg)}$"):
         await files.upload(
             storage_type="test",
             open_stream=AsyncMock(),
@@ -118,8 +121,6 @@ async def test_upload_exceptions_while_uploading(
             size=1337,
             metadata={"awesome": True},
         )
-
-    assert logstring in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -458,7 +459,8 @@ async def test_exceptions_while_listing(
 ):
     """Test handling exceptions during file download."""
     files = Files(auth_cloud_mock)
-    aioclient_mock.get(f"https://{API_HOSTNAME}/files/test", exc=exception("Boom!"))
+    aioclient_mock.get(
+        f"https://{API_HOSTNAME}/files/test", exc=exception("Boom!"))
 
     with pytest.raises(FilesError, match=msg):
         await files.list(storage_type="test")

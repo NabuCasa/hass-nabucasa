@@ -119,13 +119,12 @@ class Files(ApiBase):
                     with contextlib.suppress(AttributeError, IndexError):
                         # This is ugly but it's the best we can do, we have no control
                         # over the error message structure, so we try what we can.
-                        parsed = (
+                        error = (
                             error.split("<Message>")[1]
                             .split("</Message>")[0]
                             .replace("\n", " ")
                         )
-                        raise FilesError(f"Failed to upload: (400) {parsed}")
-                _LOGGER.debug(error)
+                raise FilesError(f"Failed to upload: (400) {error[:256]}")
             response.raise_for_status()
         except CloudApiError as err:
             raise FilesError(err, orig_exc=err) from err
