@@ -67,8 +67,7 @@ async def test_upload_exceptions_while_getting_details(
     [
         [{"exc": TimeoutError("Boom!")}, "Timeout reached while calling API"],
         [{"exc": ClientError("Boom!")}, "Failed to fetch: Boom!"],
-        [{"exc": Exception("Boom!")},
-         "Unexpected error while calling API: Boom!"],
+        [{"exc": Exception("Boom!")}, "Unexpected error while calling API: Boom!"],
         [{"status": 400}, "Failed to upload: (400) "],
         [
             {"status": 400, "text": "Unknown error structure"},
@@ -459,8 +458,7 @@ async def test_exceptions_while_listing(
 ):
     """Test handling exceptions during file download."""
     files = Files(auth_cloud_mock)
-    aioclient_mock.get(
-        f"https://{API_HOSTNAME}/files/test", exc=exception("Boom!"))
+    aioclient_mock.get(f"https://{API_HOSTNAME}/files/test", exc=exception("Boom!"))
 
     with pytest.raises(FilesError, match=msg):
         await files.list(storage_type="test")
