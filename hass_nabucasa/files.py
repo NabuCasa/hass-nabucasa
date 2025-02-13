@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import base64
 from collections.abc import AsyncIterator, Callable, Coroutine
+import contextlib
 from enum import StrEnum
+import hashlib
 import logging
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -53,6 +56,27 @@ class StoredFile(TypedDict):
     Size: int
     LastModified: str
     Metadata: dict[str, Any]
+
+
+async def calculate_b64md5(
+    open_stream: Callable[[], Coroutine[Any, Any, AsyncIterator[bytes]]],
+    size: int,
+) -> str:
+    """Calculate the MD5 hash of a file.
+
+    Raises FilesError if the bytes read from the stream does not match the size.
+    """
+    file_hash = hashlib.md5()  # noqa: S324 Disable warning about using md5
+    bytes_read = 0
+    stream = await open_stream()
+    async for chunk in stream:
+        bytes_read += len(chunk)
+        file_hash.update(chunk)
+    if bytes_read != size:
+        raise FilesError(
+            f"Indicated size {size} does not match actual size {bytes_read}"
+        )
+    return base64.b64encode(file_hash.digest()).decode()
 
 
 class Files(ApiBase):
@@ -111,6 +135,17 @@ class Files(ApiBase):
             )
 
             self._do_log_response(response)
+            if response.status == 400:
+                # We can try to get some context.
+                error = await response.text()
+                if error and "<Message>" in error and "</Message>" in error:
+                    with contextlib.suppress(AttributeError, IndexError):
+                        # This is ugly but it's the best we can do, we have no control
+                        # over the error message structure, so we try what we can.
+                        error = error.split("<Message>")[1].split("</Message>")[0]
+                raise FilesError(
+                    f"Failed to upload: (400) {error[:256].replace('\n', ' ')}"
+                )
             response.raise_for_status()
         except CloudApiError as err:
             raise FilesError(err, orig_exc=err) from err
