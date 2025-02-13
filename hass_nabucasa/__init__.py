@@ -29,7 +29,10 @@ from .const import (
 from .files import Files
 from .google_report_state import GoogleReportState
 from .ice_servers import IceServers
-from .instance_api import InstanceApi
+from .instance_api import (
+    InstanceApi,
+    InstanceConnectionDetails,
+)
 from .iot import CloudIoT
 from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
@@ -39,6 +42,15 @@ _ClientT = TypeVar("_ClientT", bound=CloudClient)
 
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class AlreadyConnectedError(CloudError):
+    """Raised when a connection is already established."""
+
+    def __init__(self, *, details: InstanceConnectionDetails) -> None:
+        """Initialize an already connected error."""
+        super().__init__("instance_already_connected")
+        self.details = details
 
 
 class Cloud(Generic[_ClientT]):
@@ -164,6 +176,23 @@ class Cloud(Generic[_ClientT]):
         """Get path to the stored auth."""
         return self.path(f"{self.mode}_auth.json")
 
+    async def ensure_not_connected(
+        self,
+        *,
+        access_token: str,
+    ) -> None:
+        """Raise AlreadyConnectedError if already connected."""
+        try:
+            connection = await self.instance.connection(
+                skip_token_check=True,
+                access_token=access_token,
+            )
+        except CloudError:
+            return
+
+        if connection["connected"]:
+            raise AlreadyConnectedError(details=connection["details"])
+
     async def update_token(
         self,
         id_token: str,
@@ -223,18 +252,24 @@ class Cloud(Generic[_ClientT]):
         """
         return self.client.loop.run_in_executor(None, callback, *args)
 
-    async def login(self, email: str, password: str) -> None:
+    async def login(
+        self, email: str, password: str, *, check_connection: bool = False
+    ) -> None:
         """Log a user in."""
-        await self.auth.async_login(email, password)
+        await self.auth.async_login(email, password, check_connection=check_connection)
 
     async def login_verify_totp(
         self,
         email: str,
         code: str,
         mfa_tokens: dict[str, Any],
+        *,
+        check_connection: bool = False,
     ) -> None:
         """Verify TOTP code during login."""
-        await self.auth.async_login_verify_totp(email, code, mfa_tokens)
+        await self.auth.async_login_verify_totp(
+            email, code, mfa_tokens, check_connection=check_connection
+        )
 
     async def logout(self) -> None:
         """Close connection and remove all credentials."""

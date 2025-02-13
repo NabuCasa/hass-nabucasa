@@ -49,15 +49,21 @@ class InstanceApi(ApiBase):
             assert self._cloud.servicehandlers_server is not None
         return self._cloud.servicehandlers_server
 
-    async def connection(self) -> InstanceConnection:
+    async def connection(
+        self,
+        *,
+        access_token: str | None = None,
+        skip_token_check: bool = False,
+    ) -> InstanceConnection:
         """Get the connection details."""
         _LOGGER.debug("Getting instance connection details")
         try:
             details: InstanceConnection = await self._call_cloud_api(
                 path="/instance/connection",
                 headers={
-                    hdrs.AUTHORIZATION: self._cloud.access_token,
+                    hdrs.AUTHORIZATION: access_token or self._cloud.access_token,
                 },
+                skip_token_check=skip_token_check,
             )
         except CloudApiError as err:
             raise InstanceApiError(err, orig_exc=err) from err

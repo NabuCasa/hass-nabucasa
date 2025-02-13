@@ -184,7 +184,13 @@ class CognitoAuth:
         except BotoCoreError as err:
             raise UnknownError from err
 
-    async def async_login(self, email: str, password: str) -> None:
+    async def async_login(
+        self,
+        email: str,
+        password: str,
+        *,
+        check_connection: bool = False,
+    ) -> None:
         """Log user in and fetch certificate."""
         try:
             async with self._request_lock:
@@ -197,6 +203,11 @@ class CognitoAuth:
                 async with async_timeout.timeout(30):
                     await self.cloud.run_executor(
                         partial(cognito.authenticate, password=password),
+                    )
+
+                if check_connection:
+                    await self.cloud.ensure_not_connected(
+                        access_token=cognito.access_token
                     )
 
                 task = await self.cloud.update_token(
@@ -225,6 +236,8 @@ class CognitoAuth:
         email: str,
         code: str,
         mfa_tokens: dict[str, Any],
+        *,
+        check_connection: bool = False,
     ) -> None:
         """Log user in and fetch certificate if MFA is required."""
         try:
@@ -244,6 +257,11 @@ class CognitoAuth:
                             code=code,
                             mfa_tokens=mfa_tokens,
                         ),
+                    )
+
+                if check_connection:
+                    await self.cloud.ensure_not_connected(
+                        access_token=cognito.access_token
                     )
 
                 task = await self.cloud.update_token(
