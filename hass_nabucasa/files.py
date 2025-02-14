@@ -135,7 +135,7 @@ class Files(ApiBase):
             )
 
             self._do_log_response(response)
-            if response.status == 400:
+            if 400 <= (status := response.status) < 500:
                 # We can try to get some context.
                 error = await response.text()
                 if error and "<Message>" in error and "</Message>" in error:
@@ -144,7 +144,7 @@ class Files(ApiBase):
                         # over the error message structure, so we try what we can.
                         error = error.split("<Message>")[1].split("</Message>")[0]
                 raise FilesError(
-                    f"Failed to upload: (400) {error[:256].replace('\n', ' ')}"
+                    f"Failed to upload: ({status}) {error[:256].replace('\n', ' ')}"
                 )
             response.raise_for_status()
         except CloudApiError as err:
