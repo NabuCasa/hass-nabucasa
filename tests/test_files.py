@@ -95,6 +95,20 @@ async def test_upload_exceptions_while_getting_details(
             },
             f"Failed to upload: (400) {'a' * 256}",
         ],
+        [
+            {
+                "status": 403,
+                "text": "<Message>Pretty error\nWith a linebreak</Message>",
+            },
+            "Failed to upload: (403) Pretty error With a linebreak",
+        ],
+        [
+            {
+                "status": 500,
+                "text": "<Message>Pretty error\nWith a linebreak</Message>",
+            },
+            "Failed to upload: (500) ",
+        ],
     ],
 )
 async def test_upload_exceptions_while_uploading(
