@@ -116,7 +116,10 @@ async def test_initialize_loads_info(cloud_client):
     assert len(cl.remote.connect.mock_calls) == 1
 
 
-async def test_initialize_loads_invalid_info(cloud_client, caplog):
+async def test_initialize_loads_invalid_info(
+    cloud_client: MockClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """Test initialize load invalid info from config file."""
     cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
 
@@ -142,6 +145,7 @@ async def test_initialize_loads_invalid_info(cloud_client, caplog):
         ),
     ):
         await cl.initialize()
+        await asyncio.sleep(0)  # Flush out scheduled callbacks
 
     assert cl.id_token is None
     assert len(cl.iot.connect.mock_calls) == 0
@@ -149,6 +153,15 @@ async def test_initialize_loads_invalid_info(cloud_client, caplog):
     assert (
         "Error loading cloud authentication info from .cloud/production_auth.json: "
         "Expecting value: line 1 column 1 (char 0)" in caplog.text
+    )
+    assert cloud_client.mock_user
+    assert cloud_client.mock_user[0] == (
+        "load_auth_data",
+        "Home Assistant Cloud error",
+        (
+            "Unable to load authentication from .cloud/production_auth.json. "
+            "[Please login again](/config/cloud)"
+        ),
     )
 
 

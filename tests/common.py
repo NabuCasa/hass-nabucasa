@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Coroutine
 from pathlib import Path
+import threading
 from typing import Any, Literal
 from unittest.mock import Mock
 
@@ -88,6 +89,10 @@ class MockClient(CloudClient):
 
     def user_message(self, identifier: str, title: str, message: str) -> None:
         """Create a message for user to UI."""
+        if self.loop._thread_id != threading.get_ident():
+            raise RuntimeError(
+                "`CloudClient.user_message` should be called from the event loop"
+            )
         self.mock_user.append((identifier, title, message))
 
     def dispatcher_message(self, identifier: str, data: Any = None) -> None:
