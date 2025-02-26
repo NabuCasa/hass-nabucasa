@@ -346,7 +346,8 @@ class Cloud(Generic[_ClientT]):
                 )
             except (ValueError, OSError) as err:
                 path = self.user_info_path.relative_to(self.client.base_path)
-                self.client.user_message(
+                self.client.loop.call_soon_threadsafe(
+                    self.client.user_message,
                     "load_auth_data",
                     "Home Assistant Cloud error",
                     f"Unable to load authentication from {path}. "
