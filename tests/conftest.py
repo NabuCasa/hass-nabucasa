@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 from aiohttp import web
@@ -67,9 +68,9 @@ def auth_cloud_mock(cloud_mock):
 
 
 @pytest.fixture
-def cloud_client(cloud_mock):
+def cloud_client(cloud_mock: MagicMock) -> MockClient:
     """Return cloud client impl."""
-    return cloud_mock.client
+    return cast(MockClient, cloud_mock.client)
 
 
 @pytest.fixture
