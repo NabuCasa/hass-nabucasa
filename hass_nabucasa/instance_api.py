@@ -19,9 +19,9 @@ class InstanceApiError(CloudApiError):
 class InstanceConnectionDetails(TypedDict):
     """Connection details from instance API."""
 
-    remote_ip_address: str
     connected_at: str
     name: str
+    remote_ip_address: str
     version: str
 
 
