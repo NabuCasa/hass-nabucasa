@@ -21,6 +21,8 @@ class InstanceConnectionDetails(TypedDict):
 
     remote_ip_address: str
     connected_at: str
+    name: str
+    version: str
 
 
 class InstanceConnectionConnnected(TypedDict):
