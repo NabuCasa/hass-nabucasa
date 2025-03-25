@@ -70,7 +70,7 @@ def auth_cloud_mock(cloud_mock):
 @pytest.fixture
 def cloud_client(cloud_mock: MagicMock) -> MockClient:
     """Return cloud client impl."""
-    return cast(MockClient, cloud_mock.client)
+    return cast("MockClient", cloud_mock.client)
 
 
 @pytest.fixture

@@ -224,7 +224,7 @@ class RemoteUI:
         # Cache data
         self._instance_domain = instance_domain
         self._snitun_server = server
-        self._alias = cast(list[str], data.get("alias", []))
+        self._alias = cast("list[str]", data.get("alias", []))
 
         domains: list[str] = [instance_domain, *self._alias]
 
