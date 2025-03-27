@@ -190,6 +190,12 @@ class ApiBase(ABC):
         ):
             raise CloudApiNonRetryableError(message, code=code) from None
 
+        if resp.status == 403 and self._cloud.subscription_expired:
+            raise CloudApiNonRetryableError(
+                "Subscription has expired",
+                code="subscription_expired",
+            ) from None
+
         try:
             resp.raise_for_status()
         except ClientResponseError as err:
