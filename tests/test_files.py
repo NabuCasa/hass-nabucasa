@@ -190,7 +190,7 @@ async def test_upload_returning_403_and_expired_subscription(
     auth_cloud_mock: Cloud,
     caplog: pytest.LogCaptureFixture,
 ):
-    """Test handling bad status codes when fetching upload details."""
+    """Test handling 403 when the subscription is expired."""
     auth_cloud_mock.subscription_expired = True
     files = Files(auth_cloud_mock)
     aioclient_mock.get(
