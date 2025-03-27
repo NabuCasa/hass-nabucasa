@@ -185,6 +185,36 @@ async def test_upload_bad_status_while_getting_upload_details(
     assert log_msg in caplog.text
 
 
+async def test_upload_returning_403_and_expired_subscription(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test handling bad status codes when fetching upload details."""
+    auth_cloud_mock.subscription_expired = True
+    files = Files(auth_cloud_mock)
+    aioclient_mock.get(
+        f"https://{API_HOSTNAME}/files/upload_details",
+        status=403,
+        json={"message": "Forbidden"},
+    )
+
+    with pytest.raises(CloudApiNonRetryableError, match="Subscription has expired"):
+        await files.upload(
+            storage_type="test",
+            open_stream=AsyncMock(),
+            filename="lorem.ipsum",
+            base64md5hash="hash",
+            size=1337,
+            metadata={"awesome": True},
+        )
+
+    assert (
+        "Response for get from example.com/files/upload_details (403) Forbidden"
+        in caplog.text
+    )
+
+
 @pytest.mark.parametrize(
     "exception,putmockargs,log_msg",
     [
