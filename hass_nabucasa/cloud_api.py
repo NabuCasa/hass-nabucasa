@@ -225,7 +225,7 @@ async def async_files_download_details(
         data["message"] if resp.status == 400 and "message" in data else "",
     )
     resp.raise_for_status()
-    return cast(FilesHandlerDownloadDetails, data)
+    return cast("FilesHandlerDownloadDetails", data)
 
 
 @_check_token
@@ -250,7 +250,7 @@ async def async_files_list(
         else "",
     )
     resp.raise_for_status()
-    return cast(list[FilesHandlerListEntry], data)
+    return cast("list[FilesHandlerListEntry]", data)
 
 
 @_check_token
@@ -284,7 +284,7 @@ async def async_files_upload_details(
         data["message"] if "message" in data and resp.status == 400 else "",
     )
     resp.raise_for_status()
-    return cast(FilesHandlerUploadDetails, data)
+    return cast("FilesHandlerUploadDetails", data)
 
 
 @_check_token
