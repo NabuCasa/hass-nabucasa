@@ -367,11 +367,15 @@ class AcmeHandler:
 
     async def load_certificate(self) -> None:
         """Get x509 Cert-Object."""
-        if self._x509 or not self.path_fullchain.exists():
+        if self._x509:
+            # The certificate is already loaded
             return
 
-        def _load_cert() -> x509.Certificate:
+        def _load_cert() -> x509.Certificate | None:
             """Load certificate in a thread."""
+            if not self.path_fullchain.exists():
+                # The certificate is not available
+                return None
             return x509.load_pem_x509_certificate(self.path_fullchain.read_bytes())
 
         try:
