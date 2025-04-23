@@ -53,7 +53,7 @@ def main() -> None:
         "Run python3 -m scripts/update_voice_data.py to update this file.",
         '"""',
         "",
-        f"VOICES = {data}",
+        f"TTS_VOICES = {data}",
     ]
     voice_data_path.write_text("\n".join(parts))
     subprocess.run(  # noqa: S603
