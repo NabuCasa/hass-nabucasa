@@ -31,7 +31,7 @@ def main() -> None:
         if voice["Status"] != "GA":
             continue
         locale = voice["Locale"]
-        voice_id = voice["ShortName"][len(locale) + 1:]
+        voice_id = voice["ShortName"][len(locale) + 1 :]
         voice_info = {
             "name": voice["DisplayName"],
         }

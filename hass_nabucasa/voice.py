@@ -49,9 +49,7 @@ class AudioOutput(str, Enum):
 
 
 # backwards compat
-TTS_VOICES = {
-    language: list(info) for language, info in voice_data.TTS_VOICES.items()
-}
+TTS_VOICES = {language: list(info) for language, info in voice_data.TTS_VOICES.items()}
 
 
 STT_LANGUAGES = [
@@ -569,8 +567,7 @@ class Voice:
             voice = next(iter(voice_data.TTS_VOICES[language]))
 
         if voice not in voice_data.TTS_VOICES[language]:
-            raise VoiceError(
-                f"Unsupported voice {voice} for language {language}")
+            raise VoiceError(f"Unsupported voice {voice} for language {language}")
 
         if force_token_renewal or not self._validate_token():
             await self._update_token()
