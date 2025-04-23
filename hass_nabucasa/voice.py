@@ -48,7 +48,6 @@ class AudioOutput(str, Enum):
     RAW = "raw"
 
 
-# The first entry for each language is the default voice
 TTS_VOICES = {
     "af-ZA": [
         "AdriNeural",
@@ -1317,7 +1316,8 @@ class Voice:
             voice = TTS_VOICES[language][0]
 
         if voice not in TTS_VOICES[language]:
-            raise VoiceError(f"Unsupported voice {voice} for language {language}")
+            raise VoiceError(
+                f"Unsupported voice {voice} for language {language}")
 
         if force_token_renewal or not self._validate_token():
             await self._update_token()
