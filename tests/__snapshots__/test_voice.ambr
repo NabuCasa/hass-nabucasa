@@ -25,3 +25,19 @@
     }),
   })
 # ---
+# name: test_process_tts_with_voice_and_style
+  dict({
+    'speak': dict({
+      '@version': '1.0',
+      '@xml:lang': 'de-DE',
+      'voice': dict({
+        '@name': 'Microsoft Server Speech Text to Speech Voice (de-DE, ConradNeural)',
+        '@xml:lang': 'de-DE',
+        'mstts:express-as': dict({
+          '#text': 'Text for Saying',
+          '@style': 'cheerful',
+        }),
+      }),
+    }),
+  })
+# ---

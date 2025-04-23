@@ -553,9 +553,12 @@ class Voice:
         voice: str | None = None,
         gender: Gender | None = None,
         force_token_renewal: bool = False,
+        style: str | None = None,
     ) -> bytes:
         """Get Speech from text over Azure."""
-        if language not in voice_data.TTS_VOICES:
+        language_info = voice_data.TTS_VOICES.get(language)
+
+        if language_info is None:
             raise VoiceError(f"Unsupported language {language}")
 
         # Backwards compatibility for old config
@@ -564,10 +567,17 @@ class Voice:
 
         # If no voice picked, pick first one.
         if voice is None:
-            voice = next(iter(voice_data.TTS_VOICES[language]))
+            voice = next(iter(language_info))
 
-        if voice not in voice_data.TTS_VOICES[language]:
+        voice_info = language_info.get(voice)
+
+        if voice_info is None:
             raise VoiceError(f"Unsupported voice {voice} for language {language}")
+
+        if style and style not in voice_info.get("variants", []):
+            raise VoiceError(
+                f"Unsupported style {style} for voice {voice} in language {language}"
+            )
 
         if force_token_renewal or not self._validate_token():
             await self._update_token()
@@ -581,7 +591,14 @@ class Voice:
             "name",
             f"Microsoft Server Speech Text to Speech Voice ({language}, {voice})",
         )
-        voice_el.text = text[:2048]
+        if style:
+            style_el = ET.SubElement(voice_el, "mstts:express-as")
+            style_el.set("style", style)
+            target_el = style_el
+        else:
+            target_el = voice_el
+
+        target_el.text = text[:2048]
 
         # We can not get here without this being set, but mypy does not know that.
         assert self._endpoint_tts is not None
