@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypedDict
 
-from .api import ApiBase, CloudApiError, api_exception_handler
+from .api import ApiBase, CloudApiError
 
 
 class VoiceApiError(CloudApiError):
@@ -30,10 +30,12 @@ class VoiceApi(ApiBase):
             assert self._cloud.servicehandlers_server is not None
         return self._cloud.servicehandlers_server
 
-    @api_exception_handler(VoiceApiError)
     async def connection_details(self) -> VoiceConnectionDetails:
         """Get the voice connection details."""
-        details: VoiceConnectionDetails = await self._call_cloud_api(
-            path="/voice/connection_details"
-        )
+        try:
+            details: VoiceConnectionDetails = await self._call_cloud_api(
+                path="/voice/connection_details"
+            )
+        except CloudApiError as err:
+            raise VoiceApiError(err, orig_exc=err) from err
         return details
