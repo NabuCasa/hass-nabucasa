@@ -48,10 +48,6 @@ class AudioOutput(str, Enum):
     RAW = "raw"
 
 
-# backwards compat
-TTS_VOICES = {language: list(info) for language, info in voice_data.TTS_VOICES.items()}
-
-
 STT_LANGUAGES = [
     "af-ZA",
     "am-ET",
