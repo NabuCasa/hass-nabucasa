@@ -11,7 +11,7 @@ import aiohttp
 
 voice_data_path = Path(__file__).parent.parent / "hass_nabucasa/voice_data.py"
 
-REGION = "eastus"
+REGION = "westus"
 LIST_VOICES_URL = (
     f"https://{REGION}.tts.speech.microsoft.com/cognitiveservices/voices/list"
 )
@@ -32,8 +32,16 @@ def main() -> None:
             continue
         locale = voice["Locale"]
         voice_id = voice["ShortName"][len(locale) + 1 :]
+        voice_name = voice["DisplayName"]
+        if voice_name.endswith("Neural"):
+            voice_name = voice_name[:-7].strip()
+
+        # Skip variants
+        if ":" in voice_id or "Multilingual" in voice_id:
+            continue
+
         voice_info = {
-            "name": voice["DisplayName"],
+            "name": voice_name,
         }
         if style_list := voice.get("StyleList"):
             voice_info["variants"] = style_list
