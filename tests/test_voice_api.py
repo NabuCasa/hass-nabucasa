@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientError
 import pytest
 
-from hass_nabucasa import Cloud
 from hass_nabucasa.voice_api import (
     VoiceApi,
     VoiceApiError,
     VoiceConnectionDetails,
 )
-from tests.utils.aiohttp import AiohttpClientMocker
+
+if TYPE_CHECKING:
+    from hass_nabucasa import Cloud
+    from tests.utils.aiohttp import AiohttpClientMocker
 
 API_HOSTNAME = "example.com"
 
