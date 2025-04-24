@@ -569,8 +569,7 @@ class Voice:
         voice_info = language_info.get(voice)
 
         if voice_info is None:
-            raise VoiceError(
-                f"Unsupported voice {voice} for language {language}")
+            raise VoiceError(f"Unsupported voice {voice} for language {language}")
 
         if style and style not in voice_info.get("variants", []):
             raise VoiceError(
