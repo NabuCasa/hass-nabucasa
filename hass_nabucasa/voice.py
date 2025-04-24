@@ -12,8 +12,8 @@ from xml.etree import ElementTree as ET
 from aiohttp.hdrs import ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT
 import attr
 
-from . import cloud_api
 from .utils import utc_from_timestamp, utcnow
+from .voice_api import VoiceApiError
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -1234,15 +1234,15 @@ class Voice:
 
     async def _update_token(self) -> None:
         """Update token details."""
-        resp = await cloud_api.async_voice_connection_details(self.cloud)
-        if resp.status != 200:
-            raise VoiceTokenError
+        try:
+            details = await self.cloud.voice_api.connection_details()
+        except VoiceApiError as err:
+            raise VoiceTokenError from err
 
-        data = await resp.json()
-        self._token = data["authorized_key"]
-        self._endpoint_stt = data["endpoint_stt"]
-        self._endpoint_tts = data["endpoint_tts"]
-        self._valid = utc_from_timestamp(float(data["valid"]))
+        self._token = details["authorized_key"]
+        self._endpoint_stt = details["endpoint_stt"]
+        self._endpoint_tts = details["endpoint_tts"]
+        self._valid = utc_from_timestamp(float(details["valid"]))
 
     async def process_stt(
         self,
