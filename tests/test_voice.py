@@ -124,6 +124,72 @@ async def test_process_tts_with_voice(
     assert xmltodict.parse(aioclient_mock.mock_calls[1][2]) == snapshot
 
 
+async def test_process_tts_with_voice_and_style(
+    voice_api,
+    aioclient_mock,
+    mock_voice_connection_details,
+    snapshot,
+):
+    """Test handling around tts."""
+    aioclient_mock.post(
+        "tts-url",
+        content=b"My sound",
+    )
+
+    # Voice with variants
+    result = await voice_api.process_tts(
+        text="Text for Saying",
+        language="de-DE",
+        voice="ConradNeural",
+        style="cheerful",
+        output=voice.AudioOutput.RAW,
+    )
+
+    assert result == b"My sound"
+    assert aioclient_mock.mock_calls[1][3] == {
+        "Authorization": "Bearer test-key",
+        "Content-Type": "application/ssml+xml",
+        "X-Microsoft-OutputFormat": "raw-16khz-16bit-mono-pcm",
+        "User-Agent": "hass-nabucasa/tests",
+    }
+    assert xmltodict.parse(aioclient_mock.mock_calls[1][2]) == snapshot
+
+    with pytest.raises(voice.VoiceError):
+        await voice_api.process_tts(
+            text="Text for Saying",
+            language="de-DE",
+            voice="ConradNeural",
+            style="non-existing-style",
+            output=voice.AudioOutput.RAW,
+        )
+
+    # Voice without variants
+    result = await voice_api.process_tts(
+        text="Text for Saying 2",
+        language="en-US",
+        voice="MichelleNeural",
+        output=voice.AudioOutput.RAW,
+    )
+
+    assert result == b"My sound"
+    assert aioclient_mock.mock_calls[1][3] == {
+        "Authorization": "Bearer test-key",
+        "Content-Type": "application/ssml+xml",
+        "X-Microsoft-OutputFormat": "raw-16khz-16bit-mono-pcm",
+        "User-Agent": "hass-nabucasa/tests",
+    }
+    assert xmltodict.parse(aioclient_mock.mock_calls[2][2]) == snapshot
+
+    with pytest.raises(voice.VoiceError):
+        await voice_api.process_tts(
+            text="Text for Saying 2",
+            language="en-US",
+            voice="MichelleNeural",
+            style="non-existing-style",
+            output=voice.AudioOutput.RAW,
+        )
+
+
 async def test_process_tts_bad_language(voice_api):
     """Test language error handling around tts."""
     with pytest.raises(voice.VoiceError):

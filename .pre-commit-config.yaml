@@ -55,6 +55,7 @@ repos:
         language: system
         types: [text]
         entry: codespell
+        exclude: voice_data.py
       - id: detect-private-key
         name: Detect Private Keys
         language: system
