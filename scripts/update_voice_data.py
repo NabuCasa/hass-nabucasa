@@ -31,7 +31,7 @@ def main() -> None:
         if voice["Status"] != "GA":
             continue
         locale = voice["Locale"]
-        voice_id = voice["ShortName"][len(locale) + 1 :]
+        voice_id = voice["ShortName"][len(locale) + 1:]
         voice_name = voice["DisplayName"]
         if voice_name.endswith("Neural"):
             voice_name = voice_name[:-7].strip()
@@ -71,7 +71,7 @@ def main() -> None:
         "Run python3 -m scripts/update_voice_data.py to update this file.",
         '"""',
         "",
-        f"TTS_VOICES: dict[str, dict[str, dict]] = {data}",
+        f"TTS_VOICES: dict[str, dict[str, dict | str]] = {data}",
     ]
     voice_data_path.write_text("\n".join(parts))
     subprocess.run(  # noqa: S603
