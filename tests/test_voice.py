@@ -6,12 +6,14 @@ import pytest
 import xmltodict
 
 from hass_nabucasa import voice
+from hass_nabucasa.voice_api import VoiceApi
 
 
 @pytest.fixture
 def voice_api(auth_cloud_mock):
     """Voice api fixture."""
     auth_cloud_mock.servicehandlers_server = "test.local"
+    auth_cloud_mock.voice_api = VoiceApi(auth_cloud_mock)
     return voice.Voice(auth_cloud_mock)
 
 

@@ -37,6 +37,7 @@ from .iot import CloudIoT
 from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
+from .voice_api import VoiceApi
 
 _ClientT = TypeVar("_ClientT", bound=CloudClient)
 
@@ -93,6 +94,7 @@ class Cloud(Generic[_ClientT]):
         self.files = Files(self)
         self.instance = InstanceApi(self)
         self.voice = Voice(self)
+        self.voice_api = VoiceApi(self)
         self.ice_servers = IceServers(self)
 
         self._init_task: asyncio.Task | None = None
