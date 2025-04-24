@@ -102,6 +102,9 @@ class Cloud(Generic[_ClientT]):
         # Set reference
         self.client.cloud = self
 
+        self._subscription_expired_handler_lock = asyncio.Lock()
+        self._subscription_expired_task: asyncio.Task | None = None
+
         if mode == MODE_DEV:
             self.cognito_client_id = cognito_client_id
             self.user_pool_id = user_pool_id
@@ -219,6 +222,7 @@ class Cloud(Generic[_ClientT]):
         if self.started and self.subscription_expired:
             self.started = False
             await self.stop()
+            await self.initialize_subscription_expired_handler()
 
         return None
 
@@ -385,6 +389,7 @@ class Cloud(Generic[_ClientT]):
 
         if self.subscription_expired:
             self.started = False
+            await self.initialize_subscription_expired_handler()
             return
 
         self.started = True
@@ -414,3 +419,50 @@ class Cloud(Generic[_ClientT]):
             options={"verify_signature": False},
         )
         return decoded
+
+    async def initialize_subscription_expired_handler(self) -> None:
+        """Initialize the subscription expired handler."""
+        async with self._subscription_expired_handler_lock:
+            if self._subscription_expired_task is not None:
+                _LOGGER.debug("Subscription expired handler already running")
+                return
+
+            self._subscription_expired_task = asyncio.create_task(
+                self._subscription_expired_handler(),
+                name="subscription_expired_handler",
+            )
+
+    async def _subscription_expired_handler(self) -> None:
+        """Handle subscription expired."""
+        while True:
+            now_as_utc = utcnow()
+            sub_expired = self.expiration_date
+            wait_hours = 1
+
+            if sub_expired > (now_as_utc - timedelta(days=1)):
+                wait_hours = 3
+            elif sub_expired > (now_as_utc - timedelta(days=7)):
+                wait_hours = 12
+            elif sub_expired > (now_as_utc - timedelta(days=180)):
+                wait_hours = 24
+            else:
+                # More than 6 months, give up
+                break
+
+            _LOGGER.info(
+                "[%s] Subscription expired %s, waiting %s hours for renewal",
+                now_as_utc,
+                sub_expired,
+                wait_hours,
+            )
+            await asyncio.sleep(wait_hours * 60 * 60)
+
+            await self.auth.async_renew_access_token()
+
+            if not self.subscription_expired:
+                await self._start()
+                await self.remote.start()
+                break
+
+        _LOGGER.debug("Stopping subscription expired handler")
+        self._subscription_expired_task = None
