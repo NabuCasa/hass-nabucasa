@@ -31,7 +31,7 @@ def main() -> None:
         if voice["Status"] != "GA":
             continue
         locale = voice["Locale"]
-        voice_id = voice["ShortName"][len(locale) + 1:]
+        voice_id = voice["ShortName"][len(locale) + 1 :]
         voice_name = voice["DisplayName"]
         if voice_name.endswith("Neural"):
             voice_name = voice_name[:-7].strip()
