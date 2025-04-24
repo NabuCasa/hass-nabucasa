@@ -44,3 +44,17 @@
     }),
   })
 # ---
+# name: test_process_tts_with_voice_and_style.1
+  dict({
+    'speak': dict({
+      '@version': '1.0',
+      '@xml:lang': 'en-US',
+      '@xmlns': 'http://www.w3.org/2001/10/synthesis',
+      '@xmlns:mstts': 'https://www.w3.org/2001/mstts',
+      'voice': dict({
+        '#text': 'Text for Saying 2',
+        '@name': 'en-US-MichelleNeural',
+      }),
+    }),
+  })
+# ---

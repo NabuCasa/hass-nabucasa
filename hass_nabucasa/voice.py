@@ -565,10 +565,11 @@ class Voice:
             voice = next(iter(language_info))
 
         if (voice_info := language_info.get(voice)) is None:
-            raise VoiceError(
-                f"Unsupported voice {voice} for language {language}")
+            raise VoiceError(f"Unsupported voice {voice} for language {language}")
 
-        if style and style not in voice_info.get("variants", []):
+        if style and (
+            isinstance(voice_info, str) or style not in voice_info.get("variants", [])
+        ):
             raise VoiceError(
                 f"Unsupported style {style} for voice {voice} in language {language}"
             )
