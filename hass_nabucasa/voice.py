@@ -12,9 +12,9 @@ from xml.etree import ElementTree as ET
 from aiohttp.hdrs import ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT
 import attr
 
-from . import voice_data
 from .utils import utc_from_timestamp, utcnow
 from .voice_api import VoiceApiError
+from .voice_data import TTS_VOICES
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -565,7 +565,8 @@ class Voice:
             voice = next(iter(language_info))
 
         if (voice_info := language_info.get(voice)) is None:
-            raise VoiceError(f"Unsupported voice {voice} for language {language}")
+            raise VoiceError(
+                f"Unsupported voice {voice} for language {language}")
 
         if style and style not in voice_info.get("variants", []):
             raise VoiceError(
