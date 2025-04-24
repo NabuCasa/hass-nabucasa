@@ -583,18 +583,31 @@ class Voice:
             await self._update_token()
 
         # SSML
-        xml_body = ET.Element("speak", version="1.0")
-        xml_body.set("{http://www.w3.org/XML/1998/namespace}lang", language)
-        voice_el = ET.SubElement(xml_body, "voice")
-        voice_el.set("{http://www.w3.org/XML/1998/namespace}lang", language)
-        voice_el.set(
-            "name",
-            f"Microsoft Server Speech Text to Speech Voice ({language}, {voice})",
+        xml_body = ET.Element(
+            "speak",
+            attrib={
+                "version": "1.0",
+                "xmlns": "http://www.w3.org/2001/10/synthesis",
+                "xmlns:mstts": "https://www.w3.org/2001/mstts",
+                "{http://www.w3.org/XML/1998/namespace}lang": language,
+            },
         )
+
+        # Add <voice> element
+        voice_el = ET.SubElement(
+            xml_body, "voice", attrib={"name": f"{language}-{voice}"}
+        )
+
         if style:
-            style_el = ET.SubElement(voice_el, "mstts:express-as")
-            style_el.set("style", style)
-            target_el = style_el
+            express_el = ET.SubElement(
+                voice_el,
+                "mstts:express-as",
+                attrib={
+                    "style": style,
+                },
+            )
+
+            target_el = express_el
         else:
             target_el = voice_el
 

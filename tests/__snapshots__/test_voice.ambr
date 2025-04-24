@@ -4,10 +4,11 @@
     'speak': dict({
       '@version': '1.0',
       '@xml:lang': 'en-US',
+      '@xmlns': 'http://www.w3.org/2001/10/synthesis',
+      '@xmlns:mstts': 'https://www.w3.org/2001/mstts',
       'voice': dict({
         '#text': 'Text for Saying',
-        '@name': 'Microsoft Server Speech Text to Speech Voice (en-US, JennyNeural)',
-        '@xml:lang': 'en-US',
+        '@name': 'en-US-JennyNeural',
       }),
     }),
   })
@@ -17,10 +18,11 @@
     'speak': dict({
       '@version': '1.0',
       '@xml:lang': 'nl-NL',
+      '@xmlns': 'http://www.w3.org/2001/10/synthesis',
+      '@xmlns:mstts': 'https://www.w3.org/2001/mstts',
       'voice': dict({
         '#text': 'Text for Saying',
-        '@name': 'Microsoft Server Speech Text to Speech Voice (nl-NL, FennaNeural)',
-        '@xml:lang': 'nl-NL',
+        '@name': 'nl-NL-FennaNeural',
       }),
     }),
   })
@@ -30,9 +32,10 @@
     'speak': dict({
       '@version': '1.0',
       '@xml:lang': 'de-DE',
+      '@xmlns': 'http://www.w3.org/2001/10/synthesis',
+      '@xmlns:mstts': 'https://www.w3.org/2001/mstts',
       'voice': dict({
-        '@name': 'Microsoft Server Speech Text to Speech Voice (de-DE, ConradNeural)',
-        '@xml:lang': 'de-DE',
+        '@name': 'de-DE-ConradNeural',
         'mstts:express-as': dict({
           '#text': 'Text for Saying',
           '@style': 'cheerful',
