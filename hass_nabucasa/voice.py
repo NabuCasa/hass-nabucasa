@@ -553,9 +553,7 @@ class Voice:
         style: str | None = None,
     ) -> bytes:
         """Get Speech from text over Azure."""
-        language_info = voice_data.TTS_VOICES.get(language)
-
-        if language_info is None:
+        if (language_info := TTS_VOICES.get(language)) is None:
             raise VoiceError(f"Unsupported language {language}")
 
         # Backwards compatibility for old config
@@ -566,9 +564,7 @@ class Voice:
         if voice is None:
             voice = next(iter(language_info))
 
-        voice_info = language_info.get(voice)
-
-        if voice_info is None:
+        if (voice_info := language_info.get(voice)) is None:
             raise VoiceError(f"Unsupported voice {voice} for language {language}")
 
         if style and style not in voice_info.get("variants", []):
