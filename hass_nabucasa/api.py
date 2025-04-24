@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Callable, Coroutine
 import contextlib
+from functools import wraps
 from json import JSONDecodeError
 import logging
-from typing import TYPE_CHECKING, Any, final
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar, final
 
 from aiohttp import (
     ClientError,
@@ -21,7 +23,40 @@ from .auth import CloudError
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
+    P = ParamSpec("P")
+    T = TypeVar("T")
+
 _LOGGER = logging.getLogger(__name__)
+
+
+def api_exception_handler(
+    exception: type[CloudApiError],
+) -> Callable[
+    [Callable[P, Awaitable[T]]],
+    Callable[P, Coroutine[Any, Any, T]],
+]:
+    """Handle API exceptions."""
+
+    def decorator(
+        func: Callable[P, Awaitable[T]],
+    ) -> Callable[P, Coroutine[Any, Any, T]]:
+        @wraps(func)
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            try:
+                return await func(*args, **kwargs)
+            except (CloudApiNonRetryableError, CloudApiCodedError, exception):
+                raise
+            except CloudApiError as err:
+                raise exception(err, orig_exc=err) from err
+            except Exception as err:
+                raise exception(
+                    f"Unexpected error while calling API: {err}",
+                    orig_exc=err,
+                ) from err
+
+        return wrapper
+
+    return decorator
 
 
 class CloudApiError(CloudError):

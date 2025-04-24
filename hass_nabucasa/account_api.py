@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypedDict
 
-from .api import ApiBase, CloudApiError
+from .api import ApiBase, CloudApiError, api_exception_handler
 
 
 class AccountApiError(CloudApiError):
@@ -46,12 +46,10 @@ class AccountApi(ApiBase):
             assert self._cloud.servicehandlers_server is not None
         return self._cloud.servicehandlers_server
 
+    @api_exception_handler(AccountApiError)
     async def services(self) -> AccountServicesDetails:
         """Get the services details."""
-        try:
-            details: AccountServicesDetails = await self._call_cloud_api(
-                path="/account/services",
-            )
-        except CloudApiError as err:
-            raise AccountApiError(err, orig_exc=err) from err
+        details: AccountServicesDetails = await self._call_cloud_api(
+            path="/account/services",
+        )
         return details
