@@ -44,13 +44,23 @@ def main() -> None:
             "name": voice_name,
         }
         if style_list := voice.get("StyleList"):
-            voice_info["variants"] = style_list
+            voice_info = {
+                "name": voice_name,
+                "variants": style_list,
+            }
+        else:
+            voice_info = voice_name
 
         data.setdefault(locale, {})[voice_id] = voice_info
 
     # Sort the data
     for locale, info in data.items():
-        data[locale] = dict(sorted(info.items(), key=lambda x: x[1]["name"]))
+        data[locale] = dict(
+            sorted(
+                info.items(),
+                key=lambda x: x[1]["name"] if isinstance(x[1], dict) else x[1],
+            )
+        )
     data = dict(sorted(data.items()))
 
     parts = [
