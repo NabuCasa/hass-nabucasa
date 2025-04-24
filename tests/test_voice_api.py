@@ -88,7 +88,7 @@ async def test_problems_getting_connection_details(
     "response",
     [
         {
-            "valid": 123456789,
+            "valid": "123456789",
             "authorized_key": "test_key",
             "endpoint_stt": "http://example.com/stt",
             "endpoint_tts": "http://example.com/tts",
