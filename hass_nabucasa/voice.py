@@ -484,7 +484,7 @@ class Voice:
         try:
             details = await self.cloud.voice_api.connection_details()
         except VoiceApiError as err:
-            raise VoiceTokenError from err
+            raise VoiceTokenError(err) from err
 
         self._token = details["authorized_key"]
         self._endpoint_stt = details["endpoint_stt"]
