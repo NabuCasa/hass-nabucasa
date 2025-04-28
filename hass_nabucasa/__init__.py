@@ -437,7 +437,6 @@ class Cloud(Generic[_ClientT]):
         while True:
             now_as_utc = utcnow()
             sub_expired = self.expiration_date
-            wait_hours = 1
 
             if sub_expired > (now_as_utc - timedelta(days=1)):
                 wait_hours = 3
