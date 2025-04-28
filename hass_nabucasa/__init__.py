@@ -459,7 +459,7 @@ class Cloud(Generic[_ClientT]):
             await self.auth.async_renew_access_token()
 
             if not self.subscription_expired:
-                await self._start()
+                await self.initialize()
                 await self.remote.start()
                 break
 
