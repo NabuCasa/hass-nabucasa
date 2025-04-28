@@ -6,6 +6,7 @@ import pytest
 import xmltodict
 
 from hass_nabucasa import voice
+from hass_nabucasa.auth import Unauthenticated
 from hass_nabucasa.voice_api import VoiceApi
 
 
@@ -60,7 +61,7 @@ async def test_process_stt(voice_api, aioclient_mock, mock_voice_connection_deta
 
 async def test_process_stt_bad_language(voice_api):
     """Test language handling around stt."""
-    with pytest.raises(voice.VoiceError):
+    with pytest.raises(voice.VoiceError, match="Language en-BAD not supported"):
         await voice_api.process_stt(
             stream=b"feet",
             content_type="video=test",
@@ -124,9 +125,83 @@ async def test_process_tts_with_voice(
     assert xmltodict.parse(aioclient_mock.mock_calls[1][2]) == snapshot
 
 
+async def test_process_tts_with_voice_and_style(
+    voice_api,
+    aioclient_mock,
+    mock_voice_connection_details,
+    snapshot,
+):
+    """Test handling around tts."""
+    aioclient_mock.post(
+        "tts-url",
+        content=b"My sound",
+    )
+
+    # Voice with variants
+    result = await voice_api.process_tts(
+        text="Text for Saying",
+        language="de-DE",
+        voice="ConradNeural",
+        style="cheerful",
+        output=voice.AudioOutput.RAW,
+    )
+
+    assert result == b"My sound"
+    assert aioclient_mock.mock_calls[1][3] == {
+        "Authorization": "Bearer test-key",
+        "Content-Type": "application/ssml+xml",
+        "X-Microsoft-OutputFormat": "raw-16khz-16bit-mono-pcm",
+        "User-Agent": "hass-nabucasa/tests",
+    }
+    assert xmltodict.parse(aioclient_mock.mock_calls[1][2]) == snapshot
+
+    with pytest.raises(
+        voice.VoiceError,
+        match="Unsupported style non-existing-style "
+        "for voice ConradNeural in language de-DE",
+    ):
+        await voice_api.process_tts(
+            text="Text for Saying",
+            language="de-DE",
+            voice="ConradNeural",
+            style="non-existing-style",
+            output=voice.AudioOutput.RAW,
+        )
+
+    # Voice without variants
+    result = await voice_api.process_tts(
+        text="Text for Saying 2",
+        language="en-US",
+        voice="MichelleNeural",
+        output=voice.AudioOutput.RAW,
+    )
+
+    assert result == b"My sound"
+    assert aioclient_mock.mock_calls[1][3] == {
+        "Authorization": "Bearer test-key",
+        "Content-Type": "application/ssml+xml",
+        "X-Microsoft-OutputFormat": "raw-16khz-16bit-mono-pcm",
+        "User-Agent": "hass-nabucasa/tests",
+    }
+    assert xmltodict.parse(aioclient_mock.mock_calls[2][2]) == snapshot
+
+    with pytest.raises(
+        voice.VoiceError,
+        match="Unsupported style non-existing-style "
+        "for voice MichelleNeural in language en-US",
+    ):
+        await voice_api.process_tts(
+            text="Text for Saying 2",
+            language="en-US",
+            voice="MichelleNeural",
+            style="non-existing-style",
+            output=voice.AudioOutput.RAW,
+        )
+
+
 async def test_process_tts_bad_language(voice_api):
     """Test language error handling around tts."""
-    with pytest.raises(voice.VoiceError):
+    with pytest.raises(voice.VoiceError, match="Unsupported language en-BAD"):
         await voice_api.process_tts(
             text="Text for Saying",
             language="en-BAD",
@@ -136,7 +211,9 @@ async def test_process_tts_bad_language(voice_api):
 
 async def test_process_tts_bad_voice(voice_api):
     """Test voice error handling around tts."""
-    with pytest.raises(voice.VoiceError):
+    with pytest.raises(
+        voice.VoiceError, match="Unsupported voice Not a US voice for language en-US"
+    ):
         await voice_api.process_tts(
             text="Text for Saying",
             language="en-US",
@@ -157,7 +234,9 @@ async def test_process_tss_429(
         status=429,
     )
 
-    with pytest.raises(voice.VoiceError):
+    with pytest.raises(
+        voice.VoiceError, match="Error receiving TTS with en-US/JennyNeural: 429 "
+    ):
         await voice_api.process_tts(
             text="Text for Saying",
             language="en-US",
@@ -182,7 +261,7 @@ async def test_process_stt_429(
         status=429,
     )
 
-    with pytest.raises(voice.VoiceError):
+    with pytest.raises(voice.VoiceError, match="Error processing en-US speech: 429 "):
         await voice_api.process_stt(
             stream=b"feet",
             content_type="video=test",
@@ -192,3 +271,27 @@ async def test_process_stt_429(
     assert len(aioclient_mock.mock_calls) == 4
 
     assert "Retrying with new token" in caplog.text
+
+
+async def test_process_tts_without_authentication(
+    voice_api: voice.Voice,
+):
+    """Test handling of voice without authentication."""
+
+    async def async_check_token(*args, **kwargs):
+        """Mock token check."""
+        raise Unauthenticated("No authentication")
+
+    voice_api.cloud.auth.async_check_token = async_check_token
+
+    with (
+        pytest.raises(
+            voice.VoiceError,
+            match="No authentication",
+        ),
+    ):
+        await voice_api.process_stt(
+            stream=b"feet",
+            content_type="video=test",
+            language="en-US",
+        )

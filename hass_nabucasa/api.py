@@ -18,7 +18,7 @@ from aiohttp import (
     hdrs,
 )
 
-from .auth import CloudError
+from .auth import CloudError, Unauthenticated, UnknownError
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -44,9 +44,13 @@ def api_exception_handler(
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             try:
                 return await func(*args, **kwargs)
-            except (CloudApiNonRetryableError, CloudApiCodedError, exception):
+            except (
+                CloudApiNonRetryableError,
+                CloudApiCodedError,
+                exception,
+            ):
                 raise
-            except CloudApiError as err:
+            except (CloudApiError, UnknownError, Unauthenticated) as err:
                 raise exception(err, orig_exc=err) from err
             except Exception as err:
                 raise exception(
