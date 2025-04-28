@@ -444,6 +444,8 @@ class Cloud(Generic[_ClientT]):
                 wait_hours = 12
             elif sub_expired > (now_as_utc - timedelta(days=180)):
                 wait_hours = 24
+            elif sub_expired > (now_as_utc - timedelta(days=400)):
+                wait_hours = 96
             else:
                 # More than 6 months, give up
                 break
