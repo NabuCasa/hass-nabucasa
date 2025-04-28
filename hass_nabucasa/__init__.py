@@ -449,9 +449,8 @@ class Cloud(Generic[_ClientT]):
                 break
 
             _LOGGER.info(
-                "[%s] Subscription expired %s, waiting %s hours for renewal",
-                now_as_utc,
-                sub_expired,
+                "Subscription expired %s, waiting %s hours for renewal",
+                sub_expired.strftime("%Y-%m-%d"),
                 wait_hours,
             )
             await asyncio.sleep(wait_hours * 60 * 60)
