@@ -194,8 +194,7 @@ async def test_logout_clears_info(cloud_client):
     cl.remote.disconnect = AsyncMock()
 
     cl._on_stop.extend(
-        [cl.iot.disconnect, cl.remote.disconnect,
-            cl.google_report_state.disconnect],
+        [cl.iot.disconnect, cl.remote.disconnect, cl.google_report_state.disconnect],
     )
 
     with patch(
