@@ -222,6 +222,8 @@ class Cloud(Generic[_ClientT]):
         if self.started and self.subscription_expired:
             self.started = False
             await self.stop()
+
+        if self.subscription_expired:
             await self.initialize_subscription_expired_handler()
 
         return None
