@@ -462,6 +462,9 @@ class Cloud(Generic[_ClientT]):
             )
             await asyncio.sleep(wait_hours * 60 * 60)
 
+            if not self.is_logged_in:
+                break
+
             await self.auth.async_renew_access_token()
 
             if not self.subscription_expired:

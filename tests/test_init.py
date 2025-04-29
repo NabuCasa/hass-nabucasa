@@ -386,6 +386,10 @@ async def test_subscription_expired_handler_renews_and_starts(
             "hass_nabucasa.Cloud._decode_claims",
             _decode_claims_mocker,
         ),
+        patch(
+            "hass_nabucasa.Cloud.is_logged_in",
+            return_value=True,
+        ),
     ):
         await cl._subscription_expired_handler()
 
