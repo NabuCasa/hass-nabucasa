@@ -194,8 +194,7 @@ async def test_logout_clears_info(cloud_client):
     cl.remote.disconnect = AsyncMock()
 
     cl._on_stop.extend(
-        [cl.iot.disconnect, cl.remote.disconnect,
-            cl.google_report_state.disconnect],
+        [cl.iot.disconnect, cl.remote.disconnect, cl.google_report_state.disconnect],
     )
 
     with patch(
@@ -378,7 +377,6 @@ async def test_subscription_expired_handler_renews_and_starts(
 
     with (
         patch("hass_nabucasa.Cloud.initialize", AsyncMock()) as _initialize_mocker,
-        patch("hass_nabucasa.RemoteUI.start", AsyncMock()) as _remote_start_mocker,
         patch(
             "hass_nabucasa.CognitoAuth.async_renew_access_token",
             side_effect=async_renew_access_token,
@@ -393,7 +391,6 @@ async def test_subscription_expired_handler_renews_and_starts(
 
     sleep_mock.assert_called_with(expected_sleep_hours * 60 * 60)
     _initialize_mocker.assert_awaited_once()
-    _remote_start_mocker.assert_awaited_once()
     assert "Stopping subscription expired handler" in caplog.text
 
 

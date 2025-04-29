@@ -447,11 +447,14 @@ class Cloud(Generic[_ClientT]):
             elif sub_expired > (now_as_utc - timedelta(days=400)):
                 wait_hours = 96
             else:
-                # More than 6 months, give up
+                _LOGGER.info(
+                    "Subscription expired for more than 400 days, "
+                    "not waiting for renewal",
+                )
                 break
 
             _LOGGER.info(
-                "Subscription expired %s, waiting %s hours for renewal",
+                "Subscription expired at %s, waiting %s hours for renewal",
                 sub_expired.strftime("%Y-%m-%d"),
                 wait_hours,
             )
@@ -461,7 +464,6 @@ class Cloud(Generic[_ClientT]):
 
             if not self.subscription_expired:
                 await self.initialize()
-                await self.remote.start()
                 break
 
         _LOGGER.debug("Stopping subscription expired handler")
