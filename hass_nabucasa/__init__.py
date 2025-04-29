@@ -450,8 +450,8 @@ class Cloud(Generic[_ClientT]):
                 wait_hours = 96
             else:
                 _LOGGER.info(
-                    "Subscription expired for more than 400 days, "
-                    "not waiting for renewal",
+                    "Subscription expired at %s, not waiting for renewal",
+                    sub_expired.strftime("%Y-%m-%d"),
                 )
                 break
 
