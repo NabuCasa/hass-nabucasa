@@ -102,7 +102,6 @@ class Cloud(Generic[_ClientT]):
         # Set reference
         self.client.cloud = self
 
-        self._subscription_expired_handler_lock = asyncio.Lock()
         self._subscription_expired_task: asyncio.Task | None = None
 
         if mode == MODE_DEV:
@@ -224,7 +223,7 @@ class Cloud(Generic[_ClientT]):
             await self.stop()
 
         if self.subscription_expired:
-            await self.initialize_subscription_expired_handler()
+            self.async_initialize_subscription_expired_handler()
 
         return None
 
@@ -391,7 +390,7 @@ class Cloud(Generic[_ClientT]):
 
         if self.subscription_expired:
             self.started = False
-            await self.initialize_subscription_expired_handler()
+            self.async_initialize_subscription_expired_handler()
             return
 
         self.started = True
@@ -422,17 +421,16 @@ class Cloud(Generic[_ClientT]):
         )
         return decoded
 
-    async def initialize_subscription_expired_handler(self) -> None:
+    def async_initialize_subscription_expired_handler(self) -> None:
         """Initialize the subscription expired handler."""
-        async with self._subscription_expired_handler_lock:
-            if self._subscription_expired_task is not None:
-                _LOGGER.debug("Subscription expired handler already running")
-                return
+        if self._subscription_expired_task is not None:
+            _LOGGER.debug("Subscription expired handler already running")
+            return
 
-            self._subscription_expired_task = asyncio.create_task(
-                self._subscription_expired_handler(),
-                name="subscription_expired_handler",
-            )
+        self._subscription_expired_task = asyncio.create_task(
+            self._subscription_expired_handler(),
+            name="subscription_expired_handler",
+        )
 
     async def _subscription_expired_handler(self) -> None:
         """Handle subscription expired."""
