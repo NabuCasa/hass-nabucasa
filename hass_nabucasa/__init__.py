@@ -23,6 +23,7 @@ from .const import (
     CONFIG_DIR,
     DEFAULT_SERVERS,
     DEFAULT_VALUES,
+    MODE_DEV,  # noqa: F401
     STATE_CONNECTED,
 )
 from .files import Files
@@ -96,16 +97,19 @@ class Cloud(Generic[_ClientT]):
         _values = DEFAULT_VALUES[mode]
         _servers = DEFAULT_SERVERS[mode]
 
-        self.cognito_client_id = _values.get("cognito_client_id", cognito_client_id)
+        self.cognito_client_id = _values.get(
+            "cognito_client_id", cognito_client_id)
         self.region = _values.get("region", region)
         self.user_pool_id = _values.get("user_pool_id", user_pool_id)
 
-        self.account_link_server = _servers.get("account_link", account_link_server)
+        self.account_link_server = _servers.get(
+            "account_link", account_link_server)
         self.accounts_server = _servers.get("accounts", accounts_server)
         self.acme_server = _servers.get("acme", acme_server)
         self.cloudhook_server = _servers.get("cloudhook", cloudhook_server)
         self.relayer_server = _servers.get("relayer", relayer_server)
-        self.remotestate_server = _servers.get("remotestate", remotestate_server)
+        self.remotestate_server = _servers.get(
+            "remotestate", remotestate_server)
         self.servicehandlers_server = _servers.get(
             "servicehandlers",
             servicehandlers_server,
