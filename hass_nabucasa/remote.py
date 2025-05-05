@@ -113,6 +113,7 @@ class RemoteUI:
     async def start(self) -> None:
         """Start remote UI loop."""
         if self.cloud.subscription_expired:
+            self.cloud.async_initialize_subscription_expired_handler()
             return
         self._acme_task = asyncio.create_task(self._certificate_handler())
         await self._info_loaded.wait()
