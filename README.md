@@ -9,7 +9,7 @@ This library handles a range of cloud-related functionality including:
 - API interactions with Nabu Casa cloud services
 - Voice processing capabilities
 - ACME certificate management
-- Google Assistant and Alexa integration via report state
+- Google Assistant and Alexa integration
 - Cloud webhook management
 - Cloud file storage and management
 
