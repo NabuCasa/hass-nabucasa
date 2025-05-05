@@ -68,13 +68,13 @@ repos:
         entry: end-of-file-fixer
         stages: [pre-commit, pre-push, manual]
       - id: no-commit-to-branch
-        name: Don't commit to master branch
+        name: Don't commit to the main branch
         language: system
         entry: no-commit-to-branch
         pass_filenames: false
         always_run: true
         args:
-          - --branch=master
+          - --branch=main
       - id: pylint
         name: Starring code with pylint
         entry: python3 -m pylint
