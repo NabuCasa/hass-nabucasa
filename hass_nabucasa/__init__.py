@@ -23,7 +23,6 @@ from .const import (
     CONFIG_DIR,
     DEFAULT_SERVERS,
     DEFAULT_VALUES,
-    MODE_DEV,
     STATE_CONNECTED,
 )
 from .files import Files
