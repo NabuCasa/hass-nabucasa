@@ -63,78 +63,70 @@ class Cloud(Generic[_ClientT]):
         mode: Literal["development", "production"],
         *,
         cognito_client_id: str | None = None,
-        user_pool_id: str | None = None,
         region: str | None = None,
+        user_pool_id: str | None = None,
         account_link_server: str | None = None,
         accounts_server: str | None = None,
         acme_server: str | None = None,
         cloudhook_server: str | None = None,
         relayer_server: str | None = None,
         remotestate_server: str | None = None,
-        thingtalk_server: str | None = None,
         servicehandlers_server: str | None = None,
+        thingtalk_server: str | None = None,
         **kwargs: Any,  # noqa: ARG002
     ) -> None:
         """Create an instance of Cloud."""
+        self.client = client
+        self.mode = mode
+
         self._on_initialized: list[Callable[[], Awaitable[None]]] = []
         self._on_start: list[Callable[[], Awaitable[None]]] = []
         self._on_stop: list[Callable[[], Awaitable[None]]] = []
-        self.mode = mode
-        self.client = client
-        self.id_token: str | None = None
-        self.access_token: str | None = None
-        self.refresh_token: str | None = None
-        self.started: bool | None = None
-        self.iot = CloudIoT(self)
-        self.google_report_state = GoogleReportState(self)
-        self.cloudhooks = Cloudhooks(self)
-        self.remote = RemoteUI(self)
-        self.account = AccountApi(self)
-        self.auth = CognitoAuth(self)
-        self.files = Files(self)
-        self.instance = InstanceApi(self)
-        self.voice = Voice(self)
-        self.voice_api = VoiceApi(self)
-        self.ice_servers = IceServers(self)
 
         self._init_task: asyncio.Task | None = None
+        self._subscription_expired_task: asyncio.Task | None = None
+
+        self.access_token: str | None = None
+        self.id_token: str | None = None
+        self.refresh_token: str | None = None
+        self.started: bool | None = None
 
         # Set reference
         self.client.cloud = self
 
-        self._subscription_expired_task: asyncio.Task | None = None
-
-        if mode == MODE_DEV:
-            self.cognito_client_id = cognito_client_id
-            self.user_pool_id = user_pool_id
-            self.region = region
-
-            self.account_link_server = account_link_server
-            self.accounts_server = accounts_server
-            self.acme_server = acme_server
-            self.cloudhook_server = cloudhook_server
-            self.relayer_server = relayer_server
-            self.remotestate_server = remotestate_server
-            self.thingtalk_server = thingtalk_server
-            self.servicehandlers_server = servicehandlers_server
-            return
-
         _values = DEFAULT_VALUES[mode]
-
-        self.cognito_client_id = _values["cognito_client_id"]
-        self.user_pool_id = _values["user_pool_id"]
-        self.region = _values["region"]
-
         _servers = DEFAULT_SERVERS[mode]
 
-        self.account_link_server = _servers["account_link"]
-        self.accounts_server = _servers["accounts"]
-        self.acme_server = _servers["acme"]
-        self.cloudhook_server = _servers["cloudhook"]
-        self.relayer_server = _servers["relayer"]
-        self.remotestate_server = _servers["remotestate"]
-        self.thingtalk_server = _servers["thingtalk"]
-        self.servicehandlers_server = _servers["servicehandlers"]
+        self.cognito_client_id = _values.get("cognito_client_id", cognito_client_id)
+        self.region = _values.get("region", region)
+        self.user_pool_id = _values.get("user_pool_id", user_pool_id)
+
+        self.account_link_server = _servers.get("account_link", account_link_server)
+        self.accounts_server = _servers.get("accounts", accounts_server)
+        self.acme_server = _servers.get("acme", acme_server)
+        self.cloudhook_server = _servers.get("cloudhook", cloudhook_server)
+        self.relayer_server = _servers.get("relayer", relayer_server)
+        self.remotestate_server = _servers.get("remotestate", remotestate_server)
+        self.servicehandlers_server = _servers.get(
+            "servicehandlers",
+            servicehandlers_server,
+        )
+        self.thingtalk_server = _servers.get("thingtalk", thingtalk_server)
+
+        # Needs to be setup before other components
+        self.iot = CloudIoT(self)
+
+        # Setup the rest of the components
+        self.account = AccountApi(self)
+        self.auth = CognitoAuth(self)
+        self.cloudhooks = Cloudhooks(self)
+        self.files = Files(self)
+        self.google_report_state = GoogleReportState(self)
+        self.ice_servers = IceServers(self)
+        self.instance = InstanceApi(self)
+        self.remote = RemoteUI(self)
+        self.voice = Voice(self)
+        self.voice_api = VoiceApi(self)
 
     @property
     def is_logged_in(self) -> bool:
