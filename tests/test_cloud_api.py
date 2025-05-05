@@ -107,16 +107,6 @@ async def test_get_access_token(auth_cloud_mock, aioclient_mock):
     assert len(aioclient_mock.mock_calls) == 1
 
 
-async def test_voice_connection_details(auth_cloud_mock, aioclient_mock):
-    """Test creating a cloudhook."""
-    aioclient_mock.get("https://example.com/voice/connection_details")
-    auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.servicehandlers_server = "example.com"
-
-    await cloud_api.async_voice_connection_details(auth_cloud_mock)
-    assert len(aioclient_mock.mock_calls) == 1
-
-
 async def test_subscription_info(auth_cloud_mock, aioclient_mock):
     """Test fetching subscription info."""
     aioclient_mock.get(
