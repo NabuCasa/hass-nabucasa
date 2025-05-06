@@ -71,7 +71,6 @@ class Cloud(Generic[_ClientT]):
         cloudhook_server: str | None = None,
         relayer_server: str | None = None,
         remotestate_server: str | None = None,
-        thingtalk_server: str | None = None,
         servicehandlers_server: str | None = None,
         **kwargs: Any,  # noqa: ARG002
     ) -> None:
@@ -115,7 +114,6 @@ class Cloud(Generic[_ClientT]):
             self.cloudhook_server = cloudhook_server
             self.relayer_server = relayer_server
             self.remotestate_server = remotestate_server
-            self.thingtalk_server = thingtalk_server
             self.servicehandlers_server = servicehandlers_server
             return
 
@@ -133,7 +131,6 @@ class Cloud(Generic[_ClientT]):
         self.cloudhook_server = _servers["cloudhook"]
         self.relayer_server = _servers["relayer"]
         self.remotestate_server = _servers["remotestate"]
-        self.thingtalk_server = _servers["thingtalk"]
         self.servicehandlers_server = _servers["servicehandlers"]
 
     @property

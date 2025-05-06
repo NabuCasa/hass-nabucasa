@@ -27,7 +27,6 @@ DEFAULT_SERVERS: dict[str, dict[str, str]] = {
         "relayer": "cloud.nabucasa.com",
         "remotestate": "remotestate.nabucasa.com",
         "servicehandlers": "servicehandlers.nabucasa.com",
-        "thingtalk": "thingtalk-api.nabucasa.com",
     },
     "development": {},
 }
