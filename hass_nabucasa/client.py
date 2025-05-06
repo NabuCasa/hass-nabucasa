@@ -140,3 +140,7 @@ class CloudClient(ABC):
         severity: Literal["error", "warning"] = "warning",
     ) -> None:
         """Create a repair issue."""
+
+    @abstractmethod
+    async def async_delete_repair_issue(self, identifier: str) -> None:
+        """Delete a repair issue."""

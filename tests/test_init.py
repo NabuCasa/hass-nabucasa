@@ -37,7 +37,6 @@ def test_constructor_loads_info_from_constant(cloud_client):
                     "remotestate": "test-google-actions-report-state-url",
                     "account_link": "test-account-link-url",
                     "servicehandlers": "test-servicehandlers-url",
-                    "thingtalk": "test-thingtalk-url",
                 },
             },
         ),
@@ -54,7 +53,6 @@ def test_constructor_loads_info_from_constant(cloud_client):
     assert cl.acme_server == "test-acme-directory-server"
     assert cl.remotestate_server == "test-google-actions-report-state-url"
     assert cl.account_link_server == "test-account-link-url"
-    assert cl.thingtalk_server == "test-thingtalk-url"
 
 
 async def test_initialize_loads_info(cloud_client):

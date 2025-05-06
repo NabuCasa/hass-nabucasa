@@ -72,7 +72,6 @@ class Cloud(Generic[_ClientT]):
         relayer_server: str | None = None,
         remotestate_server: str | None = None,
         servicehandlers_server: str | None = None,
-        thingtalk_server: str | None = None,
         **kwargs: Any,  # noqa: ARG002
     ) -> None:
         """Create an instance of Cloud."""
@@ -111,7 +110,6 @@ class Cloud(Generic[_ClientT]):
             "servicehandlers",
             servicehandlers_server,
         )
-        self.thingtalk_server = _servers.get("thingtalk", thingtalk_server)
 
         # Needs to be setup before other components
         self.iot = CloudIoT(self)

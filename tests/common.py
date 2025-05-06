@@ -150,6 +150,13 @@ class MockClient(CloudClient):
             },
         )
 
+    async def async_delete_repair_issue(self, identifier: str) -> None:
+        """Delete a repair issue."""
+        issue = next(
+            issue for issue in self.mock_repairs if issue["identifier"] == identifier
+        )
+        self.mock_repairs.remove(issue)
+
 
 class MockAcme:
     """Mock AcmeHandler."""
