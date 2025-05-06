@@ -458,7 +458,7 @@ class Cloud(Generic[_ClientT]):
             )
             await self.client.async_create_repair_issue(
                 identifier=issue_identifier,
-                translation_key="subscription_expired_handler",
+                translation_key="subscription_expired",
                 severity="error",
             )
 
