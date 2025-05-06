@@ -424,6 +424,7 @@ class Cloud(Generic[_ClientT]):
 
     async def _subscription_expired_handler(self) -> None:
         """Handle subscription expired."""
+        issue_identifier = f"subscription_expired_{self.expiration_date}"
         while True:
             now_as_utc = utcnow()
             sub_expired = self.expiration_date
@@ -448,6 +449,12 @@ class Cloud(Generic[_ClientT]):
                 sub_expired.strftime("%Y-%m-%d"),
                 wait_hours,
             )
+            await self.client.async_create_repair_issue(
+                identifier=issue_identifier,
+                translation_key="subscription_expired",
+                severity="error",
+            )
+
             await asyncio.sleep(wait_hours * 60 * 60)
 
             if not self.is_logged_in:
@@ -459,5 +466,6 @@ class Cloud(Generic[_ClientT]):
                 await self.initialize()
                 break
 
+        await self.client.async_delete_repair_issue(identifier=issue_identifier)
         _LOGGER.debug("Stopping subscription expired handler")
         self._subscription_expired_task = None
