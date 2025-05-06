@@ -191,19 +191,6 @@ async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
 
 
 @_check_token
-@_log_response
-async def async_voice_connection_details(cloud: Cloud[_ClientT]) -> ClientResponse:
-    """Return connection details for voice service."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    url = f"https://{cloud.servicehandlers_server}/voice/connection_details"
-    return await cloud.websession.get(
-        url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
-    )
-
-
-@_check_token
 async def async_files_download_details(
     cloud: Cloud[_ClientT],
     *,
