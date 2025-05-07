@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+ACCOUNT_URL = "https://account.nabucasa.com/"
+
 CONFIG_DIR = ".cloud"
 
 REQUEST_TIMEOUT = 10
