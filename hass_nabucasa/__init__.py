@@ -20,6 +20,7 @@ from .auth import CloudError, CognitoAuth
 from .client import CloudClient
 from .cloudhooks import Cloudhooks
 from .const import (
+    ACCOUNT_URL,
     CONFIG_DIR,
     DEFAULT_SERVERS,
     DEFAULT_VALUES,
@@ -452,6 +453,7 @@ class Cloud(Generic[_ClientT]):
             await self.client.async_create_repair_issue(
                 identifier=issue_identifier,
                 translation_key="subscription_expired",
+                placeholders={"account_url": ACCOUNT_URL},
                 severity="error",
             )
 
