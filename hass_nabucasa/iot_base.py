@@ -154,7 +154,9 @@ class BaseIoT:
                 break
 
             if self.require_subscription and self.cloud.subscription_expired:
-                self.cloud.async_initialize_subscription_expired_handler()
+                self.cloud.async_initialize_subscription_reconnection_handler(
+                    "subscription_expired"
+                )
                 break
 
             self.state = STATE_CONNECTING

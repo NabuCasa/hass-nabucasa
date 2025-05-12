@@ -320,7 +320,9 @@ async def async_google_actions_request_sync(cloud: Cloud[_ClientT]) -> ClientRes
 
 
 @_check_token
-async def async_subscription_info(cloud: Cloud[_ClientT]) -> dict[str, Any]:
+async def async_subscription_info(
+    cloud: Cloud[_ClientT], skip_renew: bool = False
+) -> dict[str, Any]:
     """Fetch subscription info."""
     if TYPE_CHECKING:
         assert cloud.id_token is not None
@@ -333,7 +335,7 @@ async def async_subscription_info(cloud: Cloud[_ClientT]) -> dict[str, Any]:
     data: dict[str, Any] = await resp.json()
 
     # If subscription info indicates we are subscribed, force a refresh of the token
-    if data.get("provider") and not cloud.started:
+    if data.get("provider") and not cloud.started and not skip_renew:
         _LOGGER.debug("Found disconnected account with valid subscription, connecting")
         await cloud.auth.async_renew_access_token()
 

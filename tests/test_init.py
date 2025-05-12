@@ -13,6 +13,24 @@ from hass_nabucasa.utils import utcnow
 from .common import MockClient
 
 
+@pytest.fixture(autouse=True)
+def mock_subscription_info(aioclient_mock):
+    """Mock subscription info."""
+    aioclient_mock.get(
+        "https://example.com/payments/subscription_info",
+        json={
+            "success": True,
+            "billing_plan_type": "mock-plan",
+        },
+    )
+
+
+@pytest.fixture
+def cl(cloud_client) -> cloud.Cloud:
+    """Mock cloud client."""
+    return cloud.Cloud(cloud_client, cloud.MODE_DEV, accounts_server="example.com")
+
+
 def test_constructor_loads_info_from_constant(cloud_client):
     """Test non-dev mode loads info from SERVERS constant."""
     with (
@@ -55,13 +73,11 @@ def test_constructor_loads_info_from_constant(cloud_client):
     assert cl.account_link_server == "test-account-link-url"
 
 
-async def test_initialize_loads_info(cloud_client):
+async def test_initialize_loads_info(cl: cloud.Cloud) -> None:
     """Test initialize will load info from config file.
 
     Also tests that on_initialized callbacks are called when initialization finishes.
     """
-    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
-
     assert len(cl._on_start) == 2
     cl._on_start.clear()
     assert len(cl._on_stop) == 3
@@ -117,11 +133,10 @@ async def test_initialize_loads_info(cloud_client):
 
 async def test_initialize_loads_invalid_info(
     cloud_client: MockClient,
+    cl: cloud.Cloud,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test initialize load invalid info from config file."""
-    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
-
     info_file = MagicMock(
         read_text=Mock(return_value="invalid json"),
         exists=Mock(return_value=True),
@@ -164,10 +179,8 @@ async def test_initialize_loads_invalid_info(
     )
 
 
-async def test_logout_clears_info(cloud_client):
+async def test_logout_clears_info(cl: cloud.Cloud):
     """Test logging out disconnects and removes info."""
-    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
-
     assert len(cl._on_start) == 2
     cl._on_start.clear()
     assert len(cl._on_stop) == 3
@@ -210,35 +223,32 @@ async def test_logout_clears_info(cloud_client):
     assert info_file.unlink.called
 
 
-async def test_remove_data(cloud_client: MockClient) -> None:
+async def test_remove_data(cloud_client: MockClient, cl: cloud.Cloud) -> None:
     """Test removing data."""
     cloud_dir = cloud_client.base_path / ".cloud"
     cloud_dir.mkdir()
     open(cloud_dir / "unexpected_file", "w")
 
-    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
     await cl.remove_data()
 
     assert not cloud_dir.exists()
 
 
-async def test_remove_data_file(cloud_client: MockClient) -> None:
+async def test_remove_data_file(cloud_client: MockClient, cl: cloud.Cloud) -> None:
     """Test removing data when .cloud is not a directory."""
     cloud_dir = cloud_client.base_path / ".cloud"
     open(cloud_dir, "w")
 
-    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
     await cl.remove_data()
 
     assert not cloud_dir.exists()
 
 
-async def test_remove_data_started(cloud_client: MockClient) -> None:
+async def test_remove_data_started(cloud_client: MockClient, cl: cloud.Cloud) -> None:
     """Test removing data when cloud is started."""
     cloud_dir = cloud_client.base_path / ".cloud"
     cloud_dir.mkdir()
 
-    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
     cl.started = True
     with pytest.raises(ValueError, match="Cloud not stopped"):
         await cl.remove_data()
@@ -247,10 +257,8 @@ async def test_remove_data_started(cloud_client: MockClient) -> None:
     cloud_dir.rmdir()
 
 
-def test_write_user_info(cloud_client):
+def test_write_user_info(cl: cloud.Cloud):
     """Test writing user info works."""
-    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
-
     cl.id_token = "test-id-token"
     cl.access_token = "test-access-token"
     cl.refresh_token = "test-refresh-token"
@@ -269,10 +277,8 @@ def test_write_user_info(cloud_client):
     }
 
 
-def test_subscription_expired(cloud_client):
+def test_subscription_expired(cl: cloud.Cloud):
     """Test subscription being expired after 3 days of expiration."""
-    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
-
     token_val = {"custom:sub-exp": "2017-11-13"}
     with (
         patch.object(cl, "_decode_claims", return_value=token_val),
@@ -316,10 +322,8 @@ def test_subscription_expired(cloud_client):
         assert cl.subscription_expired
 
 
-def test_subscription_not_expired(cloud_client):
+def test_subscription_not_expired(cl: cloud.Cloud):
     """Test subscription not being expired."""
-    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
-
     token_val = {"custom:sub-exp": "2017-11-13"}
     with (
         patch.object(cl, "_decode_claims", return_value=token_val),
@@ -331,10 +335,8 @@ def test_subscription_not_expired(cloud_client):
         assert not cl.subscription_expired
 
 
-async def test_claims_decoding(cloud_client):
+async def test_claims_decoding(cl: cloud.Cloud):
     """Test decoding claims."""
-    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
-
     payload = {"cognito:username": "abc123", "some": "value"}
     encoded_token = cloud.jwt.encode(payload, key="secret")
 
@@ -353,14 +355,13 @@ async def test_claims_decoding(cloud_client):
         (timedelta(days=180), 96),
     ],
 )
-async def test_subscription_expired_handler_renews_and_starts(
-    cloud_client: MockClient,
+async def test_subscription_reconnection_handler_renews_and_starts(
+    cl: cloud.Cloud,
     since_expired: timedelta,
     expected_sleep_hours: int,
     caplog: pytest.LogCaptureFixture,
 ):
     """Test the subscription expired handler."""
-    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
     basedate = utcnow()
     _decode_claims_mocker = Mock(
         return_value={
@@ -389,19 +390,18 @@ async def test_subscription_expired_handler_renews_and_starts(
             return_value=True,
         ),
     ):
-        await cl._subscription_expired_handler()
+        await cl._subscription_reconnection_handler("subscription_expired")
 
     sleep_mock.assert_called_with(expected_sleep_hours * 60 * 60)
     _initialize_mocker.assert_awaited_once()
-    assert "Stopping subscription expired handler" in caplog.text
+    assert "Stopping subscription reconnection handler" in caplog.text
 
 
-async def test_subscription_expired_handler_aborts(
-    cloud_client: MockClient,
+async def test_subscription_reconnection_handler_aborts(
+    cl: cloud.Cloud,
     caplog: pytest.LogCaptureFixture,
 ):
     """Test the subscription expired handler abort."""
-    cl = cloud.Cloud(cloud_client, cloud.MODE_DEV)
     basedate = utcnow()
 
     with (
@@ -415,7 +415,7 @@ async def test_subscription_expired_handler_aborts(
             },
         ),
     ):
-        await cl._subscription_expired_handler()
+        await cl._subscription_reconnection_handler("subscription_expired")
 
     sleep_mock.assert_not_awaited()
     sleep_mock.assert_not_called()
@@ -423,4 +423,71 @@ async def test_subscription_expired_handler_aborts(
     start_mock.assert_not_called()
     remote_start_mock.assert_not_awaited()
     remote_start_mock.assert_not_called()
-    assert "Stopping subscription expired handler" in caplog.text
+    assert "Stopping subscription reconnection handler" in caplog.text
+
+
+async def test_subscription_reconnect_for_no_subscription(
+    cl: cloud.Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the subscription expired handler for no subscription."""
+    cl._on_start.clear()
+    cl._on_stop.clear()
+
+    info_file = MagicMock(
+        read_text=Mock(
+            return_value=json.dumps(
+                {
+                    "id_token": "test-id-token",
+                    "access_token": "test-access-token",
+                    "refresh_token": "test-refresh-token",
+                },
+            ),
+        ),
+        exists=Mock(return_value=True),
+    )
+
+    cl.iot = MagicMock()
+    cl.iot.connect = AsyncMock()
+
+    cl.remote = MagicMock()
+    cl.remote.connect = AsyncMock()
+
+    start_done_event = asyncio.Event()
+
+    async def start_done():
+        start_done_event.set()
+
+    cl._on_start.extend([cl.iot.connect, cl.remote.connect])
+    cl.register_on_initialized(start_done)
+
+    def subscription_info_mock(billing_plan_type):
+        return {"billing_plan_type": billing_plan_type}
+
+    with (
+        patch(
+            "hass_nabucasa.Cloud._decode_claims",
+            return_value={"custom:sub-exp": "2080-01-01"},
+        ),
+        patch(
+            "hass_nabucasa.Cloud.user_info_path",
+            new_callable=PropertyMock(return_value=info_file),
+        ),
+        patch("hass_nabucasa.auth.CognitoAuth.async_check_token"),
+        patch(
+            "hass_nabucasa.CognitoAuth.async_renew_access_token",
+        ),
+        patch("hass_nabucasa.asyncio.sleep", AsyncMock()),
+        patch(
+            "hass_nabucasa.async_subscription_info",
+            side_effect=[
+                subscription_info_mock("no_subscription"),
+                subscription_info_mock("mock-plan"),
+            ],
+        ),
+    ):
+        await cl.initialize()
+        await start_done_event.wait()
+
+    assert "No subscription found" in caplog.text
+    assert "Stopping subscription reconnection handler" in caplog.text
