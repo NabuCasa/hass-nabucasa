@@ -397,21 +397,17 @@ class Cloud(Generic[_ClientT]):
 
         self.started = True
 
-        billing_plan_type = await self._async_get_billing_plan_type()
-        if billing_plan_type is None or billing_plan_type == "no_subscription":
-            _LOGGER.error("No subscription found")
-            self.started = False
-            self.async_initialize_subscription_reconnection_handler("no_subscription")
-            return
+        if await self._async_subscription_is_valid():
+            await self._start(skip_subscription_check=True)
+            await gather_callbacks(_LOGGER, "on_initialized", self._on_initialized)
 
-        await self._start()
-        await gather_callbacks(_LOGGER, "on_initialized", self._on_initialized)
         self._init_task = None
 
-    async def _start(self) -> None:
+    async def _start(self, skip_subscription_check: bool = False) -> None:
         """Start the cloud component."""
-        await self.client.cloud_started()
-        await gather_callbacks(_LOGGER, "on_start", self._on_start)
+        if skip_subscription_check or await self._async_subscription_is_valid():
+            await self.client.cloud_started()
+            await gather_callbacks(_LOGGER, "on_start", self._on_start)
 
     async def stop(self) -> None:
         """Stop the cloud component."""
@@ -444,6 +440,19 @@ class Cloud(Generic[_ClientT]):
             self._subscription_reconnection_handler(variation),
             name="subscription_reconnection_handler",
         )
+
+    async def _async_subscription_is_valid(self) -> bool:
+        """Verify that the subscription is valid."""
+        if self._subscription_reconnection_task is not None:
+            return False
+
+        billing_plan_type = await self._async_get_billing_plan_type()
+        if billing_plan_type is None or billing_plan_type == "no_subscription":
+            _LOGGER.error("No subscription found")
+            self.started = False
+            self.async_initialize_subscription_reconnection_handler("no_subscription")
+            return False
+        return True
 
     async def _async_get_billing_plan_type(self) -> str | None:
         """Get the billing_plan_type status."""
