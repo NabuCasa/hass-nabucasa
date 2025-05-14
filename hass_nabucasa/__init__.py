@@ -155,6 +155,14 @@ class Cloud(Generic[_ClientT]):
         return utcnow() > self.expiration_date + timedelta(days=7)
 
     @property
+    def valid_subscription(self) -> bool:
+        """Return True if the subscription is valid."""
+        return (
+            self._subscription_reconnection_task is None
+            and not self.subscription_expired
+        )
+
+    @property
     def expiration_date(self) -> datetime:
         """Return the subscription expiration as a UTC datetime object."""
         if (parsed_date := parse_date(self.claims["custom:sub-exp"])) is None:
@@ -388,24 +396,16 @@ class Cloud(Generic[_ClientT]):
         except CloudError:
             _LOGGER.debug("Failed to check cloud token", exc_info=True)
 
-        if self.subscription_expired:
-            self.started = False
-            self.async_initialize_subscription_reconnection_handler(
-                "subscription_expired"
-            )
-            return
-
-        self.started = True
-
-        if await self._async_subscription_is_valid():
+        if await self.async_subscription_is_valid():
             await self._start(skip_subscription_check=True)
             await gather_callbacks(_LOGGER, "on_initialized", self._on_initialized)
+            self.started = True
 
         self._init_task = None
 
     async def _start(self, skip_subscription_check: bool = False) -> None:
         """Start the cloud component."""
-        if skip_subscription_check or await self._async_subscription_is_valid():
+        if skip_subscription_check or await self.async_subscription_is_valid():
             await self.client.cloud_started()
             await gather_callbacks(_LOGGER, "on_start", self._on_start)
 
@@ -441,15 +441,20 @@ class Cloud(Generic[_ClientT]):
             name="subscription_reconnection_handler",
         )
 
-    async def _async_subscription_is_valid(self) -> bool:
+    async def async_subscription_is_valid(self) -> bool:
         """Verify that the subscription is valid."""
         if self._subscription_reconnection_task is not None:
+            return False
+
+        if self.subscription_expired:
+            self.async_initialize_subscription_reconnection_handler(
+                "subscription_expired"
+            )
             return False
 
         billing_plan_type = await self._async_get_billing_plan_type()
         if billing_plan_type is None or billing_plan_type == "no_subscription":
             _LOGGER.error("No subscription found")
-            self.started = False
             self.async_initialize_subscription_reconnection_handler("no_subscription")
             return False
         return True
