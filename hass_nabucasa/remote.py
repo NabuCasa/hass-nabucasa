@@ -20,6 +20,7 @@ from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
 from . import cloud_api, const, utils
 from .acme import AcmeClientError, AcmeHandler, AcmeJWSVerificationError
+from .const import SubscriptionReconnectionReason
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -113,7 +114,9 @@ class RemoteUI:
     async def start(self) -> None:
         """Start remote UI loop."""
         if self.cloud.subscription_expired:
-            self.cloud.async_initialize_subscription_expired_handler()
+            self.cloud.async_initialize_subscription_reconnection_handler(
+                SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED,
+            )
             return
         self._acme_task = asyncio.create_task(self._certificate_handler())
         await self._info_loaded.wait()

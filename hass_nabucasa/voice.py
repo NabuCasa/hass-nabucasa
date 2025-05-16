@@ -477,10 +477,15 @@ class Voice:
 
     def _validate_token(self) -> bool:
         """Validate token outside of coroutine."""
-        return bool(self._valid and utcnow() < self._valid)
+        return self.cloud.valid_subscription and bool(
+            self._valid and utcnow() < self._valid
+        )
 
     async def _update_token(self) -> None:
         """Update token details."""
+        if not self.cloud.valid_subscription:
+            raise VoiceTokenError("Invalid subscription")
+
         try:
             details = await self.cloud.voice_api.connection_details()
         except VoiceApiError as err:

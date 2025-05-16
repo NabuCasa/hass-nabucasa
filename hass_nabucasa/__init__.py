@@ -18,6 +18,7 @@ import jwt
 from .account_api import AccountApi
 from .auth import CloudError, CognitoAuth
 from .client import CloudClient
+from .cloud_api import async_subscription_info
 from .cloudhooks import Cloudhooks
 from .const import (
     ACCOUNT_URL,
@@ -26,6 +27,7 @@ from .const import (
     DEFAULT_VALUES,
     MODE_DEV,  # noqa: F401
     STATE_CONNECTED,
+    SubscriptionReconnectionReason,
 )
 from .files import Files
 from .google_report_state import GoogleReportState
@@ -84,7 +86,7 @@ class Cloud(Generic[_ClientT]):
         self._on_stop: list[Callable[[], Awaitable[None]]] = []
 
         self._init_task: asyncio.Task | None = None
-        self._subscription_expired_task: asyncio.Task | None = None
+        self._subscription_reconnection_task: asyncio.Task | None = None
 
         self.access_token: str | None = None
         self.id_token: str | None = None
@@ -146,6 +148,14 @@ class Cloud(Generic[_ClientT]):
     def subscription_expired(self) -> bool:
         """Return a boolean if the subscription has expired."""
         return utcnow() > self.expiration_date + timedelta(days=7)
+
+    @property
+    def valid_subscription(self) -> bool:
+        """Return True if the subscription is valid."""
+        return (
+            self._subscription_reconnection_task is None
+            and not self.subscription_expired
+        )
 
     @property
     def expiration_date(self) -> datetime:
@@ -214,7 +224,9 @@ class Cloud(Generic[_ClientT]):
             await self.stop()
 
         if self.subscription_expired:
-            self.async_initialize_subscription_expired_handler()
+            self.async_initialize_subscription_reconnection_handler(
+                SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED
+            )
 
         return None
 
@@ -379,20 +391,18 @@ class Cloud(Generic[_ClientT]):
         except CloudError:
             _LOGGER.debug("Failed to check cloud token", exc_info=True)
 
-        if self.subscription_expired:
-            self.started = False
-            self.async_initialize_subscription_expired_handler()
-            return
+        if await self.async_subscription_is_valid():
+            await self._start(skip_subscription_check=True)
+            await gather_callbacks(_LOGGER, "on_initialized", self._on_initialized)
+            self.started = True
 
-        self.started = True
-        await self._start()
-        await gather_callbacks(_LOGGER, "on_initialized", self._on_initialized)
         self._init_task = None
 
-    async def _start(self) -> None:
+    async def _start(self, skip_subscription_check: bool = False) -> None:
         """Start the cloud component."""
-        await self.client.cloud_started()
-        await gather_callbacks(_LOGGER, "on_start", self._on_start)
+        if skip_subscription_check or await self.async_subscription_is_valid():
+            await self.client.cloud_started()
+            await gather_callbacks(_LOGGER, "on_start", self._on_start)
 
     async def stop(self) -> None:
         """Stop the cloud component."""
@@ -412,20 +422,55 @@ class Cloud(Generic[_ClientT]):
         )
         return decoded
 
-    def async_initialize_subscription_expired_handler(self) -> None:
-        """Initialize the subscription expired handler."""
-        if self._subscription_expired_task is not None:
-            _LOGGER.debug("Subscription expired handler already running")
+    def async_initialize_subscription_reconnection_handler(
+        self,
+        reason: SubscriptionReconnectionReason,
+    ) -> None:
+        """Initialize the subscription reconnection handler."""
+        if self._subscription_reconnection_task is not None:
+            _LOGGER.debug("Subscription reconnection handler already running")
             return
 
-        self._subscription_expired_task = asyncio.create_task(
-            self._subscription_expired_handler(),
-            name="subscription_expired_handler",
+        self._subscription_reconnection_task = asyncio.create_task(
+            self._subscription_reconnection_handler(reason),
+            name="subscription_reconnection_handler",
         )
 
-    async def _subscription_expired_handler(self) -> None:
-        """Handle subscription expired."""
-        issue_identifier = f"subscription_expired_{self.expiration_date}"
+    async def async_subscription_is_valid(self) -> bool:
+        """Verify that the subscription is valid."""
+        if self._subscription_reconnection_task is not None:
+            return False
+
+        if self.subscription_expired:
+            self.async_initialize_subscription_reconnection_handler(
+                SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED
+            )
+            return False
+
+        billing_plan_type = await self._async_get_billing_plan_type()
+        if billing_plan_type is None or billing_plan_type == "no_subscription":
+            _LOGGER.error("No subscription found")
+            self.async_initialize_subscription_reconnection_handler(
+                SubscriptionReconnectionReason.NO_SUBSCRIPTION
+            )
+            return False
+        return True
+
+    async def _async_get_billing_plan_type(self) -> str | None:
+        """Get the billing_plan_type status."""
+        billing_plan_type: str | None = None
+        try:
+            subscription = await async_subscription_info(self, True)
+            billing_plan_type = subscription.get("billing_plan_type")
+        except CloudError as err:
+            _LOGGER.warning("Could not get subscription info", exc_info=err)
+        return billing_plan_type
+
+    async def _subscription_reconnection_handler(
+        self, reason: SubscriptionReconnectionReason
+    ) -> None:
+        """Handle subscription reconnection."""
+        issue_identifier = f"{reason.value}_{self.expiration_date}"
         while True:
             now_as_utc = utcnow()
             sub_expired = self.expiration_date
@@ -440,19 +485,19 @@ class Cloud(Generic[_ClientT]):
                 wait_hours = 96
             else:
                 _LOGGER.info(
-                    "Subscription expired at %s, not waiting for renewal",
+                    "Subscription expired at %s, not waiting for activation",
                     sub_expired.strftime("%Y-%m-%d"),
                 )
                 break
 
             _LOGGER.info(
-                "Subscription expired at %s, waiting %s hours for renewal",
+                "Subscription expired at %s, waiting %s hours for activation",
                 sub_expired.strftime("%Y-%m-%d"),
                 wait_hours,
             )
             await self.client.async_create_repair_issue(
                 identifier=issue_identifier,
-                translation_key="subscription_expired",
+                translation_key=reason.value,
                 placeholders={"account_url": ACCOUNT_URL},
                 severity="error",
             )
@@ -460,6 +505,7 @@ class Cloud(Generic[_ClientT]):
             await asyncio.sleep(wait_hours * 60 * 60)
 
             if not self.is_logged_in:
+                _LOGGER.info("No longer logged in, stopping reconnection handler")
                 break
 
             await self.auth.async_renew_access_token()
@@ -469,5 +515,5 @@ class Cloud(Generic[_ClientT]):
                 break
 
         await self.client.async_delete_repair_issue(identifier=issue_identifier)
-        _LOGGER.debug("Stopping subscription expired handler")
-        self._subscription_expired_task = None
+        _LOGGER.debug("Stopping subscription reconnection handler")
+        self._subscription_reconnection_task = None
