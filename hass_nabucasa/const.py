@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from enum import StrEnum
+
 ACCOUNT_URL = "https://account.nabucasa.com/"
 
 CONFIG_DIR = ".cloud"
@@ -68,3 +70,10 @@ MESSAGE_LOAD_CERTIFICATE_FAILURE = """
 Unable to load the certificate. We will automatically
 recreate it and notify you when it's available.
 """
+
+
+class SubscriptionReconnectionReason(StrEnum):
+    """Subscription reconnection reason."""
+
+    NO_SUBSCRIPTION = "no_subscription"
+    SUBSCRIPTION_EXPIRED = "subscription_expired"

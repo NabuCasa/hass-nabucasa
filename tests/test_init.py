@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
 import pytest
 
 import hass_nabucasa as cloud
+from hass_nabucasa.const import SubscriptionReconnectionReason
 from hass_nabucasa.utils import utcnow
 
 from .common import MockClient
@@ -390,7 +391,9 @@ async def test_subscription_reconnection_handler_renews_and_starts(
             return_value=True,
         ),
     ):
-        await cl._subscription_reconnection_handler("subscription_expired")
+        await cl._subscription_reconnection_handler(
+            SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED
+        )
 
     sleep_mock.assert_called_with(expected_sleep_hours * 60 * 60)
     _initialize_mocker.assert_awaited_once()
@@ -415,7 +418,9 @@ async def test_subscription_reconnection_handler_aborts(
             },
         ),
     ):
-        await cl._subscription_reconnection_handler("subscription_expired")
+        await cl._subscription_reconnection_handler(
+            SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED
+        )
 
     sleep_mock.assert_not_awaited()
     sleep_mock.assert_not_called()

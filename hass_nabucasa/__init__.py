@@ -27,6 +27,7 @@ from .const import (
     DEFAULT_VALUES,
     MODE_DEV,  # noqa: F401
     STATE_CONNECTED,
+    SubscriptionReconnectionReason,
 )
 from .files import Files
 from .google_report_state import GoogleReportState
@@ -54,12 +55,6 @@ class AlreadyConnectedError(CloudError):
         """Initialize an already connected error."""
         super().__init__("instance_already_connected")
         self.details = details
-
-
-SubscriptionReconnectionVariation = Literal[
-    "no_subscription",
-    "subscription_expired",
-]
 
 
 class Cloud(Generic[_ClientT]):
@@ -230,7 +225,7 @@ class Cloud(Generic[_ClientT]):
 
         if self.subscription_expired:
             self.async_initialize_subscription_reconnection_handler(
-                "subscription_expired"
+                SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED
             )
 
         return None
@@ -429,7 +424,7 @@ class Cloud(Generic[_ClientT]):
 
     def async_initialize_subscription_reconnection_handler(
         self,
-        variation: SubscriptionReconnectionVariation,
+        reason: SubscriptionReconnectionReason,
     ) -> None:
         """Initialize the subscription reconnection handler."""
         if self._subscription_reconnection_task is not None:
@@ -437,7 +432,7 @@ class Cloud(Generic[_ClientT]):
             return
 
         self._subscription_reconnection_task = asyncio.create_task(
-            self._subscription_reconnection_handler(variation),
+            self._subscription_reconnection_handler(reason),
             name="subscription_reconnection_handler",
         )
 
@@ -448,14 +443,16 @@ class Cloud(Generic[_ClientT]):
 
         if self.subscription_expired:
             self.async_initialize_subscription_reconnection_handler(
-                "subscription_expired"
+                SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED
             )
             return False
 
         billing_plan_type = await self._async_get_billing_plan_type()
         if billing_plan_type is None or billing_plan_type == "no_subscription":
             _LOGGER.error("No subscription found")
-            self.async_initialize_subscription_reconnection_handler("no_subscription")
+            self.async_initialize_subscription_reconnection_handler(
+                SubscriptionReconnectionReason.NO_SUBSCRIPTION
+            )
             return False
         return True
 
@@ -470,10 +467,10 @@ class Cloud(Generic[_ClientT]):
         return billing_plan_type
 
     async def _subscription_reconnection_handler(
-        self, variation: SubscriptionReconnectionVariation
+        self, reason: SubscriptionReconnectionReason
     ) -> None:
         """Handle subscription reconnection."""
-        issue_identifier = f"{variation}_{self.expiration_date}"
+        issue_identifier = f"{reason.value}_{self.expiration_date}"
         while True:
             now_as_utc = utcnow()
             sub_expired = self.expiration_date
@@ -500,7 +497,7 @@ class Cloud(Generic[_ClientT]):
             )
             await self.client.async_create_repair_issue(
                 identifier=issue_identifier,
-                translation_key=variation,
+                translation_key=reason.value,
                 placeholders={"account_url": ACCOUNT_URL},
                 severity="error",
             )

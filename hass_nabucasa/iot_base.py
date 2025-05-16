@@ -27,6 +27,7 @@ from .const import (
     STATE_CONNECTED,
     STATE_CONNECTING,
     STATE_DISCONNECTED,
+    SubscriptionReconnectionReason,
 )
 from .utils import gather_callbacks
 
@@ -155,7 +156,7 @@ class BaseIoT:
 
             if self.require_subscription and self.cloud.subscription_expired:
                 self.cloud.async_initialize_subscription_reconnection_handler(
-                    "subscription_expired"
+                    SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED,
                 )
                 break
 
