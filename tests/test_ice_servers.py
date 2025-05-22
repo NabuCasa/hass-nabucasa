@@ -26,6 +26,8 @@ def mock_ice_servers(aioclient_mock: AiohttpClientMocker):
         json=[
             {
                 "urls": "stun:example.com:80",
+                "username": None,
+                "credential": None,
             },
             {
                 "urls": "turn:example.com:80",

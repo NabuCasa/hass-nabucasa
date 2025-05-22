@@ -68,8 +68,8 @@ class IceServers:
             return [
                 NabucasaIceServer(
                     urls=item["urls"],
-                    username=item.get("username"),
-                    credential=item.get("credential"),
+                    username=item["username"],
+                    credential=item["credential"],
                     expiration_timestamp=int(time.time()) + item["ttl"]
                     if item.get("ttl")
                     else None,
