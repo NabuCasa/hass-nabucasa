@@ -64,9 +64,10 @@ async def test_ice_servers_listener_registration_triggers_periodic_ice_servers_u
         assert ice_servers_api._nabucasa_ice_servers[1].urls == "turn:example.com:80"
         assert ice_servers_api._nabucasa_ice_servers[1].username == "some-user"
         assert ice_servers_api._nabucasa_ice_servers[1].credential == "secret-value"
-        assert ice_servers_api._nabucasa_ice_servers[1].expiration_timestamp == int(
-            time.time()
-        ) + 3600
+        assert (
+            ice_servers_api._nabucasa_ice_servers[1].expiration_timestamp
+            == int(time.time()) + 3600
+        )
 
         times_register_called_successfully += 1
 
