@@ -20,6 +20,23 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+class NabucasaIceServer(RTCIceServer):
+    """ICE server for Nabucasa."""
+
+    expiration_timestamp: int | None = None
+
+    def __init__(
+        self,
+        urls: list[str],
+        username: str | None = None,
+        credential: str | None = None,
+        expiration_timestamp: int | None = None,
+    ) -> None:
+        """Initialize Nabucasa ICE server."""
+        super().__init__(urls, username, credential)
+        self.expiration_timestamp = expiration_timestamp
+
+
 class IceServers:
     """Class to manage ICE servers."""
 
@@ -27,11 +44,11 @@ class IceServers:
         """Initialize ICE Servers."""
         self.cloud = cloud
         self._refresh_task: asyncio.Task | None = None
-        self._ice_servers: list[RTCIceServer] = []
+        self._nabucasa_ice_servers: list[NabucasaIceServer] = []
         self._ice_servers_listener: Callable[[], Awaitable[None]] | None = None
         self._ice_servers_listener_unregister: Callable[[], None] | None = None
 
-    async def _async_fetch_ice_servers(self) -> list[RTCIceServer]:
+    async def _async_fetch_ice_servers(self) -> list[NabucasaIceServer]:
         """Fetch ICE servers."""
         if TYPE_CHECKING:
             assert self.cloud.id_token is not None
@@ -40,7 +57,7 @@ class IceServers:
             return []
 
         async with self.cloud.websession.get(
-            f"https://{self.cloud.servicehandlers_server}/webrtc/ice_servers",
+            f"https://{self.cloud.servicehandlers_server}/v2/webrtc/ice_servers",
             headers={
                 AUTHORIZATION: self.cloud.id_token,
                 USER_AGENT: self.cloud.client.client_name,
@@ -49,10 +66,13 @@ class IceServers:
             resp.raise_for_status()
 
             return [
-                RTCIceServer(
+                NabucasaIceServer(
                     urls=item["urls"],
-                    username=item["username"],
-                    credential=item["credential"],
+                    username=item.get("username"),
+                    credential=item.get("credential"),
+                    expiration_timestamp=int(time.time()) + item["ttl"]
+                    if item.get("ttl")
+                    else None,
                 )
                 for item in await resp.json()
             ]
@@ -60,9 +80,9 @@ class IceServers:
     def _get_refresh_sleep_time(self) -> int:
         """Get the sleep time for refreshing ICE servers."""
         timestamps = [
-            int(server.username.split(":")[0])
-            for server in self._ice_servers
-            if server.username is not None and ":" in server.username
+            server.expiration_timestamp
+            for server in self._nabucasa_ice_servers
+            if server.expiration_timestamp is not None
         ]
 
         if not timestamps:
@@ -74,11 +94,11 @@ class IceServers:
         # 1 hour before the earliest expiration
         return expiration
 
-    async def _async_refresh_ice_servers(self) -> None:
-        """Handle ICE server refresh."""
+    async def _async_refresh_nabucasa_ice_servers(self) -> None:
+        """Handle Nabucasa ICE server refresh."""
         while True:
             try:
-                self._ice_servers = await self._async_fetch_ice_servers()
+                self._nabucasa_ice_servers = await self._async_fetch_ice_servers()
 
             except ClientResponseError as err:
                 _LOGGER.error("Can't refresh ICE servers: %s", err.message)
@@ -86,7 +106,7 @@ class IceServers:
                 # We should not keep the existing ICE servers with old timestamps
                 # as that will retrigger a refresh almost immediately.
                 if err.status in (401, 403):
-                    self._ice_servers = []
+                    self._nabucasa_ice_servers = []
 
             except asyncio.CancelledError:
                 # Task is canceled, stop it.
@@ -100,13 +120,29 @@ class IceServers:
 
     def _on_add_listener(self) -> None:
         """When the instance is connected."""
-        self._refresh_task = asyncio.create_task(self._async_refresh_ice_servers())
+        self._refresh_task = asyncio.create_task(
+            self._async_refresh_nabucasa_ice_servers()
+        )
 
     def _on_remove_listener(self) -> None:
         """When the instance is disconnected."""
         if self._refresh_task is not None:
             self._refresh_task.cancel()
             self._refresh_task = None
+
+    def _get_ice_servers(self) -> list[RTCIceServer]:
+        """Get ICE servers."""
+        if self.cloud.subscription_expired:
+            return []
+
+        return [
+            RTCIceServer(
+                urls=server.urls,
+                username=server.username,
+                credential=server.credential,
+            )
+            for server in self._nabucasa_ice_servers
+        ]
 
     async def async_register_ice_servers_listener(
         self,
@@ -126,8 +162,9 @@ class IceServers:
                 self._ice_servers_listener_unregister()
                 self._ice_servers_listener_unregister = None
 
+            ice_servers = self._get_ice_servers()
             self._ice_servers_listener_unregister = await register_ice_server_fn(
-                self._ice_servers,
+                ice_servers,
             )
 
             _LOGGER.debug("ICE servers updated")
@@ -138,7 +175,7 @@ class IceServers:
                 self._ice_servers_listener_unregister()
                 self._ice_servers_listener_unregister = None
 
-            self._ice_servers = []
+            self._nabucasa_ice_servers = []
             self._ice_servers_listener = None
 
             self._on_remove_listener()
