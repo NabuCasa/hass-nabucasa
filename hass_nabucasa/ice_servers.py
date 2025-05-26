@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 import logging
 import random
 import time
@@ -20,21 +21,11 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+@dataclass
 class NabucasaIceServer(RTCIceServer):
     """ICE server for Nabucasa."""
 
     expiration_timestamp: int | None = None
-
-    def __init__(
-        self,
-        urls: list[str],
-        username: str | None = None,
-        credential: str | None = None,
-        expiration_timestamp: int | None = None,
-    ) -> None:
-        """Initialize Nabucasa ICE server."""
-        super().__init__(urls, username, credential)
-        self.expiration_timestamp = expiration_timestamp
 
 
 class IceServers:
