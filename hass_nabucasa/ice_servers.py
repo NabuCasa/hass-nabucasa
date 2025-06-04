@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import logging
 import random
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientResponseError
 from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
@@ -26,6 +26,26 @@ class NabucasaIceServer(RTCIceServer):
     """ICE server for Nabucasa."""
 
     expiration_timestamp: int | None = None
+
+    def _get_nabucasa_ice_server_expiration_timestamp(
+        self, timestamp: int | None
+    ) -> int | None:
+        """Get the expiration timestamp of a Nabucasa ICE server."""
+        if timestamp:
+            return int(time.time()) + timestamp
+        return None
+
+    def __init__(self, data: dict[str, Any]) -> None:
+        """Initialize Nabucasa ICE server."""
+        super().__init__(
+            urls=data["urls"],
+            username=data.get("username"),
+            credential=data.get("credential"),
+        )
+
+        self.expiration_timestamp = self._get_nabucasa_ice_server_expiration_timestamp(
+            data.get("ttl")
+        )
 
 
 class IceServers:
@@ -56,17 +76,7 @@ class IceServers:
         ) as resp:
             resp.raise_for_status()
 
-            return [
-                NabucasaIceServer(
-                    urls=item["urls"],
-                    username=item.get("username"),
-                    credential=item.get("credential"),
-                    expiration_timestamp=int(time.time()) + item["ttl"]
-                    if item.get("ttl")
-                    else None,
-                )
-                for item in await resp.json()
-            ]
+            return [NabucasaIceServer(item) for item in await resp.json()]
 
     def _get_refresh_sleep_time(self) -> int:
         """Get the sleep time for refreshing ICE servers."""

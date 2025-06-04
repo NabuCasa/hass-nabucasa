@@ -155,13 +155,15 @@ async def test_ice_server_refresh_sets_ice_server_list_empty_on_401_403_client_e
 
     ice_servers_api._nabucasa_ice_servers = [
         ice_servers.NabucasaIceServer(
-            urls="stun:example.com:80",
+            {"urls": "stun:example.com:80"},
         ),
         ice_servers.NabucasaIceServer(
-            urls="turn:example.com:80",
-            username="some-user",
-            credential="secret-value",
-            expiration_timestamp=int(time.time()) + 3600,
+            {
+                "urls": "turn:example.com:80",
+                "username": "some-user",
+                "credential": "secret-value",
+                "ttl": 3600,
+            },
         ),
     ]
 
@@ -208,13 +210,15 @@ async def test_ice_server_refresh_keeps_ice_server_list_on_other_client_errors(
 
     ice_servers_api._nabucasa_ice_servers = [
         ice_servers.NabucasaIceServer(
-            urls="stun:example.com:80",
+            {"urls": "stun:example.com:80"},
         ),
         ice_servers.NabucasaIceServer(
-            urls="turn:example.com:80",
-            username="some-user",
-            credential="secret-value",
-            expiration_timestamp=int(time.time()) + 3600,
+            {
+                "urls": "turn:example.com:80",
+                "username": "some-user",
+                "credential": "secret-value",
+                "ttl": 3600,
+            },
         ),
     ]
 
@@ -252,27 +256,28 @@ async def test_ice_server_refresh_keeps_ice_server_list_on_other_client_errors(
 
 def test_get_refresh_sleep_time(ice_servers_api: ice_servers.IceServers):
     """Test get refresh sleep time."""
-    min_timestamp = 8888888888
+    min_timestamp = 86400
 
     ice_servers_api._nabucasa_ice_servers = [
         ice_servers.NabucasaIceServer(
-            urls="turn:example.com:80",
-            username="some-user",
-            credential="secret-value",
-            expiration_timestamp=9999999999,
+            {
+                "urls": "turn:example.com:80",
+                "username": "some-user",
+                "credential": "secret-value",
+                "ttl": 9999999999,
+            }
         ),
         ice_servers.NabucasaIceServer(
-            urls="turn:example.com:80",
-            username="some-user",
-            credential="secret-value",
-            expiration_timestamp=min_timestamp,
+            {
+                "urls": "turn:example.com:80",
+                "username": "some-user",
+                "credential": "secret-value",
+                "ttl": min_timestamp,
+            }
         ),
     ]
 
-    assert (
-        ice_servers_api._get_refresh_sleep_time()
-        == min_timestamp - int(time.time()) - 3600
-    )
+    assert ice_servers_api._get_refresh_sleep_time() == min_timestamp - 3600
 
 
 def test_get_refresh_sleep_time_no_turn_servers(
@@ -293,16 +298,20 @@ def test_get_refresh_sleep_time_expiration_less_than_one_hour(
 
     ice_servers_api._nabucasa_ice_servers = [
         ice_servers.NabucasaIceServer(
-            urls="turn:example.com:80",
-            username="some-user",
-            credential="secret-value",
-            expiration_timestamp=9999999999,
+            {
+                "urls": "turn:example.com:80",
+                "username": "some-user",
+                "credential": "secret-value",
+                "ttl": 9999999999,
+            }
         ),
         ice_servers.NabucasaIceServer(
-            urls="turn:example.com:80",
-            username="some-user",
-            credential="secret-value",
-            expiration_timestamp=min_timestamp,
+            {
+                "urls": "turn:example.com:80",
+                "username": "some-user",
+                "credential": "secret-value",
+                "ttl": min_timestamp,
+            }
         ),
     ]
 
