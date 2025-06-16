@@ -42,7 +42,7 @@ version = "0.0.0"
 [project.optional-dependencies]
 test = [
     "codespell==2.4.1",
-    "mypy==1.16.0",
+    "mypy==1.16.1",
     "pre-commit==4.2.0",
     "pre-commit-hooks==5.0.0",
     "pylint==3.3.7",
