@@ -393,12 +393,10 @@ class AcmeHandler:
             _LOGGER.error("No acme client")
             return
 
-        fullchain = jose.ComparableX509(
-            OpenSSL.crypto.load_certificate(
-                OpenSSL.crypto.FILETYPE_PEM,
-                self.path_fullchain.read_bytes(),
-            ),
-        )
+        fullchain = OpenSSL.crypto.load_certificate(
+            OpenSSL.crypto.FILETYPE_PEM,
+            self.path_fullchain.read_bytes(),
+        ).to_cryptography()
 
         _LOGGER.info("Revoke certificate")
         try:
