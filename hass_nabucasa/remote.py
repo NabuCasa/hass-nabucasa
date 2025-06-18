@@ -273,6 +273,10 @@ class RemoteUI:
             except (AcmeJWSVerificationError, AcmeClientError) as err:
                 if isinstance(err, AcmeJWSVerificationError):
                     await self._recreate_acme(domains, email)
+                else:
+                    _LOGGER.warning(
+                        "Failed to issue certificate for %s: %s", ",".join(domains), err
+                    )
                 self.cloud.client.user_message(
                     "cloud_remote_acme",
                     "Home Assistant Cloud",
@@ -534,7 +538,7 @@ class RemoteUI:
                     self._certificate_status = CertificateStatus.LOADED
                     await self._recreate_backend()
                     self._certificate_status = CertificateStatus.READY
-                except AcmeClientError:
+                except AcmeClientError as err:
                     # Only log as warning if we have a certain amount of days left
                     if self._acme.expire_date is None or (
                         self._acme.expire_date
@@ -547,7 +551,10 @@ class RemoteUI:
                         meth = _LOGGER.debug
                         self._certificate_status = CertificateStatus.READY
 
-                    meth("Renewal of ACME certificate failed. Trying again later")
+                    meth(
+                        "Renewal of ACME certificate failed. Trying again later: %s",
+                        err,
+                    )
 
             except asyncio.CancelledError:
                 break
