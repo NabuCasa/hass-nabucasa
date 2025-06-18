@@ -27,14 +27,6 @@ class NabucasaIceServer(RTCIceServer):
 
     expiration_timestamp: int | None = None
 
-    def _get_nabucasa_ice_server_expiration_timestamp(
-        self, timestamp: int | None
-    ) -> int | None:
-        """Get the expiration timestamp of a Nabucasa ICE server."""
-        if timestamp:
-            return int(time.time()) + timestamp
-        return None
-
     def __init__(self, data: dict[str, Any]) -> None:
         """Initialize Nabucasa ICE server."""
         super().__init__(
@@ -43,9 +35,8 @@ class NabucasaIceServer(RTCIceServer):
             credential=data.get("credential"),
         )
 
-        self.expiration_timestamp = self._get_nabucasa_ice_server_expiration_timestamp(
-            data.get("ttl")
-        )
+        if (ttl := data.get("ttl")) is not None:
+            self.expiration_timestamp = int(time.time()) + ttl
 
 
 class IceServers:
