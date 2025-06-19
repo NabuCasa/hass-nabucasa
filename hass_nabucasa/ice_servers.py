@@ -127,7 +127,14 @@ class IceServers:
         if self.cloud.subscription_expired:
             return []
 
-        return self._nabucasa_ice_servers
+        return [
+            RTCIceServer(
+                urls=server.urls,
+                username=server.username,
+                credential=server.credential,
+            )
+            for server in self._nabucasa_ice_servers
+        ]
 
     async def async_register_ice_servers_listener(
         self,
