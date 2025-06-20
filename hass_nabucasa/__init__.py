@@ -11,7 +11,7 @@ from pathlib import Path
 import shutil
 from typing import Any, Generic, Literal, TypeVar
 
-from aiohttp import ClientSession
+from aiohttp import ClientError, ClientSession
 from atomicwrites import atomic_write
 import jwt
 
@@ -460,9 +460,10 @@ class Cloud(Generic[_ClientT]):
         """Get the billing_plan_type status."""
         billing_plan_type: str | None = None
         try:
-            subscription = await async_subscription_info(self, True)
+            async with asyncio.timeout(30):
+                subscription = await async_subscription_info(self, True)
             billing_plan_type = subscription.get("billing_plan_type")
-        except CloudError as err:
+        except (CloudError, TimeoutError, ClientError) as err:
             _LOGGER.warning("Could not get subscription info", exc_info=err)
         return billing_plan_type
 
