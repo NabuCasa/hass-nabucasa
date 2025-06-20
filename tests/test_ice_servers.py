@@ -13,7 +13,7 @@ from tests.utils.aiohttp import AiohttpClientMocker
 @pytest.fixture
 def ice_servers_api(auth_cloud_mock) -> ice_servers.IceServers:
     """ICE servers API fixture."""
-    auth_cloud_mock.servicehandlers_server = "example.com/test"
+    auth_cloud_mock.servicehandlers_server = "example.com"
     auth_cloud_mock.id_token = "mock-id-token"
     return ice_servers.IceServers(auth_cloud_mock)
 
@@ -22,7 +22,7 @@ def ice_servers_api(auth_cloud_mock) -> ice_servers.IceServers:
 def mock_ice_servers(aioclient_mock: AiohttpClientMocker):
     """Mock ICE servers."""
     aioclient_mock.get(
-        "https://example.com/test/v2/webrtc/ice_servers",
+        "https://example.com/v2/webrtc/ice_servers",
         json=[
             {
                 "urls": "stun:example.com:80",
@@ -109,7 +109,7 @@ async def test_ice_server_refresh_sets_ice_server_list_empty_on_expired_subscrip
 
     ice_servers_api._get_refresh_sleep_time = lambda: 0
 
-    ice_servers_api.cloud.subscription_expired = True
+    ice_servers_api._cloud.subscription_expired = True
 
     async def register_ice_servers(ice_servers: list[RTCIceServer]):
         nonlocal times_register_called_successfully
@@ -144,7 +144,7 @@ async def test_ice_server_refresh_sets_ice_server_list_empty_on_401_403_client_e
 ):
     """Test that ICE server list is empty when server returns 401 or 403 errors."""
     aioclient_mock.get(
-        "https://example.com/test/v2/webrtc/ice_servers",
+        "https://example.com/v2/webrtc/ice_servers",
         status=403,
         json={"message": "Boom!"},
     )
@@ -199,7 +199,7 @@ async def test_ice_server_refresh_keeps_ice_server_list_on_other_client_errors(
 ):
     """Test that ICE server list is not set to empty when server returns an error."""
     aioclient_mock.get(
-        "https://example.com/test/v2/webrtc/ice_servers",
+        "https://example.com/v2/webrtc/ice_servers",
         status=500,
         json={"message": "Boom!"},
     )
