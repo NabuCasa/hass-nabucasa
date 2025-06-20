@@ -11,14 +11,19 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientResponseError
-from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
 from webrtc_models import RTCIceServer
+
+from .api import ApiBase, CloudApiError, api_exception_handler
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class IceServersApiError(CloudApiError):
+    """Exception raised when handling ICE servers API."""
 
 
 @dataclass
@@ -39,35 +44,33 @@ class NabucasaIceServer(RTCIceServer):
             self.expiration_timestamp = int(time.time()) + ttl
 
 
-class IceServers:
+class IceServers(ApiBase):
     """Class to manage ICE servers."""
 
     def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Initialize ICE Servers."""
-        self.cloud = cloud
+        super().__init__(cloud)
         self._refresh_task: asyncio.Task | None = None
         self._nabucasa_ice_servers: list[NabucasaIceServer] = []
         self._ice_servers_listener: Callable[[], Awaitable[None]] | None = None
         self._ice_servers_listener_unregister: Callable[[], None] | None = None
 
+    @property
+    def hostname(self) -> str:
+        """Get the hostname."""
+        if TYPE_CHECKING:
+            assert self._cloud.servicehandlers_server is not None
+        return self._cloud.servicehandlers_server
+
+    @api_exception_handler(IceServersApiError)
     async def _async_fetch_ice_servers(self) -> list[NabucasaIceServer]:
         """Fetch ICE servers."""
-        if TYPE_CHECKING:
-            assert self.cloud.id_token is not None
-
-        if self.cloud.subscription_expired:
+        if self._cloud.subscription_expired:
             return []
-
-        async with self.cloud.websession.get(
-            f"https://{self.cloud.servicehandlers_server}/v2/webrtc/ice_servers",
-            headers={
-                AUTHORIZATION: self.cloud.id_token,
-                USER_AGENT: self.cloud.client.client_name,
-            },
-        ) as resp:
-            resp.raise_for_status()
-
-            return [NabucasaIceServer(item) for item in await resp.json()]
+        response: list[dict] = await self._call_cloud_api(
+            path="/v2/webrtc/ice_servers",
+        )
+        return [NabucasaIceServer(item) for item in response]
 
     def _get_refresh_sleep_time(self) -> int:
         """Get the sleep time for refreshing ICE servers."""
@@ -91,13 +94,16 @@ class IceServers:
         while True:
             try:
                 self._nabucasa_ice_servers = await self._async_fetch_ice_servers()
-
-            except ClientResponseError as err:
-                _LOGGER.error("Can't refresh ICE servers: %s", err.message)
+            except IceServersApiError as err:
+                _LOGGER.error("Can't refresh ICE servers: %s", err)
 
                 # We should not keep the existing ICE servers with old timestamps
                 # as that will retrigger a refresh almost immediately.
-                if err.status in (401, 403):
+                if (
+                    isinstance(err.orig_exc, CloudApiError)
+                    and isinstance(err.orig_exc.orig_exc, ClientResponseError)
+                    and err.orig_exc.orig_exc.status in (401, 403)
+                ):
                     self._nabucasa_ice_servers = []
 
             except asyncio.CancelledError:
@@ -124,7 +130,7 @@ class IceServers:
 
     def _get_ice_servers(self) -> list[RTCIceServer]:
         """Get ICE servers."""
-        if self.cloud.subscription_expired:
+        if self._cloud.subscription_expired:
             return []
 
         return [
