@@ -185,6 +185,7 @@ class ApiBase(ABC):
         *,
         path: str,
         method: str = "GET",
+        api_version: int | None = None,
         client_timeout: ClientTimeout | None = None,
         jsondata: dict[str, Any] | None = None,
         headers: dict[str, Any] | None = None,
@@ -197,9 +198,11 @@ class ApiBase(ABC):
         if TYPE_CHECKING:
             assert self._cloud.id_token is not None
 
+        url_path = f"{f'/v{api_version}' if api_version else ''}{path}"
+
         resp = await self._call_raw_api(
             method=method,
-            url=f"https://{self.hostname}{path}",
+            url=f"https://{self.hostname}{url_path}",
             client_timeout=client_timeout or ClientTimeout(total=10),
             headers={
                 hdrs.ACCEPT: "application/json",

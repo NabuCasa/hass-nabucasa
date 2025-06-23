@@ -68,7 +68,8 @@ class IceServers(ApiBase):
         if self._cloud.subscription_expired:
             return []
         response: list[dict] = await self._call_cloud_api(
-            path="/v2/webrtc/ice_servers",
+            path="/webrtc/ice_servers",
+            api_version=2,
         )
         return [NabucasaIceServer(item) for item in response]
 
