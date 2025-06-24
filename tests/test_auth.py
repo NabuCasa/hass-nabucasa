@@ -48,8 +48,7 @@ async def test_login_user_not_found(mock_cognito, mock_cloud):
 async def test_login_user_not_confirmed(mock_cognito, mock_cloud):
     """Test trying to login without confirming account."""
     auth = auth_api.CognitoAuth(mock_cloud)
-    mock_cognito.authenticate.side_effect = aws_error(
-        "UserNotConfirmedException")
+    mock_cognito.authenticate.side_effect = aws_error("UserNotConfirmedException")
 
     with pytest.raises(auth_api.UserNotConfirmed):
         await auth.async_login("user", "pass")
@@ -60,8 +59,7 @@ async def test_login_user_not_confirmed(mock_cognito, mock_cloud):
 async def test_login_user_mfa_required(mock_cognito, mock_cloud):
     """Test trying to login without MFA when it is required."""
     auth = auth_api.CognitoAuth(mock_cloud)
-    mock_cognito.authenticate.side_effect = MFAChallengeException(
-        "MFA required", {})
+    mock_cognito.authenticate.side_effect = MFAChallengeException("MFA required", {})
 
     with pytest.raises(auth_api.MFARequired):
         await auth.async_login("user", "pass")
@@ -91,8 +89,7 @@ async def test_login_user_verify_totp(mock_cognito, mock_cloud):
 
     await auth.async_login_verify_totp("user", "123456", {"session": "session"})
 
-    assert len(
-        mock_cognito.respond_to_software_token_mfa_challenge.mock_calls) == 1
+    assert len(mock_cognito.respond_to_software_token_mfa_challenge.mock_calls) == 1
     mock_cloud.update_token.assert_called_once_with(
         "test_id_token",
         "test_access_token",
@@ -180,8 +177,7 @@ async def test_resend_email_confirm(mock_cognito, cloud_mock):
 async def test_resend_email_confirm_fails(mock_cognito, cloud_mock):
     """Test failure when starting forgot password flow."""
     auth = auth_api.CognitoAuth(cloud_mock)
-    mock_cognito.client.resend_confirmation_code.side_effect = aws_error(
-        "SomeError")
+    mock_cognito.client.resend_confirmation_code.side_effect = aws_error("SomeError")
     with pytest.raises(auth_api.CloudError):
         await auth.async_resend_email_confirm("email@home-assistant.io")
 
@@ -213,8 +209,7 @@ async def test_check_token_writes_new_token_on_refresh(mock_cognito, cloud_mock)
     assert len(mock_cognito.check_token.mock_calls) == 1
     assert cloud_mock.id_token == "new id token"
     assert cloud_mock.access_token == "new access token"
-    cloud_mock.update_token.assert_called_once_with(
-        "new id token", "new access token")
+    cloud_mock.update_token.assert_called_once_with("new id token", "new access token")
 
 
 async def test_check_token_does_not_write_existing_token(mock_cognito, cloud_mock):
