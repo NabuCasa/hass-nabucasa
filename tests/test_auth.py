@@ -1,7 +1,7 @@
 """Tests for the tools to communicate with the cloud."""
 
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from botocore.exceptions import ClientError
 from pycognito.exceptions import MFAChallengeException
@@ -278,3 +278,44 @@ async def test_guard_no_login_authenticated_cognito(auth_mock_kwargs: dict[str, 
     auth = auth_api.CognitoAuth(MagicMock(**auth_mock_kwargs))
     with pytest.raises(auth_api.Unauthenticated):
         await auth._async_authenticated_cognito()
+
+
+@pytest.mark.parametrize(
+    "exp_value,random_value,expected_sleep",
+    [
+        [None, 2220, 2220],
+        [120, 120, 120],
+        [124, 120, 4],
+        [-124, 120, 120],
+    ],
+)
+async def test_sleep_time_calculation(
+    mock_cloud,
+    caplog,
+    exp_value,
+    random_value,
+    expected_sleep,
+):
+    """Test sleep time calculation."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+
+    with (
+        patch("hass_nabucasa.auth.utcnow") as mock_utcnow,
+        patch("hass_nabucasa.auth.expiration_from_token") as mock_exp,
+        patch("hass_nabucasa.auth.asyncio.sleep", AsyncMock()),
+        patch(
+            "hass_nabucasa.auth.CognitoAuth.async_renew_access_token",
+            side_effect=asyncio.CancelledError,
+        ),
+        patch("random.randint") as mock_random,
+    ):
+        mock_utcnow.return_value.timestamp.return_value = 1000000  # Mock current time
+        mock_exp.return_value = 1000000 + exp_value if exp_value else None
+        mock_random.return_value = random_value
+
+        await auth._async_handle_token_refresh()
+
+        assert (
+            f"Sleeping for {expected_sleep} seconds before refreshing token"
+            in caplog.text
+        )

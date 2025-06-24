@@ -16,11 +16,13 @@ import pycognito
 from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
 from .const import MESSAGE_AUTH_FAIL
+from .utils import expiration_from_token, utcnow
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
+_MINIMUM_REFRESH_TIME = 2400  # 40 minutes in seconds
 
 
 class CloudError(Exception):
@@ -102,9 +104,24 @@ class CognitoAuth:
 
     async def _async_handle_token_refresh(self) -> None:
         """Handle Cloud access token refresh."""
-        sleep_time = random.randint(2400, 3600)
+
+        def _sleep_time() -> int:
+            """Generate token refresh sleep time."""
+            if expiration_time := expiration_from_token(self.cloud.access_token):
+                seconds_left = expiration_time - int(utcnow().timestamp())
+                if seconds_left > 120:
+                    return seconds_left - random.randint(60, 120)
+
+            # If we don't have a valid token, or it is about to expire,
+            # refresh it in a random time between 40 minutes and 1 hour.
+            return random.randint(_MINIMUM_REFRESH_TIME, 3600)
+
         while True:
             try:
+                sleep_time = _sleep_time()
+                _LOGGER.debug(
+                    "Sleeping for %d seconds before refreshing token", sleep_time
+                )
                 await asyncio.sleep(sleep_time)
                 await self.async_renew_access_token()
             except CloudError as err:
@@ -112,8 +129,6 @@ class CognitoAuth:
             except asyncio.CancelledError:
                 # Task is canceled, stop it.
                 break
-
-            sleep_time = random.randint(3100, 3600)
 
     async def on_connect(self) -> None:
         """When the instance is connected."""
