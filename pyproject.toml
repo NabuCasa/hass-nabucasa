@@ -154,6 +154,8 @@ ignore = [
   "TRY003", # https://docs.astral.sh/ruff/rules/raise-vanilla-args/
   "TRY301", # https://docs.astral.sh/ruff/rules/raise-within-try/
   "TRY400", # https://docs.astral.sh/ruff/rules/error-instead-of-exception/
+  "UP046", # https://docs.astral.sh/ruff/rules/non-pep695-generic-class/
+  "UP047", # https://docs.astral.sh/ruff/rules/non-pep695-generic-function/
 ]
 
 select = [
