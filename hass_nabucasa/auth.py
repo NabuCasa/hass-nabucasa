@@ -109,8 +109,8 @@ class CognitoAuth:
             """Generate token refresh sleep time."""
             if expiration_time := expiration_from_token(self.cloud.access_token):
                 seconds_left = expiration_time - int(utcnow().timestamp())
-                if seconds_left > 120:
-                    return seconds_left - random.randint(60, 120)
+                if (suggestion := seconds_left - random.randint(10, 610)) > 1:
+                    return suggestion
 
             # If we don't have a valid token, or it is about to expire,
             # refresh it in a random time between 40 minutes and 1 hour.

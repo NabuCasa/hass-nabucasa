@@ -44,10 +44,9 @@ def expiration_from_token(token: str | None) -> int | None:
             token,
             options={"verify_signature": False},
         )
-    except jwt.DecodeError:
+        return int(decoded_token["exp"])
+    except (jwt.DecodeError, KeyError):
         return None
-
-    return int(decoded_token["exp"])
 
 
 def server_context_modern() -> ssl.SSLContext:

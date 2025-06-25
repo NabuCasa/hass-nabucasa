@@ -285,6 +285,7 @@ async def test_guard_no_login_authenticated_cognito(auth_mock_kwargs: dict[str, 
     [
         [None, 2220, 2220],
         [120, 120, 120],
+        [121, 120, 120],
         [124, 120, 4],
         [-124, 120, 120],
         [7800, 60, 7740],
