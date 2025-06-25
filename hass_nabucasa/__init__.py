@@ -16,6 +16,7 @@ from atomicwrites import atomic_write
 import jwt
 
 from .account_api import AccountApi
+from .alexa_api import AlexaApi
 from .auth import CloudError, CognitoAuth
 from .client import CloudClient
 from .cloud_api import async_subscription_info
@@ -119,6 +120,7 @@ class Cloud(Generic[_ClientT]):
 
         # Setup the rest of the components
         self.account = AccountApi(self)
+        self.alexa_api = AlexaApi(self)
         self.auth = CognitoAuth(self)
         self.cloudhooks = Cloudhooks(self)
         self.files = Files(self)

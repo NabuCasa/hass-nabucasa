@@ -71,10 +71,14 @@ class CloudApiError(CloudError):
         context: str | Exception,
         *,
         orig_exc: Exception | None = None,
+        reason: str | None = None,
+        status: int | None = None,
     ) -> None:
         """Initialize."""
         super().__init__(context)
         self.orig_exc = orig_exc
+        self.reason = reason
+        self.status = status
 
 
 class CloudApiCodedError(CloudApiError):
@@ -137,6 +141,8 @@ class ApiBase(ABC):
             resp.status,
             data["message"]
             if not isok and isinstance(data, dict) and "message" in data
+            else data["reason"]
+            if not isok and isinstance(data, dict) and "reason" in data
             else "",
         )
 
@@ -244,5 +250,7 @@ class ApiBase(ABC):
             raise CloudApiError(
                 f"Failed to fetch: ({err.status}) {err.message}",
                 orig_exc=err,
+                reason=data.get("reason") if isinstance(data, dict) else None,
+                status=resp.status,
             ) from err
         return data
