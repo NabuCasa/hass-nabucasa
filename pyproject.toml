@@ -133,7 +133,7 @@ asyncio_mode = "auto"
 fix = true
 line-length = 88
 show-fixes = true
-target-version = "py311"
+target-version = "py313"
 
 [tool.ruff.lint]
 ignore = [
