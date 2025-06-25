@@ -37,6 +37,7 @@ from .instance_api import (
     InstanceConnectionDetails,
 )
 from .iot import CloudIoT
+from .payments_api import PaymentsApi
 from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
@@ -125,6 +126,7 @@ class Cloud(Generic[_ClientT]):
         self.google_report_state = GoogleReportState(self)
         self.ice_servers = IceServers(self)
         self.instance = InstanceApi(self)
+        self.payments = PaymentsApi(self)
         self.remote = RemoteUI(self)
         self.voice = Voice(self)
         self.voice_api = VoiceApi(self)
