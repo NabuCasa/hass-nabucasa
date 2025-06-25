@@ -175,7 +175,7 @@ async def test_migrate_paypal_agreement(auth_cloud_mock, aioclient_mock):
 
 async def test_async_files_download_details(
     auth_cloud_mock: MagicMock,
-    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    aioclient_mock: Generator[AiohttpClientMocker, Any],
     caplog: pytest.LogCaptureFixture,
 ):
     """Test the async_files_download_details function."""
@@ -206,7 +206,7 @@ async def test_async_files_download_details(
 
 async def test_async_files_download_details_error(
     auth_cloud_mock: MagicMock,
-    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    aioclient_mock: Generator[AiohttpClientMocker, Any],
     caplog: pytest.LogCaptureFixture,
 ):
     """Test the async_files_download_details function with error."""
@@ -234,7 +234,7 @@ async def test_async_files_download_details_error(
 
 async def test_async_files_list(
     auth_cloud_mock: MagicMock,
-    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    aioclient_mock: Generator[AiohttpClientMocker, Any],
     caplog: pytest.LogCaptureFixture,
 ):
     """Test the async_files_list function."""
@@ -263,7 +263,7 @@ async def test_async_files_list(
 
 async def test_async_files_list_error(
     auth_cloud_mock: MagicMock,
-    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    aioclient_mock: Generator[AiohttpClientMocker, Any],
     caplog: pytest.LogCaptureFixture,
 ):
     """Test the async_files_list function with error listing files."""
@@ -288,7 +288,7 @@ async def test_async_files_list_error(
 
 async def test_async_files_upload_details(
     auth_cloud_mock: MagicMock,
-    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    aioclient_mock: Generator[AiohttpClientMocker, Any],
     caplog: pytest.LogCaptureFixture,
 ):
     """Test the async_files_upload_details function."""
@@ -332,7 +332,7 @@ async def test_async_files_upload_details(
 
 async def test_async_files_upload_details_error(
     auth_cloud_mock: MagicMock,
-    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    aioclient_mock: Generator[AiohttpClientMocker, Any],
     caplog: pytest.LogCaptureFixture,
 ):
     """Test the async_files_upload_details function with error generating upload URL."""
@@ -370,7 +370,7 @@ async def test_async_files_upload_details_error(
 
 async def test_async_files_delete_file(
     auth_cloud_mock: MagicMock,
-    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    aioclient_mock: Generator[AiohttpClientMocker, Any],
     caplog: pytest.LogCaptureFixture,
 ):
     """Test the async_files_delete_file function."""
@@ -398,7 +398,7 @@ async def test_async_files_delete_file(
 
 async def test_async_files_delete_file_error(
     auth_cloud_mock: MagicMock,
-    aioclient_mock: Generator[AiohttpClientMocker, Any, None],
+    aioclient_mock: Generator[AiohttpClientMocker, Any],
     caplog: pytest.LogCaptureFixture,
 ):
     """Test the async_files_delete_file function with error."""
