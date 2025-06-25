@@ -1,4 +1,5 @@
 """This module provides Alexa API functionalities."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypedDict
@@ -32,7 +33,6 @@ class AlexaApi(ApiBase):
     async def access_token(self) -> AlexaAccessTokenDetails:
         """Get the Alexa API access token."""
         details: AlexaAccessTokenDetails = await self._call_cloud_api(
-            method="POST",
-            path="/alexa/access_token"
+            method="POST", path="/alexa/access_token"
         )
         return details

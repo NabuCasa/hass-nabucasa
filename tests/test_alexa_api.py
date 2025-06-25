@@ -41,8 +41,7 @@ def set_hostname(auth_cloud_mock):
         ],
         [
             AlexaApiError,
-            {"status": 400, "text": json.dumps(
-                {"reason": "RefreshTokenNotFound"})},
+            {"status": 400, "text": json.dumps({"reason": "RefreshTokenNotFound"})},
             "Response for post from example.com/alexa/access_token (400) "
             "RefreshTokenNotFound",
             "Failed to fetch: (400) ",
@@ -116,7 +115,4 @@ async def test_getting_access_token(
     details = await alexa_api.access_token()
 
     assert details == AlexaAccessTokenDetails(**response)
-    assert (
-        "Response for post from example.com/alexa/access_token (200)"
-        in caplog.text
-    )
+    assert "Response for post from example.com/alexa/access_token (200)" in caplog.text
