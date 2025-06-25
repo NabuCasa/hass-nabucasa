@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
-_MINIMUM_REFRESH_TIME = 2400  # 40 minutes in seconds
 
 
 class CloudError(Exception):
@@ -114,7 +113,7 @@ class CognitoAuth:
 
             # If we don't have a valid token, or it is about to expire,
             # refresh it in a random time between 40 minutes and 1 hour.
-            return random.randint(_MINIMUM_REFRESH_TIME, 3600)
+            return random.randint(2400, 3600)
 
         while True:
             try:
@@ -132,7 +131,8 @@ class CognitoAuth:
 
     async def on_connect(self) -> None:
         """When the instance is connected."""
-        self._refresh_task = asyncio.create_task(self._async_handle_token_refresh())
+        self._refresh_task = asyncio.create_task(
+            self._async_handle_token_refresh())
 
     async def on_disconnect(self) -> None:
         """When the instance is disconnected."""
@@ -363,7 +363,8 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=botocore.config.Config(signature_version=botocore.UNSIGNED),
+            botocore_config=botocore.config.Config(
+                signature_version=botocore.UNSIGNED),
             session=self._session,
             **kwargs,
         )
