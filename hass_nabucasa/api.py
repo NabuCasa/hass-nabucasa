@@ -50,7 +50,14 @@ def api_exception_handler(
                 exception,
             ):
                 raise
-            except (CloudApiError, UnknownError, Unauthenticated) as err:
+            except CloudApiError as err:
+                raise exception(
+                    err,
+                    orig_exc=err,
+                    reason=err.reason,
+                    status=err.status,
+                ) from err
+            except (UnknownError, Unauthenticated) as err:
                 raise exception(err, orig_exc=err) from err
             except Exception as err:
                 raise exception(
@@ -71,10 +78,14 @@ class CloudApiError(CloudError):
         context: str | Exception,
         *,
         orig_exc: Exception | None = None,
+        reason: str | None = None,
+        status: int | None = None,
     ) -> None:
         """Initialize."""
         super().__init__(context)
         self.orig_exc = orig_exc
+        self.reason = reason
+        self.status = status
 
 
 class CloudApiCodedError(CloudApiError):
@@ -135,7 +146,9 @@ class ApiBase(ABC):
             resp.url.host,
             target,
             resp.status,
-            data["message"]
+            data["reason"]
+            if not isok and isinstance(data, dict) and "reason" in data
+            else data["message"]
             if not isok and isinstance(data, dict) and "message" in data
             else "",
         )
@@ -244,5 +257,7 @@ class ApiBase(ABC):
             raise CloudApiError(
                 f"Failed to fetch: ({err.status}) {err.message}",
                 orig_exc=err,
+                reason=data.get("reason") if isinstance(data, dict) else None,
+                status=resp.status,
             ) from err
         return data
