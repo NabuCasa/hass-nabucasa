@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 import datetime as dt
 from logging import Logger
 import ssl
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import ciso8601
+import jwt
 
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 UTC = dt.UTC
@@ -30,6 +31,21 @@ def parse_date(dt_str: str) -> dt.date | None:
     try:
         return ciso8601.parse_datetime(dt_str).date()
     except ValueError:  # If dt_str did not match our format
+        return None
+
+
+def expiration_from_token(token: str | None) -> int | None:
+    """Return the expiration time from a token."""
+    if not token:
+        return None
+
+    try:
+        decoded_token: Mapping[str, Any] = jwt.decode(
+            token,
+            options={"verify_signature": False},
+        )
+        return int(decoded_token["exp"])
+    except (jwt.DecodeError, KeyError):
         return None
 
 

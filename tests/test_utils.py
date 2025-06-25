@@ -1,5 +1,6 @@
 """Tests for hass_nabucaa utils."""
 
+import jwt
 import pytest
 
 from hass_nabucasa import utils
@@ -55,3 +56,35 @@ def test_parse_date_with_invalid_dates(input_str):
 def test_parse_date_with_valid_dates(input_str):
     """Test the parse_date util."""
     assert utils.parse_date(input_str) is not None
+
+
+def test_expiration_from_token():
+    """Test the expiration_from_token util."""
+    encoded = jwt.encode(
+        {
+            "exp": 1234567890,
+            "iat": 1234567890,
+            "sub": "user_id",
+        },
+        "secret",
+        algorithm="HS256",
+    )
+    assert utils.expiration_from_token(encoded) == 1234567890
+
+
+def test_expiration_from_token_no_exp():
+    """Test the expiration_from_token util with no exp claim."""
+    encoded = jwt.encode(
+        {
+            "iat": 1234567890,
+            "sub": "user_id",
+        },
+        "secret",
+        algorithm="HS256",
+    )
+    assert utils.expiration_from_token(encoded) is None
+
+
+def test_expiration_from_token_no_token():
+    """Test the expiration_from_token util with no token."""
+    assert utils.expiration_from_token(None) is None
