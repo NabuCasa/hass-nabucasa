@@ -50,7 +50,14 @@ def api_exception_handler(
                 exception,
             ):
                 raise
-            except (CloudApiError, UnknownError, Unauthenticated) as err:
+            except CloudApiError as err:
+                raise exception(
+                    err,
+                    orig_exc=err,
+                    reason=err.reason,
+                    status=err.status,
+                ) from err
+            except (UnknownError, Unauthenticated) as err:
                 raise exception(err, orig_exc=err) from err
             except Exception as err:
                 raise exception(
@@ -139,10 +146,10 @@ class ApiBase(ABC):
             resp.url.host,
             target,
             resp.status,
-            data["message"]
-            if not isok and isinstance(data, dict) and "message" in data
-            else data["reason"]
+            data["reason"]
             if not isok and isinstance(data, dict) and "reason" in data
+            else data["message"]
+            if not isok and isinstance(data, dict) and "message" in data
             else "",
         )
 
