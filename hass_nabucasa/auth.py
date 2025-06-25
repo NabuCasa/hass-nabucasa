@@ -131,8 +131,7 @@ class CognitoAuth:
 
     async def on_connect(self) -> None:
         """When the instance is connected."""
-        self._refresh_task = asyncio.create_task(
-            self._async_handle_token_refresh())
+        self._refresh_task = asyncio.create_task(self._async_handle_token_refresh())
 
     async def on_disconnect(self) -> None:
         """When the instance is disconnected."""
@@ -363,8 +362,7 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=botocore.config.Config(
-                signature_version=botocore.UNSIGNED),
+            botocore_config=botocore.config.Config(signature_version=botocore.UNSIGNED),
             session=self._session,
             **kwargs,
         )
