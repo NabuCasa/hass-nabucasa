@@ -16,6 +16,7 @@ from atomicwrites import atomic_write
 import jwt
 
 from .account_api import AccountApi
+from .alexa_api import AlexaApi
 from .auth import CloudError, CognitoAuth
 from .client import CloudClient
 from .cloud_api import async_subscription_info
@@ -37,6 +38,7 @@ from .instance_api import (
     InstanceConnectionDetails,
 )
 from .iot import CloudIoT
+from .payments_api import PaymentsApi
 from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
@@ -119,12 +121,14 @@ class Cloud(Generic[_ClientT]):
 
         # Setup the rest of the components
         self.account = AccountApi(self)
+        self.alexa_api = AlexaApi(self)
         self.auth = CognitoAuth(self)
         self.cloudhooks = Cloudhooks(self)
         self.files = Files(self)
         self.google_report_state = GoogleReportState(self)
         self.ice_servers = IceServers(self)
         self.instance = InstanceApi(self)
+        self.payments = PaymentsApi(self)
         self.remote = RemoteUI(self)
         self.voice = Voice(self)
         self.voice_api = VoiceApi(self)
