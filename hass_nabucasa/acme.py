@@ -281,7 +281,8 @@ class AcmeHandler:
             if (
                 isinstance(err, messages.Error)
                 and err.typ == "urn:ietf:params:acme:error:malformed"
-                and err.detail == "JWS verification error"
+                and str(err.detail).split(" ::", maxsplit=1)[0]
+                in {"JWS verification error", "Unable to validate JWS"}
             ):
                 raise AcmeJWSVerificationError(
                     f"JWS verification failed: {err}",
