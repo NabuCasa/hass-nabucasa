@@ -135,7 +135,8 @@ class AcmeHandler:
         if not self._x509:
             return None
         return str(
-            self._x509.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value,
+            self._x509.subject.get_attributes_for_oid(
+                NameOID.COMMON_NAME)[0].value,
         )
 
     @property
@@ -166,7 +167,8 @@ class AcmeHandler:
             _LOGGER.debug("create private keyfile: %s", self.path_private_key)
             key = OpenSSL.crypto.PKey()
             key.generate_key(OpenSSL.crypto.TYPE_RSA, PRIVATE_KEY_SIZE)
-            key_pem = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, key)
+            key_pem = OpenSSL.crypto.dump_privatekey(
+                OpenSSL.crypto.FILETYPE_PEM, key)
 
             self.path_private_key.write_bytes(key_pem)
             self.path_private_key.chmod(0o600)
@@ -232,23 +234,28 @@ class AcmeHandler:
                     url=self._acme_server,
                     net=network,
                 )
-                self._acme_client = client.ClientV2(directory=directory, net=network)
+                self._acme_client = client.ClientV2(
+                    directory=directory, net=network)
             except (errors.Error, ValueError) as err:
                 # https://github.com/certbot/certbot/blob/63fb97d8dea73ba63964f69fac0b15acfed02b3e/acme/acme/client.py#L670
                 # The client raises ValueError for RequestException
-                raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
+                raise AcmeClientError(
+                    f"Can't connect to ACME server: {err}") from err
             return
 
         # Create a new registration
         try:
-            network = client.ClientNetwork(self._account_jwk, user_agent=USER_AGENT)
+            network = client.ClientNetwork(
+                self._account_jwk, user_agent=USER_AGENT)
             directory = client.ClientV2.get_directory(
                 url=self._acme_server,
                 net=network,
             )
-            self._acme_client = client.ClientV2(directory=directory, net=network)
+            self._acme_client = client.ClientV2(
+                directory=directory, net=network)
         except (errors.Error, ValueError) as err:
-            raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
+            raise AcmeClientError(
+                f"Can't connect to ACME server: {err}") from err
 
         try:
             _LOGGER.info(
@@ -262,7 +269,8 @@ class AcmeHandler:
                 ),
             )
         except errors.Error as err:
-            raise AcmeClientError(f"Can't register to ACME server: {err}") from err
+            raise AcmeClientError(
+                f"Can't register to ACME server: {err}") from err
 
         # Store registration info
         self.path_registration_info.write_text(
@@ -281,7 +289,7 @@ class AcmeHandler:
             if (
                 isinstance(err, messages.Error)
                 and err.typ == "urn:ietf:params:acme:error:malformed"
-                and err.detail == "JWS verification error"
+                and err.detail in {"JWS verification error", "Unable to validate JWS"}
             ):
                 raise AcmeJWSVerificationError(
                     f"JWS verification failed: {err}",
@@ -329,9 +337,11 @@ class AcmeHandler:
         if TYPE_CHECKING:
             assert self._acme_client is not None
         try:
-            self._acme_client.answer_challenge(handler.challenge, handler.response)
+            self._acme_client.answer_challenge(
+                handler.challenge, handler.response)
         except errors.Error as err:
-            raise AcmeChallengeError(f"Can't accept ACME challenge: {err}") from err
+            raise AcmeChallengeError(
+                f"Can't accept ACME challenge: {err}") from err
 
     def _finish_challenge(self, order: messages.OrderResource) -> None:
         """Wait until challenge is finished."""
@@ -347,7 +357,8 @@ class AcmeHandler:
                 fetch_alternative_chains=True,
             )
         except errors.Error as err:
-            raise AcmeChallengeError(f"Wait of ACME challenge fails: {err}") from err
+            raise AcmeChallengeError(
+                f"Wait of ACME challenge fails: {err}") from err
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception while finalizing order")
             raise AcmeChallengeError(
@@ -415,7 +426,8 @@ class AcmeHandler:
             elif "Certificate from unrecognized issuer" in str(err):
                 pass
             else:
-                raise AcmeClientError(f"Can't revoke certificate: {err}") from err
+                raise AcmeClientError(
+                    f"Can't revoke certificate: {err}") from err
 
     def _deactivate_account(self) -> None:
         """Deactivate account."""
@@ -482,11 +494,13 @@ class AcmeHandler:
                     await asyncio.sleep(60)
                     await self.cloud.run_executor(self._answer_challenge, challenge)
                 except AcmeChallengeError as err:
-                    _LOGGER.error("Could not complete answer challenge - %s", err)
+                    _LOGGER.error(
+                        "Could not complete answer challenge - %s", err)
                     # There is no point in continuing here
                     break
                 except Exception:  # pylint: disable=broad-except
-                    _LOGGER.exception("Unexpected exception while answering challenge")
+                    _LOGGER.exception(
+                        "Unexpected exception while answering challenge")
                     # There is no point in continuing here
                     break
         finally:
@@ -498,13 +512,15 @@ class AcmeHandler:
                         dns_challenges[-1].validation,
                     )
             except TimeoutError:
-                _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
+                _LOGGER.error(
+                    "Failed to clean up challenge from NabuCasa DNS!")
 
         # Finish validation
         try:
             await self.cloud.run_executor(self._finish_challenge, order)
         except AcmeChallengeError as err:
-            raise AcmeNabuCasaError(f"Could not finish challenge - {err}") from err
+            raise AcmeNabuCasaError(
+                f"Could not finish challenge - {err}") from err
         await self.load_certificate()
 
     async def reset_acme(self) -> None:
