@@ -965,6 +965,13 @@ async def test_regeneration_without_warning_for_good_dns_config(
         (
             {
                 "type": "urn:ietf:params:acme:error:malformed",
+                "detail": "Unable to validate JWS :: Invalid Content-Type header on",
+            },
+            True,
+        ),
+        (
+            {
+                "type": "urn:ietf:params:acme:error:malformed",
                 "detail": "Some other malformed reason",
             },
             False,
