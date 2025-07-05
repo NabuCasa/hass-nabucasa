@@ -496,3 +496,36 @@ async def test_subscription_reconnect_for_no_subscription(
 
     assert "No subscription found" in caplog.text
     assert "Stopping subscription reconnection handler" in caplog.text
+
+
+async def test_subscription_reconnection_handler_connection_error(
+    cl: cloud.Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test the subscription reconnection handler for connection errors."""
+    basedate = utcnow()
+
+    with (
+        patch("hass_nabucasa.Cloud.initialize", AsyncMock()) as _initialize_mocker,
+        patch(
+            "hass_nabucasa.CognitoAuth.async_renew_access_token",
+            AsyncMock(),
+        ),
+        patch("hass_nabucasa.asyncio.sleep", AsyncMock()) as sleep_mock,
+        patch(
+            "hass_nabucasa.Cloud._decode_claims",
+            return_value={"custom:sub-exp": basedate.strftime("%Y-%m-%d")},
+        ),
+        patch(
+            "hass_nabucasa.Cloud.is_logged_in",
+            return_value=True,
+        ),
+    ):
+        await cl._subscription_reconnection_handler(
+            SubscriptionReconnectionReason.CONNECTION_ERROR
+        )
+
+    # For connection errors, should wait 1 hours (60 minutes)
+    sleep_mock.assert_called_with(1 * 60 * 60)
+    _initialize_mocker.assert_awaited_once()
+    assert "Stopping subscription reconnection handler" in caplog.text

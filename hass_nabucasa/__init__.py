@@ -451,7 +451,14 @@ class Cloud(Generic[_ClientT]):
             )
             return False
 
-        billing_plan_type = await self._async_get_billing_plan_type()
+        try:
+            billing_plan_type = await self._async_get_billing_plan_type()
+        except (TimeoutError, ClientError) as err:
+            _LOGGER.warning(err)
+            self.async_initialize_subscription_reconnection_handler(
+                SubscriptionReconnectionReason.CONNECTION_ERROR
+            )
+            return False
         if billing_plan_type is None or billing_plan_type == "no_subscription":
             _LOGGER.error("No subscription found")
             self.async_initialize_subscription_reconnection_handler(
@@ -467,7 +474,7 @@ class Cloud(Generic[_ClientT]):
             async with asyncio.timeout(30):
                 subscription = await async_subscription_info(self, True)
             billing_plan_type = subscription.get("billing_plan_type")
-        except (CloudError, TimeoutError, ClientError) as err:
+        except CloudError as err:
             _LOGGER.warning("Could not get subscription info", exc_info=err)
         return billing_plan_type
 
@@ -480,7 +487,9 @@ class Cloud(Generic[_ClientT]):
             now_as_utc = utcnow()
             sub_expired = self.expiration_date
 
-            if sub_expired > (now_as_utc - timedelta(days=1)):
+            if reason == SubscriptionReconnectionReason.CONNECTION_ERROR:
+                wait_hours = 1
+            elif sub_expired > (now_as_utc - timedelta(days=1)):
                 wait_hours = 3
             elif sub_expired > (now_as_utc - timedelta(days=7)):
                 wait_hours = 12
