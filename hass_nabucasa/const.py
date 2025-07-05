@@ -75,5 +75,6 @@ recreate it and notify you when it's available.
 class SubscriptionReconnectionReason(StrEnum):
     """Subscription reconnection reason."""
 
+    CONNECTION_ERROR = "connection_error"
     NO_SUBSCRIPTION = "no_subscription"
     SUBSCRIPTION_EXPIRED = "subscription_expired"
