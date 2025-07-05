@@ -488,7 +488,7 @@ class Cloud(Generic[_ClientT]):
             sub_expired = self.expiration_date
 
             if reason == SubscriptionReconnectionReason.CONNECTION_ERROR:
-                wait_hours = 1
+                wait_hours = 0.5
             elif sub_expired > (now_as_utc - timedelta(days=1)):
                 wait_hours = 3
             elif sub_expired > (now_as_utc - timedelta(days=7)):

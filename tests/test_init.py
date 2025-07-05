@@ -525,7 +525,7 @@ async def test_subscription_reconnection_handler_connection_error(
             SubscriptionReconnectionReason.CONNECTION_ERROR
         )
 
-    # For connection errors, should wait 1 hours (60 minutes)
-    sleep_mock.assert_called_with(1 * 60 * 60)
+    # For connection errors, should wait 1800 seconds (30 minutes)
+    sleep_mock.assert_called_with(1_800)
     _initialize_mocker.assert_awaited_once()
     assert "Stopping subscription reconnection handler" in caplog.text
