@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 from functools import lru_cache, partial
+import hashlib
+import hmac
 import logging
 import random
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import async_timeout
 import boto3
 import botocore
 from botocore.exceptions import BotoCoreError, ClientError
-import pycognito
-from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
 from .const import MESSAGE_AUTH_FAIL
 from .utils import expiration_from_token, utcnow
@@ -25,14 +26,35 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class CloudError(Exception):
-    """Base class for cloud related errors."""
+    """Exception raised for errors related to the cloud service."""
 
 
-class Unauthenticated(CloudError):
+class NabucasaAuthError(CloudError):
+    """Base class for all Nabucasa authentication exceptions."""
+
+
+class MFAChallengeError(NabucasaAuthError):
+    """Raised when MFA challenge is required."""
+
+    def __init__(self, message: str, mfa_tokens: dict[str, Any]) -> None:
+        """Initialize MFA challenge exception."""
+        super().__init__(message)
+        self._mfa_tokens = mfa_tokens
+
+    def get_tokens(self) -> dict[str, Any]:
+        """Return MFA tokens."""
+        return self._mfa_tokens
+
+
+class ForceChangePasswordError(NabucasaAuthError):
+    """Raised when password change is required."""
+
+
+class Unauthenticated(NabucasaAuthError):
     """Raised when authentication failed."""
 
 
-class MFARequired(CloudError):
+class MFARequired(NabucasaAuthError):
     """Raised when MFA is required."""
 
     _mfa_tokens: dict[str, Any]
@@ -78,14 +100,216 @@ class UnknownError(CloudError):
     """Raised when an unknown error occurs."""
 
 
-AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
-    "CodeMismatchException": InvalidTotpCode,
-    "UserNotFoundException": UserNotFound,
-    "UserNotConfirmedException": UserNotConfirmed,
-    "UsernameExistsException": UserExists,
-    "NotAuthorizedException": Unauthenticated,
-    "PasswordResetRequiredException": PasswordChangeRequired,
-}
+class CognitoAuthClient:
+    """Auth client for interacting with AWS Cognito."""
+
+    def __init__(
+        self,
+        *,
+        user_pool_id: str,
+        client_id: str,
+        user_pool_region: str,
+        botocore_config: Any,
+        session: boto3.Session,
+        username: str | None = None,
+        access_token: str | None = None,
+        refresh_token: str | None = None,
+        id_token: str | None = None,
+        client_secret: str | None = None,
+    ) -> None:
+        """Initialize the Cognito client."""
+        self.user_pool_id = user_pool_id
+        self.client_id = client_id
+        self.user_pool_region = user_pool_region
+        self.username = username
+        self.access_token = access_token
+        self.refresh_token = refresh_token
+        self.id_token = id_token
+        self.client_secret = client_secret
+
+        self.client = session.client(
+            "cognito-idp",
+            region_name=user_pool_region,
+            config=botocore_config,
+        )
+
+    def _calculate_secret_hash(self, username: str) -> str:
+        """Calculate the secret hash for Cognito.
+
+        The secret hash is required when the Cognito User Pool App client
+        has been configured with a client secret. It's an HMAC-SHA256
+        hash of the username + client_id using the client secret as the key.
+        """
+        if not self.client_secret:
+            return ""
+
+        message = username + self.client_id
+        secret_hash = hmac.new(
+            self.client_secret.encode(), message.encode(), hashlib.sha256
+        ).digest()
+        return base64.b64encode(secret_hash).decode()
+
+    def authenticate(self, password: str) -> None:
+        """Authenticate user with username and password."""
+        if not self.username:
+            raise ValueError("Username is required for authentication")
+
+        try:
+            auth_params = {
+                "USERNAME": self.username,
+                "PASSWORD": password,
+            }
+
+            # Add secret hash if needed
+            if secret_hash := self._calculate_secret_hash(self.username):
+                auth_params["SECRET_HASH"] = secret_hash
+
+            response = self.client.initiate_auth(
+                ClientId=self.client_id,
+                AuthFlow="USER_PASSWORD_AUTH",
+                AuthParameters=auth_params,
+            )
+
+            match response.get("ChallengeName"):
+                case "SOFTWARE_TOKEN_MFA":
+                    # MFA challenge required
+                    raise MFAChallengeError(
+                        "MFA challenge required",
+                        mfa_tokens={
+                            "Session": response["Session"],
+                            "ChallengeName": response["ChallengeName"],
+                            "ChallengeParameters": response.get(
+                                "ChallengeParameters", {}
+                            ),
+                        },
+                    )
+                case "NEW_PASSWORD_REQUIRED":
+                    # Password change required
+                    raise ForceChangePasswordError("Password change required")
+
+            # Successful authentication
+            auth_result = response["AuthenticationResult"]
+            self.access_token = auth_result["AccessToken"]
+            self.refresh_token = auth_result.get("RefreshToken")
+            self.id_token = auth_result.get("IdToken")
+
+        except ClientError as err:
+            match err.response["Error"]["Code"]:
+                case "NewPasswordRequiredException":
+                    raise ForceChangePasswordError("Password change required") from err
+                case _:
+                    raise
+
+    def respond_to_software_token_mfa_challenge(
+        self, code: str, mfa_tokens: dict[str, Any]
+    ) -> None:
+        """Respond to software token MFA challenge."""
+        challenge_params = {
+            "USERNAME": self.username,
+            "SOFTWARE_TOKEN_MFA_CODE": code,
+        }
+
+        # Add secret hash if needed
+        if secret_hash := self._calculate_secret_hash(self.username or ""):
+            challenge_params["SECRET_HASH"] = secret_hash
+
+        response = self.client.respond_to_auth_challenge(
+            ClientId=self.client_id,
+            ChallengeName=mfa_tokens["ChallengeName"],
+            Session=mfa_tokens["Session"],
+            ChallengeResponses=challenge_params,
+        )
+
+        # Extract tokens from successful response
+        auth_result = response["AuthenticationResult"]
+        self.access_token = auth_result["AccessToken"]
+        self.refresh_token = auth_result.get("RefreshToken")
+        self.id_token = auth_result.get("IdToken")
+
+    def check_token(self, renew: bool = True) -> bool:
+        """Check if the access token is valid."""
+        if not self.access_token:
+            return False
+
+        try:
+            # Try to get user info to validate token
+            self.client.get_user(AccessToken=self.access_token)
+        except ClientError:
+            if renew and self.refresh_token:
+                try:
+                    self.renew_access_token()
+                except ClientError:
+                    return False
+                return True
+            return False
+        return True
+
+    def renew_access_token(self) -> None:
+        """Renew the access token using refresh token."""
+        if not self.refresh_token:
+            raise ValueError("Refresh token is required")
+
+        auth_params = {
+            "REFRESH_TOKEN": self.refresh_token,
+        }
+
+        # Add secret hash if needed
+        if self.username and (
+            secret_hash := self._calculate_secret_hash(self.username)
+        ):
+            auth_params["SECRET_HASH"] = secret_hash
+
+        response = self.client.initiate_auth(
+            ClientId=self.client_id,
+            AuthFlow="REFRESH_TOKEN_AUTH",
+            AuthParameters=auth_params,
+        )
+
+        auth_result = response["AuthenticationResult"]
+        self.access_token = auth_result["AccessToken"]
+        self.id_token = auth_result.get("IdToken")
+        # Refresh token might be rotated
+        if refresh_token := auth_result.get("RefreshToken"):
+            self.refresh_token = refresh_token
+
+    def register(
+        self,
+        username: str,
+        password: str,
+        client_metadata: dict[str, str] | None = None,
+    ) -> None:
+        """Register a new user."""
+        signup_params = {
+            "ClientId": self.client_id,
+            "Username": username,
+            "Password": password,
+            "UserAttributes": [{"Name": "email", "Value": username}],
+            **({"ClientMetadata": client_metadata} if client_metadata else {}),
+            **(
+                {"SecretHash": secret_hash}
+                if (secret_hash := self._calculate_secret_hash(username))
+                else {}
+            ),
+        }
+
+        self.client.sign_up(**signup_params)
+
+    def initiate_forgot_password(self) -> None:
+        """Initiate forgot password flow."""
+        if not self.username:
+            raise ValueError("Username is required")
+
+        params = {
+            "ClientId": self.client_id,
+            "Username": self.username,
+            **(
+                {"SecretHash": secret_hash}
+                if (secret_hash := self._calculate_secret_hash(self.username))
+                else {}
+            ),
+        }
+
+        self.client.forgot_password(**params)
 
 
 class CognitoAuth:
@@ -210,7 +434,7 @@ class CognitoAuth:
             async with self._request_lock:
                 assert not self.cloud.is_logged_in, "Cannot login if already logged in."
 
-                cognito: pycognito.Cognito = await self.cloud.run_executor(
+                cognito: CognitoAuthClient = await self.cloud.run_executor(
                     partial(self._create_cognito_client, username=email),
                 )
 
@@ -218,6 +442,14 @@ class CognitoAuth:
                     await self.cloud.run_executor(
                         partial(cognito.authenticate, password=password),
                     )
+
+                # After successful authentication, tokens should be available
+                assert cognito.access_token is not None, (
+                    "Access token should be available after authentication"
+                )
+                assert cognito.id_token is not None, (
+                    "ID token should be available after authentication"
+                )
 
                 if check_connection:
                     await self.cloud.ensure_not_connected(
@@ -233,10 +465,10 @@ class CognitoAuth:
             if task:
                 await task
 
-        except MFAChallengeException as err:
+        except MFAChallengeError as err:
             raise MFARequired(err.get_tokens()) from err
 
-        except ForceChangePasswordException as err:
+        except ForceChangePasswordError as err:
             raise PasswordChangeRequired from err
 
         except ClientError as err:
@@ -260,7 +492,7 @@ class CognitoAuth:
                     "Cannot verify TOTP if already logged in."
                 )
 
-                cognito: pycognito.Cognito = await self.cloud.run_executor(
+                cognito: CognitoAuthClient = await self.cloud.run_executor(
                     partial(self._create_cognito_client, username=email),
                 )
 
@@ -271,6 +503,14 @@ class CognitoAuth:
                             code=code,
                             mfa_tokens=mfa_tokens,
                         ),
+                    )
+
+                if TYPE_CHECKING:
+                    assert cognito.access_token is not None, (
+                        "Access token should be available after MFA verification"
+                    )
+                    assert cognito.id_token is not None, (
+                        "ID token should be available after MFA verification"
                     )
 
                 if check_connection:
@@ -329,6 +569,15 @@ class CognitoAuth:
 
         try:
             await self.cloud.run_executor(cognito.renew_access_token)
+
+            # After successful token renewal, tokens should be available
+            assert cognito.access_token is not None, (
+                "Access token should be available after renewal"
+            )
+            assert cognito.id_token is not None, (
+                "ID token should be available after renewal"
+            )
+
             await self.cloud.update_token(cognito.id_token, cognito.access_token)
 
         except ClientError as err:
@@ -337,20 +586,23 @@ class CognitoAuth:
         except BotoCoreError as err:
             raise UnknownError from err
 
-    async def _async_authenticated_cognito(self) -> pycognito.Cognito:
+    async def _async_authenticated_cognito(self) -> CognitoAuthClient:
         """Return an authenticated cognito instance."""
         if self.cloud.access_token is None or self.cloud.refresh_token is None:
             raise Unauthenticated("No authentication found")
 
-        return await self.cloud.run_executor(
-            partial(
-                self._create_cognito_client,
-                access_token=self.cloud.access_token,
-                refresh_token=self.cloud.refresh_token,
+        return cast(
+            "CognitoAuthClient",
+            await self.cloud.run_executor(
+                partial(
+                    self._create_cognito_client,
+                    access_token=self.cloud.access_token,
+                    refresh_token=self.cloud.refresh_token,
+                ),
             ),
         )
 
-    def _create_cognito_client(self, **kwargs: Any) -> pycognito.Cognito:
+    def _create_cognito_client(self, **kwargs: Any) -> CognitoAuthClient:
         """Create a new cognito client.
 
         NOTE: This will do I/O
@@ -370,8 +622,24 @@ class CognitoAuth:
 
 def _map_aws_exception(err: ClientError) -> CloudError:
     """Map AWS exception to our exceptions."""
-    ex = AWS_EXCEPTIONS.get(err.response["Error"]["Code"], UnknownError)
-    return ex(err.response["Error"]["Message"])
+    error_code = err.response["Error"]["Code"]
+    error_message = err.response["Error"]["Message"]
+
+    match error_code:
+        case "CodeMismatchException":
+            return InvalidTotpCode(error_message)
+        case "UserNotFoundException":
+            return UserNotFound(error_message)
+        case "UserNotConfirmedException":
+            return UserNotConfirmed(error_message)
+        case "UsernameExistsException":
+            return UserExists(error_message)
+        case "NotAuthorizedException":
+            return Unauthenticated(error_message)
+        case "PasswordResetRequiredException":
+            return PasswordChangeRequired(error_message)
+        case _:
+            return UnknownError(error_message)
 
 
 @lru_cache(maxsize=2)
@@ -382,12 +650,12 @@ def _cached_cognito(
     botocore_config: Any,
     session: Any,
     **kwargs: Any,
-) -> pycognito.Cognito:
+) -> CognitoAuthClient:
     """Create a cached cognito client.
 
     NOTE: This will do I/O
     """
-    return pycognito.Cognito(
+    return CognitoAuthClient(
         user_pool_id=user_pool_id,
         client_id=client_id,
         user_pool_region=user_pool_region,

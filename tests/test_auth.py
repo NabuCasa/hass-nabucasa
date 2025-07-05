@@ -4,10 +4,10 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from botocore.exceptions import ClientError
-from pycognito.exceptions import MFAChallengeException
 import pytest
 
 from hass_nabucasa import auth as auth_api
+from hass_nabucasa.auth import MFAChallengeError
 
 
 @pytest.fixture
@@ -59,7 +59,7 @@ async def test_login_user_not_confirmed(mock_cognito, mock_cloud):
 async def test_login_user_mfa_required(mock_cognito, mock_cloud):
     """Test trying to login without MFA when it is required."""
     auth = auth_api.CognitoAuth(mock_cloud)
-    mock_cognito.authenticate.side_effect = MFAChallengeException("MFA required", {})
+    mock_cognito.authenticate.side_effect = MFAChallengeError("MFA required", {})
 
     with pytest.raises(auth_api.MFARequired):
         await auth.async_login("user", "pass")
