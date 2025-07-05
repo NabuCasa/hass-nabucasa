@@ -43,6 +43,7 @@ version = "0.0.0"
 test = [
     "codespell==2.4.1",
     "mypy==1.16.1",
+    "boto3-stubs[cognito-idp]==1.39.3",
     "pre-commit==4.2.0",
     "pre-commit-hooks==5.0.0",
     "pylint==3.3.7",

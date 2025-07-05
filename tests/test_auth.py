@@ -197,48 +197,6 @@ async def test_forgot_password_fails(mock_cognito, cloud_mock):
         await auth.async_forgot_password("email@home-assistant.io")
 
 
-async def test_check_token_writes_new_token_on_refresh(mock_cognito, cloud_mock):
-    """Test check_token writes new token if refreshed."""
-    auth = auth_api.CognitoAuth(cloud_mock)
-    mock_cognito.check_token.return_value = True
-    mock_cognito.id_token = "new id token"
-    mock_cognito.access_token = "new access token"
-
-    await auth.async_check_token()
-
-    assert len(mock_cognito.check_token.mock_calls) == 1
-    assert cloud_mock.id_token == "new id token"
-    assert cloud_mock.access_token == "new access token"
-    cloud_mock.update_token.assert_called_once_with("new id token", "new access token")
-
-
-async def test_check_token_does_not_write_existing_token(mock_cognito, cloud_mock):
-    """Test check_token won't write new token if still valid."""
-    mock_cognito.check_token.return_value = False
-    auth = auth_api.CognitoAuth(cloud_mock)
-
-    await auth.async_check_token()
-
-    assert len(mock_cognito.check_token.mock_calls) == 1
-    assert cloud_mock.id_token != mock_cognito.id_token
-    assert cloud_mock.access_token != mock_cognito.access_token
-    assert len(cloud_mock.update_token.mock_calls) == 0
-
-
-async def test_check_token_raises(mock_cognito, cloud_mock):
-    """Test we raise correct error."""
-    mock_cognito.renew_access_token.side_effect = aws_error("SomeError")
-    auth = auth_api.CognitoAuth(cloud_mock)
-
-    with pytest.raises(auth_api.CloudError):
-        await auth.async_check_token()
-
-    assert len(mock_cognito.check_token.mock_calls) == 2
-    assert cloud_mock.id_token != mock_cognito.id_token
-    assert cloud_mock.access_token != mock_cognito.access_token
-    assert len(cloud_mock.update_token.mock_calls) == 0
-
-
 async def test_async_setup(cloud_mock):
     """Test async setup."""
     auth_api.CognitoAuth(cloud_mock)

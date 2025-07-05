@@ -20,6 +20,8 @@ from .const import MESSAGE_AUTH_FAIL
 from .utils import expiration_from_token, utcnow
 
 if TYPE_CHECKING:
+    from mypy_boto3_cognito_idp.type_defs import AuthenticationResultTypeTypeDef
+
     from . import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
@@ -149,6 +151,25 @@ class CognitoAuthClient:
         ).digest()
         return base64.b64encode(secret_hash).decode()
 
+    def _add_secret_hash_if_needed(self, params: dict[str, Any], username: str) -> None:
+        """Add secret hash to parameters if needed."""
+        if secret_hash := self._calculate_secret_hash(username):
+            params["SECRET_HASH"] = secret_hash
+
+    def _add_secret_hash_to_dict_if_needed(self, username: str) -> dict[str, str]:
+        """Return dict with SecretHash if needed, empty dict otherwise."""
+        if secret_hash := self._calculate_secret_hash(username):
+            return {"SecretHash": secret_hash}
+        return {}
+
+    def _extract_tokens_from_auth_result(
+        self, auth_result: AuthenticationResultTypeTypeDef
+    ) -> None:
+        """Extract and store tokens from authentication result."""
+        self.access_token = auth_result["AccessToken"]
+        self.refresh_token = auth_result.get("RefreshToken")
+        self.id_token = auth_result.get("IdToken")
+
     def authenticate(self, password: str) -> None:
         """Authenticate user with username and password."""
         if not self.username:
@@ -161,8 +182,7 @@ class CognitoAuthClient:
             }
 
             # Add secret hash if needed
-            if secret_hash := self._calculate_secret_hash(self.username):
-                auth_params["SECRET_HASH"] = secret_hash
+            self._add_secret_hash_if_needed(auth_params, self.username)
 
             response = self.client.initiate_auth(
                 ClientId=self.client_id,
@@ -188,10 +208,7 @@ class CognitoAuthClient:
                     raise ForceChangePasswordError("Password change required")
 
             # Successful authentication
-            auth_result = response["AuthenticationResult"]
-            self.access_token = auth_result["AccessToken"]
-            self.refresh_token = auth_result.get("RefreshToken")
-            self.id_token = auth_result.get("IdToken")
+            self._extract_tokens_from_auth_result(response["AuthenticationResult"])
 
         except ClientError as err:
             match err.response["Error"]["Code"]:
@@ -204,14 +221,13 @@ class CognitoAuthClient:
         self, code: str, mfa_tokens: dict[str, Any]
     ) -> None:
         """Respond to software token MFA challenge."""
-        challenge_params = {
-            "USERNAME": self.username,
+        challenge_params: dict[str, str] = {
+            "USERNAME": self.username or "",
             "SOFTWARE_TOKEN_MFA_CODE": code,
         }
 
         # Add secret hash if needed
-        if secret_hash := self._calculate_secret_hash(self.username or ""):
-            challenge_params["SECRET_HASH"] = secret_hash
+        self._add_secret_hash_if_needed(challenge_params, self.username or "")
 
         response = self.client.respond_to_auth_challenge(
             ClientId=self.client_id,
@@ -221,13 +237,10 @@ class CognitoAuthClient:
         )
 
         # Extract tokens from successful response
-        auth_result = response["AuthenticationResult"]
-        self.access_token = auth_result["AccessToken"]
-        self.refresh_token = auth_result.get("RefreshToken")
-        self.id_token = auth_result.get("IdToken")
+        self._extract_tokens_from_auth_result(response["AuthenticationResult"])
 
-    def check_token(self, renew: bool = True) -> bool:
-        """Check if the access token is valid."""
+    def validate_and_renew_token(self, renew: bool = True) -> bool:
+        """Validate the access token and optionally renew if invalid."""
         if not self.access_token:
             return False
 
@@ -236,10 +249,8 @@ class CognitoAuthClient:
             self.client.get_user(AccessToken=self.access_token)
         except ClientError:
             if renew and self.refresh_token:
-                try:
-                    self.renew_access_token()
-                except ClientError:
-                    return False
+                # Try to renew the token - exceptions will propagate up
+                self.renew_access_token()
                 return True
             return False
         return True
@@ -254,10 +265,8 @@ class CognitoAuthClient:
         }
 
         # Add secret hash if needed
-        if self.username and (
-            secret_hash := self._calculate_secret_hash(self.username)
-        ):
-            auth_params["SECRET_HASH"] = secret_hash
+        if self.username:
+            self._add_secret_hash_if_needed(auth_params, self.username)
 
         response = self.client.initiate_auth(
             ClientId=self.client_id,
@@ -279,37 +288,40 @@ class CognitoAuthClient:
         client_metadata: dict[str, str] | None = None,
     ) -> None:
         """Register a new user."""
-        signup_params = {
-            "ClientId": self.client_id,
-            "Username": username,
-            "Password": password,
-            "UserAttributes": [{"Name": "email", "Value": username}],
-            **({"ClientMetadata": client_metadata} if client_metadata else {}),
-            **(
-                {"SecretHash": secret_hash}
-                if (secret_hash := self._calculate_secret_hash(username))
-                else {}
-            ),
-        }
+        # Add secret hash if needed
+        secret_hash_dict = self._add_secret_hash_to_dict_if_needed(username)
 
-        self.client.sign_up(**signup_params)
+        kwargs: dict[str, Any] = {}
+        if client_metadata:
+            kwargs["ClientMetadata"] = client_metadata
+        if secret_hash_dict and "SecretHash" in secret_hash_dict:
+            kwargs["SecretHash"] = secret_hash_dict["SecretHash"]
+
+        self.client.sign_up(
+            ClientId=self.client_id,
+            Username=username,
+            Password=password,
+            UserAttributes=[{"Name": "email", "Value": username}],
+            **kwargs,
+        )
 
     def initiate_forgot_password(self) -> None:
         """Initiate forgot password flow."""
         if not self.username:
             raise ValueError("Username is required")
 
-        params = {
-            "ClientId": self.client_id,
-            "Username": self.username,
-            **(
-                {"SecretHash": secret_hash}
-                if (secret_hash := self._calculate_secret_hash(self.username))
-                else {}
-            ),
-        }
+        # Add secret hash if needed
+        secret_hash_dict = self._add_secret_hash_to_dict_if_needed(self.username)
 
-        self.client.forgot_password(**params)
+        kwargs: dict[str, Any] = {}
+        if secret_hash_dict and "SecretHash" in secret_hash_dict:
+            kwargs["SecretHash"] = secret_hash_dict["SecretHash"]
+
+        self.client.forgot_password(
+            ClientId=self.client_id,
+            Username=self.username,
+            **kwargs,
+        )
 
 
 class CognitoAuth:
@@ -324,6 +336,20 @@ class CognitoAuth:
 
         cloud.iot.register_on_connect(self.on_connect)
         cloud.iot.register_on_disconnect(self.on_disconnect)
+
+    def _handle_cognito_operation(self, operation_func: Any) -> Any:
+        """Handle a cognito operation with common exception handling."""
+
+        async def wrapper() -> None:
+            try:
+                async with self._request_lock:
+                    await operation_func()
+            except ClientError as err:
+                raise _map_aws_exception(err) from err
+            except BotoCoreError as err:
+                raise UnknownError from err
+
+        return wrapper()
 
     async def _async_handle_token_refresh(self) -> None:
         """Handle Cloud access token refresh."""
@@ -370,57 +396,73 @@ class CognitoAuth:
         client_metadata: Any | None = None,
     ) -> None:
         """Register a new account."""
-        try:
-            async with self._request_lock:
-                cognito = await self.cloud.run_executor(
-                    self._create_cognito_client,
-                )
-                await self.cloud.run_executor(
-                    partial(
-                        cognito.register,
-                        email.lower(),
-                        password,
-                        client_metadata=client_metadata,
-                    ),
-                )
 
-        except ClientError as err:
-            raise _map_aws_exception(err) from err
-        except BotoCoreError as err:
-            raise UnknownError from err
+        async def _operation() -> None:
+            cognito = await self.cloud.run_executor(
+                self._create_cognito_client,
+            )
+            await self.cloud.run_executor(
+                partial(
+                    cognito.register,
+                    email.lower(),
+                    password,
+                    client_metadata=client_metadata,
+                ),
+            )
+
+        await self._handle_cognito_operation(_operation)
 
     async def async_resend_email_confirm(self, email: str) -> None:
         """Resend email confirmation."""
-        try:
-            async with self._request_lock:
-                cognito = await self.cloud.run_executor(
-                    partial(self._create_cognito_client, username=email),
-                )
-                await self.cloud.run_executor(
-                    partial(
-                        cognito.client.resend_confirmation_code,
-                        Username=email,
-                        ClientId=cognito.client_id,
-                    ),
-                )
-        except ClientError as err:
-            raise _map_aws_exception(err) from err
-        except BotoCoreError as err:
-            raise UnknownError from err
+
+        async def _operation() -> None:
+            cognito = await self.cloud.run_executor(
+                partial(self._create_cognito_client, username=email),
+            )
+            await self.cloud.run_executor(
+                partial(
+                    cognito.client.resend_confirmation_code,
+                    Username=email,
+                    ClientId=cognito.client_id,
+                ),
+            )
+
+        await self._handle_cognito_operation(_operation)
 
     async def async_forgot_password(self, email: str) -> None:
         """Initialize forgotten password flow."""
-        try:
-            async with self._request_lock:
-                cognito = await self.cloud.run_executor(
-                    partial(self._create_cognito_client, username=email),
-                )
-                await self.cloud.run_executor(cognito.initiate_forgot_password)
 
-        except ClientError as err:
-            raise _map_aws_exception(err) from err
-        except BotoCoreError as err:
-            raise UnknownError from err
+        async def _operation() -> None:
+            cognito = await self.cloud.run_executor(
+                partial(self._create_cognito_client, username=email),
+            )
+            await self.cloud.run_executor(cognito.initiate_forgot_password)
+
+        await self._handle_cognito_operation(_operation)
+
+    async def _handle_successful_authentication(
+        self, cognito: CognitoAuthClient, check_connection: bool = False
+    ) -> None:
+        """Handle common post-authentication tasks."""
+        # After successful authentication, tokens should be available
+        assert cognito.access_token is not None, (
+            "Access token should be available after authentication"
+        )
+        assert cognito.id_token is not None, (
+            "ID token should be available after authentication"
+        )
+
+        if check_connection:
+            await self.cloud.ensure_not_connected(access_token=cognito.access_token)
+
+        task = await self.cloud.update_token(
+            cognito.id_token,
+            cognito.access_token,
+            cognito.refresh_token,
+        )
+
+        if task:
+            await task
 
     async def async_login(
         self,
@@ -443,27 +485,7 @@ class CognitoAuth:
                         partial(cognito.authenticate, password=password),
                     )
 
-                # After successful authentication, tokens should be available
-                assert cognito.access_token is not None, (
-                    "Access token should be available after authentication"
-                )
-                assert cognito.id_token is not None, (
-                    "ID token should be available after authentication"
-                )
-
-                if check_connection:
-                    await self.cloud.ensure_not_connected(
-                        access_token=cognito.access_token
-                    )
-
-                task = await self.cloud.update_token(
-                    cognito.id_token,
-                    cognito.access_token,
-                    cognito.refresh_token,
-                )
-
-            if task:
-                await task
+                await self._handle_successful_authentication(cognito, check_connection)
 
         except MFAChallengeError as err:
             raise MFARequired(err.get_tokens()) from err
@@ -513,19 +535,7 @@ class CognitoAuth:
                         "ID token should be available after MFA verification"
                     )
 
-                if check_connection:
-                    await self.cloud.ensure_not_connected(
-                        access_token=cognito.access_token
-                    )
-
-                task = await self.cloud.update_token(
-                    cognito.id_token,
-                    cognito.access_token,
-                    cognito.refresh_token,
-                )
-
-            if task:
-                await task
+                await self._handle_successful_authentication(cognito, check_connection)
 
         except ClientError as err:
             raise _map_aws_exception(err) from err
@@ -537,23 +547,46 @@ class CognitoAuth:
         """Check that the token is valid and renew if necessary."""
         async with self._request_lock:
             cognito = await self._async_authenticated_cognito()
-            if not cognito.check_token(renew=False):
+
+            # Check if token is valid
+            is_valid = await self.cloud.run_executor(
+                partial(cognito.validate_and_renew_token, renew=False)
+            )
+
+            if is_valid:
                 return
 
+            # Token needs renewal
             try:
-                await self._async_renew_access_token()
-            except (Unauthenticated, UserNotFound) as err:
-                _LOGGER.error("Unable to refresh token: %s", err)
-
-                self.cloud.client.user_message(
-                    "cloud_subscription_expired",
-                    "Home Assistant Cloud",
-                    MESSAGE_AUTH_FAIL,
+                was_renewed = await self.cloud.run_executor(
+                    partial(cognito.validate_and_renew_token, renew=True)
                 )
 
-                # Don't await it because it could cancel this task
-                asyncio.create_task(self.cloud.logout())
-                raise
+                # If token was renewed, update cloud with new tokens
+                if was_renewed:
+                    assert cognito.access_token is not None
+                    assert cognito.id_token is not None
+                    await self.cloud.update_token(
+                        cognito.id_token, cognito.access_token
+                    )
+
+            except ClientError as err:
+                mapped_err = _map_aws_exception(err)
+                if isinstance(mapped_err, (Unauthenticated, UserNotFound)):
+                    _LOGGER.error("Unable to refresh token: %s", mapped_err)
+
+                    self.cloud.client.user_message(
+                        "cloud_subscription_expired",
+                        "Home Assistant Cloud",
+                        MESSAGE_AUTH_FAIL,
+                    )
+
+                    # Don't await it because it could cancel this task
+                    asyncio.create_task(self.cloud.logout())
+
+                raise mapped_err from err
+            except BotoCoreError as err:
+                raise UnknownError from err
 
     async def async_renew_access_token(self) -> None:
         """Renew access token."""
