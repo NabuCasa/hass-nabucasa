@@ -459,7 +459,7 @@ class Cloud(Generic[_ClientT]):
             _LOGGER.info(
                 err
                 if isinstance(err, ClientError)
-                else "Timeout error reached while getting subscripton information"
+                else "Timeout error reached while getting subscription information"
             )
             self.async_initialize_subscription_reconnection_handler(
                 SubscriptionReconnectionReason.CONNECTION_ERROR
