@@ -520,12 +520,17 @@ async def test_subscription_reconnection_handler_connection_error(
             "hass_nabucasa.Cloud.is_logged_in",
             return_value=True,
         ),
+        patch("hass_nabucasa.random.uniform", return_value=0.05) as random_mock,
     ):
         await cl._subscription_reconnection_handler(
             SubscriptionReconnectionReason.CONNECTION_ERROR
         )
 
-    # For connection errors, should wait 1800 seconds (30 minutes)
-    sleep_mock.assert_called_with(1_800)
+    random_mock.assert_called_with(0.01, 0.09)
+
+    call_args = sleep_mock.call_args[0][0]
+    assert abs(call_args - 216) < 0.1
     _initialize_mocker.assert_awaited_once()
     assert "Stopping subscription reconnection handler" in caplog.text
+    assert "Could not establish connection (attempt 1)" in caplog.text
+    assert "waiting 3.6 minutes before retrying" in caplog.text

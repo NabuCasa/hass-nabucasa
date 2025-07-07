@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import json
 import logging
 from pathlib import Path
+import random
 import shutil
 from typing import Any, Generic, Literal, TypeVar
 
@@ -94,6 +95,7 @@ class Cloud(Generic[_ClientT]):
         self.id_token: str | None = None
         self.refresh_token: str | None = None
         self.started: bool | None = None
+        self._connection_retry_count = 0
 
         # Set reference
         self.client.cloud = self
@@ -454,13 +456,17 @@ class Cloud(Generic[_ClientT]):
         try:
             billing_plan_type = await self._async_get_billing_plan_type()
         except (TimeoutError, ClientError) as err:
-            _LOGGER.warning(err)
+            _LOGGER.info(
+                err
+                if isinstance(err, ClientError)
+                else "Timeout error reached while getting subscripton information"
+            )
             self.async_initialize_subscription_reconnection_handler(
                 SubscriptionReconnectionReason.CONNECTION_ERROR
             )
             return False
         if billing_plan_type is None or billing_plan_type == "no_subscription":
-            _LOGGER.error("No subscription found")
+            _LOGGER.info("No subscription found")
             self.async_initialize_subscription_reconnection_handler(
                 SubscriptionReconnectionReason.NO_SUBSCRIPTION
             )
@@ -488,7 +494,11 @@ class Cloud(Generic[_ClientT]):
             sub_expired = self.expiration_date
 
             if reason == SubscriptionReconnectionReason.CONNECTION_ERROR:
-                wait_hours = 0.5
+                self._connection_retry_count += 1
+                base_wait = 0.01 + (
+                    self._connection_retry_count * random.uniform(0.01, 0.09)
+                )
+                wait_hours = min(base_wait, 1.0)
             elif sub_expired > (now_as_utc - timedelta(days=1)):
                 wait_hours = 3
             elif sub_expired > (now_as_utc - timedelta(days=7)):
@@ -504,11 +514,19 @@ class Cloud(Generic[_ClientT]):
                 )
                 break
 
-            _LOGGER.info(
-                "Subscription expired at %s, waiting %s hours for activation",
-                sub_expired.strftime("%Y-%m-%d"),
-                wait_hours,
-            )
+            if reason == SubscriptionReconnectionReason.CONNECTION_ERROR:
+                _LOGGER.info(
+                    "Could not establish connection (attempt %s), "
+                    "waiting %s minutes before retrying",
+                    self._connection_retry_count,
+                    wait_hours * 60,
+                )
+            else:
+                _LOGGER.info(
+                    "Subscription expired at %s, waiting %s hours for activation",
+                    sub_expired.strftime("%Y-%m-%d"),
+                    wait_hours,
+                )
             await self.client.async_create_repair_issue(
                 identifier=issue_identifier,
                 translation_key=reason.value,
@@ -522,7 +540,11 @@ class Cloud(Generic[_ClientT]):
                 _LOGGER.info("No longer logged in, stopping reconnection handler")
                 break
 
-            await self.auth.async_renew_access_token()
+            try:
+                await self.auth.async_renew_access_token()
+            except CloudError as err:
+                _LOGGER.debug("Could not renew access token (%s)", err)
+                continue
 
             if not self.subscription_expired:
                 await self.initialize()
@@ -531,3 +553,4 @@ class Cloud(Generic[_ClientT]):
         await self.client.async_delete_repair_issue(identifier=issue_identifier)
         _LOGGER.debug("Stopping subscription reconnection handler")
         self._subscription_reconnection_task = None
+        self._connection_retry_count = 0
