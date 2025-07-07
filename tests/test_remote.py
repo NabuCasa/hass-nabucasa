@@ -1120,7 +1120,6 @@ async def test_recreate_acme_with_certificate_available(auth_cloud_mock):
     remote = RemoteUI(auth_cloud_mock)
 
     mock_acme = MockAcme()
-    mock_acme.common_name = "test.example.com"
     remote._acme = mock_acme
 
     await remote._recreate_acme(["new.example.com"], "new@example.com")
