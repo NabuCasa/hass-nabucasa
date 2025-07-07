@@ -17,7 +17,7 @@ import jwt
 
 from .account_api import AccountApi
 from .alexa_api import AlexaApi
-from .auth import CloudError, CognitoAuth
+from .auth import CognitoAuth
 from .client import CloudClient
 from .cloud_api import async_subscription_info
 from .cloudhooks import Cloudhooks
@@ -29,6 +29,12 @@ from .const import (
     MODE_DEV,  # noqa: F401
     STATE_CONNECTED,
     SubscriptionReconnectionReason,
+)
+from .exceptions import (
+    CloudError,
+    NabuCasaAuthenticationError,
+    NabuCasaBaseError,
+    NabuCasaConnectionError,
 )
 from .files import Files
 from .google_report_state import GoogleReportState
@@ -43,6 +49,15 @@ from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
 from .voice_api import VoiceApi
+
+__all__ = [
+    "AlreadyConnectedError",
+    "Cloud",
+    "CloudError",
+    "NabuCasaAuthenticationError",
+    "NabuCasaBaseError",
+    "NabuCasaConnectionError",
+]
 
 _ClientT = TypeVar("_ClientT", bound=CloudClient)
 
