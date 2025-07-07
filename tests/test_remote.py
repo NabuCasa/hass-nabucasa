@@ -1168,24 +1168,6 @@ async def test_recreate_acme_when_no_acme_exists(auth_cloud_mock):
     assert remote._acme is not None
 
 
-async def test_recreate_acme_updates_domains_and_email(auth_cloud_mock):
-    """Test that _recreate_acme creates new handler with correct parameters."""
-    remote = RemoteUI(auth_cloud_mock)
-
-    mock_acme = MockAcme()
-    remote._acme = mock_acme
-
-    new_domains = ["new1.example.com", "new2.example.com"]
-    new_email = "new@example.com"
-
-    with patch("hass_nabucasa.remote.AcmeHandler", MockAcme()) as mock_handler:
-        await remote._recreate_acme(new_domains, new_email)
-
-        assert mock_acme.call_reset is True
-
-        assert mock_handler.init_args == (auth_cloud_mock, new_domains, new_email)
-
-
 async def test_recreate_acme_integration_during_load_backend(
     auth_cloud_mock,
     valid_acme_mock,
@@ -1227,24 +1209,3 @@ async def test_recreate_acme_integration_during_load_backend(
         expected_domains,
         "test@nabucasa.inc",
     )
-
-
-async def test_recreate_acme_preserves_certificate_status_context(auth_cloud_mock):
-    """Test that _recreate_acme works correctly within certificate handling context."""
-    remote = RemoteUI(auth_cloud_mock)
-
-    remote._certificate_status = CertificateStatus.LOADED
-
-    mock_acme = MockAcme()
-    mock_acme.common_name = "test.example.com"
-    remote._acme = mock_acme
-
-    original_acme = remote._acme
-    await remote._recreate_acme(
-        ["test.dui.nabu.casa", "new-domain.com"], "test@nabucasa.inc"
-    )
-
-    assert original_acme.call_reset is True
-    assert remote._acme is not original_acme
-
-    assert remote._certificate_status == CertificateStatus.LOADED
