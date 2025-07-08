@@ -42,6 +42,7 @@ version = "0.0.0"
 [project.optional-dependencies]
 test = [
     "codespell==2.4.1",
+    "freezegun==1.5.2",
     "mypy==1.16.1",
     "pre-commit==4.2.0",
     "pre-commit-hooks==5.0.0",
@@ -128,6 +129,7 @@ reports=false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+timeout = 5
 
 [tool.ruff]
 fix = true

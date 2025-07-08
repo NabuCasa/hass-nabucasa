@@ -8,6 +8,7 @@ from pycognito.exceptions import MFAChallengeException
 import pytest
 
 from hass_nabucasa import auth as auth_api
+from tests.common import FROZEN_NOW_AS_TIMESTAMP
 
 
 @pytest.fixture
@@ -303,7 +304,6 @@ async def test_sleep_time_calculation(
     auth = auth_api.CognitoAuth(mock_cloud)
 
     with (
-        patch("hass_nabucasa.auth.utcnow") as mock_utcnow,
         patch("hass_nabucasa.auth.expiration_from_token") as mock_exp,
         patch("hass_nabucasa.auth.asyncio.sleep", AsyncMock()),
         patch(
@@ -312,8 +312,9 @@ async def test_sleep_time_calculation(
         ),
         patch("random.randint") as mock_random,
     ):
-        mock_utcnow.return_value.timestamp.return_value = 1000000  # Mock current time
-        mock_exp.return_value = 1000000 + exp_value if exp_value else None
+        mock_exp.return_value = (
+            FROZEN_NOW_AS_TIMESTAMP + exp_value if exp_value else None
+        )
         mock_random.return_value = random_value
 
         await auth._async_handle_token_refresh()

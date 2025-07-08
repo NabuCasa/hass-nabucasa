@@ -30,6 +30,26 @@ from .common import MockAcme, MockSnitun
 # pylint: disable=protected-access
 
 
+@pytest.fixture
+def mock_timing():
+    """Mock timing functions for remote tests."""
+    # Store original sleep function to avoid recursion
+    original_sleep = asyncio.sleep
+
+    async def mock_sleep(seconds):
+        """Mock sleep that only sleeps for very short time."""
+        await original_sleep(0.01)  # Always sleep very short time
+
+    with (
+        # Mock timing functions only - be less aggressive to avoid interference
+        patch("hass_nabucasa.utils.next_midnight", return_value=0),
+        patch("random.randint", return_value=0),
+        patch("hass_nabucasa.remote.random.randint", return_value=0),
+        patch("hass_nabucasa.remote.asyncio.sleep", side_effect=mock_sleep),
+    ):
+        yield
+
+
 @pytest.fixture(autouse=True)
 def ignore_context():
     """Ignore ssl context."""
@@ -77,6 +97,7 @@ async def test_load_backend_exists_cert(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -213,6 +234,7 @@ async def test_load_and_unload_backend(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -276,6 +298,7 @@ async def test_load_backend_exists_wrong_cert(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -344,6 +367,7 @@ async def test_call_disconnect(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -386,6 +410,7 @@ async def test_load_backend_no_autostart(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -440,6 +465,7 @@ async def test_get_certificate_details(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -489,6 +515,7 @@ async def test_certificate_task_no_backend(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -538,6 +565,7 @@ async def test_certificate_task_renew_cert(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -582,7 +610,7 @@ async def test_certificate_task_renew_cert(
         assert acme_task.done()
 
 
-async def test_refresh_token_no_sub(auth_cloud_mock):
+async def test_refresh_token_no_sub(auth_cloud_mock, mock_timing):
     """Test that we rais SubscriptionExpired if expired sub."""
     auth_cloud_mock.subscription_expired = True
 
@@ -596,6 +624,7 @@ async def test_load_connect_insecure(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -643,6 +672,7 @@ async def test_load_connect_forbidden(
     aioclient_mock,
     snitun_mock,
     caplog,
+    mock_timing,
 ):
     """Initialize backend."""
     auth_cloud_mock.servicehandlers_server = "test.local"
@@ -684,6 +714,7 @@ async def test_call_disconnect_clean_token(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -727,6 +758,7 @@ async def test_recreating_old_certificate_with_bad_dns_config(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Test recreating old certificate with bad DNS config for alias."""
     valid = utcnow() + timedelta(days=1)
@@ -811,6 +843,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Test warn about old certificate with bad DNS config for alias."""
     valid = utcnow() + timedelta(days=1)
@@ -886,6 +919,7 @@ async def test_regeneration_without_warning_for_good_dns_config(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Test no warning for good dns config."""
     valid = utcnow() + timedelta(days=1)
@@ -992,6 +1026,7 @@ async def test_acme_client_new_order_errors(
     snitun_mock,
     json_error,
     should_reset,
+    mock_timing,
 ):
     """Initialize backend."""
     auth_cloud_mock.servicehandlers_server = "test.local"
@@ -1070,6 +1105,7 @@ async def test_context_error_handling(
     snitun_mock,
     reason,
     should_reset,
+    mock_timing,
 ):
     """Test that we reset if we hit an error reason that require resetting."""
     auth_cloud_mock.servicehandlers_server = "test.local"
