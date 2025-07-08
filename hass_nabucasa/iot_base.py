@@ -21,7 +21,6 @@ from aiohttp import (
     hdrs,
 )
 
-from .auth import CloudError
 from .const import (
     MESSAGE_EXPIRATION,
     STATE_CONNECTED,
@@ -29,6 +28,7 @@ from .const import (
     STATE_DISCONNECTED,
     SubscriptionReconnectionReason,
 )
+from .exceptions import CloudError
 from .utils import gather_callbacks
 
 if TYPE_CHECKING:
