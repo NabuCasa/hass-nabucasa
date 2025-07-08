@@ -9,6 +9,7 @@ from aiohttp import ClientError
 import pytest
 
 from hass_nabucasa.payments_api import (
+    MirgatePaypalAgreementInfo,
     PaymentsApi,
     PaymentsApiError,
     SubscriptionInfo,
@@ -135,5 +136,98 @@ async def test_trigger_async_renew_access_token(
 
     assert (
         "Response for get from example.com/payments/subscription_info (200)"
+        in caplog.text
+    )
+
+
+@pytest.mark.parametrize(
+    "exception,postmockargs,log_msg,exception_msg",
+    [
+        [
+            PaymentsApiError,
+            {"status": 500, "text": "Internal Server Error"},
+            "Response for post from "
+            "example.com/payments/migrate_paypal_agreement (500)",
+            "Failed to parse API response",
+        ],
+        [
+            PaymentsApiError,
+            {"status": 429, "text": "Too fast"},
+            "Response for post from "
+            "example.com/payments/migrate_paypal_agreement (429)",
+            "Failed to parse API response",
+        ],
+        [
+            PaymentsApiError,
+            {"exc": TimeoutError()},
+            "",
+            "Timeout reached while calling API",
+        ],
+        [
+            PaymentsApiError,
+            {"exc": ClientError("boom!")},
+            "",
+            "Failed to fetch: boom!",
+        ],
+        [
+            PaymentsApiError,
+            {"exc": Exception("boom!")},
+            "",
+            "Unexpected error while calling API: boom!",
+        ],
+    ],
+)
+async def test_problems_migrating_paypal_agreement(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    exception: Exception,
+    postmockargs,
+    log_msg,
+    exception_msg,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test problems migrating PayPal agreement."""
+    payments_api = PaymentsApi(auth_cloud_mock)
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/payments/migrate_paypal_agreement",
+        **postmockargs,
+    )
+
+    with pytest.raises(exception, match=exception_msg):
+        await payments_api.migrate_paypal_agreement()
+
+    if log_msg:
+        assert log_msg in caplog.text
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        {
+            "url": "https://www.paypal.com/agreement/migrate?token=EC-123456789",
+        },
+        {
+            "url": "https://www.sandbox.paypal.com/agreement/migrate?token=EC-987654321",
+        },
+    ],
+)
+async def test_migrate_paypal_agreement_success(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    response: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test successful PayPal agreement migration."""
+    payments_api = PaymentsApi(auth_cloud_mock)
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/payments/migrate_paypal_agreement",
+        json=response,
+    )
+
+    result = await payments_api.migrate_paypal_agreement()
+
+    assert result == MirgatePaypalAgreementInfo(**response)
+    assert (
+        "Response for post from example.com/payments/migrate_paypal_agreement (200)"
         in caplog.text
     )
