@@ -16,16 +16,13 @@ import pycognito
 from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
 from .const import MESSAGE_AUTH_FAIL
+from .exceptions import CloudError
 from .utils import expiration_from_token, utcnow
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class CloudError(Exception):
-    """Base class for cloud related errors."""
 
 
 class Unauthenticated(CloudError):

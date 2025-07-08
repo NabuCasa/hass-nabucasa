@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 from aiohttp import WSMessage, WSMsgType, client_exceptions
 import pytest
 
-from hass_nabucasa import auth as auth_api, iot_base
+from hass_nabucasa import CloudError, iot_base
 
 
 class MockIoT(iot_base.BaseIoT):
@@ -148,7 +148,7 @@ async def test_cloud_sending_invalid_json(mock_iot_client, caplog, cloud_mock_io
 async def test_cloud_check_token_raising(mock_iot_client, caplog, cloud_mock_iot):
     """Test cloud unable to check token."""
     conn = MockIoT(cloud_mock_iot)
-    cloud_mock_iot.auth.async_check_token.side_effect = auth_api.CloudError("BLA")
+    cloud_mock_iot.auth.async_check_token.side_effect = CloudError("BLA")
 
     await conn.connect()
 
