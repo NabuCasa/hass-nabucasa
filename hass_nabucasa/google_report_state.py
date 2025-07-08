@@ -97,7 +97,7 @@ class GoogleReportState(iot_base.BaseIoT):
                 response_handler.set_result(msg.get("payload"))
             return
 
-        self._logger.warning("Got unhandled message: %s", msg)
+        self._logger.warning("Unhandled message received: %s", msg)
 
     async def _async_on_connect(self) -> None:
         """On Connect handler."""

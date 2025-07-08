@@ -152,7 +152,7 @@ async def test_cloud_check_token_raising(mock_iot_client, caplog, cloud_mock_iot
 
     await conn.connect()
 
-    assert "Cannot connect because unable to refresh token: BLA" in caplog.text
+    assert "Unable to connect due to token refresh failure: BLA" in caplog.text
 
 
 async def test_cloud_connect_invalid_auth(mock_iot_client, caplog, cloud_mock_iot):
