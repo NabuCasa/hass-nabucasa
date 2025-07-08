@@ -1,4 +1,5 @@
 """Custom base exceptions for the Nabu Casa integration."""
+
 from __future__ import annotations
 
 
