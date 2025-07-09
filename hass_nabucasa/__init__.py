@@ -34,6 +34,7 @@ from .const import (
     DEFAULT_VALUES,
     MODE_DEV,  # noqa: F401
     STATE_CONNECTED,
+    CertificateStatus,
     SubscriptionReconnectionReason,
 )
 from .exceptions import (
@@ -57,6 +58,7 @@ __all__ = [
     "AccountApiError",
     "AlexaApiError",
     "AlreadyConnectedError",
+    "CertificateStatus",
     "Cloud",
     "CloudApiClientError",
     "CloudApiCodedError",

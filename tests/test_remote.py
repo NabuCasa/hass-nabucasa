@@ -3,7 +3,7 @@
 import asyncio
 from datetime import timedelta
 from ssl import SSLError
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from acme import client, messages
 import pytest
@@ -11,15 +11,16 @@ import pytest
 from hass_nabucasa import utils
 from hass_nabucasa.acme import AcmeHandler
 from hass_nabucasa.const import (
+    DISPATCH_CERTIFICATE_STATUS,
     DISPATCH_REMOTE_BACKEND_DOWN,
     DISPATCH_REMOTE_BACKEND_UP,
     DISPATCH_REMOTE_CONNECT,
     DISPATCH_REMOTE_DISCONNECT,
+    CertificateStatus,
 )
 from hass_nabucasa.remote import (
     RENEW_IF_EXPIRES_DAYS,
     WARN_RENEW_FAILED_DAYS,
-    CertificateStatus,
     RemoteUI,
     SubscriptionExpired,
 )
@@ -156,8 +157,23 @@ async def test_load_backend_exists_cert(
     assert remote._acme_task
     assert remote._reconnect_task
 
-    assert auth_cloud_mock.client.mock_dispatcher[0][0] == DISPATCH_REMOTE_BACKEND_UP
-    assert auth_cloud_mock.client.mock_dispatcher[1][0] == DISPATCH_REMOTE_CONNECT
+    # Check that certificate status updates were dispatched
+    certificate_dispatches = [
+        call
+        for call in auth_cloud_mock.client.mock_dispatcher
+        if call[0] == DISPATCH_CERTIFICATE_STATUS
+    ]
+    # Should have certificate status updates
+    assert len(certificate_dispatches) >= 1
+
+    # Check that backend and connection dispatches happened
+    backend_dispatches = [
+        call
+        for call in auth_cloud_mock.client.mock_dispatcher
+        if call[0] in (DISPATCH_REMOTE_BACKEND_UP, DISPATCH_REMOTE_CONNECT)
+    ]
+    assert any(call[0] == DISPATCH_REMOTE_BACKEND_UP for call in backend_dispatches)
+    assert any(call[0] == DISPATCH_REMOTE_CONNECT for call in backend_dispatches)
 
     await remote.stop()
     await asyncio.sleep(0.1)
@@ -1072,14 +1088,14 @@ async def test_acme_client_new_order_errors(
 
     with patch(
         "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(auth_cloud_mock, [], "test@nabucasa.inc"),
+        return_value=_MockAcme(auth_cloud_mock, [], "test@nabucasa.inc", Mock()),
     ):
         assert remote._certificate_status is None
         await remote.load_backend()
 
     await asyncio.sleep(0.1)
     assert remote._acme.call_reset == should_reset
-    assert remote._certificate_status is CertificateStatus.ERROR
+    assert remote._certificate_status is CertificateStatus.INITIAL_CERT_ERROR
 
     await remote.stop()
 
@@ -1133,9 +1149,39 @@ async def test_context_error_handling(
 
     await asyncio.sleep(0.1)
     assert remote._acme.call_reset == should_reset
-    assert remote._certificate_status is CertificateStatus.ERROR
+    assert remote._certificate_status is CertificateStatus.SSL_CONTEXT_ERROR
 
     await remote.stop()
+
+
+async def test_certificate_status_dispatcher(auth_cloud_mock):
+    """Test certificate status dispatcher functionality."""
+    remote = RemoteUI(auth_cloud_mock)
+
+    # Test status update dispatching
+    remote._update_certificate_status(CertificateStatus.LOADING)
+
+    # Check that dispatcher was called
+    assert len(auth_cloud_mock.client.mock_dispatcher) == 1
+    assert auth_cloud_mock.client.mock_dispatcher[0] == (
+        DISPATCH_CERTIFICATE_STATUS,
+        CertificateStatus.LOADING,
+    )
+
+    # Test second status update
+    remote._update_certificate_status(CertificateStatus.ERROR)
+
+    assert len(auth_cloud_mock.client.mock_dispatcher) == 2
+    assert auth_cloud_mock.client.mock_dispatcher[1] == (
+        DISPATCH_CERTIFICATE_STATUS,
+        CertificateStatus.ERROR,
+    )
+
+    # Test duplicate status update (should be ignored)
+    remote._update_certificate_status(CertificateStatus.ERROR)
+
+    # Should still be 2 calls since status didn't change
+    assert len(auth_cloud_mock.client.mock_dispatcher) == 2
 
 
 async def test_recreate_acme_calls_reset_when_acme_exists(auth_cloud_mock):
