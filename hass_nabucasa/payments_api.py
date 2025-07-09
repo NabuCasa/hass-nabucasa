@@ -52,6 +52,12 @@ class SubscriptionInfo(TypedDict):
     tax: float
 
 
+class MirgatePaypalAgreementInfo(TypedDict):
+    """Migration information from payments API."""
+
+    url: str
+
+
 class PaymentsApi(ApiBase):
     """Class to help communicate with the payments API."""
 
@@ -77,3 +83,12 @@ class PaymentsApi(ApiBase):
             await self._cloud.auth.async_renew_access_token()
 
         return info
+
+    @api_exception_handler(PaymentsApiError)
+    async def migrate_paypal_agreement(self) -> MirgatePaypalAgreementInfo:
+        """Migrate a PayPal agreement to the new system."""
+        response: MirgatePaypalAgreementInfo = await self._call_cloud_api(
+            path="/payments/migrate_paypal_agreement",
+            method="POST",
+        )
+        return response

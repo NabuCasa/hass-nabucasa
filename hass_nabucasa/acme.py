@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 import contextlib
 from datetime import datetime, timedelta
 import logging
@@ -23,6 +24,7 @@ import josepy as jose
 import OpenSSL
 
 from . import cloud_api
+from .const import CertificateStatus
 from .utils import utcnow
 
 FILE_ACCOUNT_KEY = "acme_account.pem"
@@ -69,7 +71,13 @@ class ChallengeHandler:
 class AcmeHandler:
     """Class handle a local certification."""
 
-    def __init__(self, cloud: Cloud[_ClientT], domains: list[str], email: str) -> None:
+    def __init__(
+        self,
+        cloud: Cloud[_ClientT],
+        domains: list[str],
+        email: str,
+        status_callback: Callable[[CertificateStatus], None],
+    ) -> None:
         """Initialize local ACME Handler."""
         self.cloud = cloud
         self._acme_server = f"https://{cloud.acme_server}/directory"
@@ -79,6 +87,11 @@ class AcmeHandler:
 
         self._domains = domains
         self._email = email
+        self._status_callback = status_callback
+
+    def _update_status(self, status: CertificateStatus) -> None:
+        """Update certificate status via callback."""
+        self._status_callback(status)
 
     @property
     def email(self) -> str:
@@ -372,6 +385,8 @@ class AcmeHandler:
             # The certificate is already loaded
             return
 
+        self._update_status(CertificateStatus.LOADING)
+
         def _load_cert() -> x509.Certificate | None:
             """Load certificate in a thread."""
             if not self.path_fullchain.exists():
@@ -381,8 +396,11 @@ class AcmeHandler:
 
         try:
             self._x509 = await self.cloud.run_executor(_load_cert)
+            if self._x509:
+                self._update_status(CertificateStatus.LOADED)
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception loading certificate")
+            self._update_status(CertificateStatus.ERROR)
 
     def _revoke_certificate(self) -> None:
         """Revoke certificate."""
@@ -449,12 +467,21 @@ class AcmeHandler:
 
     async def issue_certificate(self) -> None:
         """Create/Update certificate."""
+        self._update_status(CertificateStatus.ACME_ACCOUNT_CREATING)
+
         if not self._acme_client:
             await self.cloud.run_executor(self._create_client)
 
+        self._update_status(CertificateStatus.ACME_ACCOUNT_CREATED)
+
         # Initialize challenge / new certificate
+        self._update_status(CertificateStatus.CSR_GENERATING)
         csr = await self.cloud.run_executor(self._generate_csr)
+
+        self._update_status(CertificateStatus.CHALLENGE_PENDING)
         order = await self.cloud.run_executor(self._create_order, csr)
+
+        self._update_status(CertificateStatus.CHALLENGE_CREATED)
         dns_challenges: list[ChallengeHandler] = await self.cloud.run_executor(
             self._start_challenge,
             order,
@@ -463,6 +490,7 @@ class AcmeHandler:
         try:
             for challenge in dns_challenges:
                 # Update DNS
+                self._update_status(CertificateStatus.CHALLENGE_DNS_UPDATING)
                 try:
                     async with async_timeout.timeout(30):
                         resp = await cloud_api.async_remote_challenge_txt(
@@ -470,27 +498,38 @@ class AcmeHandler:
                             challenge.validation,
                         )
                     assert resp.status in (200, 201)
+                    self._update_status(CertificateStatus.CHALLENGE_DNS_UPDATED)
                 except (TimeoutError, AssertionError):
+                    self._update_status(CertificateStatus.CHALLENGE_DNS_FAILED)
                     raise AcmeNabuCasaError(
                         "Can't set challenge token to NabuCasa DNS!",
                     ) from None
 
-                # Answer challenge
+                # Wait for DNS propagation and answer challenge
+                self._update_status(CertificateStatus.CHALLENGE_DNS_PROPAGATING)
                 try:
                     _LOGGER.info(
                         "Waiting 60 seconds for publishing DNS to ACME provider",
                     )
                     await asyncio.sleep(60)
+
+                    self._update_status(CertificateStatus.CHALLENGE_ANSWERING)
                     await self.cloud.run_executor(self._answer_challenge, challenge)
+
+                    self._update_status(CertificateStatus.CHALLENGE_ANSWERED)
                 except AcmeChallengeError as err:
                     _LOGGER.error("Could not complete answer challenge - %s", err)
+                    self._update_status(CertificateStatus.CHALLENGE_ANSWER_FAILED)
                     # There is no point in continuing here
                     break
                 except Exception:  # pylint: disable=broad-except
                     _LOGGER.exception("Unexpected exception while answering challenge")
+                    self._update_status(CertificateStatus.CHALLENGE_UNEXPECTED_ERROR)
                     # There is no point in continuing here
                     break
         finally:
+            # Cleanup DNS challenge records
+            self._update_status(CertificateStatus.CHALLENGE_CLEANUP)
             try:
                 async with async_timeout.timeout(30):
                     # We only need to cleanup for the last entry
@@ -502,9 +541,11 @@ class AcmeHandler:
                 _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
 
         # Finish validation
+        self._update_status(CertificateStatus.CERTIFICATE_FINALIZING)
         try:
             await self.cloud.run_executor(self._finish_challenge, order)
         except AcmeChallengeError as err:
+            self._update_status(CertificateStatus.CERTIFICATE_FINALIZATION_FAILED)
             raise AcmeNabuCasaError(f"Could not finish challenge - {err}") from err
         await self.load_certificate()
 
