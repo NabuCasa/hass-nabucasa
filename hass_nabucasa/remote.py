@@ -652,31 +652,30 @@ class RemoteUI:
         # Domain validation failed for some aliases
         self._update_certificate_status(CertificateStatus.DOMAIN_VALIDATION_FAILED)
 
-        # Handle bad domain configuration
-        should_recreate = self._acme.expire_date <= (
+        if self._acme.expire_date > (
             utils.utcnow() + timedelta(days=WARN_RENEW_FAILED_DAYS)
-        )
-
-        if should_recreate:
+        ):
             await self.cloud.client.async_create_repair_issue(
-                identifier=f"reset_bad_custom_domain_configuration_{self._acme.expire_date.timestamp()}",
-                translation_key="reset_bad_custom_domain_configuration",
+                identifier=f"warn_bad_custom_domain_configuration_{self._acme.expire_date.timestamp()}",
+                translation_key="warn_bad_custom_domain_configuration",
                 placeholders={"custom_domains": ",".join(bad_alias)},
-                severity="error",
+                severity="warning",
             )
-            await self._recreate_acme(
-                [domain for domain in self._acme.domains if domain not in bad_alias],
-                self._acme.email,
-            )
-            return True
+            return False
 
+        # Recreate the acme client with working domains
         await self.cloud.client.async_create_repair_issue(
-            identifier=f"warn_bad_custom_domain_configuration_{self._acme.expire_date.timestamp()}",
-            translation_key="warn_bad_custom_domain_configuration",
+            identifier=f"reset_bad_custom_domain_configuration_{self._acme.expire_date.timestamp()}",
+            translation_key="reset_bad_custom_domain_configuration",
             placeholders={"custom_domains": ",".join(bad_alias)},
-            severity="warning",
+            severity="error",
         )
-        return False
+
+        await self._recreate_acme(
+            [domain for domain in self._acme.domains if domain not in bad_alias],
+            self._acme.email,
+        )
+        return True
 
     async def reset_acme(self) -> None:
         """Reset the ACME client."""
