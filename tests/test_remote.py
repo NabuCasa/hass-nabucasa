@@ -1136,3 +1136,111 @@ async def test_context_error_handling(
     assert remote._certificate_status is CertificateStatus.ERROR
 
     await remote.stop()
+
+
+async def test_recreate_acme_calls_reset_when_acme_exists(auth_cloud_mock):
+    """Test that _recreate_acme calls reset_acme when _acme exists."""
+    remote = RemoteUI(auth_cloud_mock)
+
+    mock_acme = MockAcme()
+    remote._acme = mock_acme
+
+    await remote._recreate_acme(["new.example.com"], "new@example.com")
+
+    assert mock_acme.call_reset is True
+    assert remote._acme is not mock_acme
+
+
+async def test_recreate_acme_with_certificate_available(auth_cloud_mock):
+    """Test _recreate_acme behavior when certificate is available."""
+    remote = RemoteUI(auth_cloud_mock)
+
+    mock_acme = MockAcme()
+    remote._acme = mock_acme
+
+    await remote._recreate_acme(["new.example.com"], "new@example.com")
+
+    assert mock_acme.call_reset is True
+    assert remote._acme is not mock_acme
+
+
+async def test_recreate_acme_without_certificate_available(auth_cloud_mock):
+    """Test _recreate_acme behavior when certificate is not available."""
+    remote = RemoteUI(auth_cloud_mock)
+
+    mock_acme = MockAcme()
+    mock_acme.common_name = None
+    remote._acme = mock_acme
+
+    await remote._recreate_acme(["new.example.com"], "new@example.com")
+
+    assert mock_acme.call_reset is True
+    assert remote._acme is not mock_acme
+
+
+async def test_recreate_acme_with_error_status(auth_cloud_mock):
+    """Test _recreate_acme behavior when certificate status is ERROR."""
+    remote = RemoteUI(auth_cloud_mock)
+
+    mock_acme = MockAcme()
+    remote._acme = mock_acme
+    remote._certificate_status = CertificateStatus.ERROR
+
+    await remote._recreate_acme(["new.example.com"], "new@example.com")
+
+    assert mock_acme.call_reset is True
+    assert remote._acme is not mock_acme
+
+
+async def test_recreate_acme_when_no_acme_exists(auth_cloud_mock):
+    """Test _recreate_acme behavior when no ACME handler exists."""
+    remote = RemoteUI(auth_cloud_mock)
+
+    remote._acme = None
+
+    await remote._recreate_acme(["test.example.com"], "test@example.com")
+
+    assert remote._acme is not None
+
+
+async def test_recreate_acme_integration_during_load_backend(
+    auth_cloud_mock,
+    valid_acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
+):
+    """Test _recreate_acme integration during load_backend with domain changes."""
+    auth_cloud_mock.servicehandlers_server = "test.local"
+    remote = RemoteUI(auth_cloud_mock)
+
+    aioclient_mock.post(
+        "https://test.local/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+            "alias": ["new-alias.com"],
+        },
+    )
+
+    valid_acme_mock.common_name = "test.dui.nabu.casa"
+    valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "old-alias.com"]
+
+    aioclient_mock.post(
+        "https://example.com/instance/resolve_dns_cname",
+        json=["test.dui.nabu.casa", "_acme-challenge.test.dui.nabu.casa"],
+    )
+    auth_cloud_mock.accounts_server = "example.com"
+
+    await remote.load_backend()
+    await asyncio.sleep(0.1)
+
+    assert valid_acme_mock.call_reset is True
+
+    expected_domains = ["test.dui.nabu.casa", "new-alias.com"]
+    assert valid_acme_mock.init_args == (
+        auth_cloud_mock,
+        expected_domains,
+        "test@nabucasa.inc",
+    )
