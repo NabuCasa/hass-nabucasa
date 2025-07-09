@@ -5,6 +5,7 @@ from datetime import timedelta
 import json
 from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
 
+from freezegun import freeze_time
 import pytest
 
 import hass_nabucasa as cloud
@@ -280,58 +281,31 @@ def test_write_user_info(cl: cloud.Cloud):
 
 def test_subscription_expired(cl: cloud.Cloud):
     """Test subscription being expired after 3 days of expiration."""
-    token_val = {"custom:sub-exp": "2017-11-13"}
+    token_val = {"custom:sub-exp": "2018-09-17"}
+
     with (
         patch.object(cl, "_decode_claims", return_value=token_val),
-        patch(
-            "hass_nabucasa.utcnow",
-            return_value=utcnow().replace(year=2017, month=11, day=13),
-        ),
     ):
         assert not cl.subscription_expired
 
     with (
         patch.object(cl, "_decode_claims", return_value=token_val),
-        patch(
-            "hass_nabucasa.utcnow",
-            return_value=utcnow().replace(
-                year=2017,
-                month=11,
-                day=19,
-                hour=23,
-                minute=59,
-                second=59,
-            ),
-        ),
+        freeze_time("2018-09-23 23:59:59"),
     ):
         assert not cl.subscription_expired
 
     with (
         patch.object(cl, "_decode_claims", return_value=token_val),
-        patch(
-            "hass_nabucasa.utcnow",
-            return_value=utcnow().replace(
-                year=2017,
-                month=11,
-                day=20,
-                hour=0,
-                minute=0,
-                second=0,
-            ),
-        ),
+        freeze_time("2018-09-24 00:00:01"),
     ):
         assert cl.subscription_expired
 
 
 def test_subscription_not_expired(cl: cloud.Cloud):
     """Test subscription not being expired."""
-    token_val = {"custom:sub-exp": "2017-11-13"}
+    token_val = {"custom:sub-exp": "2018-09-19"}
     with (
         patch.object(cl, "_decode_claims", return_value=token_val),
-        patch(
-            "hass_nabucasa.utcnow",
-            return_value=utcnow().replace(year=2017, month=11, day=9),
-        ),
     ):
         assert not cl.subscription_expired
 
@@ -484,7 +458,7 @@ async def test_subscription_reconnect_for_no_subscription(
         ),
         patch("hass_nabucasa.asyncio.sleep", AsyncMock()),
         patch(
-            "hass_nabucasa.async_subscription_info",
+            "hass_nabucasa.PaymentsApi.subscription_info",
             side_effect=[
                 subscription_info_mock("no_subscription"),
                 subscription_info_mock("mock-plan"),

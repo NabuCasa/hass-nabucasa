@@ -11,6 +11,8 @@ from unittest.mock import Mock
 
 from hass_nabucasa.client import CloudClient
 
+FROZEN_NOW_AS_TIMESTAMP = 1537185600  # 2018-09-17 12:00:00 UTC
+
 
 class MockClient(CloudClient):
     """Interface class for Home Assistant."""

@@ -26,7 +26,6 @@ from .api import (
 )
 from .auth import CognitoAuth
 from .client import CloudClient
-from .cloud_api import async_subscription_info
 from .cloudhooks import Cloudhooks
 from .const import (
     ACCOUNT_URL,
@@ -500,7 +499,7 @@ class Cloud(Generic[_ClientT]):
         billing_plan_type: str | None = None
         try:
             async with asyncio.timeout(30):
-                subscription = await async_subscription_info(self, True)
+                subscription = await self.payments.subscription_info(skip_renew=True)
             billing_plan_type = subscription.get("billing_plan_type")
         except (CloudError, TimeoutError, ClientError) as err:
             _LOGGER.warning("Could not get subscription info", exc_info=err)

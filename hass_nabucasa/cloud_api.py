@@ -320,29 +320,6 @@ async def async_google_actions_request_sync(cloud: Cloud[_ClientT]) -> ClientRes
 
 
 @_check_token
-async def async_subscription_info(
-    cloud: Cloud[_ClientT], skip_renew: bool = False
-) -> dict[str, Any]:
-    """Fetch subscription info."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    resp = await cloud.websession.get(
-        f"https://{cloud.accounts_server}/payments/subscription_info",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
-    )
-    _do_log_response(resp)
-    resp.raise_for_status()
-    data: dict[str, Any] = await resp.json()
-
-    # If subscription info indicates we are subscribed, force a refresh of the token
-    if data.get("provider") and not cloud.started and not skip_renew:
-        _LOGGER.debug("Found disconnected account with valid subscription, connecting")
-        await cloud.auth.async_renew_access_token()
-
-    return data
-
-
-@_check_token
 async def async_migrate_paypal_agreement(cloud: Cloud[_ClientT]) -> dict[str, Any]:
     """Migrate a paypal agreement from legacy."""
     if TYPE_CHECKING:

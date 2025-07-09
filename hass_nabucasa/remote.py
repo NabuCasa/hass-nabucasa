@@ -212,7 +212,7 @@ class RemoteUI:
 
     async def _recreate_acme(self, domains: list[str], email: str) -> None:
         """Recreate the acme client."""
-        if self._acme and self._acme.certificate_available:
+        if self._acme:
             await self._acme.reset_acme()
         self._acme = self._generate_acme_handler(domains=domains, email=email)
 
