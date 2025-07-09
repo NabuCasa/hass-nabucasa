@@ -214,9 +214,10 @@ class MockAcme:
         """Hardening files."""
         self.call_hardening = True
 
-    def __call__(self, *args) -> MockAcme:
+    def __call__(self, *args, **kwargs) -> MockAcme:
         """Init."""
         self.init_args = args
+        self.init_kwargs = kwargs
         return self
 
 
