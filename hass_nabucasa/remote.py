@@ -616,15 +616,14 @@ class RemoteUI:
             self._update_certificate_status(CertificateStatus.NO_CERTIFICATE)
             return True
 
-        if self._acme.expire_date is None or self._acme.expire_date <= utils.utcnow():
+        utcnow = utils.utcnow()
+
+        if self._acme.expire_date is None or self._acme.expire_date <= utcnow:
             self._update_certificate_status(CertificateStatus.EXPIRED)
             return True
 
         # Check if certificate is expiring soon
-        if not (
-            self._acme.expire_date
-            <= (utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS))
-        ):
+        if self._acme.expire_date > (utcnow + timedelta(days=RENEW_IF_EXPIRES_DAYS)):
             return False
 
         self._update_certificate_status(CertificateStatus.EXPIRING_SOON)
