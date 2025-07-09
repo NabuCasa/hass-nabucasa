@@ -18,7 +18,8 @@ from aiohttp import (
     hdrs,
 )
 
-from .auth import CloudError, Unauthenticated, UnknownError
+from .auth import Unauthenticated, UnknownError
+from .exceptions import CloudError
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT

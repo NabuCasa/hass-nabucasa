@@ -30,6 +30,26 @@ from .common import MockAcme, MockSnitun
 # pylint: disable=protected-access
 
 
+@pytest.fixture
+def mock_timing():
+    """Mock timing functions for remote tests."""
+    # Store original sleep function to avoid recursion
+    original_sleep = asyncio.sleep
+
+    async def mock_sleep(seconds):
+        """Mock sleep that only sleeps for very short time."""
+        await original_sleep(0.01)  # Always sleep very short time
+
+    with (
+        # Mock timing functions only - be less aggressive to avoid interference
+        patch("hass_nabucasa.utils.next_midnight", return_value=0),
+        patch("random.randint", return_value=0),
+        patch("hass_nabucasa.remote.random.randint", return_value=0),
+        patch("hass_nabucasa.remote.asyncio.sleep", side_effect=mock_sleep),
+    ):
+        yield
+
+
 @pytest.fixture(autouse=True)
 def ignore_context():
     """Ignore ssl context."""
@@ -77,6 +97,7 @@ async def test_load_backend_exists_cert(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -213,6 +234,7 @@ async def test_load_and_unload_backend(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -276,6 +298,7 @@ async def test_load_backend_exists_wrong_cert(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -344,6 +367,7 @@ async def test_call_disconnect(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -386,6 +410,7 @@ async def test_load_backend_no_autostart(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -440,6 +465,7 @@ async def test_get_certificate_details(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -489,6 +515,7 @@ async def test_certificate_task_no_backend(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -538,6 +565,7 @@ async def test_certificate_task_renew_cert(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -582,7 +610,7 @@ async def test_certificate_task_renew_cert(
         assert acme_task.done()
 
 
-async def test_refresh_token_no_sub(auth_cloud_mock):
+async def test_refresh_token_no_sub(auth_cloud_mock, mock_timing):
     """Test that we rais SubscriptionExpired if expired sub."""
     auth_cloud_mock.subscription_expired = True
 
@@ -596,6 +624,7 @@ async def test_load_connect_insecure(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -643,6 +672,7 @@ async def test_load_connect_forbidden(
     aioclient_mock,
     snitun_mock,
     caplog,
+    mock_timing,
 ):
     """Initialize backend."""
     auth_cloud_mock.servicehandlers_server = "test.local"
@@ -684,6 +714,7 @@ async def test_call_disconnect_clean_token(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -727,6 +758,7 @@ async def test_recreating_old_certificate_with_bad_dns_config(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Test recreating old certificate with bad DNS config for alias."""
     valid = utcnow() + timedelta(days=1)
@@ -811,6 +843,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Test warn about old certificate with bad DNS config for alias."""
     valid = utcnow() + timedelta(days=1)
@@ -886,6 +919,7 @@ async def test_regeneration_without_warning_for_good_dns_config(
     mock_cognito,
     aioclient_mock,
     snitun_mock,
+    mock_timing,
 ):
     """Test no warning for good dns config."""
     valid = utcnow() + timedelta(days=1)
@@ -992,6 +1026,7 @@ async def test_acme_client_new_order_errors(
     snitun_mock,
     json_error,
     should_reset,
+    mock_timing,
 ):
     """Initialize backend."""
     auth_cloud_mock.servicehandlers_server = "test.local"
@@ -1070,6 +1105,7 @@ async def test_context_error_handling(
     snitun_mock,
     reason,
     should_reset,
+    mock_timing,
 ):
     """Test that we reset if we hit an error reason that require resetting."""
     auth_cloud_mock.servicehandlers_server = "test.local"
@@ -1100,3 +1136,111 @@ async def test_context_error_handling(
     assert remote._certificate_status is CertificateStatus.ERROR
 
     await remote.stop()
+
+
+async def test_recreate_acme_calls_reset_when_acme_exists(auth_cloud_mock):
+    """Test that _recreate_acme calls reset_acme when _acme exists."""
+    remote = RemoteUI(auth_cloud_mock)
+
+    mock_acme = MockAcme()
+    remote._acme = mock_acme
+
+    await remote._recreate_acme(["new.example.com"], "new@example.com")
+
+    assert mock_acme.call_reset is True
+    assert remote._acme is not mock_acme
+
+
+async def test_recreate_acme_with_certificate_available(auth_cloud_mock):
+    """Test _recreate_acme behavior when certificate is available."""
+    remote = RemoteUI(auth_cloud_mock)
+
+    mock_acme = MockAcme()
+    remote._acme = mock_acme
+
+    await remote._recreate_acme(["new.example.com"], "new@example.com")
+
+    assert mock_acme.call_reset is True
+    assert remote._acme is not mock_acme
+
+
+async def test_recreate_acme_without_certificate_available(auth_cloud_mock):
+    """Test _recreate_acme behavior when certificate is not available."""
+    remote = RemoteUI(auth_cloud_mock)
+
+    mock_acme = MockAcme()
+    mock_acme.common_name = None
+    remote._acme = mock_acme
+
+    await remote._recreate_acme(["new.example.com"], "new@example.com")
+
+    assert mock_acme.call_reset is True
+    assert remote._acme is not mock_acme
+
+
+async def test_recreate_acme_with_error_status(auth_cloud_mock):
+    """Test _recreate_acme behavior when certificate status is ERROR."""
+    remote = RemoteUI(auth_cloud_mock)
+
+    mock_acme = MockAcme()
+    remote._acme = mock_acme
+    remote._certificate_status = CertificateStatus.ERROR
+
+    await remote._recreate_acme(["new.example.com"], "new@example.com")
+
+    assert mock_acme.call_reset is True
+    assert remote._acme is not mock_acme
+
+
+async def test_recreate_acme_when_no_acme_exists(auth_cloud_mock):
+    """Test _recreate_acme behavior when no ACME handler exists."""
+    remote = RemoteUI(auth_cloud_mock)
+
+    remote._acme = None
+
+    await remote._recreate_acme(["test.example.com"], "test@example.com")
+
+    assert remote._acme is not None
+
+
+async def test_recreate_acme_integration_during_load_backend(
+    auth_cloud_mock,
+    valid_acme_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
+):
+    """Test _recreate_acme integration during load_backend with domain changes."""
+    auth_cloud_mock.servicehandlers_server = "test.local"
+    remote = RemoteUI(auth_cloud_mock)
+
+    aioclient_mock.post(
+        "https://test.local/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+            "alias": ["new-alias.com"],
+        },
+    )
+
+    valid_acme_mock.common_name = "test.dui.nabu.casa"
+    valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "old-alias.com"]
+
+    aioclient_mock.post(
+        "https://example.com/instance/resolve_dns_cname",
+        json=["test.dui.nabu.casa", "_acme-challenge.test.dui.nabu.casa"],
+    )
+    auth_cloud_mock.accounts_server = "example.com"
+
+    await remote.load_backend()
+    await asyncio.sleep(0.1)
+
+    assert valid_acme_mock.call_reset is True
+
+    expected_domains = ["test.dui.nabu.casa", "new-alias.com"]
+    assert valid_acme_mock.init_args == (
+        auth_cloud_mock,
+        expected_domains,
+        "test@nabucasa.inc",
+    )

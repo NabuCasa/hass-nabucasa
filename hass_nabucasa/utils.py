@@ -101,7 +101,9 @@ async def gather_callbacks(
     for result, callback in zip(results, callbacks, strict=False):
         if not isinstance(result, Exception):
             continue
-        logger.error("Unexpected error in %s %s", name, callback, exc_info=result)
+        logger.error(
+            "Unexpected error in %s callback %s", name, callback, exc_info=result
+        )
 
 
 class Registry(dict):

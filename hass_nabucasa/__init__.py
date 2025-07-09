@@ -15,9 +15,16 @@ from aiohttp import ClientError, ClientSession
 from atomicwrites import atomic_write
 import jwt
 
-from .account_api import AccountApi
-from .alexa_api import AlexaApi
-from .auth import CloudError, CognitoAuth
+from .account_api import AccountApi, AccountApiError
+from .alexa_api import AlexaApi, AlexaApiError
+from .api import (
+    CloudApiClientError,
+    CloudApiCodedError,
+    CloudApiError,
+    CloudApiNonRetryableError,
+    CloudApiTimeoutError,
+)
+from .auth import CognitoAuth
 from .client import CloudClient
 from .cloudhooks import Cloudhooks
 from .const import (
@@ -29,19 +36,45 @@ from .const import (
     STATE_CONNECTED,
     SubscriptionReconnectionReason,
 )
-from .files import Files
+from .exceptions import (
+    CloudError,
+    NabuCasaAuthenticationError,
+    NabuCasaBaseError,
+    NabuCasaConnectionError,
+)
+from .files import Files, FilesError
 from .google_report_state import GoogleReportState
 from .ice_servers import IceServers
-from .instance_api import (
-    InstanceApi,
-    InstanceConnectionDetails,
-)
+from .instance_api import InstanceApi, InstanceApiError, InstanceConnectionDetails
 from .iot import CloudIoT
-from .payments_api import PaymentsApi
+from .payments_api import PaymentsApi, PaymentsApiError
 from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
-from .voice_api import VoiceApi
+from .voice_api import VoiceApi, VoiceApiError
+
+__all__ = [
+    "AccountApiError",
+    "AlexaApiError",
+    "AlreadyConnectedError",
+    "Cloud",
+    "CloudApiClientError",
+    "CloudApiCodedError",
+    "CloudApiError",
+    "CloudApiNonRetryableError",
+    "CloudApiTimeoutError",
+    "CloudClient",
+    "CloudError",
+    "FilesError",
+    "InstanceApiError",
+    "InstanceConnectionDetails",
+    "NabuCasaAuthenticationError",
+    "NabuCasaBaseError",
+    "NabuCasaConnectionError",
+    "PaymentsApiError",
+    "SubscriptionReconnectionReason",
+    "VoiceApiError",
+]
 
 _ClientT = TypeVar("_ClientT", bound=CloudClient)
 

@@ -6,12 +6,20 @@ from typing import cast
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 from aiohttp import web
+from freezegun import freeze_time
 import pytest
 
 from .common import MockClient
 from .utils.aiohttp import mock_aiohttp_client
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+@pytest.fixture(autouse=True)
+def freeze_time_fixture():
+    """Freeze time for all tests by default."""
+    with freeze_time("2018-09-17 12:00:00", tick=True):
+        yield
 
 
 @pytest.fixture(name="loop")

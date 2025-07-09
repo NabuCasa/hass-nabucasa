@@ -142,7 +142,7 @@ class CloudIoT(iot_base.BaseIoT):
             response["error"] = err.error
 
         except Exception:  # pylint: disable=broad-except
-            self._logger.exception("Error handling message")
+            self._logger.exception("Unexpected error handling message")
             response["error"] = "exception"
 
         # Client is unset in case the connection has been lost.
