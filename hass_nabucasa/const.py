@@ -103,6 +103,7 @@ class CertificateStatus(StrEnum):
     INITIAL_LOADED = "initial_loaded"
     LOADED = "loaded"
     LOADING = "loading"
+    NO_CERTIFICATE = "no_certificate"
     READY = "ready"
     RENEWAL_FAILED = "renewal_failed"
     RENEWAL_GENERATING = "renewal_generating"

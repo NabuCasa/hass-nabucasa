@@ -612,12 +612,11 @@ class RemoteUI:
             assert self._acme is not None
             assert self.instance_domain is not None
 
-        # Check if certificate needs renewal due to availability or expiration
-        if (
-            not self._acme.certificate_available
-            or self._acme.expire_date is None
-            or self._acme.expire_date <= utils.utcnow()
-        ):
+        if not self._acme.certificate_available:
+            self._update_certificate_status(CertificateStatus.NO_CERTIFICATE)
+            return True
+
+        if self._acme.expire_date is None or self._acme.expire_date <= utils.utcnow():
             self._update_certificate_status(CertificateStatus.EXPIRED)
             return True
 
