@@ -458,7 +458,7 @@ async def test_subscription_reconnect_for_no_subscription(
         ),
         patch("hass_nabucasa.asyncio.sleep", AsyncMock()),
         patch(
-            "hass_nabucasa.async_subscription_info",
+            "hass_nabucasa.PaymentsApi.subscription_info",
             side_effect=[
                 subscription_info_mock("no_subscription"),
                 subscription_info_mock("mock-plan"),

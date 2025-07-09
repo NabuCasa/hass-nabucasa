@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock
 
@@ -137,3 +138,81 @@ async def test_trigger_async_renew_access_token(
         "Response for get from example.com/payments/subscription_info (200)"
         in caplog.text
     )
+
+
+async def test_no_token_refresh_when_cloud_started(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+):
+    """Test that token refresh is not triggered when cloud is already started."""
+    auth_cloud_mock.started = True
+    auth_cloud_mock.auth.async_renew_access_token.side_effect = AsyncMock()
+
+    payments_api = PaymentsApi(auth_cloud_mock)
+    aioclient_mock.get(
+        f"https://{API_HOSTNAME}/payments/subscription_info",
+        json={"provider": "legacy"},
+    )
+
+    await payments_api.subscription_info()
+    assert auth_cloud_mock.auth.async_renew_access_token.call_count == 0
+
+
+async def test_no_token_refresh_when_no_provider(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+):
+    """Test that token refresh is not triggered when no provider is present."""
+    auth_cloud_mock.started = False
+    auth_cloud_mock.auth.async_renew_access_token.side_effect = AsyncMock()
+
+    payments_api = PaymentsApi(auth_cloud_mock)
+    aioclient_mock.get(
+        f"https://{API_HOSTNAME}/payments/subscription_info",
+        json={"provider": None},
+    )
+
+    await payments_api.subscription_info()
+    assert auth_cloud_mock.auth.async_renew_access_token.call_count == 0
+
+
+async def test_no_token_refresh_when_skip_renew(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+):
+    """Test that token refresh is not triggered when skip_renew is True."""
+    auth_cloud_mock.started = False
+    auth_cloud_mock.auth.async_renew_access_token.side_effect = AsyncMock()
+
+    payments_api = PaymentsApi(auth_cloud_mock)
+    aioclient_mock.get(
+        f"https://{API_HOSTNAME}/payments/subscription_info",
+        json={"provider": "legacy"},
+    )
+
+    await payments_api.subscription_info(skip_renew=True)
+    assert auth_cloud_mock.auth.async_renew_access_token.call_count == 0
+
+
+async def test_token_refresh_debug_log(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that debug log is written when token refresh is triggered."""
+    auth_cloud_mock.started = False
+    auth_cloud_mock.auth.async_renew_access_token.side_effect = AsyncMock()
+
+    payments_api = PaymentsApi(auth_cloud_mock)
+    aioclient_mock.get(
+        f"https://{API_HOSTNAME}/payments/subscription_info",
+        json={"provider": "legacy"},
+    )
+
+    with caplog.at_level(logging.DEBUG):
+        await payments_api.subscription_info()
+
+    assert (
+        "Found disconnected account with valid subscription, connecting" in caplog.text
+    )
+    assert auth_cloud_mock.auth.async_renew_access_token.call_count == 1

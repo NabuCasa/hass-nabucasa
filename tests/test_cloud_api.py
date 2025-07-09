@@ -2,7 +2,7 @@
 
 from collections.abc import Generator
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 from aiohttp import ClientResponseError
 import pytest
@@ -105,54 +105,6 @@ async def test_get_access_token(auth_cloud_mock, aioclient_mock):
 
     await cloud_api.async_alexa_access_token(auth_cloud_mock)
     assert len(aioclient_mock.mock_calls) == 1
-
-
-async def test_subscription_info(auth_cloud_mock, aioclient_mock):
-    """Test fetching subscription info."""
-    aioclient_mock.get(
-        "https://example.com/payments/subscription_info",
-        json={
-            "success": True,
-            "provider": None,
-        },
-    )
-    auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.accounts_server = "example.com"
-
-    with patch.object(
-        auth_cloud_mock.auth,
-        "async_renew_access_token",
-        AsyncMock(),
-    ) as mock_renew:
-        data = await cloud_api.async_subscription_info(auth_cloud_mock)
-    assert len(aioclient_mock.mock_calls) == 1
-    assert data == {
-        "success": True,
-        "provider": None,
-    }
-
-    auth_cloud_mock.started = False
-    aioclient_mock.clear_requests()
-    aioclient_mock.get(
-        "https://example.com/payments/subscription_info",
-        json={
-            "success": True,
-            "provider": "mock-provider",
-        },
-    )
-    with patch.object(
-        auth_cloud_mock.auth,
-        "async_renew_access_token",
-        AsyncMock(),
-    ) as mock_renew:
-        data = await cloud_api.async_subscription_info(auth_cloud_mock)
-
-    assert len(aioclient_mock.mock_calls) == 1
-    assert data == {
-        "success": True,
-        "provider": "mock-provider",
-    }
-    assert len(mock_renew.mock_calls) == 1
 
 
 async def test_migrate_paypal_agreement(auth_cloud_mock, aioclient_mock):
