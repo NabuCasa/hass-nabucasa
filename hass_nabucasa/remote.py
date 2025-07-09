@@ -541,6 +541,7 @@ class RemoteUI:
 
                 # Renew certificate?
                 if not await self._should_renew_certificates():
+                    self._update_certificate_status(CertificateStatus.READY)
                     continue
 
                 # Renew certificate
