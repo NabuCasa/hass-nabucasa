@@ -68,3 +68,31 @@ class InstanceApi(ApiBase):
             skip_token_check=skip_token_check,
         )
         return details
+
+    @api_exception_handler(InstanceApiError)
+    async def resolve_dns_cname(self, *, hostname: str) -> list[str]:
+        """Resolve DNS CNAME."""
+        details: list[str] = await self._call_cloud_api(
+            method="POST",
+            path="/instance/resolve_dns_cname",
+            jsondata={"hostname": hostname},
+        )
+        return details
+
+    @api_exception_handler(InstanceApiError)
+    async def cleanup_dns_challenge_record(self, *, value: str) -> None:
+        """Remove DNS challenge."""
+        await self._call_cloud_api(
+            method="POST",
+            path="/instance/dns_challenge_cleanup",
+            jsondata={"txt": value},
+        )
+
+    @api_exception_handler(InstanceApiError)
+    async def create_dns_challenge_record(self, *, value: str) -> None:
+        """Set DNS challenge."""
+        await self._call_cloud_api(
+            method="POST",
+            path="/instance/dns_challenge_txt",
+            jsondata={"txt": value},
+        )
