@@ -43,7 +43,7 @@ async def test_raising_exception(exception, expected) -> None:
         await mock_func()
 
 
-class TestApi(ApiBase):
+class AwesomeApiClass(ApiBase):
     """Test API implementation."""
 
     @property
@@ -62,7 +62,7 @@ async def test_empty_response_handling_allowed_methods(
     method: str,
 ) -> None:
     """Test empty response handling for methods that allow empty responses."""
-    test_api = TestApi(auth_cloud_mock)
+    test_api = AwesomeApiClass(auth_cloud_mock)
 
     aioclient_mock.request(
         method.lower(),
@@ -89,7 +89,7 @@ async def test_empty_response_handling_disallowed_methods(
     method: str,
 ) -> None:
     """Test empty response handling for methods that disallow empty responses."""
-    test_api = TestApi(auth_cloud_mock)
+    test_api = AwesomeApiClass(auth_cloud_mock)
 
     aioclient_mock.request(
         method.lower(),
