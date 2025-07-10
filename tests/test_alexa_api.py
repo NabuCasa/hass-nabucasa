@@ -31,13 +31,13 @@ def set_hostname(auth_cloud_mock):
             AlexaApiError,
             {"status": 500, "text": "Internal Server Error"},
             "Response for post from example.com/alexa/access_token (500)",
-            "Failed to parse API response",
+            "Failed to fetch: (500) ",
         ],
         [
             AlexaApiError,
             {"status": 429, "text": "Too fast"},
             "Response for post from example.com/alexa/access_token (429)",
-            "Failed to parse API response",
+            "Failed to fetch: (429) ",
         ],
         [
             AlexaApiError,
