@@ -236,6 +236,8 @@ class MockSnitun:
         self.connect_args = None
         self.init_kwarg = None
         self.wait_task = asyncio.Event()
+        self.connect_event = asyncio.Event()
+        self.stop_event = asyncio.Event()
 
         self.start_whitelist = None
         self.start_endpoint_connection_error_callback = None
@@ -264,6 +266,7 @@ class MockSnitun:
     async def stop(self):
         """Stop snitun."""
         self.call_stop = True
+        self.stop_event.set()
 
     async def connect(
         self,
@@ -275,6 +278,7 @@ class MockSnitun:
         """Connect snitun."""
         self.call_connect = True
         self.connect_args = [token, aes_key, aes_iv, throttling]
+        self.connect_event.set()
 
     async def disconnect(self):
         """Disconnect snitun."""

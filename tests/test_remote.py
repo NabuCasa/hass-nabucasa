@@ -1,6 +1,7 @@
 """Test remote sni handler."""
 
 import asyncio
+import contextlib
 from datetime import timedelta
 from ssl import SSLError
 from unittest.mock import Mock, patch
@@ -37,9 +38,9 @@ def mock_timing():
     # Store original sleep function to avoid recursion
     original_sleep = asyncio.sleep
 
-    async def mock_sleep(seconds):
+    async def mock_sleep(_seconds):
         """Mock sleep that only sleeps for very short time."""
-        await original_sleep(0.01)  # Always sleep very short time
+        await original_sleep(0.001)  # Reduced from 0.01 to 0.001
 
     with (
         # Mock timing functions only - be less aggressive to avoid interference
@@ -47,6 +48,8 @@ def mock_timing():
         patch("random.randint", return_value=0),
         patch("hass_nabucasa.remote.random.randint", return_value=0),
         patch("hass_nabucasa.remote.asyncio.sleep", side_effect=mock_sleep),
+        # Mock global asyncio.sleep
+        patch("asyncio.sleep", side_effect=mock_sleep),
     ):
         yield
 
@@ -59,6 +62,33 @@ def ignore_context():
         return_value=None,
     ) as context:
         yield context
+
+
+@pytest.fixture(autouse=True)
+async def cleanup_remote_instances():
+    """Ensure RemoteUI instances are properly cleaned up after each test."""
+    # Collect all RemoteUI instances created during the test
+    remote_instances = []
+    original_init = RemoteUI.__init__
+
+    def track_init(self, *args, **kwargs):
+        remote_instances.append(self)
+        return original_init(self, *args, **kwargs)
+
+    with patch.object(RemoteUI, "__init__", track_init):
+        yield
+
+    # Clean up all instances
+    for remote in remote_instances:
+        try:
+            # Stop any running certificate tasks
+            if hasattr(remote, "_acme_task") and remote._acme_task:
+                await remote.stop()
+            # Also clean up any backend connections
+            if hasattr(remote, "close_backend"):
+                await remote.close_backend()
+        except Exception:  # noqa: BLE001, S110
+            pass  # Ignore cleanup errors
 
 
 @pytest.fixture
@@ -95,10 +125,8 @@ def test_init_remote(auth_cloud_mock):
 async def test_load_backend_exists_cert(
     auth_cloud_mock,
     valid_acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
-    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -148,7 +176,8 @@ async def test_load_backend_exists_cert(
     assert snitun_mock.start_whitelist is not None
     assert snitun_mock.start_endpoint_connection_error_callback is not None
 
-    await asyncio.sleep(0.1)
+    # Wait for connection to be established
+    await snitun_mock.connect_event.wait()
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
@@ -176,7 +205,6 @@ async def test_load_backend_exists_cert(
     assert any(call[0] == DISPATCH_REMOTE_CONNECT for call in backend_dispatches)
 
     await remote.stop()
-    await asyncio.sleep(0.1)
 
     assert not remote._acme_task
     assert remote.certificate_status == CertificateStatus.READY
@@ -185,7 +213,6 @@ async def test_load_backend_exists_cert(
 async def test_load_backend_not_exists_cert(
     auth_cloud_mock,
     acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
 ):
@@ -214,7 +241,6 @@ async def test_load_backend_not_exists_cert(
 
     acme_mock.set_false()
     await remote.start()
-    await asyncio.sleep(0.1)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert acme_mock.call_issue
@@ -231,6 +257,8 @@ async def test_load_backend_not_exists_cert(
         "snitun_port": 443,
     }
 
+    # Wait for connection to be established
+    await snitun_mock.connect_event.wait()
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
@@ -239,7 +267,6 @@ async def test_load_backend_not_exists_cert(
     assert remote._reconnect_task
 
     await remote.stop()
-    await asyncio.sleep(0.1)
 
     assert not remote._acme_task
 
@@ -247,10 +274,8 @@ async def test_load_backend_not_exists_cert(
 async def test_load_and_unload_backend(
     auth_cloud_mock,
     valid_acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
-    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -276,7 +301,6 @@ async def test_load_and_unload_backend(
     )
 
     await remote.start()
-    await asyncio.sleep(0.1)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_issue
@@ -294,12 +318,16 @@ async def test_load_and_unload_backend(
         "snitun_port": 443,
     }
 
+    # Wait for connection to be established
+    await snitun_mock.connect_event.wait()
+
     assert remote._acme_task
     assert remote._reconnect_task
 
     await remote.stop()
-    await asyncio.sleep(0.1)
 
+    # Wait for snitun stop to complete
+    await snitun_mock.stop_event.wait()
     assert snitun_mock.call_stop
 
     assert not remote._acme_task
@@ -311,10 +339,8 @@ async def test_load_and_unload_backend(
 async def test_load_backend_exists_wrong_cert(
     auth_cloud_mock,
     valid_acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
-    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -350,7 +376,6 @@ async def test_load_backend_exists_wrong_cert(
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa"]
     await remote.load_backend()
-    await asyncio.sleep(0.1)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert valid_acme_mock.call_reset
@@ -367,12 +392,13 @@ async def test_load_backend_exists_wrong_cert(
         "snitun_port": 443,
     }
 
+    # Wait for connection to be established
+    await snitun_mock.connect_event.wait()
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
 
     await remote.disconnect()
-    await asyncio.sleep(0.1)
 
     assert snitun_mock.call_disconnect
 
@@ -380,10 +406,8 @@ async def test_load_backend_exists_wrong_cert(
 async def test_call_disconnect(
     auth_cloud_mock,
     acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
-    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -410,7 +434,8 @@ async def test_call_disconnect(
 
     assert not remote.is_connected
     await remote.load_backend()
-    await asyncio.sleep(0.1)
+    # Wait for connection to be established
+    await snitun_mock.connect_event.wait()
     assert remote.is_connected
 
     await remote.disconnect()
@@ -423,10 +448,8 @@ async def test_call_disconnect(
 async def test_load_backend_no_autostart(
     auth_cloud_mock,
     valid_acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
-    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -453,7 +476,6 @@ async def test_load_backend_no_autostart(
 
     auth_cloud_mock.client.prop_remote_autostart = False
     await remote.load_backend()
-    await asyncio.sleep(0.1)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_issue
@@ -470,7 +492,6 @@ async def test_load_backend_no_autostart(
     assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_CONNECT
 
     await remote.disconnect()
-    await asyncio.sleep(0.1)
 
     assert snitun_mock.call_disconnect
 
@@ -478,10 +499,7 @@ async def test_load_backend_no_autostart(
 async def test_get_certificate_details(
     auth_cloud_mock,
     acme_mock,
-    mock_cognito,
     aioclient_mock,
-    snitun_mock,
-    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -510,7 +528,6 @@ async def test_get_certificate_details(
 
     auth_cloud_mock.client.prop_remote_autostart = False
     await remote.load_backend()
-    await asyncio.sleep(0.1)
     assert remote.certificate is None
 
     acme_mock.common_name = "test"
@@ -528,10 +545,8 @@ async def test_get_certificate_details(
 async def test_certificate_task_no_backend(
     auth_cloud_mock,
     acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
-    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -558,30 +573,26 @@ async def test_certificate_task_no_backend(
 
     acme_mock.expire_date = valid
 
-    with (
-        patch("hass_nabucasa.utils.next_midnight", return_value=0),
-        patch("random.randint", return_value=0),
-    ):
-        acme_task = remote._acme_task = asyncio.create_task(
-            remote._certificate_handler(),
-        )
-        await asyncio.sleep(0.1)
-        assert acme_mock.call_issue
-        assert snitun_mock.call_start
+    acme_task = remote._acme_task = asyncio.create_task(
+        remote._certificate_handler(),
+    )
+    # Let the task execute
+    await asyncio.sleep(0)
+    assert acme_mock.call_issue
+    assert snitun_mock.call_start
 
-        await remote.stop()
-        await asyncio.sleep(0.1)
+    await remote.stop()
+    # Wait for task to complete cancellation
+    with contextlib.suppress(asyncio.CancelledError):
+        await acme_task
 
-        assert acme_task.done()
+    assert acme_task.done() or acme_task.cancelled()
 
 
 async def test_certificate_task_renew_cert(
     auth_cloud_mock,
     acme_mock,
-    mock_cognito,
     aioclient_mock,
-    snitun_mock,
-    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -608,25 +619,24 @@ async def test_certificate_task_renew_cert(
 
     acme_mock.expire_date = utcnow() + timedelta(days=-40)
 
-    with (
-        patch("hass_nabucasa.utils.next_midnight", return_value=0),
-        patch("random.randint", return_value=0),
-    ):
-        acme_task = remote._acme_task = asyncio.create_task(
-            remote._certificate_handler(),
-        )
+    acme_task = remote._acme_task = asyncio.create_task(
+        remote._certificate_handler(),
+    )
 
-        await remote.load_backend()
-        await asyncio.sleep(0.1)
-        assert acme_mock.call_issue
+    await remote.load_backend()
+    # Let the certificate task execute
+    await asyncio.sleep(0)
+    assert acme_mock.call_issue
 
-        await remote.stop()
-        await asyncio.sleep(0.1)
+    await remote.stop()
+    # Wait for task to complete cancellation
+    with contextlib.suppress(asyncio.CancelledError):
+        await acme_task
 
-        assert acme_task.done()
+    assert acme_task.done() or acme_task.cancelled()
 
 
-async def test_refresh_token_no_sub(auth_cloud_mock, mock_timing):
+async def test_refresh_token_no_sub(auth_cloud_mock):
     """Test that we rais SubscriptionExpired if expired sub."""
     auth_cloud_mock.subscription_expired = True
 
@@ -637,10 +647,8 @@ async def test_refresh_token_no_sub(auth_cloud_mock, mock_timing):
 async def test_load_connect_insecure(
     auth_cloud_mock,
     valid_acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
-    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -668,7 +676,6 @@ async def test_load_connect_insecure(
 
     auth_cloud_mock.client.prop_remote_autostart = True
     await remote.load_backend()
-    await asyncio.sleep(0.1)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_issue
@@ -684,11 +691,9 @@ async def test_load_connect_insecure(
 async def test_load_connect_forbidden(
     auth_cloud_mock,
     valid_acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
     caplog,
-    mock_timing,
 ):
     """Initialize backend."""
     auth_cloud_mock.servicehandlers_server = "test.local"
@@ -713,7 +718,8 @@ async def test_load_connect_forbidden(
 
     auth_cloud_mock.client.prop_remote_autostart = True
     await remote.load_backend()
-    await asyncio.sleep(0.1)
+    # Let async token refresh attempt complete
+    await asyncio.sleep(0)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_issue
@@ -727,10 +733,8 @@ async def test_load_connect_forbidden(
 async def test_call_disconnect_clean_token(
     auth_cloud_mock,
     acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
-    mock_timing,
 ):
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
@@ -757,7 +761,8 @@ async def test_call_disconnect_clean_token(
 
     assert not remote.is_connected
     await remote.load_backend()
-    await asyncio.sleep(0.1)
+    # Wait for connection to be established
+    await snitun_mock.connect_event.wait()
     assert remote.is_connected
     assert remote._token
 
@@ -771,10 +776,8 @@ async def test_call_disconnect_clean_token(
 async def test_recreating_old_certificate_with_bad_dns_config(
     auth_cloud_mock,
     valid_acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
-    mock_timing,
 ):
     """Test recreating old certificate with bad DNS config for alias."""
     valid = utcnow() + timedelta(days=1)
@@ -812,7 +815,6 @@ async def test_recreating_old_certificate_with_bad_dns_config(
         days=WARN_RENEW_FAILED_DAYS,
     )
     await remote.load_backend()
-    await asyncio.sleep(0.1)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert valid_acme_mock.call_reset
@@ -843,12 +845,13 @@ async def test_recreating_old_certificate_with_bad_dns_config(
     assert repair["severity"] == "error"
     assert repair["placeholders"] == {"custom_domains": "example.com"}
 
+    # Wait for connection to be established
+    await snitun_mock.connect_event.wait()
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
 
     await remote.disconnect()
-    await asyncio.sleep(0.1)
 
     assert snitun_mock.call_disconnect
 
@@ -856,10 +859,8 @@ async def test_recreating_old_certificate_with_bad_dns_config(
 async def test_warn_about_bad_dns_config_for_old_certificate(
     auth_cloud_mock,
     valid_acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
-    mock_timing,
 ):
     """Test warn about old certificate with bad DNS config for alias."""
     valid = utcnow() + timedelta(days=1)
@@ -895,7 +896,6 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "example.com"]
     valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS)
     await remote.load_backend()
-    await asyncio.sleep(0.1)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_reset
@@ -919,12 +919,13 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
     assert repair["severity"] == "warning"
     assert repair["placeholders"] == {"custom_domains": "example.com"}
 
+    # Wait for connection to be established
+    await snitun_mock.connect_event.wait()
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
 
     await remote.disconnect()
-    await asyncio.sleep(0.1)
 
     assert snitun_mock.call_disconnect
 
@@ -932,10 +933,8 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
 async def test_regeneration_without_warning_for_good_dns_config(
     auth_cloud_mock,
     valid_acme_mock,
-    mock_cognito,
     aioclient_mock,
     snitun_mock,
-    mock_timing,
 ):
     """Test no warning for good dns config."""
     valid = utcnow() + timedelta(days=1)
@@ -971,7 +970,6 @@ async def test_regeneration_without_warning_for_good_dns_config(
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "example.com"]
     valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS)
     await remote.load_backend()
-    await asyncio.sleep(0.1)
 
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_reset
@@ -985,12 +983,13 @@ async def test_regeneration_without_warning_for_good_dns_config(
 
     assert len(auth_cloud_mock.client.mock_repairs) == 0
 
+    # Wait for connection to be established
+    await snitun_mock.connect_event.wait()
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
 
     await remote.disconnect()
-    await asyncio.sleep(0.1)
 
     assert snitun_mock.call_disconnect
 
@@ -1037,12 +1036,9 @@ async def test_regeneration_without_warning_for_good_dns_config(
 )
 async def test_acme_client_new_order_errors(
     auth_cloud_mock,
-    mock_cognito,
     aioclient_mock,
-    snitun_mock,
     json_error,
     should_reset,
-    mock_timing,
 ):
     """Initialize backend."""
     auth_cloud_mock.servicehandlers_server = "test.local"
@@ -1093,7 +1089,6 @@ async def test_acme_client_new_order_errors(
         assert remote._certificate_status is None
         await remote.load_backend()
 
-    await asyncio.sleep(0.1)
     assert remote._acme.call_reset == should_reset
     assert remote._certificate_status is CertificateStatus.INITIAL_CERT_ERROR
 
@@ -1115,13 +1110,10 @@ async def test_acme_client_new_order_errors(
 )
 async def test_context_error_handling(
     auth_cloud_mock,
-    mock_cognito,
     valid_acme_mock,
     aioclient_mock,
-    snitun_mock,
     reason,
     should_reset,
-    mock_timing,
 ):
     """Test that we reset if we hit an error reason that require resetting."""
     auth_cloud_mock.servicehandlers_server = "test.local"
@@ -1147,7 +1139,6 @@ async def test_context_error_handling(
         assert remote._certificate_status is None
         await remote.load_backend()
 
-    await asyncio.sleep(0.1)
     assert remote._acme.call_reset == should_reset
     assert remote._certificate_status is CertificateStatus.SSL_CONTEXT_ERROR
 
@@ -1252,9 +1243,7 @@ async def test_recreate_acme_when_no_acme_exists(auth_cloud_mock):
 async def test_recreate_acme_integration_during_load_backend(
     auth_cloud_mock,
     valid_acme_mock,
-    mock_cognito,
     aioclient_mock,
-    snitun_mock,
 ):
     """Test _recreate_acme integration during load_backend with domain changes."""
     auth_cloud_mock.servicehandlers_server = "test.local"
@@ -1280,7 +1269,6 @@ async def test_recreate_acme_integration_during_load_backend(
     auth_cloud_mock.accounts_server = "example.com"
 
     await remote.load_backend()
-    await asyncio.sleep(0.1)
 
     assert valid_acme_mock.call_reset is True
 
