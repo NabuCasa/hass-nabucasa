@@ -29,6 +29,14 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+ALLOW_EMPTY_RESPONSE = frozenset(
+    {
+        "DELETE",
+        "POST",
+        "HEAD",
+    }
+)
+
 
 def api_exception_handler(
     exception: type[CloudApiError],
@@ -234,7 +242,7 @@ class ApiBase(ABC):
 
         self._do_log_response(resp, data)
 
-        if data is None and resp.method.upper() != "DELETE":
+        if data is None and resp.method.upper() not in ALLOW_EMPTY_RESPONSE:
             raise CloudApiError("Failed to parse API response") from None
 
         if (
