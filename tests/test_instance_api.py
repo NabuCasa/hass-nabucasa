@@ -279,10 +279,7 @@ async def test_connection_endpoint_success(
     result = await instance_api.connection()
 
     assert result == expected_result
-    assert (
-        "Response for get from example.com/instance/connection (200)"
-        in caplog.text
-    )
+    assert "Response for get from example.com/instance/connection (200)" in caplog.text
 
 
 async def test_resolve_dns_cname_endpoint_success(
