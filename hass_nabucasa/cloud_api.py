@@ -139,40 +139,6 @@ async def async_remote_token(
 
 
 @_check_token
-@_log_response
-async def async_remote_challenge_txt(
-    cloud: Cloud[_ClientT],
-    txt: str,
-) -> ClientResponse:
-    """Set DNS challenge."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_txt"
-    return await cloud.websession.post(
-        url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
-        json={"txt": txt},
-    )
-
-
-@_check_token
-@_log_response
-async def async_remote_challenge_cleanup(
-    cloud: Cloud[_ClientT],
-    txt: str,
-) -> ClientResponse:
-    """Remove DNS challenge."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_cleanup"
-    return await cloud.websession.post(
-        url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
-        json={"txt": txt},
-    )
-
-
-@_check_token
 async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Request Alexa access token."""
     if TYPE_CHECKING:
@@ -331,20 +297,4 @@ async def async_migrate_paypal_agreement(cloud: Cloud[_ClientT]) -> dict[str, An
     _do_log_response(resp)
     resp.raise_for_status()
     data: dict[str, Any] = await resp.json()
-    return data
-
-
-@_check_token
-async def async_resolve_cname(cloud: Cloud[_ClientT], hostname: str) -> list[str]:
-    """Resolve DNS CNAME."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    resp = await cloud.websession.post(
-        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
-        json={"hostname": hostname},
-    )
-    _do_log_response(resp)
-    resp.raise_for_status()
-    data: list[str] = await resp.json()
     return data

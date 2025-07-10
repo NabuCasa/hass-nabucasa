@@ -6,6 +6,7 @@ from ssl import SSLError
 from unittest.mock import Mock, patch
 
 from acme import client, messages
+from aiohttp import ClientError
 import pytest
 
 from hass_nabucasa import utils
@@ -340,10 +341,10 @@ async def test_load_backend_exists_wrong_cert(
         },
     )
 
-    aioclient_mock.post(
-        "https://example.com/instance/resolve_dns_cname",
-        json=["test.dui.nabu.casa", "_acme-challenge.test.dui.nabu.casa"],
-    )
+    auth_cloud_mock.instance.resolve_dns_cname.return_value = [
+        "test.dui.nabu.casa",
+        "_acme-challenge.test.dui.nabu.casa",
+    ]
 
     auth_cloud_mock.accounts_server = "example.com"
 
@@ -884,9 +885,8 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
             "throttling": 400,
         },
     )
-    aioclient_mock.post(
-        "https://example.com/instance/resolve_dns_cname",
-        status=400,
+    auth_cloud_mock.instance.resolve_dns_cname.side_effect = ClientError(
+        "DNS resolution failed"
     )
 
     auth_cloud_mock.accounts_server = "example.com"
@@ -960,10 +960,10 @@ async def test_regeneration_without_warning_for_good_dns_config(
             "throttling": 400,
         },
     )
-    aioclient_mock.post(
-        "https://example.com/instance/resolve_dns_cname",
-        json=["test.dui.nabu.casa", "_acme-challenge.test.dui.nabu.casa"],
-    )
+    auth_cloud_mock.instance.resolve_dns_cname.return_value = [
+        "test.dui.nabu.casa",
+        "_acme-challenge.test.dui.nabu.casa",
+    ]
 
     auth_cloud_mock.accounts_server = "example.com"
 
@@ -1273,10 +1273,10 @@ async def test_recreate_acme_integration_during_load_backend(
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "old-alias.com"]
 
-    aioclient_mock.post(
-        "https://example.com/instance/resolve_dns_cname",
-        json=["test.dui.nabu.casa", "_acme-challenge.test.dui.nabu.casa"],
-    )
+    auth_cloud_mock.instance.resolve_dns_cname.return_value = [
+        "test.dui.nabu.casa",
+        "_acme-challenge.test.dui.nabu.casa",
+    ]
     auth_cloud_mock.accounts_server = "example.com"
 
     await remote.load_backend()

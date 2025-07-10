@@ -72,6 +72,7 @@ def auth_cloud_mock(cloud_mock):
     """Return an authenticated cloud instance."""
     cloud_mock.auth.async_check_token.side_effect = AsyncMock()
     cloud_mock.subscription_expired = False
+    cloud_mock.instance = MagicMock(resolve_dns_cname=AsyncMock())
     return cloud_mock
 
 
