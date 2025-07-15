@@ -115,5 +115,6 @@ class CertificateStatus(StrEnum):
 class SubscriptionReconnectionReason(StrEnum):
     """Subscription reconnection reason."""
 
+    CONNECTION_ERROR = "connection_error"
     NO_SUBSCRIPTION = "no_subscription"
     SUBSCRIPTION_EXPIRED = "subscription_expired"
