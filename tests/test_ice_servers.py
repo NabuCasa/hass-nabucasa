@@ -124,7 +124,9 @@ async def test_ice_server_refresh_sets_ice_server_list_empty_on_expired_subscrip
 
         return unregister
 
-    await ice_servers_api.async_register_ice_servers_listener(register_ice_servers)
+    unregister = await ice_servers_api.async_register_ice_servers_listener(
+        register_ice_servers
+    )
 
     # Let the periodic update run once
     await asyncio.sleep(0)
@@ -136,6 +138,9 @@ async def test_ice_server_refresh_sets_ice_server_list_empty_on_expired_subscrip
     assert ice_servers_api._refresh_task is not None
     assert ice_servers_api._ice_servers_listener is not None
     assert ice_servers_api._ice_servers_listener_unregister is not None
+
+    # Clean up the task
+    unregister()
 
 
 async def test_ice_server_refresh_sets_ice_server_list_empty_on_401_403_client_error(
@@ -180,7 +185,9 @@ async def test_ice_server_refresh_sets_ice_server_list_empty_on_401_403_client_e
 
         return unregister
 
-    await ice_servers_api.async_register_ice_servers_listener(register_ice_servers)
+    unregister = await ice_servers_api.async_register_ice_servers_listener(
+        register_ice_servers
+    )
 
     # Let the periodic update run once
     await asyncio.sleep(0)
@@ -191,6 +198,9 @@ async def test_ice_server_refresh_sets_ice_server_list_empty_on_401_403_client_e
     assert ice_servers_api._refresh_task is not None
     assert ice_servers_api._ice_servers_listener is not None
     assert ice_servers_api._ice_servers_listener_unregister is not None
+
+    # Clean up the task
+    unregister()
 
 
 async def test_ice_server_refresh_keeps_ice_server_list_on_other_client_errors(
@@ -241,7 +251,9 @@ async def test_ice_server_refresh_keeps_ice_server_list_on_other_client_errors(
 
         return unregister
 
-    await ice_servers_api.async_register_ice_servers_listener(register_ice_servers)
+    unregister = await ice_servers_api.async_register_ice_servers_listener(
+        register_ice_servers
+    )
 
     # Let the periodic update run once
     await asyncio.sleep(0)
@@ -252,6 +264,9 @@ async def test_ice_server_refresh_keeps_ice_server_list_on_other_client_errors(
     assert ice_servers_api._refresh_task is not None
     assert ice_servers_api._ice_servers_listener is not None
     assert ice_servers_api._ice_servers_listener_unregister is not None
+
+    # Clean up the task
+    unregister()
 
 
 def test_get_refresh_sleep_time(ice_servers_api: ice_servers.IceServers):
