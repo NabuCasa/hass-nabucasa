@@ -23,7 +23,6 @@ from cryptography.x509.oid import NameOID
 import josepy as jose
 import OpenSSL
 
-from . import cloud_api
 from .const import CertificateStatus
 from .utils import utcnow
 
@@ -493,11 +492,9 @@ class AcmeHandler:
                 self._update_status(CertificateStatus.CHALLENGE_DNS_UPDATING)
                 try:
                     async with async_timeout.timeout(30):
-                        resp = await cloud_api.async_remote_challenge_txt(
-                            self.cloud,
-                            challenge.validation,
+                        await self.cloud.instance.create_dns_challenge_record(
+                            value=challenge.validation
                         )
-                    assert resp.status in (200, 201)
                     self._update_status(CertificateStatus.CHALLENGE_DNS_UPDATED)
                 except (TimeoutError, AssertionError):
                     self._update_status(CertificateStatus.CHALLENGE_DNS_FAILED)
@@ -533,9 +530,8 @@ class AcmeHandler:
             try:
                 async with async_timeout.timeout(30):
                     # We only need to cleanup for the last entry
-                    await cloud_api.async_remote_challenge_cleanup(
-                        self.cloud,
-                        dns_challenges[-1].validation,
+                    await self.cloud.instance.cleanup_dns_challenge_record(
+                        value=dns_challenges[-1].validation,
                     )
             except TimeoutError:
                 _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")

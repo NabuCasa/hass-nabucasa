@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock
 
@@ -149,14 +150,14 @@ async def test_trigger_async_renew_access_token(
             {"status": 500, "text": "Internal Server Error"},
             "Response for post from "
             "example.com/payments/migrate_paypal_agreement (500)",
-            "Failed to parse API response",
+            "Failed to fetch: (500) ",
         ],
         [
             PaymentsApiError,
             {"status": 429, "text": "Too fast"},
             "Response for post from "
             "example.com/payments/migrate_paypal_agreement (429)",
-            "Failed to parse API response",
+            "Failed to fetch: (429) ",
         ],
         [
             PaymentsApiError,
@@ -194,7 +195,7 @@ async def test_problems_migrating_paypal_agreement(
         **postmockargs,
     )
 
-    with pytest.raises(exception, match=exception_msg):
+    with pytest.raises(exception, match=re.escape(exception_msg)):
         await payments_api.migrate_paypal_agreement()
 
     if log_msg:

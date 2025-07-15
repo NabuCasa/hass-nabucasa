@@ -1,5 +1,6 @@
 """Tests for Instance API."""
 
+import re
 from typing import Any
 
 from aiohttp import ClientError
@@ -9,7 +10,6 @@ from hass_nabucasa import Cloud
 from hass_nabucasa.instance_api import (
     InstanceApi,
     InstanceApiError,
-    InstanceConnection,
 )
 from tests.utils.aiohttp import AiohttpClientMocker
 
@@ -23,7 +23,7 @@ def set_hostname(auth_cloud_mock: Cloud):
 
 
 @pytest.mark.parametrize(
-    "exception,getmockargs,log_msg,exception_msg",
+    "exception,mockargs,log_msg_template,exception_msg",
     [
         [
             InstanceApiError,
@@ -56,44 +56,294 @@ def set_hostname(auth_cloud_mock: Cloud):
             "Unexpected error while calling API: boom!",
         ],
     ],
+    ids=["500-error", "429-error", "timeout", "client-error", "unexpected-error"],
 )
-async def test_problems_getting_conntection(
+async def test_connection_endpoint_problems(
     aioclient_mock: AiohttpClientMocker,
     auth_cloud_mock: Cloud,
     exception: Exception,
-    getmockargs: dict[str, Any],
-    log_msg: str,
+    mockargs: dict[str, Any],
+    log_msg_template: str,
     exception_msg: str,
     caplog: pytest.LogCaptureFixture,
 ):
-    """Test problems getting connection details."""
+    """Test problems with connection endpoint."""
     instance_api = InstanceApi(auth_cloud_mock)
+
     aioclient_mock.get(
         f"https://{API_HOSTNAME}/instance/connection",
-        **getmockargs,
+        **mockargs,
     )
 
-    with pytest.raises(exception, match=exception_msg):
+    with pytest.raises(exception, match=re.escape(exception_msg)):
         await instance_api.connection()
 
-    assert log_msg in caplog.text
+    if log_msg_template:
+        assert log_msg_template in caplog.text
 
 
-@pytest.mark.parametrize("connection_response", [{"connected": True, "details": {}}])
-async def test_getting_connection(
+@pytest.mark.parametrize(
+    "exception,mockargs,log_msg_template,exception_msg",
+    [
+        [
+            InstanceApiError,
+            {"status": 500, "text": "Internal Server Error"},
+            "Response for post from example.com/instance/resolve_dns_cname (500)",
+            "Failed to fetch: (500) ",
+        ],
+        [
+            InstanceApiError,
+            {"status": 429, "text": "Too fast"},
+            "Response for post from example.com/instance/resolve_dns_cname (429)",
+            "Failed to fetch: (429) ",
+        ],
+        [
+            InstanceApiError,
+            {"exc": TimeoutError()},
+            "",
+            "Timeout reached while calling API",
+        ],
+        [
+            InstanceApiError,
+            {"exc": ClientError("boom!")},
+            "",
+            "Failed to fetch: boom!",
+        ],
+        [
+            InstanceApiError,
+            {"exc": Exception("boom!")},
+            "",
+            "Unexpected error while calling API: boom!",
+        ],
+    ],
+    ids=["500-error", "429-error", "timeout", "client-error", "unexpected-error"],
+)
+async def test_resolve_dns_cname_endpoint_problems(
     aioclient_mock: AiohttpClientMocker,
     auth_cloud_mock: Cloud,
-    connection_response: InstanceConnection,
+    exception: Exception,
+    mockargs: dict[str, Any],
+    log_msg_template: str,
+    exception_msg: str,
     caplog: pytest.LogCaptureFixture,
 ):
-    """Test getting connection details."""
+    """Test problems with resolve_dns_cname endpoint."""
     instance_api = InstanceApi(auth_cloud_mock)
-    aioclient_mock.get(
-        f"https://{API_HOSTNAME}/instance/connection",
-        json=connection_response,
+
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/instance/resolve_dns_cname",
+        **mockargs,
     )
 
-    connection = await instance_api.connection()
+    with pytest.raises(exception, match=re.escape(exception_msg)):
+        await instance_api.resolve_dns_cname(hostname="example.com")
 
-    assert connection == connection_response
+    if log_msg_template:
+        assert log_msg_template in caplog.text
+
+
+@pytest.mark.parametrize(
+    "exception,mockargs,log_msg_template,exception_msg",
+    [
+        [
+            InstanceApiError,
+            {"status": 500, "text": "Internal Server Error"},
+            "Response for post from example.com/instance/dns_challenge_cleanup (500)",
+            "Failed to fetch: (500) ",
+        ],
+        [
+            InstanceApiError,
+            {"status": 429, "text": "Too fast"},
+            "Response for post from example.com/instance/dns_challenge_cleanup (429)",
+            "Failed to fetch: (429) ",
+        ],
+        [
+            InstanceApiError,
+            {"exc": TimeoutError()},
+            "",
+            "Timeout reached while calling API",
+        ],
+        [
+            InstanceApiError,
+            {"exc": ClientError("boom!")},
+            "",
+            "Failed to fetch: boom!",
+        ],
+        [
+            InstanceApiError,
+            {"exc": Exception("boom!")},
+            "",
+            "Unexpected error while calling API: boom!",
+        ],
+    ],
+    ids=["500-error", "429-error", "timeout", "client-error", "unexpected-error"],
+)
+async def test_cleanup_dns_challenge_record_endpoint_problems(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    exception: Exception,
+    mockargs: dict[str, Any],
+    log_msg_template: str,
+    exception_msg: str,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test problems with cleanup_dns_challenge_record endpoint."""
+    instance_api = InstanceApi(auth_cloud_mock)
+
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/instance/dns_challenge_cleanup",
+        **mockargs,
+    )
+
+    with pytest.raises(exception, match=re.escape(exception_msg)):
+        await instance_api.cleanup_dns_challenge_record(value="challenge-value")
+
+    if log_msg_template:
+        assert log_msg_template in caplog.text
+
+
+@pytest.mark.parametrize(
+    "exception,mockargs,log_msg_template,exception_msg",
+    [
+        [
+            InstanceApiError,
+            {"status": 500, "text": "Internal Server Error"},
+            "Response for post from example.com/instance/dns_challenge_txt (500)",
+            "Failed to fetch: (500) ",
+        ],
+        [
+            InstanceApiError,
+            {"status": 429, "text": "Too fast"},
+            "Response for post from example.com/instance/dns_challenge_txt (429)",
+            "Failed to fetch: (429) ",
+        ],
+        [
+            InstanceApiError,
+            {"exc": TimeoutError()},
+            "",
+            "Timeout reached while calling API",
+        ],
+        [
+            InstanceApiError,
+            {"exc": ClientError("boom!")},
+            "",
+            "Failed to fetch: boom!",
+        ],
+        [
+            InstanceApiError,
+            {"exc": Exception("boom!")},
+            "",
+            "Unexpected error while calling API: boom!",
+        ],
+    ],
+    ids=["500-error", "429-error", "timeout", "client-error", "unexpected-error"],
+)
+async def test_create_dns_challenge_record_endpoint_problems(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    exception: Exception,
+    mockargs: dict[str, Any],
+    log_msg_template: str,
+    exception_msg: str,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test problems with create_dns_challenge_record endpoint."""
+    instance_api = InstanceApi(auth_cloud_mock)
+
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/instance/dns_challenge_txt",
+        **mockargs,
+    )
+
+    with pytest.raises(exception, match=re.escape(exception_msg)):
+        await instance_api.create_dns_challenge_record(value="challenge-value")
+
+    if log_msg_template:
+        assert log_msg_template in caplog.text
+
+
+async def test_connection_endpoint_success(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test successful connection endpoint."""
+    instance_api = InstanceApi(auth_cloud_mock)
+    expected_result = {"connected": True, "details": {}}
+
+    aioclient_mock.get(
+        f"https://{API_HOSTNAME}/instance/connection",
+        json=expected_result,
+    )
+
+    result = await instance_api.connection()
+
+    assert result == expected_result
     assert "Response for get from example.com/instance/connection (200)" in caplog.text
+
+
+async def test_resolve_dns_cname_endpoint_success(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test successful resolve_dns_cname endpoint."""
+    instance_api = InstanceApi(auth_cloud_mock)
+    expected_result = ["alias1.example.com", "alias2.example.com"]
+
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/instance/resolve_dns_cname",
+        json=expected_result,
+    )
+
+    result = await instance_api.resolve_dns_cname(hostname="example.com")
+
+    assert result == expected_result
+    assert (
+        "Response for post from example.com/instance/resolve_dns_cname (200)"
+        in caplog.text
+    )
+
+
+async def test_cleanup_dns_challenge_record_endpoint_success(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test successful cleanup_dns_challenge_record endpoint."""
+    instance_api = InstanceApi(auth_cloud_mock)
+
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/instance/dns_challenge_cleanup",
+        json={},
+    )
+
+    result = await instance_api.cleanup_dns_challenge_record(value="challenge-value")
+
+    assert result is None
+    assert (
+        "Response for post from example.com/instance/dns_challenge_cleanup (200)"
+        in caplog.text
+    )
+
+
+async def test_create_dns_challenge_record_endpoint_success(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test successful create_dns_challenge_record endpoint."""
+    instance_api = InstanceApi(auth_cloud_mock)
+
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/instance/dns_challenge_txt",
+        json={},
+    )
+
+    result = await instance_api.create_dns_challenge_record(value="challenge-value")
+
+    assert result is None
+    assert (
+        "Response for post from example.com/instance/dns_challenge_txt (200)"
+        in caplog.text
+    )
