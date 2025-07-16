@@ -487,18 +487,21 @@ class Cloud(Generic[_ClientT]):
             )
             return False
 
+        billing_plan_type: str | None = None
+
         try:
-            billing_plan_type = await self._async_get_billing_plan_type()
-        except (TimeoutError, ClientError) as err:
-            _LOGGER.info(
-                err
-                if isinstance(err, ClientError)
-                else "Timeout error reached while getting subscription information"
-            )
+            async with asyncio.timeout(30):
+                subscription = await self.payments.subscription_info(skip_renew=True)
+            billing_plan_type = subscription.get("billing_plan_type")
+        except (CloudApiError, TimeoutError) as err:
+            _LOGGER.debug("Subscription validation failed - %s", err)
             self.async_initialize_subscription_reconnection_handler(
                 SubscriptionReconnectionReason.CONNECTION_ERROR
             )
             return False
+        except NabuCasaBaseError as err:
+            _LOGGER.debug(err, exc_info=err)
+
         if billing_plan_type is None or billing_plan_type == "no_subscription":
             _LOGGER.info("No subscription found")
             self.async_initialize_subscription_reconnection_handler(
@@ -506,17 +509,6 @@ class Cloud(Generic[_ClientT]):
             )
             return False
         return True
-
-    async def _async_get_billing_plan_type(self) -> str | None:
-        """Get the billing_plan_type status."""
-        billing_plan_type: str | None = None
-        try:
-            async with asyncio.timeout(30):
-                subscription = await self.payments.subscription_info(skip_renew=True)
-            billing_plan_type = subscription.get("billing_plan_type")
-        except CloudError as err:
-            _LOGGER.warning("Could not get subscription info", exc_info=err)
-        return billing_plan_type
 
     async def _subscription_reconnection_handler(
         self, reason: SubscriptionReconnectionReason
@@ -553,7 +545,7 @@ class Cloud(Generic[_ClientT]):
                     "Could not establish connection (attempt %s), "
                     "waiting %s minutes before retrying",
                     self._connection_retry_count,
-                    wait_hours * 60,
+                    round(wait_hours * 60, 1),
                 )
             else:
                 _LOGGER.info(
