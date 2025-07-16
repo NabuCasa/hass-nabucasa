@@ -12,7 +12,7 @@ import random
 import shutil
 from typing import Any, Generic, Literal, TypeVar
 
-from aiohttp import ClientError, ClientSession
+from aiohttp import ClientSession
 from atomicwrites import atomic_write
 import jwt
 
