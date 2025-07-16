@@ -15,6 +15,7 @@ from aiohttp import (
     ClientResponse,
     ClientResponseError,
     ClientTimeout,
+    ContentTypeError,
     hdrs,
 )
 
@@ -237,7 +238,7 @@ class ApiBase(ABC):
         )
 
         if resp.status < 500:
-            with contextlib.suppress(JSONDecodeError):
+            with contextlib.suppress(ContentTypeError, JSONDecodeError):
                 data = await resp.json()
 
         self._do_log_response(resp, data)
