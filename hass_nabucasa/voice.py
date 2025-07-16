@@ -47,6 +47,7 @@ class AudioOutput(str, Enum):
 
     MP3 = "mp3"
     RAW = "raw"
+    WAV = "wav"
 
 
 STT_LANGUAGES = [
@@ -618,6 +619,8 @@ class Voice:
 
         if output == AudioOutput.RAW:
             output_header = "raw-16khz-16bit-mono-pcm"
+        elif output == AudioOutput.WAV:
+            output_header = "riff-24khz-16bit-mono-pcm"
         else:
             output_header = "audio-24khz-48kbitrate-mono-mp3"
 
