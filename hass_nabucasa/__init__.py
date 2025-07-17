@@ -547,18 +547,23 @@ class Cloud(Generic[_ClientT]):
                     self._connection_retry_count,
                     round(wait_hours * 60, 1),
                 )
+                await self.client.async_create_repair_issue(
+                    identifier=issue_identifier,
+                    translation_key=reason.value,
+                    severity="warning",
+                )
             else:
                 _LOGGER.info(
                     "Subscription expired at %s, waiting %s hours for activation",
                     sub_expired.strftime("%Y-%m-%d"),
                     wait_hours,
                 )
-            await self.client.async_create_repair_issue(
-                identifier=issue_identifier,
-                translation_key=reason.value,
-                placeholders={"account_url": ACCOUNT_URL},
-                severity="error",
-            )
+                await self.client.async_create_repair_issue(
+                    identifier=issue_identifier,
+                    translation_key=reason.value,
+                    placeholders={"account_url": ACCOUNT_URL},
+                    severity="error",
+                )
 
             await asyncio.sleep(wait_hours * 60 * 60)
 
