@@ -1,6 +1,8 @@
 """Test for voice functions."""
 
 from datetime import timedelta
+import io
+import wave
 
 import pytest
 import xmltodict
@@ -123,6 +125,86 @@ async def test_process_tts_with_voice(
         "User-Agent": "hass-nabucasa/tests",
     }
     assert xmltodict.parse(aioclient_mock.mock_calls[1][2]) == snapshot
+
+
+async def test_process_tts_stream_with_voice(voice_api, aioclient_mock, snapshot):
+    """Test handling around tts streaming."""
+    with io.BytesIO() as wav_io:
+        wav_writer: wave.Wave_write = wave.open(wav_io, "wb")
+        with wav_writer:
+            wav_writer.setframerate(24000)
+            wav_writer.setsampwidth(2)
+            wav_writer.setnchannels(1)
+            wav_writer.writeframes(b"My sound")
+
+        wav_io.seek(0)
+        wav_bytes = wav_io.getvalue()
+
+    aioclient_mock.post(
+        "tts-url",
+        content=wav_bytes,
+    )
+
+    async def text_gen():
+        yield "Text for Say"
+        yield "ing. More Text"
+        yield " for saying."
+
+    result = bytearray()
+    async for data_chunk in voice_api.process_tts_stream(
+        text_stream=text_gen(),
+        language="nl-NL",
+        voice="FennaNeural",
+    ):
+        result.extend(data_chunk)
+
+    with io.BytesIO(result) as wav_io:
+        wav_reader: wave.Wave_read = wave.open(wav_io, "rb")
+        with wav_reader:
+            assert wav_reader.getframerate() == 24000
+            assert wav_reader.getsampwidth() == 2
+            assert wav_reader.getnchannels() == 1
+            assert wav_reader.getnframes() == 0  # streaming
+
+        audio_bytes = result[44:]  # skip header
+        assert audio_bytes == b"My soundMy sound"  # 2 sentences
+
+    assert aioclient_mock.mock_calls[1][3] == {
+        "Authorization": "Bearer test-key",
+        "Content-Type": "application/ssml+xml",
+        "X-Microsoft-OutputFormat": "riff-24khz-16bit-mono-pcm",
+        "User-Agent": "hass-nabucasa/tests",
+    }
+    assert xmltodict.parse(aioclient_mock.mock_calls[1][2]) == snapshot
+
+
+async def test_process_tts_stream_no_text(voice_api, aioclient_mock):
+    """Test tts streaming returns valid WAV header with no text."""
+    aioclient_mock.post(
+        "tts-url",
+        content=b"",
+    )
+
+    async def text_gen():
+        yield ""
+
+    result = bytearray()
+    async for data_chunk in voice_api.process_tts_stream(
+        text_stream=text_gen(),
+        language="nl-NL",
+        voice="FennaNeural",
+    ):
+        result.extend(data_chunk)
+
+    assert len(result) == 44  # header only
+
+    with io.BytesIO(result) as wav_io:
+        wav_reader: wave.Wave_read = wave.open(wav_io, "rb")
+        with wav_reader:
+            assert wav_reader.getframerate() == 24000
+            assert wav_reader.getsampwidth() == 2
+            assert wav_reader.getnchannels() == 1
+            assert wav_reader.getnframes() == 0  # streaming
 
 
 async def test_process_tts_with_voice_and_style(

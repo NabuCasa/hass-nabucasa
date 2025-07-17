@@ -1,4 +1,18 @@
 # serializer version: 1
+# name: test_process_tts_stream_with_voice
+  dict({
+    'speak': dict({
+      '@version': '1.0',
+      '@xml:lang': 'nl-NL',
+      '@xmlns': 'http://www.w3.org/2001/10/synthesis',
+      '@xmlns:mstts': 'https://www.w3.org/2001/mstts',
+      'voice': dict({
+        '#text': 'Text for Saying.',
+        '@name': 'nl-NL-FennaNeural',
+      }),
+    }),
+  })
+# ---
 # name: test_process_tts_with_gender
   dict({
     'speak': dict({
