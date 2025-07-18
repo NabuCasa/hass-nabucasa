@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator, AsyncIterable
 from datetime import datetime
 from enum import Enum
@@ -668,11 +669,45 @@ class Voice:
     ) -> AsyncGenerator[bytes]:
         """Get streaming Speech from text over Azure."""
         boundary_detector = SentenceBoundaryDetector()
+        sentences: list[str] = []
+        sentences_ready = asyncio.Event()
+        sentences_complete = False
         wav_header_sent = False
 
-        async def _process_text(text: str) -> AsyncGenerator[bytes]:
-            nonlocal wav_header_sent
+        async def _add_sentences() -> None:
+            nonlocal sentences_complete
 
+            try:
+                # Text chunks may not be on word or sentence boundaries
+                async for text_chunk in text_stream:
+                    sentences.extend(boundary_detector.add_chunk(text_chunk))
+                    sentences_ready.set()
+
+                # Final sentence
+                if text := boundary_detector.finish():
+                    sentences.append(text)
+            finally:
+                sentences_complete = True
+                sentences_ready.set()
+
+        _add_sentences_task = asyncio.create_task(_add_sentences())
+
+        # Process new sentences as they're available
+        while not sentences_complete:
+            await sentences_ready.wait()
+            sentences_ready.clear()
+
+            if not sentences:
+                continue
+
+            # Combine all new sentences completed to this point
+            text = " ".join(sentences).strip()
+            sentences.clear()
+
+            if not text:
+                continue
+
+            # Synthesize audio while text chunks are still being accumulated
             wav_bytes = await self.process_tts(
                 text=text,
                 language=language,
@@ -689,22 +724,6 @@ class Voice:
                 wav_header_sent = True
 
             yield audio_bytes
-
-        # Text chunks may not be on word or sentence boundaries
-        async for text_chunk in text_stream:
-            new_sentences = list(boundary_detector.add_chunk(text_chunk))
-            if not new_sentences:
-                continue
-
-            # Combine all new sentences completed from this chunk
-            text = " ".join(new_sentences)
-            async for data_chunk in _process_text(text):
-                yield data_chunk
-
-        # Final sentence
-        if text := boundary_detector.finish():
-            async for data_chunk in _process_text(text):
-                yield data_chunk
 
         if not wav_header_sent:
             # Send empty WAV header if no audio data was received.

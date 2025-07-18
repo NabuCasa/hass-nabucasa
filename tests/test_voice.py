@@ -167,7 +167,7 @@ async def test_process_tts_stream_with_voice(voice_api, aioclient_mock, snapshot
             assert wav_reader.getnframes() == 0  # streaming
 
         audio_bytes = result[44:]  # skip header
-        assert audio_bytes == b"My soundMy sound"  # 2 sentences
+        assert audio_bytes == b"My sound"  # 2 sentences processed together
 
     assert aioclient_mock.mock_calls[1][3] == {
         "Authorization": "Bearer test-key",
