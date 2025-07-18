@@ -107,20 +107,6 @@ async def async_create_cloudhook(cloud: Cloud[_ClientT]) -> ClientResponse:
     )
 
 
-async def async_remote_register(cloud: Cloud[_ClientT]) -> Any:
-    """Create/Get a remote URL."""
-    return await cloud.instance.register()
-
-
-async def async_remote_token(
-    cloud: Cloud[_ClientT],
-    aes_key: bytes,
-    aes_iv: bytes,
-) -> Any:
-    """Create a remote snitun token."""
-    return await cloud.instance.snitun_token(aes_key=aes_key, aes_iv=aes_iv)
-
-
 @_check_token
 async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Request Alexa access token."""

@@ -17,7 +17,7 @@ from snitun.exceptions import SniTunConnectionError
 from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
-from . import cloud_api, const, utils
+from . import const, utils
 from .acme import AcmeClientError, AcmeHandler, AcmeJWSVerificationError
 from .const import (
     DISPATCH_CERTIFICATE_STATUS,
@@ -396,7 +396,9 @@ class RemoteUI:
         aes_key, aes_iv = generate_aes_keyset()
         try:
             async with async_timeout.timeout(30):
-                data = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
+                data = await self.cloud.instance.snitun_token(
+                    aes_key=aes_key, aes_iv=aes_iv
+                )
         except TimeoutError:
             raise RemoteBackendError from None
         except InstanceApiError as err:
