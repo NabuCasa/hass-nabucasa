@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -104,3 +106,77 @@ async def test_empty_response_handling_disallowed_methods(
             method=method,
             skip_token_check=True,
         )
+
+
+async def test_pre_request_log_handler_debug_enabled(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test pre-request log handler when DEBUG logging is enabled."""
+    test_api = AwesomeApiClass(auth_cloud_mock)
+
+    aioclient_mock.get(
+        "https://example.com/test",
+        json={"result": "success"},
+        status=200,
+    )
+
+    with caplog.at_level(logging.DEBUG, logger="hass_nabucasa.api"):
+        await test_api._call_cloud_api(
+            path="/test",
+            method="GET",
+            skip_token_check=True,
+        )
+
+    assert "Sending GET request to example.com/test" in caplog.text
+
+
+async def test_pre_request_log_handler_debug_disabled(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test pre-request log handler when DEBUG logging is disabled."""
+    test_api = AwesomeApiClass(auth_cloud_mock)
+
+    aioclient_mock.get(
+        "https://example.com/test",
+        json={"result": "success"},
+        status=200,
+    )
+
+    with caplog.at_level(logging.INFO, logger="hass_nabucasa.api"):
+        await test_api._call_cloud_api(
+            path="/test",
+            method="GET",
+            skip_token_check=True,
+        )
+
+    assert "Sending GET request to example.com/test" not in caplog.text
+
+
+async def test_pre_request_log_handler_with_external_hostname(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test pre-request log handler with external hostname (should not show path)."""
+    test_api = AwesomeApiClass(auth_cloud_mock)
+
+    aioclient_mock.get(
+        "https://external.com/test",
+        json={"result": "success"},
+        status=200,
+    )
+
+    with caplog.at_level(logging.DEBUG, logger="hass_nabucasa.api"):
+        await test_api._call_raw_api(
+            method="GET",
+            url="https://external.com/test",
+            client_timeout=Mock(),
+            headers={},
+        )
+
+    assert "Sending GET request to external.com" in caplog.text
+    assert "Sending GET request to external.com/test" not in caplog.text
