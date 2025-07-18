@@ -107,35 +107,18 @@ async def async_create_cloudhook(cloud: Cloud[_ClientT]) -> ClientResponse:
     )
 
 
-@_check_token
-@_log_response
-async def async_remote_register(cloud: Cloud[_ClientT]) -> ClientResponse:
+async def async_remote_register(cloud: Cloud[_ClientT]) -> Any:
     """Create/Get a remote URL."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    url = f"https://{cloud.servicehandlers_server}/instance/register"
-    return await cloud.websession.post(
-        url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
-    )
+    return await cloud.instance.register()
 
 
-@_check_token
-@_log_response
 async def async_remote_token(
     cloud: Cloud[_ClientT],
     aes_key: bytes,
     aes_iv: bytes,
-) -> ClientResponse:
+) -> Any:
     """Create a remote snitun token."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    url = f"https://{cloud.servicehandlers_server}/instance/snitun_token"
-    return await cloud.websession.post(
-        url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
-        json={"aes_key": aes_key.hex(), "aes_iv": aes_iv.hex()},
-    )
+    return await cloud.instance.snitun_token(aes_key=aes_key, aes_iv=aes_iv)
 
 
 @_check_token

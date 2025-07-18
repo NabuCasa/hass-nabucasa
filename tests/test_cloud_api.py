@@ -28,53 +28,6 @@ async def test_create_cloudhook(auth_cloud_mock, aioclient_mock):
     }
 
 
-async def test_remote_register(auth_cloud_mock, aioclient_mock):
-    """Test creating a cloudhook."""
-    aioclient_mock.post(
-        "https://example.com/bla/instance/register",
-        json={
-            "domain": "test.dui.nabu.casa",
-            "email": "test@nabucasa.inc",
-            "server": "rest-remote.nabu.casa",
-        },
-    )
-    auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.servicehandlers_server = "example.com/bla"
-
-    resp = await cloud_api.async_remote_register(auth_cloud_mock)
-    assert len(aioclient_mock.mock_calls) == 1
-    assert await resp.json() == {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-
-
-async def test_remote_token(auth_cloud_mock, aioclient_mock):
-    """Test creating a cloudhook."""
-    aioclient_mock.post(
-        "https://example.com/instance/snitun_token",
-        json={
-            "token": "123456",
-            "server": "rest-remote.nabu.casa",
-            "valid": 12345,
-            "throttling": 400,
-        },
-    )
-    auth_cloud_mock.id_token = "mock-id-token"
-    auth_cloud_mock.servicehandlers_server = "example.com"
-
-    resp = await cloud_api.async_remote_token(auth_cloud_mock, b"aes", b"iv")
-    assert len(aioclient_mock.mock_calls) == 1
-    assert await resp.json() == {
-        "token": "123456",
-        "server": "rest-remote.nabu.casa",
-        "valid": 12345,
-        "throttling": 400,
-    }
-    assert aioclient_mock.mock_calls[0][2] == {"aes_iv": "6976", "aes_key": "616573"}
-
-
 async def test_get_access_token(auth_cloud_mock, aioclient_mock):
     """Test creating a cloudhook."""
     aioclient_mock.post("https://example.com/alexa/access_token")
