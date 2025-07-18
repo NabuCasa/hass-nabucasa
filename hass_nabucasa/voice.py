@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterable
+import asyncio
+from collections.abc import AsyncGenerator, AsyncIterable
 from datetime import datetime
 from enum import Enum
+import io
 import logging
 from typing import TYPE_CHECKING
+import wave
 from xml.etree import ElementTree as ET
 
 from aiohttp.hdrs import ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT
 import attr
+from sentence_stream import SentenceBoundaryDetector
 
 from .utils import utc_from_timestamp, utcnow
 from .voice_api import VoiceApiError
@@ -652,3 +656,104 @@ class Voice:
                     f"{resp.status} {await resp.text()}",
                 )
             return await resp.read()
+
+    async def process_tts_stream(
+        self,
+        *,
+        text_stream: AsyncIterable[str],
+        language: str,
+        voice: str | None = None,
+        gender: Gender | None = None,
+        force_token_renewal: bool = False,
+        style: str | None = None,
+    ) -> AsyncGenerator[bytes]:
+        """Get streaming Speech from text over Azure."""
+        boundary_detector = SentenceBoundaryDetector()
+        sentences: list[str] = []
+        sentences_ready = asyncio.Event()
+        sentences_complete = False
+        wav_header_sent = False
+
+        async def _add_sentences() -> None:
+            nonlocal sentences_complete
+
+            try:
+                # Text chunks may not be on word or sentence boundaries
+                async for text_chunk in text_stream:
+                    sentences.extend(boundary_detector.add_chunk(text_chunk))
+                    sentences_ready.set()
+
+                # Final sentence
+                if text := boundary_detector.finish():
+                    sentences.append(text)
+            finally:
+                sentences_complete = True
+                sentences_ready.set()
+
+        _add_sentences_task = asyncio.create_task(_add_sentences())
+
+        # Process new sentences as they're available
+        while not sentences_complete:
+            await sentences_ready.wait()
+            sentences_ready.clear()
+
+            if not sentences:
+                continue
+
+            # Combine all new sentences completed to this point
+            text = " ".join(sentences).strip()
+            sentences.clear()
+
+            if not text:
+                continue
+
+            # Synthesize audio while text chunks are still being accumulated
+            wav_bytes = await self.process_tts(
+                text=text,
+                language=language,
+                output=AudioOutput.WAV,
+                voice=voice,
+                gender=gender,
+                force_token_renewal=force_token_renewal,
+                style=style,
+            )
+            header_bytes, audio_bytes = _split_wav_header(wav_bytes)
+            if not wav_header_sent:
+                # Send WAV header once, then stream audio
+                yield header_bytes
+                wav_header_sent = True
+
+            yield audio_bytes
+
+        if not wav_header_sent:
+            # Send empty WAV header if no audio data was received.
+            # Without this, downstream audio processing will fail.
+            yield _make_wav_header(rate=24000, width=2, channels=1)
+
+
+def _split_wav_header(wav_bytes: bytes) -> tuple[bytes, bytes]:
+    """Split WAV into (header, audio) tuple."""
+    with io.BytesIO(wav_bytes) as wav_io:
+        wav_reader: wave.Wave_read = wave.open(wav_io, "rb")  # noqa: SIM115
+        with wav_reader:
+            return (
+                _make_wav_header(
+                    rate=wav_reader.getframerate(),
+                    width=wav_reader.getsampwidth(),
+                    channels=wav_reader.getnchannels(),
+                ),
+                wav_reader.readframes(wav_reader.getnframes()),
+            )
+
+
+def _make_wav_header(rate: int, width: int, channels: int) -> bytes:
+    """Return WAV header with nframes = 0 for streaming."""
+    with io.BytesIO() as wav_io:
+        wav_writer: wave.Wave_write = wave.open(wav_io, "wb")  # noqa: SIM115
+        with wav_writer:
+            wav_writer.setframerate(rate)
+            wav_writer.setsampwidth(width)
+            wav_writer.setnchannels(channels)
+
+        wav_io.seek(0)
+        return wav_io.getvalue()
