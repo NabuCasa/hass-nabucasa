@@ -67,6 +67,7 @@ def api_exception_handler(
                     orig_exc=err,
                     reason=err.reason,
                     status=err.status,
+                    response=err.response,
                 ) from err
             except (UnknownError, Unauthenticated) as err:
                 raise exception(err, orig_exc=err) from err
@@ -91,12 +92,14 @@ class CloudApiError(CloudError):
         orig_exc: Exception | None = None,
         reason: str | None = None,
         status: int | None = None,
+        response: ClientResponse | None = None,
     ) -> None:
         """Initialize."""
         super().__init__(context)
         self.orig_exc = orig_exc
         self.reason = reason
         self.status = status
+        self.response = response
 
 
 class CloudApiCodedError(CloudApiError):
@@ -260,7 +263,7 @@ class ApiBase(ABC):
         self._do_log_response(resp, data)
 
         if data is None and resp.method.upper() not in ALLOW_EMPTY_RESPONSE:
-            raise CloudApiError("Failed to parse API response") from None
+            raise CloudApiError("Failed to parse API response", response=resp) from None
 
         if (
             resp.status == 400
@@ -285,5 +288,6 @@ class ApiBase(ABC):
                 orig_exc=err,
                 reason=data.get("reason") if isinstance(data, dict) else None,
                 status=resp.status,
+                response=resp,
             ) from err
         return data

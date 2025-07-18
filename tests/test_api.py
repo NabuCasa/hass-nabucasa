@@ -45,6 +45,21 @@ async def test_raising_exception(exception, expected) -> None:
         await mock_func()
 
 
+async def test_exception_handler_preserves_response_attribute() -> None:
+    """Test that exception handler preserves response attribute."""
+    response_mock = Mock()
+    original_exception = CloudApiError("Original error", response=response_mock)
+
+    @api_exception_handler(CustomException)
+    async def mock_func() -> None:
+        raise original_exception
+
+    with pytest.raises(CustomException) as exc_info:
+        await mock_func()
+
+    assert exc_info.value.response is response_mock
+
+
 class AwesomeApiClass(ApiBase):
     """Test API implementation."""
 
@@ -180,3 +195,51 @@ async def test_pre_request_log_handler_with_external_hostname(
 
     assert "Sending GET request to external.com" in caplog.text
     assert "Sending GET request to external.com/test" not in caplog.text
+
+
+async def test_exception_response_attribute_on_parse_error(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+) -> None:
+    """Test that response attribute is set when API response parsing fails."""
+    test_api = AwesomeApiClass(auth_cloud_mock)
+
+    aioclient_mock.get(
+        "https://example.com/test",
+        text="",
+        status=200,
+    )
+
+    with pytest.raises(CloudApiError) as exc_info:
+        await test_api._call_cloud_api(
+            path="/test",
+            method="GET",
+            skip_token_check=True,
+        )
+
+    assert exc_info.value.response is not None
+    assert exc_info.value.response.status == 200
+
+
+async def test_exception_response_attribute_on_http_error(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+) -> None:
+    """Test that response attribute is set when HTTP error occurs."""
+    test_api = AwesomeApiClass(auth_cloud_mock)
+
+    aioclient_mock.get(
+        "https://example.com/test",
+        json={"error": "not found"},
+        status=404,
+    )
+
+    with pytest.raises(CloudApiError) as exc_info:
+        await test_api._call_cloud_api(
+            path="/test",
+            method="GET",
+            skip_token_check=True,
+        )
+
+    assert exc_info.value.response is not None
+    assert exc_info.value.response.status == 404
