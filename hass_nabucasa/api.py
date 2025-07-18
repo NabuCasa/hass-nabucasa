@@ -208,6 +208,7 @@ class ApiBase(ABC):
             raise CloudApiClientError(
                 f"Failed to fetch: ({err.status}) {err.message}",
                 orig_exc=err,
+                status=err.status,
             ) from err
         except ClientError as err:
             raise CloudApiClientError(f"Failed to fetch: {err}", orig_exc=err) from err
@@ -280,10 +281,15 @@ class ApiBase(ABC):
         try:
             resp.raise_for_status()
         except ClientResponseError as err:
+            reason = (
+                data.get("reason", data.get("message"))
+                if isinstance(data, dict)
+                else None
+            )
             raise CloudApiError(
                 f"Failed to fetch: ({err.status}) {err.message}",
                 orig_exc=err,
-                reason=data.get("reason") if isinstance(data, dict) else None,
+                reason=reason,
                 status=resp.status,
             ) from err
         return data
