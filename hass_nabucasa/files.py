@@ -16,7 +16,12 @@ from aiohttp import (
     StreamReader,
 )
 
-from .api import ApiBase, CloudApiError, CloudApiNonRetryableError
+from .api import (
+    ApiBase,
+    CloudApiError,
+    CloudApiNonRetryableError,
+    api_exception_handler,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -194,20 +199,18 @@ class Files(ApiBase):
 
         return response.content
 
+    @api_exception_handler(FilesError)
     async def list(
         self,
         storage_type: StorageType,
     ) -> list[StoredFile]:
         """List files."""
-        _LOGGER.debug("Listing %s files", storage_type)
-        try:
-            files: list[StoredFile] = await self._call_cloud_api(
-                path=f"/files/{storage_type}"
-            )
-        except CloudApiError as err:
-            raise FilesError(err, orig_exc=err) from err
+        files: list[StoredFile] = await self._call_cloud_api(
+            path=f"/files/{storage_type}"
+        )
         return files
 
+    @api_exception_handler(FilesError)
     async def delete(
         self,
         storage_type: StorageType,
@@ -215,14 +218,11 @@ class Files(ApiBase):
     ) -> None:
         """Delete a file."""
         _LOGGER.debug("Deleting %s file with name %s", storage_type, filename)
-        try:
-            await self._call_cloud_api(
-                path="/files",
-                method="DELETE",
-                jsondata={
-                    "storage_type": storage_type,
-                    "filename": filename,
-                },
-            )
-        except CloudApiError as err:
-            raise FilesError(err, orig_exc=err) from err
+        await self._call_cloud_api(
+            path="/files",
+            method="DELETE",
+            jsondata={
+                "storage_type": storage_type,
+                "filename": filename,
+            },
+        )
