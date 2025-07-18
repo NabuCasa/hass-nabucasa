@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict
 
 from aiohttp import hdrs
 
@@ -48,6 +48,15 @@ class InstanceRegistrationDetails(TypedDict):
     domain: str
     email: str
     server: str
+
+
+class InstanceSnitunTokenDetails(TypedDict):
+    """Snitun token details from instance API."""
+
+    token: str
+    server: str
+    valid: int
+    throttling: int
 
 
 class InstanceApi(ApiBase):
@@ -116,9 +125,14 @@ class InstanceApi(ApiBase):
         return details
 
     @api_exception_handler(InstanceApiError)
-    async def snitun_token(self, *, aes_key: bytes, aes_iv: bytes) -> dict[str, Any]:
+    async def snitun_token(
+        self,
+        *,
+        aes_key: bytes,
+        aes_iv: bytes,
+    ) -> InstanceSnitunTokenDetails:
         """Create a remote snitun token."""
-        details: dict[str, Any] = await self._call_cloud_api(
+        details: InstanceSnitunTokenDetails = await self._call_cloud_api(
             method="POST",
             path="/instance/snitun_token",
             jsondata={"aes_key": aes_key.hex(), "aes_iv": aes_iv.hex()},
