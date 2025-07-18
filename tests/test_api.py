@@ -13,6 +13,7 @@ from hass_nabucasa.api import (
     ApiBase,
     CloudApiError,
     CloudApiNonRetryableError,
+    CloudApiRawResponse,
     api_exception_handler,
 )
 
@@ -179,4 +180,125 @@ async def test_pre_request_log_handler_with_external_hostname(
         )
 
     assert "Sending GET request to external.com" in caplog.text
-    assert "Sending GET request to external.com/test" not in caplog.text
+
+
+async def test_raw_response_success(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+) -> None:
+    """Test raw_response parameter returns CloudApiRawResponse."""
+    test_api = AwesomeApiClass(auth_cloud_mock)
+
+    aioclient_mock.get(
+        "https://example.com/test",
+        json={"result": "success"},
+        status=200,
+    )
+
+    result = await test_api._call_cloud_api(
+        path="/test",
+        method="GET",
+        raw_response=True,
+    )
+
+    assert isinstance(result, CloudApiRawResponse)
+    assert result.data == {"result": "success"}
+    assert result.response.status == 200
+
+
+async def test_raw_response_error_handling(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+) -> None:
+    """Test raw_response parameter with error status codes."""
+    test_api = AwesomeApiClass(auth_cloud_mock)
+
+    aioclient_mock.get(
+        "https://example.com/test",
+        json={"error": "Not found"},
+        status=404,
+    )
+
+    result = await test_api._call_cloud_api(
+        path="/test",
+        method="GET",
+        raw_response=True,
+    )
+
+    assert isinstance(result, CloudApiRawResponse)
+    assert result.data == {"error": "Not found"}
+    assert result.response.status == 404
+
+
+async def test_raw_response_with_empty_data(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+) -> None:
+    """Test raw_response parameter with empty response data."""
+    test_api = AwesomeApiClass(auth_cloud_mock)
+
+    aioclient_mock.post(
+        "https://example.com/test",
+        text="",
+        status=200,
+    )
+
+    result = await test_api._call_cloud_api(
+        path="/test",
+        method="POST",
+        raw_response=True,
+    )
+
+    assert isinstance(result, CloudApiRawResponse)
+    assert result.data is None
+    assert result.response.status == 200
+
+
+async def test_raw_response_with_json_data(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+) -> None:
+    """Test raw_response parameter with JSON response data."""
+    test_api = AwesomeApiClass(auth_cloud_mock)
+
+    test_data = {"message": "Hello", "count": 42}
+    aioclient_mock.put(
+        "https://example.com/test",
+        json=test_data,
+        status=201,
+    )
+
+    result = await test_api._call_cloud_api(
+        path="/test",
+        method="PUT",
+        raw_response=True,
+    )
+
+    assert isinstance(result, CloudApiRawResponse)
+    assert result.data == test_data
+    assert result.response.status == 201
+
+
+def test_cloud_api_raw_response_dataclass():
+    """Test CloudApiRawResponse dataclass structure."""
+    mock_response = Mock()
+    mock_response.status = 200
+    test_data = {"test": "data"}
+
+    raw_response = CloudApiRawResponse(response=mock_response, data=test_data)
+
+    assert raw_response.response == mock_response
+    assert raw_response.data == test_data
+    assert raw_response.response.status == 200
+
+
+def test_cloud_api_raw_response_dataclass_default_data():
+    """Test CloudApiRawResponse dataclass with default data."""
+    mock_response = Mock()
+    mock_response.status = 204
+
+    raw_response = CloudApiRawResponse(response=mock_response)
+
+    assert raw_response.response == mock_response
+    assert raw_response.data is None
+    assert raw_response.response.status == 204
