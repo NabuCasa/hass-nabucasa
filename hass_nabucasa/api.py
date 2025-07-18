@@ -18,6 +18,7 @@ from aiohttp import (
     ContentTypeError,
     hdrs,
 )
+from yarl import URL
 
 from .auth import Unauthenticated, UnknownError
 from .exceptions import CloudError
@@ -142,12 +143,26 @@ class ApiBase(ABC):
         """Get the non-retryable error codes."""
         return {"NC-CE-02", "NC-CE-03"}.union(self.non_retryable_error_codes)
 
+    def _do_log_request(
+        self,
+        method: str,
+        url: str | URL,
+    ) -> None:
+        """Log the response."""
+        if not _LOGGER.isEnabledFor(logging.DEBUG):
+            return
+        url = url if isinstance(url, URL) else URL(url)
+        target = url.path if url.host == self.hostname else ""
+        _LOGGER.debug("Sending %s request to %s%s", method, url.host, target)
+
     def _do_log_response(
         self,
         resp: ClientResponse,
         data: list[Any] | dict[Any, Any] | str | None = None,
     ) -> None:
         """Log the response."""
+        if not _LOGGER.isEnabledFor(logging.DEBUG):
+            return
         isok = resp.status < 400
         target = resp.url.path if resp.url.host == self.hostname else ""
         _LOGGER.debug(
@@ -174,6 +189,7 @@ class ApiBase(ABC):
         data: Any | None = None,
     ) -> ClientResponse:
         """Call raw API."""
+        self._do_log_request(method, url)
         try:
             resp = await self._cloud.websession.request(
                 method=method,
