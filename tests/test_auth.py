@@ -1,13 +1,14 @@
 """Tests for the tools to communicate with the cloud."""
 
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from botocore.exceptions import ClientError
 from pycognito.exceptions import MFAChallengeException
 import pytest
 
-from hass_nabucasa import auth as auth_api
+from hass_nabucasa import CloudError, auth as auth_api
+from tests.common import FROZEN_NOW_AS_TIMESTAMP
 
 
 @pytest.fixture
@@ -163,7 +164,7 @@ async def test_register_fails(mock_cognito, cloud_mock):
     """Test registering an account."""
     mock_cognito.register.side_effect = aws_error("SomeError")
     auth = auth_api.CognitoAuth(cloud_mock)
-    with pytest.raises(auth_api.CloudError):
+    with pytest.raises(CloudError):
         await auth.async_register("email@home-assistant.io", "password")
 
 
@@ -178,7 +179,7 @@ async def test_resend_email_confirm_fails(mock_cognito, cloud_mock):
     """Test failure when starting forgot password flow."""
     auth = auth_api.CognitoAuth(cloud_mock)
     mock_cognito.client.resend_confirmation_code.side_effect = aws_error("SomeError")
-    with pytest.raises(auth_api.CloudError):
+    with pytest.raises(CloudError):
         await auth.async_resend_email_confirm("email@home-assistant.io")
 
 
@@ -193,7 +194,7 @@ async def test_forgot_password_fails(mock_cognito, cloud_mock):
     """Test failure when starting forgot password flow."""
     auth = auth_api.CognitoAuth(cloud_mock)
     mock_cognito.initiate_forgot_password.side_effect = aws_error("SomeError")
-    with pytest.raises(auth_api.CloudError):
+    with pytest.raises(CloudError):
         await auth.async_forgot_password("email@home-assistant.io")
 
 
@@ -230,7 +231,7 @@ async def test_check_token_raises(mock_cognito, cloud_mock):
     mock_cognito.renew_access_token.side_effect = aws_error("SomeError")
     auth = auth_api.CognitoAuth(cloud_mock)
 
-    with pytest.raises(auth_api.CloudError):
+    with pytest.raises(CloudError):
         await auth.async_check_token()
 
     assert len(mock_cognito.check_token.mock_calls) == 2
@@ -278,3 +279,47 @@ async def test_guard_no_login_authenticated_cognito(auth_mock_kwargs: dict[str, 
     auth = auth_api.CognitoAuth(MagicMock(**auth_mock_kwargs))
     with pytest.raises(auth_api.Unauthenticated):
         await auth._async_authenticated_cognito()
+
+
+@pytest.mark.parametrize(
+    "exp_value,random_value,expected_sleep",
+    [
+        [None, 2220, 2220],
+        [120, 120, 120],
+        [121, 120, 120],
+        [124, 120, 4],
+        [-124, 120, 120],
+        [7800, 60, 7740],
+        [1330, 60, 1270],
+    ],
+)
+async def test_sleep_time_calculation(
+    mock_cloud,
+    caplog,
+    exp_value,
+    random_value,
+    expected_sleep,
+):
+    """Test sleep time calculation."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+
+    with (
+        patch("hass_nabucasa.auth.expiration_from_token") as mock_exp,
+        patch("hass_nabucasa.auth.asyncio.sleep", AsyncMock()),
+        patch(
+            "hass_nabucasa.auth.CognitoAuth.async_renew_access_token",
+            side_effect=asyncio.CancelledError,
+        ),
+        patch("random.randint") as mock_random,
+    ):
+        mock_exp.return_value = (
+            FROZEN_NOW_AS_TIMESTAMP + exp_value if exp_value else None
+        )
+        mock_random.return_value = random_value
+
+        await auth._async_handle_token_refresh()
+
+        assert (
+            f"Sleeping for {expected_sleep} seconds before refreshing token"
+            in caplog.text
+        )

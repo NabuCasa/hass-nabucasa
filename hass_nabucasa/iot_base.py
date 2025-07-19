@@ -21,13 +21,14 @@ from aiohttp import (
     hdrs,
 )
 
-from .auth import CloudError
 from .const import (
     MESSAGE_EXPIRATION,
     STATE_CONNECTED,
     STATE_CONNECTING,
     STATE_DISCONNECTED,
+    SubscriptionReconnectionReason,
 )
+from .exceptions import CloudError
 from .utils import gather_callbacks
 
 if TYPE_CHECKING:
@@ -145,7 +146,7 @@ class BaseIoT:
             except Exception:  # pylint: disable=broad-except
                 # Safety net. This should never hit.
                 # Still adding it here to make sure we can always reconnect
-                self._logger.exception("Unexpected error")
+                self._logger.exception("Unexpected error in connection handler")
 
             if self.state == STATE_CONNECTED:
                 await self._disconnected()
@@ -154,6 +155,9 @@ class BaseIoT:
                 break
 
             if self.require_subscription and self.cloud.subscription_expired:
+                self.cloud.async_initialize_subscription_reconnection_handler(
+                    SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED,
+                )
                 break
 
             self.state = STATE_CONNECTING
@@ -184,13 +188,13 @@ class BaseIoT:
             await self.cloud.auth.async_check_token()
         except CloudError as err:
             self._logger.warning(
-                "Cannot connect because unable to refresh token: %s",
+                "Unable to connect due to token refresh failure: %s",
                 err,
             )
             return
 
         if self.require_subscription and self.cloud.subscription_expired:
-            self._logger.debug("Cloud subscription expired. Cancelling connecting.")
+            self._logger.debug("Cloud subscription expired, cancelling connection")
             self.cloud.client.user_message(
                 "cloud_subscription_expired",
                 "Home Assistant Cloud",
@@ -268,7 +272,9 @@ class BaseIoT:
                 try:
                     self.async_handle_message(msg_content)
                 except Exception:  # pylint: disable=broad-except
-                    self._logger.exception("Unexpected error handling %s", msg_content)
+                    self._logger.exception(
+                        "Unexpected error handling message: %s", msg_content
+                    )
 
             if self.client.closed:
                 if self.close_requested:

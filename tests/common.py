@@ -11,6 +11,8 @@ from unittest.mock import Mock
 
 from hass_nabucasa.client import CloudClient
 
+FROZEN_NOW_AS_TIMESTAMP = 1537185600  # 2018-09-17 12:00:00 UTC
+
 
 class MockClient(CloudClient):
     """Interface class for Home Assistant."""
@@ -150,6 +152,15 @@ class MockClient(CloudClient):
             },
         )
 
+    async def async_delete_repair_issue(self, identifier: str) -> None:
+        """Delete a repair issue."""
+        issue = next(
+            (issue for issue in self.mock_repairs if issue["identifier"] == identifier),
+            None,
+        )
+        if issue is not None:
+            self.mock_repairs.remove(issue)
+
 
 class MockAcme:
     """Mock AcmeHandler."""
@@ -205,9 +216,10 @@ class MockAcme:
         """Hardening files."""
         self.call_hardening = True
 
-    def __call__(self, *args) -> MockAcme:
+    def __call__(self, *args, **kwargs) -> MockAcme:
         """Init."""
         self.init_args = args
+        self.init_kwargs = kwargs
         return self
 
 

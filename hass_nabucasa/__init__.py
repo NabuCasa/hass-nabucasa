@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import json
 import logging
 from pathlib import Path
+import random
 import shutil
 from typing import Any, Generic, Literal, TypeVar
 
@@ -15,28 +16,68 @@ from aiohttp import ClientSession
 from atomicwrites import atomic_write
 import jwt
 
-from .account_api import AccountApi
-from .auth import CloudError, CognitoAuth
+from .account_api import AccountApi, AccountApiError
+from .alexa_api import AlexaApi, AlexaApiError
+from .api import (
+    CloudApiClientError,
+    CloudApiCodedError,
+    CloudApiError,
+    CloudApiNonRetryableError,
+    CloudApiTimeoutError,
+)
+from .auth import CognitoAuth
 from .client import CloudClient
 from .cloudhooks import Cloudhooks
 from .const import (
+    ACCOUNT_URL,
     CONFIG_DIR,
     DEFAULT_SERVERS,
     DEFAULT_VALUES,
-    MODE_DEV,
+    MODE_DEV,  # noqa: F401
     STATE_CONNECTED,
+    CertificateStatus,
+    SubscriptionReconnectionReason,
 )
-from .files import Files
+from .exceptions import (
+    CloudError,
+    NabuCasaAuthenticationError,
+    NabuCasaBaseError,
+    NabuCasaConnectionError,
+)
+from .files import Files, FilesError
 from .google_report_state import GoogleReportState
 from .ice_servers import IceServers
-from .instance_api import (
-    InstanceApi,
-    InstanceConnectionDetails,
-)
+from .instance_api import InstanceApi, InstanceApiError, InstanceConnectionDetails
 from .iot import CloudIoT
+from .payments_api import PaymentsApi, PaymentsApiError
 from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
+from .voice_api import VoiceApi, VoiceApiError
+
+__all__ = [
+    "AccountApiError",
+    "AlexaApiError",
+    "AlreadyConnectedError",
+    "CertificateStatus",
+    "Cloud",
+    "CloudApiClientError",
+    "CloudApiCodedError",
+    "CloudApiError",
+    "CloudApiNonRetryableError",
+    "CloudApiTimeoutError",
+    "CloudClient",
+    "CloudError",
+    "FilesError",
+    "InstanceApiError",
+    "InstanceConnectionDetails",
+    "NabuCasaAuthenticationError",
+    "NabuCasaBaseError",
+    "NabuCasaConnectionError",
+    "PaymentsApiError",
+    "SubscriptionReconnectionReason",
+    "VoiceApiError",
+]
 
 _ClientT = TypeVar("_ClientT", bound=CloudClient)
 
@@ -62,75 +103,71 @@ class Cloud(Generic[_ClientT]):
         mode: Literal["development", "production"],
         *,
         cognito_client_id: str | None = None,
-        user_pool_id: str | None = None,
         region: str | None = None,
+        user_pool_id: str | None = None,
         account_link_server: str | None = None,
         accounts_server: str | None = None,
         acme_server: str | None = None,
         cloudhook_server: str | None = None,
         relayer_server: str | None = None,
         remotestate_server: str | None = None,
-        thingtalk_server: str | None = None,
         servicehandlers_server: str | None = None,
         **kwargs: Any,  # noqa: ARG002
     ) -> None:
         """Create an instance of Cloud."""
+        self.client = client
+        self.mode = mode
+
         self._on_initialized: list[Callable[[], Awaitable[None]]] = []
         self._on_start: list[Callable[[], Awaitable[None]]] = []
         self._on_stop: list[Callable[[], Awaitable[None]]] = []
-        self.mode = mode
-        self.client = client
-        self.id_token: str | None = None
-        self.access_token: str | None = None
-        self.refresh_token: str | None = None
-        self.started: bool | None = None
-        self.iot = CloudIoT(self)
-        self.google_report_state = GoogleReportState(self)
-        self.cloudhooks = Cloudhooks(self)
-        self.remote = RemoteUI(self)
-        self.account = AccountApi(self)
-        self.auth = CognitoAuth(self)
-        self.files = Files(self)
-        self.instance = InstanceApi(self)
-        self.voice = Voice(self)
-        self.ice_servers = IceServers(self)
 
         self._init_task: asyncio.Task | None = None
+        self._subscription_reconnection_task: asyncio.Task | None = None
+
+        self.access_token: str | None = None
+        self.id_token: str | None = None
+        self.refresh_token: str | None = None
+        self.started: bool | None = None
+        self._connection_retry_count = 0
 
         # Set reference
         self.client.cloud = self
 
-        if mode == MODE_DEV:
-            self.cognito_client_id = cognito_client_id
-            self.user_pool_id = user_pool_id
-            self.region = region
-
-            self.account_link_server = account_link_server
-            self.accounts_server = accounts_server
-            self.acme_server = acme_server
-            self.cloudhook_server = cloudhook_server
-            self.relayer_server = relayer_server
-            self.remotestate_server = remotestate_server
-            self.thingtalk_server = thingtalk_server
-            self.servicehandlers_server = servicehandlers_server
-            return
-
         _values = DEFAULT_VALUES[mode]
-
-        self.cognito_client_id = _values["cognito_client_id"]
-        self.user_pool_id = _values["user_pool_id"]
-        self.region = _values["region"]
-
         _servers = DEFAULT_SERVERS[mode]
 
-        self.account_link_server = _servers["account_link"]
-        self.accounts_server = _servers["accounts"]
-        self.acme_server = _servers["acme"]
-        self.cloudhook_server = _servers["cloudhook"]
-        self.relayer_server = _servers["relayer"]
-        self.remotestate_server = _servers["remotestate"]
-        self.thingtalk_server = _servers["thingtalk"]
-        self.servicehandlers_server = _servers["servicehandlers"]
+        self.cognito_client_id = _values.get("cognito_client_id", cognito_client_id)
+        self.region = _values.get("region", region)
+        self.user_pool_id = _values.get("user_pool_id", user_pool_id)
+
+        self.account_link_server = _servers.get("account_link", account_link_server)
+        self.accounts_server = _servers.get("accounts", accounts_server)
+        self.acme_server = _servers.get("acme", acme_server)
+        self.cloudhook_server = _servers.get("cloudhook", cloudhook_server)
+        self.relayer_server = _servers.get("relayer", relayer_server)
+        self.remotestate_server = _servers.get("remotestate", remotestate_server)
+        self.servicehandlers_server = _servers.get(
+            "servicehandlers",
+            servicehandlers_server,
+        )
+
+        # Needs to be setup before other components
+        self.iot = CloudIoT(self)
+
+        # Setup the rest of the components
+        self.account = AccountApi(self)
+        self.alexa_api = AlexaApi(self)
+        self.auth = CognitoAuth(self)
+        self.cloudhooks = Cloudhooks(self)
+        self.files = Files(self)
+        self.google_report_state = GoogleReportState(self)
+        self.ice_servers = IceServers(self)
+        self.instance = InstanceApi(self)
+        self.payments = PaymentsApi(self)
+        self.remote = RemoteUI(self)
+        self.voice = Voice(self)
+        self.voice_api = VoiceApi(self)
 
     @property
     def is_logged_in(self) -> bool:
@@ -151,6 +188,14 @@ class Cloud(Generic[_ClientT]):
     def subscription_expired(self) -> bool:
         """Return a boolean if the subscription has expired."""
         return utcnow() > self.expiration_date + timedelta(days=7)
+
+    @property
+    def valid_subscription(self) -> bool:
+        """Return True if the subscription is valid."""
+        return (
+            self._subscription_reconnection_task is None
+            and not self.subscription_expired
+        )
 
     @property
     def expiration_date(self) -> datetime:
@@ -217,6 +262,11 @@ class Cloud(Generic[_ClientT]):
         if self.started and self.subscription_expired:
             self.started = False
             await self.stop()
+
+        if self.subscription_expired:
+            self.async_initialize_subscription_reconnection_handler(
+                SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED
+            )
 
         return None
 
@@ -381,19 +431,18 @@ class Cloud(Generic[_ClientT]):
         except CloudError:
             _LOGGER.debug("Failed to check cloud token", exc_info=True)
 
-        if self.subscription_expired:
-            self.started = False
-            return
+        if await self.async_subscription_is_valid():
+            await self._start(skip_subscription_check=True)
+            await gather_callbacks(_LOGGER, "on_initialized", self._on_initialized)
+            self.started = True
 
-        self.started = True
-        await self._start()
-        await gather_callbacks(_LOGGER, "on_initialized", self._on_initialized)
         self._init_task = None
 
-    async def _start(self) -> None:
+    async def _start(self, skip_subscription_check: bool = False) -> None:
         """Start the cloud component."""
-        await self.client.cloud_started()
-        await gather_callbacks(_LOGGER, "on_start", self._on_start)
+        if skip_subscription_check or await self.async_subscription_is_valid():
+            await self.client.cloud_started()
+            await gather_callbacks(_LOGGER, "on_start", self._on_start)
 
     async def stop(self) -> None:
         """Stop the cloud component."""
@@ -412,3 +461,127 @@ class Cloud(Generic[_ClientT]):
             options={"verify_signature": False},
         )
         return decoded
+
+    def async_initialize_subscription_reconnection_handler(
+        self,
+        reason: SubscriptionReconnectionReason,
+    ) -> None:
+        """Initialize the subscription reconnection handler."""
+        if self._subscription_reconnection_task is not None:
+            _LOGGER.debug("Subscription reconnection handler already running")
+            return
+
+        self._subscription_reconnection_task = asyncio.create_task(
+            self._subscription_reconnection_handler(reason),
+            name="subscription_reconnection_handler",
+        )
+
+    async def async_subscription_is_valid(self) -> bool:
+        """Verify that the subscription is valid."""
+        if self._subscription_reconnection_task is not None:
+            return False
+
+        if self.subscription_expired:
+            self.async_initialize_subscription_reconnection_handler(
+                SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED
+            )
+            return False
+
+        billing_plan_type: str | None = None
+
+        try:
+            async with asyncio.timeout(30):
+                subscription = await self.payments.subscription_info(skip_renew=True)
+            billing_plan_type = subscription.get("billing_plan_type")
+        except (CloudApiError, TimeoutError) as err:
+            _LOGGER.debug("Subscription validation failed - %s", err)
+            self.async_initialize_subscription_reconnection_handler(
+                SubscriptionReconnectionReason.CONNECTION_ERROR
+            )
+            return False
+        except NabuCasaBaseError as err:
+            _LOGGER.debug(err, exc_info=err)
+
+        if billing_plan_type is None or billing_plan_type == "no_subscription":
+            _LOGGER.info("No subscription found")
+            self.async_initialize_subscription_reconnection_handler(
+                SubscriptionReconnectionReason.NO_SUBSCRIPTION
+            )
+            return False
+        return True
+
+    async def _subscription_reconnection_handler(
+        self, reason: SubscriptionReconnectionReason
+    ) -> None:
+        """Handle subscription reconnection."""
+        issue_identifier = f"{reason.value}_{self.expiration_date}"
+        while True:
+            now_as_utc = utcnow()
+            sub_expired = self.expiration_date
+
+            if reason == SubscriptionReconnectionReason.CONNECTION_ERROR:
+                self._connection_retry_count += 1
+                base_wait = 0.01 + (
+                    self._connection_retry_count * random.uniform(0.01, 0.09)
+                )
+                wait_hours = min(base_wait, 1.0)
+            elif sub_expired > (now_as_utc - timedelta(days=1)):
+                wait_hours = 3
+            elif sub_expired > (now_as_utc - timedelta(days=7)):
+                wait_hours = 12
+            elif sub_expired > (now_as_utc - timedelta(days=180)):
+                wait_hours = 24
+            elif sub_expired > (now_as_utc - timedelta(days=400)):
+                wait_hours = 96
+            else:
+                _LOGGER.info(
+                    "Subscription expired at %s, not waiting for activation",
+                    sub_expired.strftime("%Y-%m-%d"),
+                )
+                break
+
+            if reason == SubscriptionReconnectionReason.CONNECTION_ERROR:
+                _LOGGER.info(
+                    "Could not establish connection (attempt %s), "
+                    "waiting %s minutes before retrying",
+                    self._connection_retry_count,
+                    round(wait_hours * 60, 1),
+                )
+                await self.client.async_create_repair_issue(
+                    identifier=issue_identifier,
+                    translation_key=reason.value,
+                    severity="warning",
+                )
+            else:
+                _LOGGER.info(
+                    "Subscription expired at %s, waiting %s hours for activation",
+                    sub_expired.strftime("%Y-%m-%d"),
+                    wait_hours,
+                )
+                await self.client.async_create_repair_issue(
+                    identifier=issue_identifier,
+                    translation_key=reason.value,
+                    placeholders={"account_url": ACCOUNT_URL},
+                    severity="error",
+                )
+
+            await asyncio.sleep(wait_hours * 60 * 60)
+
+            if not self.is_logged_in:
+                _LOGGER.info("No longer logged in, stopping reconnection handler")
+                break
+
+            try:
+                await self.auth.async_renew_access_token()
+            except CloudError as err:
+                _LOGGER.debug("Could not renew access token (%s)", err)
+                continue
+
+            if not self.subscription_expired:
+                await self.initialize()
+                break
+
+        await self.client.async_delete_repair_issue(identifier=issue_identifier)
+        _LOGGER.debug("Stopping subscription reconnection handler")
+        self._subscription_reconnection_task = None
+        self._connection_retry_count = 0

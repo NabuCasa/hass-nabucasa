@@ -19,17 +19,20 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "acme==3.3.0",
+    "acme==4.1.1",
     "aiohttp>=3.6.1",
     "async_timeout>=4",
     "atomicwrites-homeassistant==1.4.1",
     "attrs>=19.3",
     "ciso8601>=2.3.0",
     "cryptography>=42.0.0",
+    "josepy>=2,<3",
     "pycognito==2024.5.1",
     "PyJWT>=2.8.0",
     "snitun==0.42.0",
     "webrtc-models<1.0.0",
+    "yarl>=1.20,<2",
+    "sentence-stream==1.0.0",
 ]
 description = "Home Assistant cloud integration by Nabu Casa, Inc."
 license = {text = "GPL v3"}
@@ -41,14 +44,15 @@ version = "0.0.0"
 [project.optional-dependencies]
 test = [
     "codespell==2.4.1",
-    "mypy==1.15.0",
+    "freezegun==1.5.3",
+    "mypy==1.17.0",
     "pre-commit==4.2.0",
     "pre-commit-hooks==5.0.0",
-    "pylint==3.3.6",
+    "pylint==3.3.7",
     "pytest-aiohttp==1.1.0",
-    "pytest-timeout==2.3.1",
-    "pytest==8.3.5",
-    "ruff==0.11.4",
+    "pytest-timeout==2.4.0",
+    "pytest==8.4.1",
+    "ruff==0.12.3",
     "types_atomicwrites==1.4.5.1",
     "types_pyOpenSSL==24.1.0.20240722",
     "xmltodict==0.14.2",
@@ -127,12 +131,13 @@ reports=false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+timeout = 5
 
 [tool.ruff]
 fix = true
 line-length = 88
 show-fixes = true
-target-version = "py311"
+target-version = "py313"
 
 [tool.ruff.lint]
 ignore = [
@@ -153,6 +158,8 @@ ignore = [
   "TRY003", # https://docs.astral.sh/ruff/rules/raise-vanilla-args/
   "TRY301", # https://docs.astral.sh/ruff/rules/raise-within-try/
   "TRY400", # https://docs.astral.sh/ruff/rules/error-instead-of-exception/
+  "UP046", # https://docs.astral.sh/ruff/rules/non-pep695-generic-class/
+  "UP047", # https://docs.astral.sh/ruff/rules/non-pep695-generic-function/
 ]
 
 select = [

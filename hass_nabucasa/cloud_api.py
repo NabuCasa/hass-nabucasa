@@ -139,40 +139,6 @@ async def async_remote_token(
 
 
 @_check_token
-@_log_response
-async def async_remote_challenge_txt(
-    cloud: Cloud[_ClientT],
-    txt: str,
-) -> ClientResponse:
-    """Set DNS challenge."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_txt"
-    return await cloud.websession.post(
-        url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
-        json={"txt": txt},
-    )
-
-
-@_check_token
-@_log_response
-async def async_remote_challenge_cleanup(
-    cloud: Cloud[_ClientT],
-    txt: str,
-) -> ClientResponse:
-    """Remove DNS challenge."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    url = f"https://{cloud.servicehandlers_server}/instance/dns_challenge_cleanup"
-    return await cloud.websession.post(
-        url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
-        json={"txt": txt},
-    )
-
-
-@_check_token
 async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
     """Request Alexa access token."""
     if TYPE_CHECKING:
@@ -188,19 +154,6 @@ async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
         resp.status,
     )
     return resp
-
-
-@_check_token
-@_log_response
-async def async_voice_connection_details(cloud: Cloud[_ClientT]) -> ClientResponse:
-    """Return connection details for voice service."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    url = f"https://{cloud.servicehandlers_server}/voice/connection_details"
-    return await cloud.websession.get(
-        url,
-        headers={AUTHORIZATION: cloud.id_token, USER_AGENT: cloud.client.client_name},
-    )
 
 
 @_check_token
@@ -333,27 +286,6 @@ async def async_google_actions_request_sync(cloud: Cloud[_ClientT]) -> ClientRes
 
 
 @_check_token
-async def async_subscription_info(cloud: Cloud[_ClientT]) -> dict[str, Any]:
-    """Fetch subscription info."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    resp = await cloud.websession.get(
-        f"https://{cloud.accounts_server}/payments/subscription_info",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
-    )
-    _do_log_response(resp)
-    resp.raise_for_status()
-    data: dict[str, Any] = await resp.json()
-
-    # If subscription info indicates we are subscribed, force a refresh of the token
-    if data.get("provider") and not cloud.started:
-        _LOGGER.debug("Found disconnected account with valid subscription, connecting")
-        await cloud.auth.async_renew_access_token()
-
-    return data
-
-
-@_check_token
 async def async_migrate_paypal_agreement(cloud: Cloud[_ClientT]) -> dict[str, Any]:
     """Migrate a paypal agreement from legacy."""
     if TYPE_CHECKING:
@@ -365,20 +297,4 @@ async def async_migrate_paypal_agreement(cloud: Cloud[_ClientT]) -> dict[str, An
     _do_log_response(resp)
     resp.raise_for_status()
     data: dict[str, Any] = await resp.json()
-    return data
-
-
-@_check_token
-async def async_resolve_cname(cloud: Cloud[_ClientT], hostname: str) -> list[str]:
-    """Resolve DNS CNAME."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    resp = await cloud.websession.post(
-        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
-        json={"hostname": hostname},
-    )
-    _do_log_response(resp)
-    resp.raise_for_status()
-    data: list[str] = await resp.json()
     return data

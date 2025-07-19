@@ -1,13 +1,28 @@
 # serializer version: 1
+# name: test_process_tts_stream_with_voice
+  dict({
+    'speak': dict({
+      '@version': '1.0',
+      '@xml:lang': 'nl-NL',
+      '@xmlns': 'http://www.w3.org/2001/10/synthesis',
+      '@xmlns:mstts': 'https://www.w3.org/2001/mstts',
+      'voice': dict({
+        '#text': 'Text for Saying. More Text for saying.',
+        '@name': 'nl-NL-FennaNeural',
+      }),
+    }),
+  })
+# ---
 # name: test_process_tts_with_gender
   dict({
     'speak': dict({
       '@version': '1.0',
       '@xml:lang': 'en-US',
+      '@xmlns': 'http://www.w3.org/2001/10/synthesis',
+      '@xmlns:mstts': 'https://www.w3.org/2001/mstts',
       'voice': dict({
         '#text': 'Text for Saying',
-        '@name': 'Microsoft Server Speech Text to Speech Voice (en-US, JennyNeural)',
-        '@xml:lang': 'en-US',
+        '@name': 'en-US-JennyNeural',
       }),
     }),
   })
@@ -17,10 +32,42 @@
     'speak': dict({
       '@version': '1.0',
       '@xml:lang': 'nl-NL',
+      '@xmlns': 'http://www.w3.org/2001/10/synthesis',
+      '@xmlns:mstts': 'https://www.w3.org/2001/mstts',
       'voice': dict({
         '#text': 'Text for Saying',
-        '@name': 'Microsoft Server Speech Text to Speech Voice (nl-NL, FennaNeural)',
-        '@xml:lang': 'nl-NL',
+        '@name': 'nl-NL-FennaNeural',
+      }),
+    }),
+  })
+# ---
+# name: test_process_tts_with_voice_and_style
+  dict({
+    'speak': dict({
+      '@version': '1.0',
+      '@xml:lang': 'de-DE',
+      '@xmlns': 'http://www.w3.org/2001/10/synthesis',
+      '@xmlns:mstts': 'https://www.w3.org/2001/mstts',
+      'voice': dict({
+        '@name': 'de-DE-ConradNeural',
+        'mstts:express-as': dict({
+          '#text': 'Text for Saying',
+          '@style': 'cheerful',
+        }),
+      }),
+    }),
+  })
+# ---
+# name: test_process_tts_with_voice_and_style.1
+  dict({
+    'speak': dict({
+      '@version': '1.0',
+      '@xml:lang': 'en-US',
+      '@xmlns': 'http://www.w3.org/2001/10/synthesis',
+      '@xmlns:mstts': 'https://www.w3.org/2001/mstts',
+      'voice': dict({
+        '#text': 'Text for Saying 2',
+        '@name': 'en-US-MichelleNeural',
       }),
     }),
   })

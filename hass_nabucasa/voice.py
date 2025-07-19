@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterable
+import asyncio
+from collections.abc import AsyncGenerator, AsyncIterable
 from datetime import datetime
 from enum import Enum
+import io
 import logging
 from typing import TYPE_CHECKING
+import wave
 from xml.etree import ElementTree as ET
 
 from aiohttp.hdrs import ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT
 import attr
+from sentence_stream import SentenceBoundaryDetector
 
-from . import cloud_api
 from .utils import utc_from_timestamp, utcnow
+from .voice_api import VoiceApiError
+from .voice_data import TTS_VOICES
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -46,760 +51,7 @@ class AudioOutput(str, Enum):
 
     MP3 = "mp3"
     RAW = "raw"
-
-
-# The first entry for each language is the default voice
-TTS_VOICES = {
-    "af-ZA": [
-        "AdriNeural",
-        "WillemNeural",
-    ],
-    "am-ET": [
-        "MekdesNeural",
-        "AmehaNeural",
-    ],
-    "ar-AE": [
-        "FatimaNeural",
-        "HamdanNeural",
-    ],
-    "ar-BH": [
-        "LailaNeural",
-        "AliNeural",
-    ],
-    "ar-DZ": [
-        "AminaNeural",
-        "IsmaelNeural",
-    ],
-    "ar-EG": [
-        "SalmaNeural",
-        "ShakirNeural",
-    ],
-    "ar-IQ": [
-        "RanaNeural",
-        "BasselNeural",
-    ],
-    "ar-JO": [
-        "SanaNeural",
-        "TaimNeural",
-    ],
-    "ar-KW": [
-        "NouraNeural",
-        "FahedNeural",
-    ],
-    "ar-LB": [
-        "LaylaNeural",
-        "RamiNeural",
-    ],
-    "ar-LY": [
-        "ImanNeural",
-        "OmarNeural",
-    ],
-    "ar-MA": [
-        "MounaNeural",
-        "JamalNeural",
-    ],
-    "ar-OM": [
-        "AbdullahNeural",
-        "AyshaNeural",
-    ],
-    "ar-QA": [
-        "AmalNeural",
-        "MoazNeural",
-    ],
-    "ar-SA": [
-        "ZariyahNeural",
-        "HamedNeural",
-    ],
-    "ar-SY": [
-        "AmanyNeural",
-        "LaithNeural",
-    ],
-    "ar-TN": [
-        "ReemNeural",
-        "HediNeural",
-    ],
-    "ar-YE": [
-        "MaryamNeural",
-        "SalehNeural",
-    ],
-    "az-AZ": [
-        "BabekNeural",
-        "BanuNeural",
-    ],
-    "bg-BG": [
-        "KalinaNeural",
-        "BorislavNeural",
-    ],
-    "bn-BD": [
-        "NabanitaNeural",
-        "PradeepNeural",
-    ],
-    "bn-IN": [
-        "TanishaaNeural",
-        "BashkarNeural",
-    ],
-    "bs-BA": [
-        "GoranNeural",
-        "VesnaNeural",
-    ],
-    "ca-ES": [
-        "JoanaNeural",
-        "AlbaNeural",
-        "EnricNeural",
-    ],
-    "cs-CZ": [
-        "VlastaNeural",
-        "AntoninNeural",
-    ],
-    "cy-GB": [
-        "NiaNeural",
-        "AledNeural",
-    ],
-    "da-DK": [
-        "ChristelNeural",
-        "JeppeNeural",
-    ],
-    "de-AT": [
-        "IngridNeural",
-        "JonasNeural",
-    ],
-    "de-CH": [
-        "LeniNeural",
-        "JanNeural",
-    ],
-    "de-DE": [
-        "KatjaNeural",
-        "AmalaNeural",
-        "BerndNeural",
-        "ChristophNeural",
-        "ConradNeural",
-        "ElkeNeural",
-        "GiselaNeural",
-        "KasperNeural",
-        "KillianNeural",
-        "KlarissaNeural",
-        "KlausNeural",
-        "LouisaNeural",
-        "MajaNeural",
-        "RalfNeural",
-        "TanjaNeural",
-    ],
-    "el-GR": [
-        "AthinaNeural",
-        "NestorasNeural",
-    ],
-    "en-AU": [
-        "NatashaNeural",
-        "AnnetteNeural",
-        "CarlyNeural",
-        "DarrenNeural",
-        "DuncanNeural",
-        "ElsieNeural",
-        "FreyaNeural",
-        "JoanneNeural",
-        "KenNeural",
-        "KimNeural",
-        "NeilNeural",
-        "TimNeural",
-        "TinaNeural",
-        "WilliamNeural",
-    ],
-    "en-CA": [
-        "ClaraNeural",
-        "LiamNeural",
-    ],
-    "en-GB": [
-        "LibbyNeural",
-        "AbbiNeural",
-        "AlfieNeural",
-        "BellaNeural",
-        "ElliotNeural",
-        "EthanNeural",
-        "HollieNeural",
-        "MaisieNeural",
-        "NoahNeural",
-        "OliverNeural",
-        "OliviaNeural",
-        "RyanNeural",
-        "SoniaNeural",
-        "ThomasNeural",
-    ],
-    "en-HK": [
-        "YanNeural",
-        "SamNeural",
-    ],
-    "en-IE": [
-        "EmilyNeural",
-        "ConnorNeural",
-    ],
-    "en-IN": [
-        "NeerjaNeural",
-        "PrabhatNeural",
-    ],
-    "en-KE": [
-        "AsiliaNeural",
-        "ChilembaNeural",
-    ],
-    "en-NG": [
-        "EzinneNeural",
-        "AbeoNeural",
-    ],
-    "en-NZ": [
-        "MollyNeural",
-        "MitchellNeural",
-    ],
-    "en-PH": [
-        "RosaNeural",
-        "JamesNeural",
-    ],
-    "en-SG": [
-        "LunaNeural",
-        "WayneNeural",
-    ],
-    "en-TZ": [
-        "ImaniNeural",
-        "ElimuNeural",
-    ],
-    "en-US": [
-        "JennyNeural",
-        "AIGenerate1Neural",
-        "AIGenerate2Neural",
-        "AmberNeural",
-        "AnaNeural",
-        "AriaNeural",
-        "AshleyNeural",
-        "BrandonNeural",
-        "ChristopherNeural",
-        "CoraNeural",
-        "DavisNeural",
-        "ElizabethNeural",
-        "EricNeural",
-        "GuyNeural",
-        "JacobNeural",
-        "JaneNeural",
-        "JasonNeural",
-        "JennyMultilingualNeural",
-        "MichelleNeural",
-        "MonicaNeural",
-        "NancyNeural",
-        "RogerNeural",
-        "SaraNeural",
-        "SteffanNeural",
-        "TonyNeural",
-    ],
-    "en-ZA": [
-        "LeahNeural",
-        "LukeNeural",
-    ],
-    "es-AR": [
-        "ElenaNeural",
-        "TomasNeural",
-    ],
-    "es-BO": [
-        "SofiaNeural",
-        "MarceloNeural",
-    ],
-    "es-CL": [
-        "CatalinaNeural",
-        "LorenzoNeural",
-    ],
-    "es-CO": [
-        "SalomeNeural",
-        "GonzaloNeural",
-    ],
-    "es-CR": [
-        "MariaNeural",
-        "JuanNeural",
-    ],
-    "es-CU": [
-        "BelkysNeural",
-        "ManuelNeural",
-    ],
-    "es-DO": [
-        "RamonaNeural",
-        "EmilioNeural",
-    ],
-    "es-EC": [
-        "AndreaNeural",
-        "LuisNeural",
-    ],
-    "es-ES": [
-        "ElviraNeural",
-        "AbrilNeural",
-        "AlvaroNeural",
-        "ArnauNeural",
-        "DarioNeural",
-        "EliasNeural",
-        "EstrellaNeural",
-        "IreneNeural",
-        "LaiaNeural",
-        "LiaNeural",
-        "NilNeural",
-        "SaulNeural",
-        "TeoNeural",
-        "TrianaNeural",
-        "VeraNeural",
-    ],
-    "es-GQ": [
-        "TeresaNeural",
-        "JavierNeural",
-    ],
-    "es-GT": [
-        "MartaNeural",
-        "AndresNeural",
-    ],
-    "es-HN": [
-        "KarlaNeural",
-        "CarlosNeural",
-    ],
-    "es-MX": [
-        "DaliaNeural",
-        "BeatrizNeural",
-        "CandelaNeural",
-        "CarlotaNeural",
-        "CecilioNeural",
-        "GerardoNeural",
-        "JorgeNeural",
-        "LarissaNeural",
-        "LibertoNeural",
-        "LucianoNeural",
-        "MarinaNeural",
-        "NuriaNeural",
-        "PelayoNeural",
-        "RenataNeural",
-        "YagoNeural",
-    ],
-    "es-NI": [
-        "YolandaNeural",
-        "FedericoNeural",
-    ],
-    "es-PA": [
-        "MargaritaNeural",
-        "RobertoNeural",
-    ],
-    "es-PE": [
-        "CamilaNeural",
-        "AlexNeural",
-    ],
-    "es-PR": [
-        "KarinaNeural",
-        "VictorNeural",
-    ],
-    "es-PY": [
-        "TaniaNeural",
-        "MarioNeural",
-    ],
-    "es-SV": [
-        "LorenaNeural",
-        "RodrigoNeural",
-    ],
-    "es-US": [
-        "PalomaNeural",
-        "AlonsoNeural",
-    ],
-    "es-UY": [
-        "ValentinaNeural",
-        "MateoNeural",
-    ],
-    "es-VE": [
-        "PaolaNeural",
-        "SebastianNeural",
-    ],
-    "et-EE": [
-        "AnuNeural",
-        "KertNeural",
-    ],
-    "eu-ES": [
-        "AinhoaNeural",
-        "AnderNeural",
-    ],
-    "fa-IR": [
-        "DilaraNeural",
-        "FaridNeural",
-    ],
-    "fi-FI": [
-        "SelmaNeural",
-        "HarriNeural",
-        "NooraNeural",
-    ],
-    "fil-PH": [
-        "BlessicaNeural",
-        "AngeloNeural",
-    ],
-    "fr-BE": [
-        "CharlineNeural",
-        "GerardNeural",
-    ],
-    "fr-CA": [
-        "SylvieNeural",
-        "AntoineNeural",
-        "JeanNeural",
-    ],
-    "fr-CH": [
-        "ArianeNeural",
-        "FabriceNeural",
-    ],
-    "fr-FR": [
-        "DeniseNeural",
-        "AlainNeural",
-        "BrigitteNeural",
-        "CelesteNeural",
-        "ClaudeNeural",
-        "CoralieNeural",
-        "EloiseNeural",
-        "HenriNeural",
-        "JacquelineNeural",
-        "JeromeNeural",
-        "JosephineNeural",
-        "MauriceNeural",
-        "YvesNeural",
-        "YvetteNeural",
-    ],
-    "ga-IE": [
-        "OrlaNeural",
-        "ColmNeural",
-    ],
-    "gl-ES": [
-        "SabelaNeural",
-        "RoiNeural",
-    ],
-    "gu-IN": [
-        "DhwaniNeural",
-        "NiranjanNeural",
-    ],
-    "he-IL": [
-        "HilaNeural",
-        "AvriNeural",
-    ],
-    "hi-IN": [
-        "SwaraNeural",
-        "MadhurNeural",
-    ],
-    "hr-HR": [
-        "GabrijelaNeural",
-        "SreckoNeural",
-    ],
-    "hu-HU": [
-        "NoemiNeural",
-        "TamasNeural",
-    ],
-    "hy-AM": [
-        "AnahitNeural",
-        "HaykNeural",
-    ],
-    "id-ID": [
-        "GadisNeural",
-        "ArdiNeural",
-    ],
-    "is-IS": [
-        "GudrunNeural",
-        "GunnarNeural",
-    ],
-    "it-IT": [
-        "ElsaNeural",
-        "BenignoNeural",
-        "CalimeroNeural",
-        "CataldoNeural",
-        "DiegoNeural",
-        "FabiolaNeural",
-        "FiammaNeural",
-        "GianniNeural",
-        "ImeldaNeural",
-        "IrmaNeural",
-        "IsabellaNeural",
-        "LisandroNeural",
-        "PalmiraNeural",
-        "PierinaNeural",
-        "RinaldoNeural",
-    ],
-    "ja-JP": [
-        "NanamiNeural",
-        "AoiNeural",
-        "DaichiNeural",
-        "KeitaNeural",
-        "MayuNeural",
-        "NaokiNeural",
-        "ShioriNeural",
-    ],
-    "jv-ID": [
-        "SitiNeural",
-        "DimasNeural",
-    ],
-    "ka-GE": [
-        "EkaNeural",
-        "GiorgiNeural",
-    ],
-    "kk-KZ": [
-        "AigulNeural",
-        "DauletNeural",
-    ],
-    "km-KH": [
-        "SreymomNeural",
-        "PisethNeural",
-    ],
-    "kn-IN": [
-        "SapnaNeural",
-        "GaganNeural",
-    ],
-    "ko-KR": [
-        "SunHiNeural",
-        "BongJinNeural",
-        "GookMinNeural",
-        "InJoonNeural",
-        "JiMinNeural",
-        "SeoHyeonNeural",
-        "SoonBokNeural",
-        "YuJinNeural",
-    ],
-    "lo-LA": [
-        "KeomanyNeural",
-        "ChanthavongNeural",
-    ],
-    "lt-LT": [
-        "OnaNeural",
-        "LeonasNeural",
-    ],
-    "lv-LV": [
-        "EveritaNeural",
-        "NilsNeural",
-    ],
-    "mk-MK": [
-        "MarijaNeural",
-        "AleksandarNeural",
-    ],
-    "ml-IN": [
-        "SobhanaNeural",
-        "MidhunNeural",
-    ],
-    "mn-MN": [
-        "BataaNeural",
-        "YesuiNeural",
-    ],
-    "mr-IN": [
-        "AarohiNeural",
-        "ManoharNeural",
-    ],
-    "ms-MY": [
-        "YasminNeural",
-        "OsmanNeural",
-    ],
-    "mt-MT": [
-        "GraceNeural",
-        "JosephNeural",
-    ],
-    "my-MM": [
-        "NilarNeural",
-        "ThihaNeural",
-    ],
-    "nb-NO": [
-        "IselinNeural",
-        "FinnNeural",
-        "PernilleNeural",
-    ],
-    "ne-NP": [
-        "HemkalaNeural",
-        "SagarNeural",
-    ],
-    "nl-BE": [
-        "DenaNeural",
-        "ArnaudNeural",
-    ],
-    "nl-NL": [
-        "ColetteNeural",
-        "FennaNeural",
-        "MaartenNeural",
-    ],
-    "pl-PL": [
-        "AgnieszkaNeural",
-        "MarekNeural",
-        "ZofiaNeural",
-    ],
-    "ps-AF": [
-        "LatifaNeural",
-        "GulNawazNeural",
-    ],
-    "pt-BR": [
-        "FranciscaNeural",
-        "AntonioNeural",
-        "BrendaNeural",
-        "DonatoNeural",
-        "ElzaNeural",
-        "FabioNeural",
-        "GiovannaNeural",
-        "HumbertoNeural",
-        "JulioNeural",
-        "LeilaNeural",
-        "LeticiaNeural",
-        "ManuelaNeural",
-        "NicolauNeural",
-        "ValerioNeural",
-        "YaraNeural",
-    ],
-    "pt-PT": [
-        "RaquelNeural",
-        "DuarteNeural",
-        "FernandaNeural",
-    ],
-    "ro-RO": [
-        "AlinaNeural",
-        "EmilNeural",
-    ],
-    "ru-RU": [
-        "SvetlanaNeural",
-        "DariyaNeural",
-        "DmitryNeural",
-    ],
-    "si-LK": [
-        "ThiliniNeural",
-        "SameeraNeural",
-    ],
-    "sk-SK": [
-        "ViktoriaNeural",
-        "LukasNeural",
-    ],
-    "sl-SI": [
-        "PetraNeural",
-        "RokNeural",
-    ],
-    "so-SO": [
-        "UbaxNeural",
-        "MuuseNeural",
-    ],
-    "sq-AL": [
-        "AnilaNeural",
-        "IlirNeural",
-    ],
-    "sr-RS": [
-        "SophieNeural",
-        "NicholasNeural",
-    ],
-    "su-ID": [
-        "TutiNeural",
-        "JajangNeural",
-    ],
-    "sv-SE": [
-        "SofieNeural",
-        "HilleviNeural",
-        "MattiasNeural",
-    ],
-    "sw-KE": [
-        "ZuriNeural",
-        "RafikiNeural",
-    ],
-    "sw-TZ": [
-        "RehemaNeural",
-        "DaudiNeural",
-    ],
-    "ta-IN": [
-        "PallaviNeural",
-        "ValluvarNeural",
-    ],
-    "ta-LK": [
-        "SaranyaNeural",
-        "KumarNeural",
-    ],
-    "ta-MY": [
-        "KaniNeural",
-        "SuryaNeural",
-    ],
-    "ta-SG": [
-        "VenbaNeural",
-        "AnbuNeural",
-    ],
-    "te-IN": [
-        "ShrutiNeural",
-        "MohanNeural",
-    ],
-    "th-TH": [
-        "AcharaNeural",
-        "NiwatNeural",
-        "PremwadeeNeural",
-    ],
-    "tr-TR": [
-        "EmelNeural",
-        "AhmetNeural",
-    ],
-    "uk-UA": [
-        "PolinaNeural",
-        "OstapNeural",
-    ],
-    "ur-IN": [
-        "GulNeural",
-        "SalmanNeural",
-    ],
-    "ur-PK": [
-        "UzmaNeural",
-        "AsadNeural",
-    ],
-    "uz-UZ": [
-        "MadinaNeural",
-        "SardorNeural",
-    ],
-    "vi-VN": [
-        "HoaiMyNeural",
-        "NamMinhNeural",
-    ],
-    "wuu-CN": [
-        "XiaotongNeural",
-        "YunzheNeural",
-    ],
-    "yue-CN": [
-        "XiaoMinNeural",
-        "YunSongNeural",
-    ],
-    "zh-CN": [
-        "XiaoxiaoNeural",
-        "XiaochenNeural",
-        "XiaohanNeural",
-        "XiaomengNeural",
-        "XiaomoNeural",
-        "XiaoqiuNeural",
-        "XiaoruiNeural",
-        "XiaoshuangNeural",
-        "XiaoxuanNeural",
-        "XiaoyanNeural",
-        "XiaoyiNeural",
-        "XiaoyouNeural",
-        "XiaozhenNeural",
-        "YunfengNeural",
-        "YunhaoNeural",
-        "YunjianNeural",
-        "YunxiaNeural",
-        "YunxiNeural",
-        "YunyangNeural",
-        "YunyeNeural",
-        "YunzeNeural",
-    ],
-    "zh-CN-henan": [
-        "YundengNeural",
-    ],
-    "zh-CN-liaoning": [
-        "XiaobeiNeural",
-    ],
-    "zh-CN-shaanxi": [
-        "XiaoniNeural",
-    ],
-    "zh-CN-shandong": [
-        "YunxiangNeural",
-    ],
-    "zh-CN-sichuan": [
-        "YunxiNeural",
-    ],
-    "zh-HK": [
-        "HiuMaanNeural",
-        "HiuGaaiNeural",
-        "WanLungNeural",
-    ],
-    "zh-TW": [
-        "HsiaoChenNeural",
-        "HsiaoYuNeural",
-        "YunJheNeural",
-    ],
-    "zu-ZA": [
-        "ThandoNeural",
-        "ThembaNeural",
-    ],
-}
+    WAV = "wav"
 
 
 STT_LANGUAGES = [
@@ -1230,19 +482,24 @@ class Voice:
 
     def _validate_token(self) -> bool:
         """Validate token outside of coroutine."""
-        return bool(self._valid and utcnow() < self._valid)
+        return self.cloud.valid_subscription and bool(
+            self._valid and utcnow() < self._valid
+        )
 
     async def _update_token(self) -> None:
         """Update token details."""
-        resp = await cloud_api.async_voice_connection_details(self.cloud)
-        if resp.status != 200:
-            raise VoiceTokenError
+        if not self.cloud.valid_subscription:
+            raise VoiceTokenError("Invalid subscription")
 
-        data = await resp.json()
-        self._token = data["authorized_key"]
-        self._endpoint_stt = data["endpoint_stt"]
-        self._endpoint_tts = data["endpoint_tts"]
-        self._valid = utc_from_timestamp(float(data["valid"]))
+        try:
+            details = await self.cloud.voice_api.connection_details()
+        except VoiceApiError as err:
+            raise VoiceTokenError(err) from err
+
+        self._token = details["authorized_key"]
+        self._endpoint_stt = details["endpoint_stt"]
+        self._endpoint_tts = details["endpoint_tts"]
+        self._valid = utc_from_timestamp(float(details["valid"]))
 
     async def process_stt(
         self,
@@ -1303,9 +560,10 @@ class Voice:
         voice: str | None = None,
         gender: Gender | None = None,
         force_token_renewal: bool = False,
+        style: str | None = None,
     ) -> bytes:
         """Get Speech from text over Azure."""
-        if language not in TTS_VOICES:
+        if (language_info := TTS_VOICES.get(language)) is None:
             raise VoiceError(f"Unsupported language {language}")
 
         # Backwards compatibility for old config
@@ -1314,30 +572,59 @@ class Voice:
 
         # If no voice picked, pick first one.
         if voice is None:
-            voice = TTS_VOICES[language][0]
+            voice = next(iter(language_info))
 
-        if voice not in TTS_VOICES[language]:
+        if (voice_info := language_info.get(voice)) is None:
             raise VoiceError(f"Unsupported voice {voice} for language {language}")
+
+        if style and (
+            isinstance(voice_info, str) or style not in voice_info.get("variants", [])
+        ):
+            raise VoiceError(
+                f"Unsupported style {style} for voice {voice} in language {language}"
+            )
 
         if force_token_renewal or not self._validate_token():
             await self._update_token()
 
         # SSML
-        xml_body = ET.Element("speak", version="1.0")
-        xml_body.set("{http://www.w3.org/XML/1998/namespace}lang", language)
-        voice_el = ET.SubElement(xml_body, "voice")
-        voice_el.set("{http://www.w3.org/XML/1998/namespace}lang", language)
-        voice_el.set(
-            "name",
-            f"Microsoft Server Speech Text to Speech Voice ({language}, {voice})",
+        xml_body = ET.Element(
+            "speak",
+            attrib={
+                "version": "1.0",
+                "xmlns": "http://www.w3.org/2001/10/synthesis",
+                "xmlns:mstts": "https://www.w3.org/2001/mstts",
+                "{http://www.w3.org/XML/1998/namespace}lang": language,
+            },
         )
-        voice_el.text = text[:2048]
+
+        # Add <voice> element
+        voice_el = ET.SubElement(
+            xml_body, "voice", attrib={"name": f"{language}-{voice}"}
+        )
+
+        if style:
+            express_el = ET.SubElement(
+                voice_el,
+                "mstts:express-as",
+                attrib={
+                    "style": style,
+                },
+            )
+
+            target_el = express_el
+        else:
+            target_el = voice_el
+
+        target_el.text = text[:2048]
 
         # We can not get here without this being set, but mypy does not know that.
         assert self._endpoint_tts is not None
 
         if output == AudioOutput.RAW:
             output_header = "raw-16khz-16bit-mono-pcm"
+        elif output == AudioOutput.WAV:
+            output_header = "riff-24khz-16bit-mono-pcm"
         else:
             output_header = "audio-24khz-48kbitrate-mono-mp3"
 
@@ -1369,3 +656,104 @@ class Voice:
                     f"{resp.status} {await resp.text()}",
                 )
             return await resp.read()
+
+    async def process_tts_stream(
+        self,
+        *,
+        text_stream: AsyncIterable[str],
+        language: str,
+        voice: str | None = None,
+        gender: Gender | None = None,
+        force_token_renewal: bool = False,
+        style: str | None = None,
+    ) -> AsyncGenerator[bytes]:
+        """Get streaming Speech from text over Azure."""
+        boundary_detector = SentenceBoundaryDetector()
+        sentences: list[str] = []
+        sentences_ready = asyncio.Event()
+        sentences_complete = False
+        wav_header_sent = False
+
+        async def _add_sentences() -> None:
+            nonlocal sentences_complete
+
+            try:
+                # Text chunks may not be on word or sentence boundaries
+                async for text_chunk in text_stream:
+                    sentences.extend(boundary_detector.add_chunk(text_chunk))
+                    sentences_ready.set()
+
+                # Final sentence
+                if text := boundary_detector.finish():
+                    sentences.append(text)
+            finally:
+                sentences_complete = True
+                sentences_ready.set()
+
+        _add_sentences_task = asyncio.create_task(_add_sentences())
+
+        # Process new sentences as they're available
+        while not sentences_complete:
+            await sentences_ready.wait()
+            sentences_ready.clear()
+
+            if not sentences:
+                continue
+
+            # Combine all new sentences completed to this point
+            text = " ".join(sentences).strip()
+            sentences.clear()
+
+            if not text:
+                continue
+
+            # Synthesize audio while text chunks are still being accumulated
+            wav_bytes = await self.process_tts(
+                text=text,
+                language=language,
+                output=AudioOutput.WAV,
+                voice=voice,
+                gender=gender,
+                force_token_renewal=force_token_renewal,
+                style=style,
+            )
+            header_bytes, audio_bytes = _split_wav_header(wav_bytes)
+            if not wav_header_sent:
+                # Send WAV header once, then stream audio
+                yield header_bytes
+                wav_header_sent = True
+
+            yield audio_bytes
+
+        if not wav_header_sent:
+            # Send empty WAV header if no audio data was received.
+            # Without this, downstream audio processing will fail.
+            yield _make_wav_header(rate=24000, width=2, channels=1)
+
+
+def _split_wav_header(wav_bytes: bytes) -> tuple[bytes, bytes]:
+    """Split WAV into (header, audio) tuple."""
+    with io.BytesIO(wav_bytes) as wav_io:
+        wav_reader: wave.Wave_read = wave.open(wav_io, "rb")  # noqa: SIM115
+        with wav_reader:
+            return (
+                _make_wav_header(
+                    rate=wav_reader.getframerate(),
+                    width=wav_reader.getsampwidth(),
+                    channels=wav_reader.getnchannels(),
+                ),
+                wav_reader.readframes(wav_reader.getnframes()),
+            )
+
+
+def _make_wav_header(rate: int, width: int, channels: int) -> bytes:
+    """Return WAV header with nframes = 0 for streaming."""
+    with io.BytesIO() as wav_io:
+        wav_writer: wave.Wave_write = wave.open(wav_io, "wb")  # noqa: SIM115
+        with wav_writer:
+            wav_writer.setframerate(rate)
+            wav_writer.setsampwidth(width)
+            wav_writer.setnchannels(channels)
+
+        wav_io.seek(0)
+        return wav_io.getvalue()
