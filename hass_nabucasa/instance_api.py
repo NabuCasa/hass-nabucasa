@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Literal, TypedDict
+from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict
 
 from aiohttp import hdrs
 
@@ -39,6 +39,24 @@ class InstanceConnectionDisconnected(TypedDict):
 
 
 type InstanceConnection = InstanceConnectionConnnected | InstanceConnectionDisconnected
+
+
+class InstanceRegistrationDetails(TypedDict):
+    """Registration details from instance API."""
+
+    alias: NotRequired[list[str]]
+    domain: str
+    email: str
+    server: str
+
+
+class InstanceSnitunTokenDetails(TypedDict):
+    """Snitun token details from instance API."""
+
+    token: str
+    server: str
+    valid: int
+    throttling: int
 
 
 class InstanceApi(ApiBase):
@@ -96,3 +114,27 @@ class InstanceApi(ApiBase):
             path="/instance/dns_challenge_txt",
             jsondata={"txt": value},
         )
+
+    @api_exception_handler(InstanceApiError)
+    async def register(self) -> InstanceRegistrationDetails:
+        """Register the instance."""
+        details: InstanceRegistrationDetails = await self._call_cloud_api(
+            method="POST",
+            path="/instance/register",
+        )
+        return details
+
+    @api_exception_handler(InstanceApiError)
+    async def snitun_token(
+        self,
+        *,
+        aes_key: bytes,
+        aes_iv: bytes,
+    ) -> InstanceSnitunTokenDetails:
+        """Create a remote snitun token."""
+        details: InstanceSnitunTokenDetails = await self._call_cloud_api(
+            method="POST",
+            path="/instance/snitun_token",
+            jsondata={"aes_key": aes_key.hex(), "aes_iv": aes_iv.hex()},
+        )
+        return details
