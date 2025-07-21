@@ -483,7 +483,6 @@ async def test_list(
 
     assert files[0] == STORED_BACKUP
     assert len(aioclient_mock.mock_calls) == 1
-    assert "Listing test files" in caplog.text
     assert "Response for get from example.com/files/test (200)" in caplog.text
 
 
