@@ -32,7 +32,7 @@ dependencies = [
     "snitun==0.40.0",
     "webrtc-models<1.0.0",
     "yarl>=1.20,<2",
-    "sentence-stream==1.0.0",
+    "sentence-stream==1.1.0",
 ]
 description = "Home Assistant cloud integration by Nabu Casa, Inc."
 license = {text = "GPL v3"}
