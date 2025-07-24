@@ -711,9 +711,9 @@ class Voice:
 
             while new_sentences:
                 if sentence_schedule:
-                    sentences_to_process = new_sentences[: sentence_schedule[0]]
+                    max_sentences = sentence_schedule.pop(0)
+                    sentences_to_process = new_sentences[:max_sentences]
                     new_sentences = new_sentences[len(sentences_to_process) :]
-                    sentence_schedule = sentence_schedule[1:]
                 else:
                     # Process all available sentences together
                     sentences_to_process = new_sentences[:]
