@@ -7,7 +7,7 @@
       '@xmlns': 'http://www.w3.org/2001/10/synthesis',
       '@xmlns:mstts': 'https://www.w3.org/2001/mstts',
       'voice': dict({
-        '#text': 'Text for Saying. More Text for saying.',
+        '#text': 'Text for Saying.',
         '@name': 'nl-NL-FennaNeural',
       }),
     }),

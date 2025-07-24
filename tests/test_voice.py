@@ -149,6 +149,7 @@ async def test_process_tts_stream_with_voice(voice_api, aioclient_mock, snapshot
         yield "Text for Say"
         yield "ing. More Text"
         yield " for saying."
+        yield "".join(f" Sentence {i}." for i in range(10))
 
     result = bytearray()
     async for data_chunk in voice_api.process_tts_stream(
@@ -167,7 +168,12 @@ async def test_process_tts_stream_with_voice(voice_api, aioclient_mock, snapshot
             assert wav_reader.getnframes() == 0  # streaming
 
         audio_bytes = result[44:]  # skip header
-        assert audio_bytes == b"My sound"  # 2 sentences processed together
+
+        # 3 audio chunks are produced:
+        # 1. First sentence
+        # 2. Next 3 sentences.
+        # 3. All sentences after that.
+        assert audio_bytes == b"My soundMy soundMy sound"
 
     assert aioclient_mock.mock_calls[1][3] == {
         "Authorization": "Bearer test-key",
