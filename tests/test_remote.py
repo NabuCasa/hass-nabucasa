@@ -3,6 +3,7 @@
 import asyncio
 from datetime import timedelta
 from ssl import SSLError
+from typing import Any
 from unittest.mock import Mock, patch
 
 from acme import client, messages
@@ -1265,6 +1266,119 @@ async def test_acme_client_new_order_errors(
 
         def _create_client(self):
             self._acme_client = _MockAcmeClient()
+
+        async def reset_acme(self):
+            self.call_reset = True
+
+    auth_cloud_mock.instance.register.return_value = {
+        "domain": "test.dui.nabu.casa",
+        "email": "test@nabucasa.inc",
+        "server": "rest-remote.nabu.casa",
+    }
+
+    remote = RemoteUI(auth_cloud_mock)
+
+    aioclient_mock.post(
+        "https://test.local/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+
+    with patch(
+        "hass_nabucasa.remote.AcmeHandler",
+        return_value=_MockAcme(auth_cloud_mock, [], "test@nabucasa.inc", Mock()),
+    ):
+        assert remote._certificate_status is None
+        await remote.load_backend()
+
+    await asyncio.sleep(0.1)
+    assert remote._acme.call_reset == should_reset
+    assert remote._certificate_status is CertificateStatus.INITIAL_CERT_ERROR
+
+    await remote.stop()
+
+
+@pytest.mark.parametrize(
+    ("json_error", "should_reset"),
+    (
+        (
+            {
+                "type": "urn:ietf:params:acme:error:malformed",
+                "detail": "JWS verification error",
+            },
+            True,
+        ),
+        (
+            {
+                "type": "urn:ietf:params:acme:error:malformed",
+                "detail": "Unable to validate JWS",
+            },
+            True,
+        ),
+        (
+            {
+                "type": "urn:ietf:params:acme:error:malformed",
+                "detail": "Unable to validate JWS :: Invalid Content-Type header on",
+            },
+            True,
+        ),
+        (
+            {
+                "type": "urn:ietf:params:acme:error:malformed",
+                "detail": "Some other malformed reason",
+            },
+            False,
+        ),
+        (
+            {
+                "type": "about:blank",
+                "detail": "Boom",
+            },
+            False,
+        ),
+    ),
+)
+async def test_acme_client_create_client_jws_errors(
+    auth_cloud_mock,
+    mock_cognito,
+    aioclient_mock,
+    snitun_mock,
+    json_error,
+    should_reset,
+    mock_timing,
+):
+    """Test ACME client creation JWS error handling."""
+    auth_cloud_mock.servicehandlers_server = "test.local"
+
+    class _MockAcmeClient(client.ClientV2):
+        def __init__(self) -> None:
+            pass
+
+        @classmethod
+        def get_directory(cls, *_: Any, **_kwargs: Any) -> None:
+            raise messages.Error.from_json(json_error)
+
+    class _MockAcme(AcmeHandler):
+        call_reset = False
+        cloud = auth_cloud_mock
+
+        @property
+        def certificate_available(self):
+            return True
+
+        @property
+        def alternative_names(self):
+            return ["test.dui.nabu.casa"]
+
+        def _load_account_key(self):
+            self._account_jwk = Mock()
+
+        def _create_client(self):
+            with patch("hass_nabucasa.acme.client.ClientV2", _MockAcmeClient):
+                super()._create_client()
 
         async def reset_acme(self):
             self.call_reset = True
