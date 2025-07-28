@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Coroutine
 import contextlib
+from dataclasses import dataclass
 from functools import wraps
 from json import JSONDecodeError
 import logging
@@ -120,6 +121,14 @@ class CloudApiNonRetryableError(CloudApiCodedError):
     """Exception raised when handling cloud API non-retryable error."""
 
 
+@dataclass
+class CloudApiRawResponse:
+    """A raw response from the cloud API."""
+
+    response: ClientResponse
+    data: Any = None
+
+
 class ApiBase(ABC):
     """Class to help communicate with the cloud API."""
 
@@ -230,6 +239,7 @@ class ApiBase(ABC):
         jsondata: dict[str, Any] | None = None,
         headers: dict[str, Any] | None = None,
         skip_token_check: bool = False,
+        raw_response: bool = False,
     ) -> Any:
         """Call cloud API."""
         data: dict[str, Any] | list[Any] | str | None = None
@@ -277,6 +287,9 @@ class ApiBase(ABC):
                 "Subscription has expired",
                 code="subscription_expired",
             ) from None
+
+        if raw_response:
+            return CloudApiRawResponse(data=data, response=resp)
 
         try:
             resp.raise_for_status()
