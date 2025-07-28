@@ -9,7 +9,13 @@ from typing import TYPE_CHECKING, Any
 from aiohttp import ClientError
 import pytest
 
-from hass_nabucasa.alexa_api import AlexaAccessTokenDetails, AlexaApi, AlexaApiError
+from hass_nabucasa.alexa_api import (
+    AlexaAccessTokenDetails,
+    AlexaApi,
+    AlexaApiError,
+    AlexaApiNeedsRelinkError,
+    AlexaApiNoTokenError,
+)
 
 if TYPE_CHECKING:
     from hass_nabucasa import Cloud
@@ -40,11 +46,11 @@ def set_hostname(auth_cloud_mock):
             "Failed to fetch: (429) ",
         ],
         [
-            AlexaApiError,
+            AlexaApiNeedsRelinkError,
             {"status": 400, "text": json.dumps({"reason": "RefreshTokenNotFound"})},
             "Response for post from example.com/alexa/access_token (400) "
             "RefreshTokenNotFound",
-            "Failed to fetch: (400) ",
+            "RefreshTokenNotFound",
         ],
         [
             AlexaApiError,
@@ -116,3 +122,83 @@ async def test_getting_access_token(
 
     assert details == AlexaAccessTokenDetails(**response)
     assert "Response for post from example.com/alexa/access_token (200)" in caplog.text
+
+
+async def test_access_token_needs_relink_error(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+):
+    """Test that 400 with RefreshTokenNotFound raises AlexaApiNeedsRelinkError."""
+    alexa_api = AlexaApi(auth_cloud_mock)
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/alexa/access_token",
+        status=400,
+        json={"reason": "RefreshTokenNotFound"},
+    )
+
+    with pytest.raises(AlexaApiNeedsRelinkError, match="RefreshTokenNotFound"):
+        await alexa_api.access_token()
+
+
+async def test_access_token_needs_relink_error_unknown_region(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+):
+    """Test that 400 with UnknownRegion raises AlexaApiNeedsRelinkError."""
+    alexa_api = AlexaApi(auth_cloud_mock)
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/alexa/access_token",
+        status=400,
+        json={"reason": "UnknownRegion"},
+    )
+
+    with pytest.raises(AlexaApiNeedsRelinkError, match="UnknownRegion"):
+        await alexa_api.access_token()
+
+
+async def test_access_token_no_token_error(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+):
+    """Test that 400 with other reasons raises AlexaApiNoTokenError."""
+    alexa_api = AlexaApi(auth_cloud_mock)
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/alexa/access_token",
+        status=400,
+        json={"reason": "SomeOtherReason"},
+    )
+
+    with pytest.raises(AlexaApiNoTokenError, match="No access token available"):
+        await alexa_api.access_token()
+
+
+async def test_access_token_no_token_error_no_reason(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+):
+    """Test that 400 without reason raises AlexaApiNoTokenError."""
+    alexa_api = AlexaApi(auth_cloud_mock)
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/alexa/access_token",
+        status=400,
+        json={"error": "Bad Request"},
+    )
+
+    with pytest.raises(AlexaApiNoTokenError, match="No access token available"):
+        await alexa_api.access_token()
+
+
+async def test_access_token_raw_response_error_handling(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+):
+    """Test that non-400 errors are handled correctly with raw_response=True."""
+    alexa_api = AlexaApi(auth_cloud_mock)
+    aioclient_mock.post(
+        f"https://{API_HOSTNAME}/alexa/access_token",
+        status=500,
+        text="Internal Server Error",
+    )
+
+    with pytest.raises(AlexaApiError, match=re.escape("Failed to fetch: (500) ")):
+        await alexa_api.access_token()
