@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import logging
 import random
 from ssl import SSLContext, SSLError
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import aiohttp
 import async_timeout
@@ -17,13 +17,14 @@ from snitun.exceptions import SniTunConnectionError
 from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
-from . import cloud_api, const, utils
+from . import const, utils
 from .acme import AcmeClientError, AcmeHandler, AcmeJWSVerificationError
 from .const import (
     DISPATCH_CERTIFICATE_STATUS,
     CertificateStatus,
     SubscriptionReconnectionReason,
 )
+from .instance_api import InstanceApiError
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -220,20 +221,18 @@ class RemoteUI:
         """Load backend details."""
         try:
             async with async_timeout.timeout(30):
-                resp = await cloud_api.async_remote_register(self.cloud)
-            resp.raise_for_status()
-        except (TimeoutError, aiohttp.ClientError) as err:
+                data = await self.cloud.instance.register()
+        except (TimeoutError, InstanceApiError) as err:
             msg = "Can't update remote details from Home Assistant cloud"
-            if isinstance(err, aiohttp.ClientResponseError):
-                msg += f" ({err.status})"  # pylint: disable=no-member
-            elif isinstance(err, asyncio.TimeoutError):
+            if isinstance(err, TimeoutError):
                 msg += " (timeout)"
+            else:
+                msg += f" ({err})"
             _LOGGER.error(msg)
             return False
-        data = await resp.json()
 
         # Extract data
-        _LOGGER.debug("Retrieve instance data: %s", data)
+        _LOGGER.debug("Retrieved instance data: %s", data)
 
         instance_domain = data["domain"]
         email = data["email"]
@@ -242,7 +241,7 @@ class RemoteUI:
         # Cache data
         self._instance_domain = instance_domain
         self._snitun_server = server
-        self._alias = cast("list[str]", data.get("alias", []))
+        self._alias = data.get("alias", [])
 
         domains: list[str] = [instance_domain, *self._alias]
 
@@ -397,20 +396,17 @@ class RemoteUI:
         aes_key, aes_iv = generate_aes_keyset()
         try:
             async with async_timeout.timeout(30):
-                resp = await cloud_api.async_remote_token(self.cloud, aes_key, aes_iv)
-                if resp.status == 409:
-                    raise RemoteInsecureVersion
-                if resp.status == 403:
-                    msg = ""
-                    if "application/json" in (resp.content_type or ""):
-                        msg = (await resp.json()).get("message", "")
-                    raise RemoteForbidden(msg)
-                if resp.status not in (200, 201):
-                    raise RemoteBackendError
-        except (TimeoutError, aiohttp.ClientError):
+                data = await self.cloud.instance.snitun_token(
+                    aes_key=aes_key, aes_iv=aes_iv
+                )
+        except TimeoutError:
             raise RemoteBackendError from None
-
-        data = await resp.json()
+        except InstanceApiError as err:
+            if err.status == 409:
+                raise RemoteInsecureVersion from err
+            if err.status == 403:
+                raise RemoteForbidden(err.reason or err) from err
+            raise RemoteBackendError from None
         self._token = SniTunToken(
             data["token"].encode(),
             aes_key,
