@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Coroutine
 from functools import wraps
-from json import JSONDecodeError
 import logging
 from typing import (
     TYPE_CHECKING,
@@ -13,10 +12,9 @@ from typing import (
     ParamSpec,
     TypedDict,
     TypeVar,
-    cast,
 )
 
-from aiohttp import ClientResponse, ContentTypeError
+from aiohttp import ClientResponse
 from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
 
 _LOGGER = logging.getLogger(__name__)
@@ -123,122 +121,6 @@ async def async_alexa_access_token(cloud: Cloud[_ClientT]) -> ClientResponse:
         resp.status,
     )
     return resp
-
-
-@_check_token
-async def async_files_download_details(
-    cloud: Cloud[_ClientT],
-    *,
-    storage_type: str,
-    filename: str,
-) -> FilesHandlerDownloadDetails:
-    """Get files download details."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    resp = await cloud.websession.get(
-        f"https://{cloud.servicehandlers_server}/files"
-        f"/download_details/{storage_type}/{filename}",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
-    )
-
-    data: dict[str, Any] = await resp.json()
-    _do_log_response(
-        resp,
-        data["message"] if resp.status == 400 and "message" in data else "",
-    )
-    resp.raise_for_status()
-    return cast("FilesHandlerDownloadDetails", data)
-
-
-@_check_token
-async def async_files_list(
-    cloud: Cloud[_ClientT],
-    *,
-    storage_type: str,
-) -> list[FilesHandlerListEntry]:
-    """List files for storage type."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    resp = await cloud.websession.get(
-        f"https://{cloud.servicehandlers_server}/files/{storage_type}",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
-    )
-
-    data: dict[str, Any] | list[dict[str, Any]] = await resp.json()
-    _do_log_response(
-        resp,
-        data["message"]
-        if resp.status == 400 and isinstance(data, dict) and "message" in data
-        else "",
-    )
-    resp.raise_for_status()
-    return cast("list[FilesHandlerListEntry]", data)
-
-
-@_check_token
-async def async_files_upload_details(
-    cloud: Cloud[_ClientT],
-    *,
-    storage_type: str,
-    filename: str,
-    base64md5hash: str,
-    size: int,
-    metadata: dict[str, Any] | None = None,
-) -> FilesHandlerUploadDetails:
-    """Get files upload details."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    resp = await cloud.websession.get(
-        f"https://{cloud.servicehandlers_server}/files/upload_details",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
-        json={
-            "storage_type": storage_type,
-            "filename": filename,
-            "md5": base64md5hash,
-            "size": size,
-            "metadata": metadata,
-        },
-    )
-
-    data: dict[str, Any] = await resp.json()
-    _do_log_response(
-        resp,
-        data["message"] if "message" in data and resp.status == 400 else "",
-    )
-    resp.raise_for_status()
-    return cast("FilesHandlerUploadDetails", data)
-
-
-@_check_token
-async def async_files_delete_file(
-    cloud: Cloud[_ClientT],
-    *,
-    storage_type: str,
-    filename: str,
-) -> None:
-    """Delete a file."""
-    if TYPE_CHECKING:
-        assert cloud.id_token is not None
-    resp = await cloud.websession.delete(
-        f"https://{cloud.servicehandlers_server}/files",
-        headers={"authorization": cloud.id_token, USER_AGENT: cloud.client.client_name},
-        json={
-            "storage_type": storage_type,
-            "filename": filename,
-        },
-    )
-
-    # Successful delete returns no content
-    try:
-        data: dict[str, Any] = await resp.json()
-    except (ContentTypeError, JSONDecodeError):
-        data = {}
-
-    _do_log_response(
-        resp,
-        data["message"] if resp.status == 400 and "message" in data else "",
-    )
-    resp.raise_for_status()
 
 
 @_check_token
