@@ -664,7 +664,6 @@ class Voice:
         language: str,
         voice: str | None = None,
         gender: Gender | None = None,
-        force_token_renewal: bool = False,
         style: str | None = None,
     ) -> AsyncGenerator[bytes]:
         """Get streaming Speech from text over Azure."""
@@ -681,6 +680,9 @@ class Voice:
                 # Text chunks may not be on word or sentence boundaries
                 async for text_chunk in text_stream:
                     sentences.extend(boundary_detector.add_chunk(text_chunk))
+                    if not sentences:
+                        continue
+
                     sentences_ready.set()
 
                 # Final sentence
@@ -692,7 +694,11 @@ class Voice:
 
         _add_sentences_task = asyncio.create_task(_add_sentences())
 
-        # Process new sentences as they're available
+        # Process new sentences as they're available, but synthesize the first
+        # one immediately. While that's playing, synthesize (up to) the next 3
+        # sentences. After that, synthesize all completed sentences as they're
+        # available.
+        sentence_schedule = [1, 3]
         while not sentences_complete:
             await sentences_ready.wait()
             sentences_ready.clear()
@@ -700,30 +706,41 @@ class Voice:
             if not sentences:
                 continue
 
-            # Combine all new sentences completed to this point
-            text = " ".join(sentences).strip()
+            new_sentences = sentences[:]
             sentences.clear()
 
-            if not text:
-                continue
+            while new_sentences:
+                if sentence_schedule:
+                    max_sentences = sentence_schedule.pop(0)
+                    sentences_to_process = new_sentences[:max_sentences]
+                    new_sentences = new_sentences[len(sentences_to_process) :]
+                else:
+                    # Process all available sentences together
+                    sentences_to_process = new_sentences[:]
+                    new_sentences.clear()
 
-            # Synthesize audio while text chunks are still being accumulated
-            wav_bytes = await self.process_tts(
-                text=text,
-                language=language,
-                output=AudioOutput.WAV,
-                voice=voice,
-                gender=gender,
-                force_token_renewal=force_token_renewal,
-                style=style,
-            )
-            header_bytes, audio_bytes = _split_wav_header(wav_bytes)
-            if not wav_header_sent:
-                # Send WAV header once, then stream audio
-                yield header_bytes
-                wav_header_sent = True
+                # Combine all new sentences completed to this point
+                text = " ".join(sentences_to_process).strip()
 
-            yield audio_bytes
+                if not text:
+                    continue
+
+                # Synthesize audio while text chunks are still being accumulated
+                wav_bytes = await self.process_tts(
+                    text=text,
+                    language=language,
+                    output=AudioOutput.WAV,
+                    voice=voice,
+                    gender=gender,
+                    style=style,
+                )
+                header_bytes, audio_bytes = _split_wav_header(wav_bytes)
+                if not wav_header_sent:
+                    # Send WAV header once, then stream audio
+                    yield header_bytes
+                    wav_header_sent = True
+
+                yield audio_bytes
 
         if not wav_header_sent:
             # Send empty WAV header if no audio data was received.

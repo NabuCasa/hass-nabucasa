@@ -41,6 +41,19 @@ if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
 
+def _raise_if_jws_verification_failed(exception: Exception) -> None:
+    """Raise if JWS verification failed."""
+    if (
+        isinstance(exception, messages.Error)
+        and exception.typ == "urn:ietf:params:acme:error:malformed"
+        and str(exception.detail).split(" ::", maxsplit=1)[0]
+        in {"JWS verification error", "Unable to validate JWS"}
+    ):
+        raise AcmeJWSVerificationError(
+            f"JWS verification failed: {exception}",
+        ) from exception
+
+
 class AcmeClientError(Exception):
     """Raise if a acme client error raise."""
 
@@ -245,7 +258,8 @@ class AcmeHandler:
                     net=network,
                 )
                 self._acme_client = client.ClientV2(directory=directory, net=network)
-            except (errors.Error, ValueError) as err:
+            except (messages.Error, errors.Error, ValueError) as err:
+                _raise_if_jws_verification_failed(err)
                 # https://github.com/certbot/certbot/blob/63fb97d8dea73ba63964f69fac0b15acfed02b3e/acme/acme/client.py#L670
                 # The client raises ValueError for RequestException
                 raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
@@ -259,7 +273,8 @@ class AcmeHandler:
                 net=network,
             )
             self._acme_client = client.ClientV2(directory=directory, net=network)
-        except (errors.Error, ValueError) as err:
+        except (messages.Error, errors.Error, ValueError) as err:
+            _raise_if_jws_verification_failed(err)
             raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
 
         try:
@@ -273,7 +288,8 @@ class AcmeHandler:
                     terms_of_service_agreed=True,
                 ),
             )
-        except errors.Error as err:
+        except (messages.Error, errors.Error) as err:
+            _raise_if_jws_verification_failed(err)
             raise AcmeClientError(f"Can't register to ACME server: {err}") from err
 
         # Store registration info
@@ -290,15 +306,7 @@ class AcmeHandler:
         try:
             return self._acme_client.new_order(csr_pem)
         except (messages.Error, errors.Error) as err:
-            if (
-                isinstance(err, messages.Error)
-                and err.typ == "urn:ietf:params:acme:error:malformed"
-                and str(err.detail).split(" ::", maxsplit=1)[0]
-                in {"JWS verification error", "Unable to validate JWS"}
-            ):
-                raise AcmeJWSVerificationError(
-                    f"JWS verification failed: {err}",
-                ) from None
+            _raise_if_jws_verification_failed(err)
             raise AcmeChallengeError(
                 f"Can't order a new ACME challenge: {err}",
             ) from None

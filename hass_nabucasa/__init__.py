@@ -33,7 +33,7 @@ from .const import (
     CONFIG_DIR,
     DEFAULT_SERVERS,
     DEFAULT_VALUES,
-    MODE_DEV,  # noqa: F401
+    MODE_DEV,
     STATE_CONNECTED,
     CertificateStatus,
     SubscriptionReconnectionReason,
@@ -44,7 +44,7 @@ from .exceptions import (
     NabuCasaBaseError,
     NabuCasaConnectionError,
 )
-from .files import Files, FilesError
+from .files import Files, FilesError, StorageType, StoredFile, calculate_b64md5
 from .google_report_state import GoogleReportState
 from .ice_servers import IceServers
 from .instance_api import InstanceApi, InstanceApiError, InstanceConnectionDetails
@@ -56,6 +56,7 @@ from .voice import Voice
 from .voice_api import VoiceApi, VoiceApiError
 
 __all__ = [
+    "MODE_DEV",
     "AccountApiError",
     "AlexaApiError",
     "AlreadyConnectedError",
@@ -75,8 +76,11 @@ __all__ = [
     "NabuCasaBaseError",
     "NabuCasaConnectionError",
     "PaymentsApiError",
+    "StorageType",
+    "StoredFile",
     "SubscriptionReconnectionReason",
     "VoiceApiError",
+    "calculate_b64md5",
 ]
 
 _ClientT = TypeVar("_ClientT", bound=CloudClient)
