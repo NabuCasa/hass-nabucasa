@@ -256,7 +256,7 @@ class ApiBase(ABC):
             client_timeout=client_timeout or ClientTimeout(total=10),
             headers={
                 hdrs.ACCEPT: "application/json",
-                hdrs.AUTHORIZATION: self._cloud.id_token,
+                hdrs.AUTHORIZATION: f"Bearer {self._cloud.id_token}",
                 hdrs.CONTENT_TYPE: "application/json",
                 hdrs.USER_AGENT: self._cloud.client.client_name,
                 **(headers or {}),

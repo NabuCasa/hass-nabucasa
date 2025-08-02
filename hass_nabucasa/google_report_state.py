@@ -7,7 +7,10 @@ from asyncio.queues import Queue
 from typing import TYPE_CHECKING, Any
 import uuid
 
+from aiohttp import ClientResponse
+
 from . import iot_base
+from .api import ApiBase, CloudApiError, CloudApiRawResponse, api_exception_handler
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -16,6 +19,10 @@ MAX_PENDING = 100
 
 ERR_DISCARD_CODE = "message_discarded"
 ERR_DISCARD_MSG = "Message discarded because max messages reachced"
+
+
+class GoogleReportStateError(CloudApiError):
+    """Exception raised when handling Google Report State API calls."""
 
 
 class ErrorResponse(Exception):
@@ -28,7 +35,7 @@ class ErrorResponse(Exception):
         self.message = message
 
 
-class GoogleReportState(iot_base.BaseIoT):
+class GoogleReportState(iot_base.BaseIoT, ApiBase):
     """Report states to Google.
 
     Uses a queue to send messages.
@@ -36,7 +43,10 @@ class GoogleReportState(iot_base.BaseIoT):
 
     def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Initialize Google Report State."""
-        super().__init__(cloud)
+        # Initialize both parent classes explicitly
+        iot_base.BaseIoT.__init__(self, cloud)
+        ApiBase.__init__(self, cloud)
+
         self._connect_lock = asyncio.Lock()
         self._to_send: Queue[dict[str, Any]] = Queue(100)
         self._message_sender_task: asyncio.Task | None = None
@@ -54,9 +64,16 @@ class GoogleReportState(iot_base.BaseIoT):
         return __name__
 
     @property
+    def hostname(self) -> str:
+        """Get the hostname for API calls."""
+        if TYPE_CHECKING:
+            assert self._cloud.remotestate_server is not None
+        return self._cloud.remotestate_server
+
+    @property
     def ws_server_url(self) -> str:
         """Server to connect to."""
-        return f"wss://{self.cloud.remotestate_server}/v1"
+        return f"wss://{self.hostname}/v1"
 
     async def async_send_message(self, msg: Any) -> None:
         """Send a message."""
@@ -118,3 +135,13 @@ class GoogleReportState(iot_base.BaseIoT):
         except asyncio.CancelledError:
             pass
         self._logger.debug("Message sender task shut down")
+
+    @api_exception_handler(GoogleReportStateError)
+    async def request_sync(self) -> ClientResponse:
+        """Request a Google Actions sync request."""
+        resp: CloudApiRawResponse = await self._call_cloud_api(
+            method="POST",
+            path="/request_sync",
+            raw_response=True,
+        )
+        return resp.response

@@ -45,7 +45,7 @@ from .exceptions import (
     NabuCasaConnectionError,
 )
 from .files import Files, FilesError, StorageType, StoredFile, calculate_b64md5
-from .google_report_state import GoogleReportState
+from .google_report_state import GoogleReportState, GoogleReportStateError
 from .ice_servers import IceServers
 from .instance_api import InstanceApi, InstanceApiError, InstanceConnectionDetails
 from .iot import CloudIoT
@@ -70,6 +70,7 @@ __all__ = [
     "CloudClient",
     "CloudError",
     "FilesError",
+    "GoogleReportStateError",
     "InstanceApiError",
     "InstanceConnectionDetails",
     "NabuCasaAuthenticationError",
