@@ -88,16 +88,6 @@ class InstanceApi(ApiBase):
         return details
 
     @api_exception_handler(InstanceApiError)
-    async def resolve_dns_cname(self, *, hostname: str) -> list[str]:
-        """Resolve DNS CNAME."""
-        details: list[str] = await self._call_cloud_api(
-            method="POST",
-            path="/instance/resolve_dns_cname",
-            jsondata={"hostname": hostname},
-        )
-        return details
-
-    @api_exception_handler(InstanceApiError)
     async def cleanup_dns_challenge_record(self, *, value: str) -> None:
         """Remove DNS challenge."""
         await self._call_cloud_api(

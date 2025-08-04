@@ -17,6 +17,7 @@ from atomicwrites import atomic_write
 import jwt
 
 from .account_api import AccountApi, AccountApiError
+from .accounts_api import AccountsApi, AccountsApiError
 from .alexa_api import AlexaApi, AlexaApiError
 from .api import (
     CloudApiClientError,
@@ -63,6 +64,8 @@ from .voice_api import VoiceApi, VoiceApiError
 __all__ = [
     "MODE_DEV",
     "AccountApiError",
+    "AccountsApi",
+    "AccountsApiError",
     "AlexaApiError",
     "AlreadyConnectedError",
     "CertificateStatus",
@@ -169,6 +172,7 @@ class Cloud(Generic[_ClientT]):
 
         # Setup the rest of the components
         self.account = AccountApi(self)
+        self.accounts = AccountsApi(self)
         self.alexa_api = AlexaApi(self)
         self.auth = CognitoAuth(self)
         self.cloudhooks = Cloudhooks(self)
