@@ -581,7 +581,9 @@ class RemoteUI:
     async def _check_cname(self, hostname: str) -> list[str]:
         """Get CNAME records for hostname."""
         try:
-            return await self.cloud.instance.resolve_dns_cname(hostname=hostname)
+            return await self.cloud.accounts.instance_resolve_dns_cname(
+                hostname=hostname
+            )
         except (TimeoutError, aiohttp.ClientError):
             _LOGGER.error("Can't resolve CNAME for %s", hostname)
         return []

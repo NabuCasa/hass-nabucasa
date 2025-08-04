@@ -396,7 +396,7 @@ async def test_load_backend_exists_wrong_cert(
         },
     )
 
-    auth_cloud_mock.instance.resolve_dns_cname.return_value = [
+    auth_cloud_mock.accounts.instance_resolve_dns_cname.return_value = [
         "test.dui.nabu.casa",
         "_acme-challenge.test.dui.nabu.casa",
     ]
@@ -1066,7 +1066,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
             "throttling": 400,
         },
     )
-    auth_cloud_mock.instance.resolve_dns_cname.side_effect = ClientError(
+    auth_cloud_mock.accounts.instance_resolve_dns_cname.side_effect = ClientError(
         "DNS resolution failed"
     )
 
@@ -1155,7 +1155,7 @@ async def test_regeneration_without_warning_for_good_dns_config(
             "throttling": 400,
         },
     )
-    auth_cloud_mock.instance.resolve_dns_cname.return_value = [
+    auth_cloud_mock.accounts.instance_resolve_dns_cname.return_value = [
         "test.dui.nabu.casa",
         "_acme-challenge.test.dui.nabu.casa",
     ]
@@ -1601,7 +1601,7 @@ async def test_recreate_acme_integration_during_load_backend(
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "old-alias.com"]
 
-    auth_cloud_mock.instance.resolve_dns_cname.return_value = [
+    auth_cloud_mock.accounts.instance_resolve_dns_cname.return_value = [
         "test.dui.nabu.casa",
         "_acme-challenge.test.dui.nabu.casa",
     ]
