@@ -11,7 +11,7 @@ from aiohttp import ClientError
 import pytest
 
 from hass_nabucasa.payments_api import (
-    MirgatePaypalAgreementInfo,
+    MigratePaypalAgreementInfo,
     PaymentsApi,
     PaymentsApiError,
     SubscriptionInfo,
@@ -228,7 +228,7 @@ async def test_migrate_paypal_agreement_success(
 
     result = await payments_api.migrate_paypal_agreement()
 
-    assert result == MirgatePaypalAgreementInfo(**response)
+    assert result == MigratePaypalAgreementInfo(**response)
     assert (
         "Response for post from example.com/payments/migrate_paypal_agreement (200)"
         in caplog.text
