@@ -52,8 +52,7 @@ def set_hostname(auth_cloud_mock: Cloud):
             "Unexpected error while calling API: boom!",
         ],
     ],
-    ids=["500-error", "429-error", "timeout",
-         "client-error", "unexpected-error"],
+    ids=["500-error", "429-error", "timeout", "client-error", "unexpected-error"],
 )
 async def test_resolve_dns_cname_endpoint_problems(
     aioclient_mock: AiohttpClientMocker,

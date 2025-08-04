@@ -155,7 +155,8 @@ async def test_load_backend_exists_cert(
     )
     assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (
+        auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -188,8 +189,10 @@ async def test_load_backend_exists_cert(
         for call in auth_cloud_mock.client.mock_dispatcher
         if call[0] in (DISPATCH_REMOTE_BACKEND_UP, DISPATCH_REMOTE_CONNECT)
     ]
-    assert any(call[0] == DISPATCH_REMOTE_BACKEND_UP for call in backend_dispatches)
-    assert any(call[0] == DISPATCH_REMOTE_CONNECT for call in backend_dispatches)
+    assert any(
+        call[0] == DISPATCH_REMOTE_BACKEND_UP for call in backend_dispatches)
+    assert any(
+        call[0] == DISPATCH_REMOTE_CONNECT for call in backend_dispatches)
 
     await remote.stop()
     await asyncio.sleep(0.1)
@@ -254,7 +257,8 @@ async def test_load_backend_not_exists_cert(
     )
     assert acme_mock.call_hardening
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (
+        auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -330,7 +334,8 @@ async def test_load_and_unload_backend(
     assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
     assert not snitun_mock.call_stop
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (
+        auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -396,7 +401,7 @@ async def test_load_backend_exists_wrong_cert(
         },
     )
 
-    auth_cloud_mock.instance.resolve_dns_cname.return_value = [
+    auth_cloud_mock.accounts.instance_resolve_dns_cname.return_value = [
         "test.dui.nabu.casa",
         "_acme-challenge.test.dui.nabu.casa",
     ]
@@ -417,7 +422,8 @@ async def test_load_backend_exists_wrong_cert(
     )
     assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (
+        auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -991,7 +997,8 @@ async def test_recreating_old_certificate_with_bad_dns_config(
     )
     assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (
+        auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -1006,7 +1013,8 @@ async def test_recreating_old_certificate_with_bad_dns_config(
         "placeholders",
     }
 
-    assert repair["identifier"].startswith("reset_bad_custom_domain_configuration_")
+    assert repair["identifier"].startswith(
+        "reset_bad_custom_domain_configuration_")
     assert repair["translation_key"] == "reset_bad_custom_domain_configuration"
     assert repair["severity"] == "error"
     assert repair["placeholders"] == {"custom_domains": "example.com"}
@@ -1066,7 +1074,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
             "throttling": 400,
         },
     )
-    auth_cloud_mock.instance.resolve_dns_cname.side_effect = ClientError(
+    auth_cloud_mock.accounts.instance_resolve_dns_cname.side_effect = ClientError(
         "DNS resolution failed"
     )
 
@@ -1081,7 +1089,8 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
     assert remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_reset
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (
+        auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -1095,7 +1104,8 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
         "severity",
         "placeholders",
     }
-    assert repair["identifier"].startswith("warn_bad_custom_domain_configuration_")
+    assert repair["identifier"].startswith(
+        "warn_bad_custom_domain_configuration_")
     assert repair["translation_key"] == "warn_bad_custom_domain_configuration"
     assert repair["severity"] == "warning"
     assert repair["placeholders"] == {"custom_domains": "example.com"}
@@ -1155,7 +1165,7 @@ async def test_regeneration_without_warning_for_good_dns_config(
             "throttling": 400,
         },
     )
-    auth_cloud_mock.instance.resolve_dns_cname.return_value = [
+    auth_cloud_mock.accounts.instance_resolve_dns_cname.return_value = [
         "test.dui.nabu.casa",
         "_acme-challenge.test.dui.nabu.casa",
     ]
@@ -1172,7 +1182,8 @@ async def test_regeneration_without_warning_for_good_dns_config(
     assert not valid_acme_mock.call_reset
     assert valid_acme_mock.call_issue
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (
+        auth_cloud_mock.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -1289,7 +1300,8 @@ async def test_acme_client_new_order_errors(
 
     with patch(
         "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(auth_cloud_mock, [], "test@nabucasa.inc", Mock()),
+        return_value=_MockAcme(auth_cloud_mock, [],
+                               "test@nabucasa.inc", Mock()),
     ):
         assert remote._certificate_status is None
         await remote.load_backend()
@@ -1402,7 +1414,8 @@ async def test_acme_client_create_client_jws_errors(
 
     with patch(
         "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(auth_cloud_mock, [], "test@nabucasa.inc", Mock()),
+        return_value=_MockAcme(auth_cloud_mock, [],
+                               "test@nabucasa.inc", Mock()),
     ):
         assert remote._certificate_status is None
         await remote.load_backend()
@@ -1601,7 +1614,7 @@ async def test_recreate_acme_integration_during_load_backend(
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "old-alias.com"]
 
-    auth_cloud_mock.instance.resolve_dns_cname.return_value = [
+    auth_cloud_mock.accounts.instance_resolve_dns_cname.return_value = [
         "test.dui.nabu.casa",
         "_acme-challenge.test.dui.nabu.casa",
     ]
