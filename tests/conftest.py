@@ -110,8 +110,7 @@ def mock_iot_client(cloud_mock):
 
         def auto_close(self, msg_count=1):
             """If the client should disconnect itself after 1 message."""
-            Client.closed = PropertyMock(
-                side_effect=msg_count * [False] + [True])
+            Client.closed = PropertyMock(side_effect=msg_count * [False] + [True])
 
         async def close(self):
             """Close the client."""
@@ -159,8 +158,7 @@ async def ws_server(aiohttp_client):
                         logger.debug("Sending msg: %s", msg)
                         await ws.send_json(resp)
                 except DisconnectMockServer:
-                    logger.debug(
-                        "Closing connection (via DisconnectMockServer)")
+                    logger.debug("Closing connection (via DisconnectMockServer)")
                     await ws.close()
 
             return ws
