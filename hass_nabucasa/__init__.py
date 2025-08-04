@@ -46,10 +46,15 @@ from .exceptions import (
 )
 from .files import Files, FilesError, StorageType, StoredFile, calculate_b64md5
 from .google_report_state import GoogleReportState
-from .ice_servers import IceServers
+from .ice_servers import IceServers, IceServersApiError
 from .instance_api import InstanceApi, InstanceApiError, InstanceConnectionDetails
 from .iot import CloudIoT
-from .payments_api import PaymentsApi, PaymentsApiError
+from .payments_api import (
+    MigratePaypalAgreementInfo,
+    PaymentsApi,
+    PaymentsApiError,
+    SubscriptionInfo,
+)
 from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
@@ -70,14 +75,17 @@ __all__ = [
     "CloudClient",
     "CloudError",
     "FilesError",
+    "IceServersApiError",
     "InstanceApiError",
     "InstanceConnectionDetails",
+    "MigratePaypalAgreementInfo",
     "NabuCasaAuthenticationError",
     "NabuCasaBaseError",
     "NabuCasaConnectionError",
     "PaymentsApiError",
     "StorageType",
     "StoredFile",
+    "SubscriptionInfo",
     "SubscriptionReconnectionReason",
     "VoiceApiError",
     "calculate_b64md5",
