@@ -131,9 +131,9 @@ ignore=[
 reports=false
 
 [tool.pytest.ini_options]
+addopts = "--disable-socket --allow-hosts=127.0.0.1"
 asyncio_mode = "auto"
 timeout = 5
-addopts = "--disable-socket --allow-hosts=127.0.0.1"
 
 [tool.ruff]
 fix = true
