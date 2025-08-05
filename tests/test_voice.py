@@ -1,5 +1,7 @@
 """Test for voice functions."""
 
+import asyncio
+from unittest.mock import patch
 from datetime import timedelta
 import io
 import wave
@@ -182,6 +184,80 @@ async def test_process_tts_stream_with_voice(voice_api, aioclient_mock, snapshot
         "User-Agent": "hass-nabucasa/tests",
     }
     assert xmltodict.parse(aioclient_mock.mock_calls[1][2]) == snapshot
+
+
+async def test_process_tts_stream_with_voice_final_sentence(
+    voice_api, aioclient_mock, snapshot
+):
+    """Test handling around tts streaming with final sentence."""
+    with io.BytesIO() as wav_io:
+        wav_writer: wave.Wave_write = wave.open(wav_io, "wb")
+        with wav_writer:
+            wav_writer.setframerate(24000)
+            wav_writer.setsampwidth(2)
+            wav_writer.setnchannels(1)
+            wav_writer.writeframes(b"My sound")
+
+        wav_io.seek(0)
+        wav_bytes = wav_io.getvalue()
+
+    aioclient_mock.post(
+        "tts-url",
+        content=wav_bytes,
+    )
+
+    # Use events to force the following order of events:
+    # 1. text chunk is emitted with enough for 1 sentence
+    # 2. TTS starts
+    # 3. final text chunk is emitted *before* TTS finishes
+    # 4. final sentence TTS is processed in the next loop
+    #
+    # We must check that the final sentence is not dropped because the previous
+    # TTS is on-going.
+    chunk_event = asyncio.Event()
+    tts_event = asyncio.Event()
+    first_chunk = True
+
+    async def process_tts(*args, **kwargs):
+        nonlocal first_chunk
+
+        if first_chunk:
+            first_chunk = False
+            await chunk_event.wait()
+            chunk_event.clear()
+            tts_event.set()
+            await chunk_event.wait()
+
+        return wav_bytes
+
+    async def text_gen():
+        yield "Test 1. \n\nTest"
+        chunk_event.set()
+
+        yield " 2."
+        await tts_event.wait()
+        chunk_event.set()
+
+    result = bytearray()
+    with patch.object(voice_api, "process_tts", process_tts):
+        async for data_chunk in voice_api.process_tts_stream(
+            text_stream=text_gen(),
+            language="nl-NL",
+            voice="FennaNeural",
+        ):
+            result.extend(data_chunk)
+
+        with io.BytesIO(result) as wav_io:
+            wav_reader: wave.Wave_read = wave.open(wav_io, "rb")
+            with wav_reader:
+                assert wav_reader.getframerate() == 24000
+                assert wav_reader.getsampwidth() == 2
+                assert wav_reader.getnchannels() == 1
+                assert wav_reader.getnframes() == 0  # streaming
+
+            audio_bytes = result[44:]  # skip header
+
+            assert audio_bytes == b"My soundMy sound"
 
 
 async def test_process_tts_stream_no_text(voice_api, aioclient_mock):

@@ -707,12 +707,17 @@ class Voice:
         sentence_schedule = [1, 3]
         while True:
             await sentences_ready.wait()
-            sentences_ready.clear()
+
+            if not sentences_complete:
+                # Don't wait again if no more sentences are coming
+                sentences_ready.clear()
 
             if not sentences:
                 if sentences_complete:
+                    # Exit TTS loop
                     break
 
+                # More sentences may be coming
                 continue
 
             new_sentences = sentences[:]
