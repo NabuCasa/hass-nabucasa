@@ -680,8 +680,7 @@ class Voice:
                 # Text chunks may not be on word or sentence boundaries
                 async for text_chunk in text_stream:
                     for sentence in boundary_detector.add_chunk(text_chunk):
-                        sentence = sentence.strip()
-                        if not sentence:
+                        if not sentence.strip():
                             continue
 
                         sentences.append(sentence)

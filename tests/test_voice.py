@@ -1,9 +1,9 @@
 """Test for voice functions."""
 
 import asyncio
-from unittest.mock import patch
 from datetime import timedelta
 import io
+from unittest.mock import patch
 import wave
 
 import pytest
