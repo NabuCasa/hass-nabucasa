@@ -679,7 +679,12 @@ class Voice:
             try:
                 # Text chunks may not be on word or sentence boundaries
                 async for text_chunk in text_stream:
-                    sentences.extend(boundary_detector.add_chunk(text_chunk))
+                    for sentence in boundary_detector.add_chunk(text_chunk):
+                        if not sentence.strip():
+                            continue
+
+                        sentences.append(sentence)
+
                     if not sentences:
                         continue
 
@@ -699,11 +704,19 @@ class Voice:
         # sentences. After that, synthesize all completed sentences as they're
         # available.
         sentence_schedule = [1, 3]
-        while not sentences_complete:
+        while True:
             await sentences_ready.wait()
-            sentences_ready.clear()
+
+            if not sentences_complete:
+                # Don't wait again if no more sentences are coming
+                sentences_ready.clear()
 
             if not sentences:
+                if sentences_complete:
+                    # Exit TTS loop
+                    break
+
+                # More sentences may be coming
                 continue
 
             new_sentences = sentences[:]
