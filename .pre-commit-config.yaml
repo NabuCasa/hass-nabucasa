@@ -86,6 +86,7 @@ repos:
         name: Trim Trailing Whitespace
         language: system
         types: [text]
+        exclude: __snapshots__
         entry: trailing-whitespace-fixer
         stages: [pre-commit, pre-push, manual]
       - id: mypy
