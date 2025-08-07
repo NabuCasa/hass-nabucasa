@@ -7,10 +7,11 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 from acme import client, messages
-from aiohttp import ClientError
+import aiohttp
 import pytest
 
 from hass_nabucasa import utils
+from hass_nabucasa.accounts_api import AccountsApiError
 from hass_nabucasa.acme import AcmeHandler
 from hass_nabucasa.const import (
     DISPATCH_CERTIFICATE_STATUS,
@@ -396,7 +397,7 @@ async def test_load_backend_exists_wrong_cert(
         },
     )
 
-    auth_cloud_mock.instance.resolve_dns_cname.return_value = [
+    auth_cloud_mock.accounts.instance_resolve_dns_cname.return_value = [
         "test.dui.nabu.casa",
         "_acme-challenge.test.dui.nabu.casa",
     ]
@@ -1021,6 +1022,14 @@ async def test_recreating_old_certificate_with_bad_dns_config(
     assert snitun_mock.call_disconnect
 
 
+@pytest.mark.parametrize(
+    "exception",
+    (
+        AccountsApiError("DNS resolution failed"),
+        aiohttp.ClientError("DNS resolution failed"),
+        TimeoutError(),
+    ),
+)
 async def test_warn_about_bad_dns_config_for_old_certificate(
     auth_cloud_mock,
     valid_acme_mock,
@@ -1028,6 +1037,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
     aioclient_mock,
     snitun_mock,
     mock_timing,
+    exception: Exception,
 ):
     """Test warn about old certificate with bad DNS config for alias."""
     valid = utcnow() + timedelta(days=1)
@@ -1066,9 +1076,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
             "throttling": 400,
         },
     )
-    auth_cloud_mock.instance.resolve_dns_cname.side_effect = ClientError(
-        "DNS resolution failed"
-    )
+    auth_cloud_mock.accounts.instance_resolve_dns_cname.side_effect = exception
 
     auth_cloud_mock.accounts_server = "example.com"
 
@@ -1155,7 +1163,7 @@ async def test_regeneration_without_warning_for_good_dns_config(
             "throttling": 400,
         },
     )
-    auth_cloud_mock.instance.resolve_dns_cname.return_value = [
+    auth_cloud_mock.accounts.instance_resolve_dns_cname.return_value = [
         "test.dui.nabu.casa",
         "_acme-challenge.test.dui.nabu.casa",
     ]
@@ -1601,7 +1609,7 @@ async def test_recreate_acme_integration_during_load_backend(
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "old-alias.com"]
 
-    auth_cloud_mock.instance.resolve_dns_cname.return_value = [
+    auth_cloud_mock.accounts.instance_resolve_dns_cname.return_value = [
         "test.dui.nabu.casa",
         "_acme-challenge.test.dui.nabu.casa",
     ]

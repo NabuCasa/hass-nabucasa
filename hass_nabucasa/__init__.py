@@ -17,6 +17,7 @@ from atomicwrites import atomic_write
 import jwt
 
 from .account_api import AccountApi, AccountApiError
+from .accounts_api import AccountsApi, AccountsApiError
 from .alexa_api import AlexaApi, AlexaApiError
 from .api import (
     CloudApiClientError,
@@ -46,10 +47,15 @@ from .exceptions import (
 )
 from .files import Files, FilesError, StorageType, StoredFile, calculate_b64md5
 from .google_report_state import GoogleReportState
-from .ice_servers import IceServers
+from .ice_servers import IceServers, IceServersApiError
 from .instance_api import InstanceApi, InstanceApiError, InstanceConnectionDetails
 from .iot import CloudIoT
-from .payments_api import PaymentsApi, PaymentsApiError
+from .payments_api import (
+    MigratePaypalAgreementInfo,
+    PaymentsApi,
+    PaymentsApiError,
+    SubscriptionInfo,
+)
 from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
@@ -58,6 +64,8 @@ from .voice_api import VoiceApi, VoiceApiError
 __all__ = [
     "MODE_DEV",
     "AccountApiError",
+    "AccountsApi",
+    "AccountsApiError",
     "AlexaApiError",
     "AlreadyConnectedError",
     "CertificateStatus",
@@ -70,14 +78,17 @@ __all__ = [
     "CloudClient",
     "CloudError",
     "FilesError",
+    "IceServersApiError",
     "InstanceApiError",
     "InstanceConnectionDetails",
+    "MigratePaypalAgreementInfo",
     "NabuCasaAuthenticationError",
     "NabuCasaBaseError",
     "NabuCasaConnectionError",
     "PaymentsApiError",
     "StorageType",
     "StoredFile",
+    "SubscriptionInfo",
     "SubscriptionReconnectionReason",
     "VoiceApiError",
     "calculate_b64md5",
@@ -161,6 +172,7 @@ class Cloud(Generic[_ClientT]):
 
         # Setup the rest of the components
         self.account = AccountApi(self)
+        self.accounts = AccountsApi(self)
         self.alexa_api = AlexaApi(self)
         self.auth = CognitoAuth(self)
         self.cloudhooks = Cloudhooks(self)
