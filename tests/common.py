@@ -296,5 +296,6 @@ def extract_log_messages(caplog: pytest.LogCaptureFixture) -> str:
         [
             f"[{record.levelname}] {record.name}: {record.message}"
             for record in caplog.records
+            if record.name.startswith("hass_nabucasa")
         ]
     )
