@@ -122,7 +122,7 @@ async def cloud(
             "development",
             cognito_client_id="abc123",
             region="xx-earth-616",
-            account_link_server="accout-link.example.com",
+            account_link_server="account-link.example.com",
             accounts_server="accounts.example.com",
             cloudhook_server="cloudhooks.example.com",
             acme_server="acme.example.com",
