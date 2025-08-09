@@ -7,6 +7,15 @@ categories:
       - "dependencies"
 version-resolver:
   default: minor
+  major:
+    labels:
+      - 'version/major'
+  minor:
+    labels:
+      - 'version/minor'
+  patch:
+    labels:
+      - 'version/patch'
 change-template: '- #$NUMBER $TITLE @$AUTHOR'
 sort-direction: ascending
 template: |
