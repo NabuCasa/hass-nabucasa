@@ -1,0 +1,26 @@
+name: "Check Pull Request labels"
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - labeled
+      - opened
+      - reopened
+      - synchronize
+      - unlabeled
+
+permissions: {}
+
+jobs:
+  check_labels:
+    name: "Check Pull Request labels"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the labels
+        uses: ludeeus/action-require-labels@7ef0dba93830452589680da7cdea2e2c4c0f8dff  # 1.1.0
+        with:
+          labels: >-
+              bugfix, breaking-change, refactor, enhancement, ci, documentation,
+              testing, repository, dependencies
