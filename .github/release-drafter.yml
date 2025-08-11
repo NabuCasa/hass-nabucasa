@@ -18,7 +18,7 @@ version-resolver:
       - 'version: minor'
   patch:
     labels:
-      - 'bug-fix'
+      - 'bugfix'
       - 'dependencies'
       - 'version: patch'
 change-template: '- #$NUMBER $TITLE @$AUTHOR'
