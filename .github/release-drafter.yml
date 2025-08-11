@@ -10,16 +10,16 @@ version-resolver:
   major:
     labels:
       - 'breaking change'
-      - 'version/major'
+      - 'version: major'
   minor:
     labels:
       - 'refactor'
       - 'enhancement'
-      - 'version/minor'
+      - 'version: minor'
   patch:
     labels:
       - 'dependencies'
-      - 'version/patch'
+      - 'version: patch'
 change-template: '- #$NUMBER $TITLE @$AUTHOR'
 sort-direction: ascending
 template: |
