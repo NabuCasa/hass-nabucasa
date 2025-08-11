@@ -3,11 +3,11 @@ tag-template: '$RESOLVED_VERSION'
 categories:
   - title: 'Breaking changes'
     labels:
-      - 'breaking change'
+      - 'breaking-change'
   - title: 'Notable changes'
     labels:
-      - 'version: major'
-      - 'version: minor'
+      - 'version:major'
+      - 'version:minor'
   - title: 'Dependencies'
     collapse-after: 1
     labels:
@@ -21,18 +21,18 @@ version-resolver:
   default: patch
   major:
     labels:
-      - 'breaking change'
-      - 'version: major'
+      - 'breaking-change'
+      - 'version:major'
   minor:
     labels:
       - 'refactor'
       - 'enhancement'
-      - 'version: minor'
+      - 'version:minor'
   patch:
     labels:
       - 'bugfix'
       - 'dependencies'
-      - 'version: patch'
+      - 'version:patch'
 change-template: '- #$NUMBER $TITLE @$AUTHOR'
 sort-direction: ascending
 template: |
