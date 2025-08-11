@@ -1,7 +1,7 @@
 name-template: '$RESOLVED_VERSION'
 tag-template: '$RESOLVED_VERSION'
 categories:
-  - title: "⬆️ Dependencies"
+  - title: "Dependencies"
     collapse-after: 1
     labels:
       - "dependencies"
@@ -9,12 +9,16 @@ version-resolver:
   default: minor
   major:
     labels:
+      - 'breaking change'
       - 'version/major'
   minor:
     labels:
+      - 'refactor'
+      - 'enhancement'
       - 'version/minor'
   patch:
     labels:
+      - 'dependencies'
       - 'version/patch'
 change-template: '- #$NUMBER $TITLE @$AUTHOR'
 sort-direction: ascending
