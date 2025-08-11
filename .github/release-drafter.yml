@@ -12,8 +12,13 @@ categories:
     collapse-after: 1
     labels:
       - 'dependencies'
+exclude-labels:
+  - 'ci'
+  - 'documentation'
+  - 'repository'
+  - 'testing'
 version-resolver:
-  default: minor
+  default: patch
   major:
     labels:
       - 'breaking change'
