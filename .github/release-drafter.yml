@@ -1,10 +1,17 @@
 name-template: '$RESOLVED_VERSION'
 tag-template: '$RESOLVED_VERSION'
 categories:
-  - title: "Dependencies"
+  - title: 'Breaking changes'
+    labels:
+      - 'breaking change'
+  - title: 'Notable changes'
+    labels:
+      - 'version: major'
+      - 'version: minor'
+  - title: 'Dependencies'
     collapse-after: 1
     labels:
-      - "dependencies"
+      - 'dependencies'
 version-resolver:
   default: minor
   major:
