@@ -17,6 +17,7 @@ from atomicwrites import atomic_write
 import jwt
 
 from .account_api import AccountApi, AccountApiError
+from .accounts_api import AccountsApi, AccountsApiError
 from .alexa_api import AlexaApi, AlexaApiError
 from .api import (
     CloudApiClientError,
@@ -46,10 +47,15 @@ from .exceptions import (
 )
 from .files import Files, FilesError, StorageType, StoredFile, calculate_b64md5
 from .google_report_state import GoogleReportState, GoogleReportStateError
-from .ice_servers import IceServers
+from .ice_servers import IceServers, IceServersApiError
 from .instance_api import InstanceApi, InstanceApiError, InstanceConnectionDetails
 from .iot import CloudIoT
-from .payments_api import PaymentsApi, PaymentsApiError
+from .payments_api import (
+    MigratePaypalAgreementInfo,
+    PaymentsApi,
+    PaymentsApiError,
+    SubscriptionInfo,
+)
 from .remote import RemoteUI
 from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
@@ -58,6 +64,8 @@ from .voice_api import VoiceApi, VoiceApiError
 __all__ = [
     "MODE_DEV",
     "AccountApiError",
+    "AccountsApi",
+    "AccountsApiError",
     "AlexaApiError",
     "AlreadyConnectedError",
     "CertificateStatus",
@@ -71,14 +79,17 @@ __all__ = [
     "CloudError",
     "FilesError",
     "GoogleReportStateError",
+    "IceServersApiError",
     "InstanceApiError",
     "InstanceConnectionDetails",
+    "MigratePaypalAgreementInfo",
     "NabuCasaAuthenticationError",
     "NabuCasaBaseError",
     "NabuCasaConnectionError",
     "PaymentsApiError",
     "StorageType",
     "StoredFile",
+    "SubscriptionInfo",
     "SubscriptionReconnectionReason",
     "VoiceApiError",
     "calculate_b64md5",
@@ -142,16 +153,19 @@ class Cloud(Generic[_ClientT]):
         _values = DEFAULT_VALUES[mode]
         _servers = DEFAULT_SERVERS[mode]
 
-        self.cognito_client_id = _values.get("cognito_client_id", cognito_client_id)
+        self.cognito_client_id = _values.get(
+            "cognito_client_id", cognito_client_id)
         self.region = _values.get("region", region)
         self.user_pool_id = _values.get("user_pool_id", user_pool_id)
 
-        self.account_link_server = _servers.get("account_link", account_link_server)
+        self.account_link_server = _servers.get(
+            "account_link", account_link_server)
         self.accounts_server = _servers.get("accounts", accounts_server)
         self.acme_server = _servers.get("acme", acme_server)
         self.cloudhook_server = _servers.get("cloudhook", cloudhook_server)
         self.relayer_server = _servers.get("relayer", relayer_server)
-        self.remotestate_server = _servers.get("remotestate", remotestate_server)
+        self.remotestate_server = _servers.get(
+            "remotestate", remotestate_server)
         self.servicehandlers_server = _servers.get(
             "servicehandlers",
             servicehandlers_server,
@@ -162,6 +176,7 @@ class Cloud(Generic[_ClientT]):
 
         # Setup the rest of the components
         self.account = AccountApi(self)
+        self.accounts = AccountsApi(self)
         self.alexa_api = AlexaApi(self)
         self.auth = CognitoAuth(self)
         self.cloudhooks = Cloudhooks(self)
@@ -573,7 +588,8 @@ class Cloud(Generic[_ClientT]):
             await asyncio.sleep(wait_hours * 60 * 60)
 
             if not self.is_logged_in:
-                _LOGGER.info("No longer logged in, stopping reconnection handler")
+                _LOGGER.info(
+                    "No longer logged in, stopping reconnection handler")
                 break
 
             try:

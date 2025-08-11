@@ -9,6 +9,8 @@ import threading
 from typing import Any, Literal
 from unittest.mock import Mock
 
+import pytest
+
 from hass_nabucasa.client import CloudClient
 
 FROZEN_NOW_AS_TIMESTAMP = 1537185600  # 2018-09-17 12:00:00 UTC
@@ -286,3 +288,14 @@ class MockSnitun:
         self.init_args = args
         self.init_kwarg = kwarg
         return self
+
+
+def extract_log_messages(caplog: pytest.LogCaptureFixture) -> str:
+    """Extract log messages as string from caplog fixture."""
+    return "\n".join(
+        [
+            f"[{record.levelname}] {record.name}: {record.message}"
+            for record in caplog.records
+            if record.name.startswith("hass_nabucasa")
+        ]
+    )
