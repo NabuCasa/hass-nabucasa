@@ -1196,11 +1196,8 @@ async def test_context_error_handling(
     ssl_error = SSLError()
     ssl_error.reason = reason
 
-    # Direct mocking instead of patch
-    original_create_context = cloud.remote._create_context
-    cloud.remote._create_context = Mock(side_effect=ssl_error)
-
-    try:
+    # Patch _create_context to raise SSL error directly
+    with patch.object(cloud.remote, "_create_context", side_effect=ssl_error):
         assert cloud.remote._certificate_status is None
         await cloud.remote.load_backend()
 
@@ -1209,8 +1206,6 @@ async def test_context_error_handling(
         assert cloud.remote._certificate_status is CertificateStatus.SSL_CONTEXT_ERROR
 
         assert snapshot == extract_log_messages(caplog)
-    finally:
-        cloud.remote._create_context = original_create_context
 
     await cloud.remote.stop()
 
@@ -1302,7 +1297,6 @@ async def test_recreate_acme_integration_during_load_backend(
     cloud: Cloud,
     valid_acme_mock: MockAcme,
     aioclient_mock: AiohttpClientMocker,
-    snitun_mock: MockSnitun,
 ) -> None:
     """Test _recreate_acme integration during load_backend with domain changes."""
     aioclient_mock.post(
