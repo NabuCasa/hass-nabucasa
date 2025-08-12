@@ -26,7 +26,6 @@ from hass_nabucasa.const import (
 from hass_nabucasa.remote import (
     RENEW_IF_EXPIRES_DAYS,
     WARN_RENEW_FAILED_DAYS,
-    RemoteUI,
     SubscriptionExpired,
 )
 from hass_nabucasa.utils import utcnow
@@ -606,7 +605,7 @@ async def test_refresh_token_no_sub(cloud: Cloud, mock_timing: None) -> None:
         ),
         pytest.raises(SubscriptionExpired),
     ):
-        await RemoteUI(cloud)._refresh_snitun_token()
+        await cloud.remote._refresh_snitun_token()
 
 
 async def test_load_connect_insecure(
