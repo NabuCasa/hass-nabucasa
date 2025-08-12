@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncGenerator
+from datetime import datetime
 import logging
 from pathlib import Path
 from typing import Any, cast
@@ -23,7 +24,16 @@ logging.basicConfig(level=logging.DEBUG)
 @pytest.fixture(autouse=True)
 def freeze_time_fixture():
     """Freeze time for all tests by default."""
-    with freeze_time("2018-09-17 12:00:00", tick=True):
+    original_timestamp = datetime.timestamp
+
+    def consistent_timestamp(self):
+        """Return timestamp rounded to integer seconds for test consistency."""
+        return int(original_timestamp(self))
+
+    with (
+        freeze_time("2018-09-17 12:00:00", tick=True),
+        patch("datetime.datetime.timestamp", consistent_timestamp),
+    ):
         yield
 
 

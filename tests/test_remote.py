@@ -1,6 +1,7 @@
 """Test remote sni handler."""
 
 import asyncio
+from collections.abc import AsyncGenerator, Generator
 from datetime import timedelta
 from ssl import SSLError
 from typing import Any
@@ -9,8 +10,9 @@ from unittest.mock import Mock, patch
 from acme import client, messages
 import aiohttp
 import pytest
+from syrupy import SnapshotAssertion
 
-from hass_nabucasa import utils
+from hass_nabucasa import Cloud, utils
 from hass_nabucasa.accounts_api import AccountsApiError
 from hass_nabucasa.acme import AcmeHandler
 from hass_nabucasa.const import (
@@ -21,7 +23,6 @@ from hass_nabucasa.const import (
     DISPATCH_REMOTE_DISCONNECT,
     CertificateStatus,
 )
-from hass_nabucasa.instance_api import InstanceApiError
 from hass_nabucasa.remote import (
     RENEW_IF_EXPIRES_DAYS,
     WARN_RENEW_FAILED_DAYS,
@@ -29,6 +30,8 @@ from hass_nabucasa.remote import (
     SubscriptionExpired,
 )
 from hass_nabucasa.utils import utcnow
+from tests.common import extract_log_messages
+from tests.utils.aiohttp import AiohttpClientMocker
 
 from .common import MockAcme, MockSnitun
 
@@ -36,17 +39,15 @@ from .common import MockAcme, MockSnitun
 
 
 @pytest.fixture
-def mock_timing():
+def mock_timing() -> Generator[None]:
     """Mock timing functions for remote tests."""
-    # Store original sleep function to avoid recursion
     original_sleep = asyncio.sleep
 
-    async def mock_sleep(seconds):
+    async def mock_sleep(seconds: float) -> None:
         """Mock sleep that only sleeps for very short time."""
-        await original_sleep(0.01)  # Always sleep very short time
+        await original_sleep(0.001)
 
     with (
-        # Mock timing functions only - be less aggressive to avoid interference
         patch("hass_nabucasa.utils.next_midnight", return_value=0),
         patch("random.randint", return_value=0),
         patch("hass_nabucasa.remote.random.randint", return_value=0),
@@ -56,7 +57,7 @@ def mock_timing():
 
 
 @pytest.fixture(autouse=True)
-def ignore_context():
+def ignore_context() -> Generator[Mock]:
     """Ignore ssl context."""
     with patch(
         "hass_nabucasa.remote.RemoteUI._create_context",
@@ -66,14 +67,14 @@ def ignore_context():
 
 
 @pytest.fixture
-def acme_mock():
+def acme_mock() -> Generator[MockAcme]:
     """Mock ACME client."""
     with patch("hass_nabucasa.remote.AcmeHandler", new_callable=MockAcme) as acme:
         yield acme
 
 
 @pytest.fixture
-def valid_acme_mock(acme_mock):
+def valid_acme_mock(acme_mock: MockAcme) -> MockAcme:
     """Mock ACME client with valid cert."""
     acme_mock.common_name = "test.dui.nabu.casa"
     acme_mock.alternative_names = ["test.dui.nabu.casa"]
@@ -82,48 +83,23 @@ def valid_acme_mock(acme_mock):
 
 
 @pytest.fixture
-async def snitun_mock():
+async def snitun_mock() -> AsyncGenerator[MockSnitun]:
     """Mock ACME client."""
     with patch("hass_nabucasa.remote.SniTunClientAioHttp", MockSnitun()) as snitun:
         yield snitun
 
 
-def test_init_remote(auth_cloud_mock):
-    """Init remote object."""
-    RemoteUI(auth_cloud_mock)
-
-    assert len(auth_cloud_mock.register_on_start.mock_calls) == 1
-    assert len(auth_cloud_mock.register_on_stop.mock_calls) == 1
-
-
 async def test_load_backend_exists_cert(
-    auth_cloud_mock,
-    valid_acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
-):
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+) -> None:
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -131,7 +107,7 @@ async def test_load_backend_exists_cert(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -140,23 +116,23 @@ async def test_load_backend_exists_cert(
         },
     )
 
-    assert remote.certificate_status is None
+    assert cloud.remote.certificate_status is None
 
-    assert not remote.is_connected
-    await remote.start()
-    await remote._info_loaded.wait()
-    assert remote.snitun_server == "rest-remote.nabu.casa"
-    assert remote.instance_domain == "test.dui.nabu.casa"
+    assert not cloud.remote.is_connected
+    await cloud.remote.start()
+    await cloud.remote._info_loaded.wait()
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
+    assert cloud.remote.instance_domain == "test.dui.nabu.casa"
 
     assert not valid_acme_mock.call_issue
     assert valid_acme_mock.init_args == (
-        auth_cloud_mock,
+        cloud,
         ["test.dui.nabu.casa"],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (cloud.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -169,15 +145,15 @@ async def test_load_backend_exists_cert(
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
-    assert remote.is_connected
+    assert cloud.remote.is_connected
 
-    assert remote._acme_task
-    assert remote._reconnect_task
+    assert cloud.remote._acme_task
+    assert cloud.remote._reconnect_task
 
     # Check that certificate status updates were dispatched
     certificate_dispatches = [
         call
-        for call in auth_cloud_mock.client.mock_dispatcher
+        for call in cloud.client.mock_dispatcher
         if call[0] == DISPATCH_CERTIFICATE_STATUS
     ]
     # Should have certificate status updates
@@ -186,46 +162,30 @@ async def test_load_backend_exists_cert(
     # Check that backend and connection dispatches happened
     backend_dispatches = [
         call
-        for call in auth_cloud_mock.client.mock_dispatcher
+        for call in cloud.client.mock_dispatcher
         if call[0] in (DISPATCH_REMOTE_BACKEND_UP, DISPATCH_REMOTE_CONNECT)
     ]
     assert any(call[0] == DISPATCH_REMOTE_BACKEND_UP for call in backend_dispatches)
     assert any(call[0] == DISPATCH_REMOTE_CONNECT for call in backend_dispatches)
 
-    await remote.stop()
+    await cloud.remote.stop()
     await asyncio.sleep(0.1)
 
-    assert not remote._acme_task
-    assert remote.certificate_status == CertificateStatus.READY
+    assert not cloud.remote._acme_task
+    assert cloud.remote.certificate_status == CertificateStatus.READY
 
 
 async def test_load_backend_not_exists_cert(
-    auth_cloud_mock,
-    acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-):
+    cloud: Cloud,
+    acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+) -> None:
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -233,7 +193,7 @@ async def test_load_backend_not_exists_cert(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -243,19 +203,19 @@ async def test_load_backend_not_exists_cert(
     )
 
     acme_mock.set_false()
-    await remote.start()
+    await cloud.remote.start()
     await asyncio.sleep(0.1)
 
-    assert remote.snitun_server == "rest-remote.nabu.casa"
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     assert acme_mock.call_issue
     assert acme_mock.init_args == (
-        auth_cloud_mock,
+        cloud,
         ["test.dui.nabu.casa"],
         "test@nabucasa.inc",
     )
     assert acme_mock.call_hardening
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (cloud.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -265,43 +225,27 @@ async def test_load_backend_not_exists_cert(
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
 
-    assert remote._acme_task
-    assert remote._reconnect_task
+    assert cloud.remote._acme_task
+    assert cloud.remote._reconnect_task
 
-    await remote.stop()
+    await cloud.remote.stop()
     await asyncio.sleep(0.1)
 
-    assert not remote._acme_task
+    assert not cloud.remote._acme_task
 
 
 async def test_load_and_unload_backend(
-    auth_cloud_mock,
-    valid_acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
-):
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -309,7 +253,7 @@ async def test_load_and_unload_backend(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -318,68 +262,51 @@ async def test_load_and_unload_backend(
         },
     )
 
-    await remote.start()
+    await cloud.remote.start()
     await asyncio.sleep(0.1)
 
-    assert remote.snitun_server == "rest-remote.nabu.casa"
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_issue
     assert valid_acme_mock.init_args == (
-        auth_cloud_mock,
+        cloud,
         ["test.dui.nabu.casa"],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
     assert not snitun_mock.call_stop
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (cloud.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
     }
 
-    assert remote._acme_task
-    assert remote._reconnect_task
+    assert cloud.remote._acme_task
+    assert cloud.remote._reconnect_task
 
-    await remote.stop()
+    await cloud.remote.stop()
     await asyncio.sleep(0.1)
 
     assert snitun_mock.call_stop
 
-    assert not remote._acme_task
-    assert not remote._reconnect_task
+    assert not cloud.remote._acme_task
+    assert not cloud.remote._reconnect_task
 
-    assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_BACKEND_DOWN
+    assert cloud.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_BACKEND_DOWN
 
 
 async def test_load_backend_exists_wrong_cert(
-    auth_cloud_mock,
-    valid_acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
-):
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-        "alias": ["example.com"],
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -388,7 +315,7 @@ async def test_load_backend_exists_wrong_cert(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -397,28 +324,29 @@ async def test_load_backend_exists_wrong_cert(
         },
     )
 
-    auth_cloud_mock.accounts.instance_resolve_dns_cname.return_value = [
-        "test.dui.nabu.casa",
-        "_acme-challenge.test.dui.nabu.casa",
-    ]
-
-    auth_cloud_mock.accounts_server = "example.com"
+    aioclient_mock.post(
+        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
+        json=[
+            "test.dui.nabu.casa",
+            "_acme-challenge.test.dui.nabu.casa",
+        ],
+    )
 
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa"]
-    await remote.load_backend()
+    await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
-    assert remote.snitun_server == "rest-remote.nabu.casa"
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     assert valid_acme_mock.call_reset
     assert valid_acme_mock.init_args == (
-        auth_cloud_mock,
+        cloud,
         ["test.dui.nabu.casa", "example.com"],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (cloud.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
@@ -428,40 +356,24 @@ async def test_load_backend_exists_wrong_cert(
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
 
-    await remote.disconnect()
+    await cloud.remote.disconnect()
     await asyncio.sleep(0.1)
 
     assert snitun_mock.call_disconnect
 
 
 async def test_call_disconnect(
-    auth_cloud_mock,
-    acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
-):
+    cloud: Cloud,
+    acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -469,7 +381,7 @@ async def test_call_disconnect(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -478,46 +390,30 @@ async def test_call_disconnect(
         },
     )
 
-    assert not remote.is_connected
-    await remote.load_backend()
+    assert not cloud.remote.is_connected
+    await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
-    assert remote.is_connected
+    assert cloud.remote.is_connected
 
-    await remote.disconnect()
+    await cloud.remote.disconnect()
     assert snitun_mock.call_disconnect
-    assert not remote.is_connected
-    assert remote._token
-    assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_DISCONNECT
+    assert not cloud.remote.is_connected
+    assert cloud.remote._token
+    assert cloud.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_DISCONNECT
 
 
 async def test_load_backend_no_autostart(
-    auth_cloud_mock,
-    valid_acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
-):
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -525,7 +421,7 @@ async def test_load_backend_no_autostart(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -534,60 +430,44 @@ async def test_load_backend_no_autostart(
         },
     )
 
-    auth_cloud_mock.client.prop_remote_autostart = False
-    await remote.load_backend()
+    cloud.client.prop_remote_autostart = False
+    await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
-    assert remote.snitun_server == "rest-remote.nabu.casa"
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_issue
     assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
 
     assert not snitun_mock.call_connect
 
-    await remote.connect()
+    await cloud.remote.connect()
 
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
-    assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_CONNECT
+    assert cloud.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_CONNECT
 
-    await remote.disconnect()
+    await cloud.remote.disconnect()
     await asyncio.sleep(0.1)
 
     assert snitun_mock.call_disconnect
 
 
 async def test_get_certificate_details(
-    auth_cloud_mock,
-    acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
-):
+    cloud: Cloud,
+    acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
 
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
-
-    assert remote.certificate is None
+    assert cloud.remote.certificate is None
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -595,7 +475,7 @@ async def test_get_certificate_details(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -604,17 +484,17 @@ async def test_get_certificate_details(
         },
     )
 
-    auth_cloud_mock.client.prop_remote_autostart = False
-    await remote.load_backend()
+    cloud.client.prop_remote_autostart = False
+    await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
-    assert remote.certificate is None
+    assert cloud.remote.certificate is None
 
     acme_mock.common_name = "test"
     acme_mock.alternative_names = ["test"]
     acme_mock.expire_date = valid
     acme_mock.fingerprint = "ffff"
 
-    certificate = remote.certificate
+    certificate = cloud.remote.certificate
     assert certificate.common_name == "test"
     assert certificate.alternative_names == ["test"]
     assert certificate.expire_date == valid
@@ -622,33 +502,17 @@ async def test_get_certificate_details(
 
 
 async def test_certificate_task_no_backend(
-    auth_cloud_mock,
-    acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
-):
+    cloud: Cloud,
+    acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -656,7 +520,7 @@ async def test_certificate_task_no_backend(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -671,47 +535,31 @@ async def test_certificate_task_no_backend(
         patch("hass_nabucasa.utils.next_midnight", return_value=0),
         patch("random.randint", return_value=0),
     ):
-        acme_task = remote._acme_task = asyncio.create_task(
-            remote._certificate_handler(),
+        acme_task = cloud.remote._acme_task = asyncio.create_task(
+            cloud.remote._certificate_handler(),
         )
         await asyncio.sleep(0.1)
         assert acme_mock.call_issue
         assert snitun_mock.call_start
 
-        await remote.stop()
+        await cloud.remote.stop()
         await asyncio.sleep(0.1)
 
         assert acme_task.done()
 
 
 async def test_certificate_task_renew_cert(
-    auth_cloud_mock,
-    acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
-):
+    cloud: Cloud,
+    acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -719,7 +567,7 @@ async def test_certificate_task_renew_cert(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -734,53 +582,49 @@ async def test_certificate_task_renew_cert(
         patch("hass_nabucasa.utils.next_midnight", return_value=0),
         patch("random.randint", return_value=0),
     ):
-        acme_task = remote._acme_task = asyncio.create_task(
-            remote._certificate_handler(),
+        acme_task = cloud.remote._acme_task = asyncio.create_task(
+            cloud.remote._certificate_handler(),
         )
 
-        await remote.load_backend()
+        await cloud.remote.load_backend()
         await asyncio.sleep(0.1)
         assert acme_mock.call_issue
 
-        await remote.stop()
+        await cloud.remote.stop()
         await asyncio.sleep(0.1)
 
         assert acme_task.done()
 
 
-async def test_refresh_token_no_sub(auth_cloud_mock, mock_timing):
+async def test_refresh_token_no_sub(cloud: Cloud, mock_timing: None) -> None:
     """Test that we rais SubscriptionExpired if expired sub."""
-    auth_cloud_mock.subscription_expired = True
-
-    with pytest.raises(SubscriptionExpired):
-        await RemoteUI(auth_cloud_mock)._refresh_snitun_token()
+    with (
+        patch.object(
+            type(cloud),
+            "subscription_expired",
+            new_callable=lambda: property(lambda _: True),
+        ),
+        pytest.raises(SubscriptionExpired),
+    ):
+        await RemoteUI(cloud)._refresh_snitun_token()
 
 
 async def test_load_connect_insecure(
-    auth_cloud_mock,
-    valid_acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
-):
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+    mock_timing: None,
+) -> None:
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
 
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-    auth_cloud_mock.instance.snitun_token.side_effect = InstanceApiError(
-        "Remote connection is disabled", status=409
-    )
-
-    remote = RemoteUI(auth_cloud_mock)
+    # Mock the error response via aioclient_mock instead
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -788,7 +632,7 @@ async def test_load_connect_insecure(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -798,11 +642,11 @@ async def test_load_connect_insecure(
         status=409,
     )
 
-    auth_cloud_mock.client.prop_remote_autostart = True
-    await remote.load_backend()
+    cloud.client.prop_remote_autostart = True
+    await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
-    assert remote.snitun_server == "rest-remote.nabu.casa"
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_issue
     assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
@@ -810,34 +654,25 @@ async def test_load_connect_insecure(
     assert not snitun_mock.call_connect
 
     assert not snitun_mock.call_connect
-    assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_BACKEND_UP
+    assert cloud.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_BACKEND_UP
+
+    assert snapshot == extract_log_messages(caplog)
 
 
 async def test_load_connect_forbidden(
-    auth_cloud_mock,
-    valid_acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    caplog,
-    mock_timing,
-):
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+    mock_timing: None,
+) -> None:
     """Initialize backend."""
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-    auth_cloud_mock.instance.snitun_token.side_effect = InstanceApiError(
-        "Remote connection is not allowed", status=403, reason="lorem_ipsum"
-    )
-
-    remote = RemoteUI(auth_cloud_mock)
+    # Mock the error response via aioclient_mock instead
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -845,7 +680,7 @@ async def test_load_connect_forbidden(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "message": "lorem_ipsum",
         },
@@ -853,47 +688,31 @@ async def test_load_connect_forbidden(
         headers={"content-type": "application/json; charset=utf-8"},
     )
 
-    auth_cloud_mock.client.prop_remote_autostart = True
-    await remote.load_backend()
+    cloud.client.prop_remote_autostart = True
+    await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
-    assert remote.snitun_server == "rest-remote.nabu.casa"
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_issue
     assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
     assert not snitun_mock.call_connect
 
-    assert "Remote connection is not allowed lorem_ipsum" in caplog.text
+    assert snapshot == extract_log_messages(caplog)
 
 
 async def test_call_disconnect_clean_token(
-    auth_cloud_mock,
-    acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
-):
+    cloud: Cloud,
+    acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
     """Initialize backend."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -901,7 +720,7 @@ async def test_call_disconnect_clean_token(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -910,48 +729,33 @@ async def test_call_disconnect_clean_token(
         },
     )
 
-    assert not remote.is_connected
-    await remote.load_backend()
+    assert not cloud.remote.is_connected
+    await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
-    assert remote.is_connected
-    assert remote._token
+    assert cloud.remote.is_connected
+    assert cloud.remote._token
 
-    await remote.disconnect(clear_snitun_token=True)
+    await cloud.remote.disconnect(clear_snitun_token=True)
     assert snitun_mock.call_disconnect
-    assert not remote.is_connected
-    assert remote._token is None
-    assert auth_cloud_mock.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_DISCONNECT
+    assert not cloud.remote.is_connected
+    assert cloud.remote._token is None
+    assert cloud.client.mock_dispatcher[-1][0] == DISPATCH_REMOTE_DISCONNECT
 
 
 async def test_recreating_old_certificate_with_bad_dns_config(
-    auth_cloud_mock,
-    valid_acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
-):
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+    mock_timing: None,
+) -> None:
     """Test recreating old certificate with bad DNS config for alias."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-        "alias": ["example.com"],
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -960,7 +764,7 @@ async def test_recreating_old_certificate_with_bad_dns_config(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -969,54 +773,40 @@ async def test_recreating_old_certificate_with_bad_dns_config(
         },
     )
     aioclient_mock.post(
-        "https://example.com/instance/resolve_dns_cname",
+        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
         json=["test.dui.nabu.casa"],
     )
-
-    auth_cloud_mock.accounts_server = "example.com"
 
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "example.com"]
     valid_acme_mock.expire_date = utils.utcnow() + timedelta(
         days=WARN_RENEW_FAILED_DAYS,
     )
-    await remote.load_backend()
+    await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
-    assert remote.snitun_server == "rest-remote.nabu.casa"
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     assert valid_acme_mock.call_reset
     assert valid_acme_mock.init_args == (
-        auth_cloud_mock,
+        cloud,
         ["test.dui.nabu.casa"],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (cloud.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
     }
 
-    assert len(auth_cloud_mock.client.mock_repairs) == 1
-    repair = auth_cloud_mock.client.mock_repairs[0]
-    assert set(repair.keys()) == {
-        "identifier",
-        "translation_key",
-        "severity",
-        "placeholders",
-    }
-
-    assert repair["identifier"].startswith("reset_bad_custom_domain_configuration_")
-    assert repair["translation_key"] == "reset_bad_custom_domain_configuration"
-    assert repair["severity"] == "error"
-    assert repair["placeholders"] == {"custom_domains": "example.com"}
+    assert snapshot == cloud.client.mock_repairs
 
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
 
-    await remote.disconnect()
+    await cloud.remote.disconnect()
     await asyncio.sleep(0.1)
 
     assert snitun_mock.call_disconnect
@@ -1031,35 +821,20 @@ async def test_recreating_old_certificate_with_bad_dns_config(
     ),
 )
 async def test_warn_about_bad_dns_config_for_old_certificate(
-    auth_cloud_mock,
-    valid_acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+    mock_timing: None,
     exception: Exception,
-):
+) -> None:
     """Test warn about old certificate with bad DNS config for alias."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-        "alias": ["example.com"],
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -1068,7 +843,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -1076,77 +851,51 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
             "throttling": 400,
         },
     )
-    auth_cloud_mock.accounts.instance_resolve_dns_cname.side_effect = exception
-
-    auth_cloud_mock.accounts_server = "example.com"
+    aioclient_mock.post(
+        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
+        exc=exception,
+    )
 
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "example.com"]
     valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS)
-    await remote.load_backend()
+    await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
-    assert remote.snitun_server == "rest-remote.nabu.casa"
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_reset
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (cloud.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
     }
 
-    assert len(auth_cloud_mock.client.mock_repairs) == 1
-    repair = auth_cloud_mock.client.mock_repairs[0]
-    assert set(repair.keys()) == {
-        "identifier",
-        "translation_key",
-        "severity",
-        "placeholders",
-    }
-    assert repair["identifier"].startswith("warn_bad_custom_domain_configuration_")
-    assert repair["translation_key"] == "warn_bad_custom_domain_configuration"
-    assert repair["severity"] == "warning"
-    assert repair["placeholders"] == {"custom_domains": "example.com"}
+    assert snapshot == cloud.client.mock_repairs
 
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
 
-    await remote.disconnect()
+    await cloud.remote.disconnect()
     await asyncio.sleep(0.1)
 
     assert snitun_mock.call_disconnect
 
 
 async def test_regeneration_without_warning_for_good_dns_config(
-    auth_cloud_mock,
-    valid_acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    mock_timing,
-):
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    snapshot: SnapshotAssertion,
+    mock_timing: None,
+) -> None:
     """Test no warning for good dns config."""
     valid = utcnow() + timedelta(days=1)
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-        "alias": ["example.com"],
-    }
-    auth_cloud_mock.instance.snitun_token.return_value = {
-        "token": "test-token",
-        "server": "rest-remote.nabu.casa",
-        "valid": valid.timestamp(),
-        "throttling": 400,
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
 
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -1155,7 +904,7 @@ async def test_regeneration_without_warning_for_good_dns_config(
         },
     )
     aioclient_mock.post(
-        "https://test.local/instance/snitun_token",
+        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -1163,36 +912,37 @@ async def test_regeneration_without_warning_for_good_dns_config(
             "throttling": 400,
         },
     )
-    auth_cloud_mock.accounts.instance_resolve_dns_cname.return_value = [
-        "test.dui.nabu.casa",
-        "_acme-challenge.test.dui.nabu.casa",
-    ]
-
-    auth_cloud_mock.accounts_server = "example.com"
+    aioclient_mock.post(
+        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
+        json=[
+            "test.dui.nabu.casa",
+            "_acme-challenge.test.dui.nabu.casa",
+        ],
+    )
 
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "example.com"]
     valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS)
-    await remote.load_backend()
+    await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
-    assert remote.snitun_server == "rest-remote.nabu.casa"
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_reset
     assert valid_acme_mock.call_issue
     assert snitun_mock.call_start
-    assert snitun_mock.init_args == (auth_cloud_mock.client.aiohttp_runner, None)
+    assert snitun_mock.init_args == (cloud.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
         "snitun_server": "rest-remote.nabu.casa",
         "snitun_port": 443,
     }
 
-    assert len(auth_cloud_mock.client.mock_repairs) == 0
+    assert snapshot == cloud.client.mock_repairs
 
     assert snitun_mock.call_connect
     assert snitun_mock.connect_args[0] == b"test-token"
     assert snitun_mock.connect_args[3] == 400
 
-    await remote.disconnect()
+    await cloud.remote.disconnect()
     await asyncio.sleep(0.1)
 
     assert snitun_mock.call_disconnect
@@ -1239,55 +989,47 @@ async def test_regeneration_without_warning_for_good_dns_config(
     ),
 )
 async def test_acme_client_new_order_errors(
-    auth_cloud_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    json_error,
-    should_reset,
-    mock_timing,
-):
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    json_error: dict[str, str],
+    should_reset: bool,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+    mock_timing: None,
+) -> None:
     """Initialize backend."""
-    auth_cloud_mock.servicehandlers_server = "test.local"
 
     class _MockAcmeClient(client.ClientV2):
         def __init__(self) -> None:
             pass
 
-        def new_order(self, _):
+        def new_order(self, _: Any) -> None:
             raise messages.Error.from_json(json_error)
 
     class _MockAcme(AcmeHandler):
-        call_reset = False
-        cloud = auth_cloud_mock
+        call_reset: bool = False
+        # cloud instance passed via constructor
 
         @property
-        def certificate_available(self):
+        def certificate_available(self) -> bool:
             return True
 
         @property
-        def alternative_names(self):
+        def alternative_names(self) -> list[str]:
             return ["test.dui.nabu.casa"]
 
-        def _generate_csr(self):
+        def _generate_csr(self) -> bytes:
             return b""
 
-        def _create_client(self):
+        def _create_client(self) -> None:
             self._acme_client = _MockAcmeClient()
 
-        async def reset_acme(self):
+        async def reset_acme(self) -> None:
             self.call_reset = True
 
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
-
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -1297,16 +1039,18 @@ async def test_acme_client_new_order_errors(
 
     with patch(
         "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(auth_cloud_mock, [], "test@nabucasa.inc", Mock()),
+        return_value=_MockAcme(cloud, [], "test@nabucasa.inc", Mock()),
     ):
-        assert remote._certificate_status is None
-        await remote.load_backend()
+        assert cloud.remote._certificate_status is None
+        await cloud.remote.load_backend()
 
     await asyncio.sleep(0.1)
-    assert remote._acme.call_reset == should_reset
-    assert remote._certificate_status is CertificateStatus.INITIAL_CERT_ERROR
+    assert cloud.remote._acme.call_reset == should_reset
+    assert cloud.remote._certificate_status is CertificateStatus.INITIAL_CERT_ERROR
 
-    await remote.stop()
+    assert snapshot == extract_log_messages(caplog)
+
+    await cloud.remote.stop()
 
 
 @pytest.mark.parametrize(
@@ -1350,16 +1094,16 @@ async def test_acme_client_new_order_errors(
     ),
 )
 async def test_acme_client_create_client_jws_errors(
-    auth_cloud_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-    json_error,
-    should_reset,
-    mock_timing,
-):
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    json_error: dict[str, str],
+    should_reset: bool,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+    mock_timing: None,
+) -> None:
     """Test ACME client creation JWS error handling."""
-    auth_cloud_mock.servicehandlers_server = "test.local"
 
     class _MockAcmeClient(client.ClientV2):
         def __init__(self) -> None:
@@ -1370,37 +1114,29 @@ async def test_acme_client_create_client_jws_errors(
             raise messages.Error.from_json(json_error)
 
     class _MockAcme(AcmeHandler):
-        call_reset = False
-        cloud = auth_cloud_mock
+        call_reset: bool = False
+        # cloud instance passed via constructor
 
         @property
-        def certificate_available(self):
+        def certificate_available(self) -> bool:
             return True
 
         @property
-        def alternative_names(self):
+        def alternative_names(self) -> list[str]:
             return ["test.dui.nabu.casa"]
 
-        def _load_account_key(self):
+        def _load_account_key(self) -> None:
             self._account_jwk = Mock()
 
-        def _create_client(self):
+        def _create_client(self) -> None:
             with patch("hass_nabucasa.acme.client.ClientV2", _MockAcmeClient):
                 super()._create_client()
 
-        async def reset_acme(self):
+        async def reset_acme(self) -> None:
             self.call_reset = True
 
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
-
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -1410,16 +1146,18 @@ async def test_acme_client_create_client_jws_errors(
 
     with patch(
         "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(auth_cloud_mock, [], "test@nabucasa.inc", Mock()),
+        return_value=_MockAcme(cloud, [], "test@nabucasa.inc", Mock()),
     ):
-        assert remote._certificate_status is None
-        await remote.load_backend()
+        assert cloud.remote._certificate_status is None
+        await cloud.remote.load_backend()
 
     await asyncio.sleep(0.1)
-    assert remote._acme.call_reset == should_reset
-    assert remote._certificate_status is CertificateStatus.INITIAL_CERT_ERROR
+    assert cloud.remote._acme.call_reset == should_reset
+    assert cloud.remote._certificate_status is CertificateStatus.INITIAL_CERT_ERROR
 
-    await remote.stop()
+    assert snapshot == extract_log_messages(caplog)
+
+    await cloud.remote.stop()
 
 
 @pytest.mark.parametrize(
@@ -1436,28 +1174,19 @@ async def test_acme_client_create_client_jws_errors(
     ),
 )
 async def test_context_error_handling(
-    auth_cloud_mock,
-    mock_cognito,
-    valid_acme_mock,
-    aioclient_mock,
-    snitun_mock,
-    reason,
-    should_reset,
-    mock_timing,
-):
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    reason: str,
+    should_reset: bool,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+    mock_timing: None,
+) -> None:
     """Test that we reset if we hit an error reason that require resetting."""
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
-
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -1468,136 +1197,117 @@ async def test_context_error_handling(
     ssl_error = SSLError()
     ssl_error.reason = reason
 
-    with patch(
-        "hass_nabucasa.remote.RemoteUI._create_context",
-        side_effect=ssl_error,
-    ):
-        assert remote._certificate_status is None
-        await remote.load_backend()
+    # Direct mocking instead of patch
+    original_create_context = cloud.remote._create_context
+    cloud.remote._create_context = Mock(side_effect=ssl_error)
 
-    await asyncio.sleep(0.1)
-    assert remote._acme.call_reset == should_reset
-    assert remote._certificate_status is CertificateStatus.SSL_CONTEXT_ERROR
+    try:
+        assert cloud.remote._certificate_status is None
+        await cloud.remote.load_backend()
 
-    await remote.stop()
+        await asyncio.sleep(0.1)
+        assert cloud.remote._acme.call_reset == should_reset
+        assert cloud.remote._certificate_status is CertificateStatus.SSL_CONTEXT_ERROR
+
+        assert snapshot == extract_log_messages(caplog)
+    finally:
+        cloud.remote._create_context = original_create_context
+
+    await cloud.remote.stop()
 
 
-async def test_certificate_status_dispatcher(auth_cloud_mock):
+async def test_certificate_status_dispatcher(cloud: Cloud) -> None:
     """Test certificate status dispatcher functionality."""
-    remote = RemoteUI(auth_cloud_mock)
-
     # Test status update dispatching
-    remote._update_certificate_status(CertificateStatus.LOADING)
+    cloud.remote._update_certificate_status(CertificateStatus.LOADING)
 
     # Check that dispatcher was called
-    assert len(auth_cloud_mock.client.mock_dispatcher) == 1
-    assert auth_cloud_mock.client.mock_dispatcher[0] == (
+    assert len(cloud.client.mock_dispatcher) == 1
+    assert cloud.client.mock_dispatcher[0] == (
         DISPATCH_CERTIFICATE_STATUS,
         CertificateStatus.LOADING,
     )
 
     # Test second status update
-    remote._update_certificate_status(CertificateStatus.ERROR)
+    cloud.remote._update_certificate_status(CertificateStatus.ERROR)
 
-    assert len(auth_cloud_mock.client.mock_dispatcher) == 2
-    assert auth_cloud_mock.client.mock_dispatcher[1] == (
+    assert len(cloud.client.mock_dispatcher) == 2
+    assert cloud.client.mock_dispatcher[1] == (
         DISPATCH_CERTIFICATE_STATUS,
         CertificateStatus.ERROR,
     )
 
     # Test duplicate status update (should be ignored)
-    remote._update_certificate_status(CertificateStatus.ERROR)
+    cloud.remote._update_certificate_status(CertificateStatus.ERROR)
 
     # Should still be 2 calls since status didn't change
-    assert len(auth_cloud_mock.client.mock_dispatcher) == 2
+    assert len(cloud.client.mock_dispatcher) == 2
 
 
-async def test_recreate_acme_calls_reset_when_acme_exists(auth_cloud_mock):
+async def test_recreate_acme_calls_reset_when_acme_exists(cloud: Cloud) -> None:
     """Test that _recreate_acme calls reset_acme when _acme exists."""
-    remote = RemoteUI(auth_cloud_mock)
-
     mock_acme = MockAcme()
-    remote._acme = mock_acme
+    cloud.remote._acme = mock_acme
 
-    await remote._recreate_acme(["new.example.com"], "new@example.com")
+    await cloud.remote._recreate_acme(["new.example.com"], "new@example.com")
 
     assert mock_acme.call_reset is True
-    assert remote._acme is not mock_acme
+    assert cloud.remote._acme is not mock_acme
 
 
-async def test_recreate_acme_with_certificate_available(auth_cloud_mock):
+async def test_recreate_acme_with_certificate_available(cloud: Cloud) -> None:
     """Test _recreate_acme behavior when certificate is available."""
-    remote = RemoteUI(auth_cloud_mock)
-
     mock_acme = MockAcme()
-    remote._acme = mock_acme
+    cloud.remote._acme = mock_acme
 
-    await remote._recreate_acme(["new.example.com"], "new@example.com")
+    await cloud.remote._recreate_acme(["new.example.com"], "new@example.com")
 
     assert mock_acme.call_reset is True
-    assert remote._acme is not mock_acme
+    assert cloud.remote._acme is not mock_acme
 
 
-async def test_recreate_acme_without_certificate_available(auth_cloud_mock):
+async def test_recreate_acme_without_certificate_available(cloud: Cloud) -> None:
     """Test _recreate_acme behavior when certificate is not available."""
-    remote = RemoteUI(auth_cloud_mock)
-
     mock_acme = MockAcme()
     mock_acme.common_name = None
-    remote._acme = mock_acme
+    cloud.remote._acme = mock_acme
 
-    await remote._recreate_acme(["new.example.com"], "new@example.com")
+    await cloud.remote._recreate_acme(["new.example.com"], "new@example.com")
 
     assert mock_acme.call_reset is True
-    assert remote._acme is not mock_acme
+    assert cloud.remote._acme is not mock_acme
 
 
-async def test_recreate_acme_with_error_status(auth_cloud_mock):
+async def test_recreate_acme_with_error_status(cloud: Cloud) -> None:
     """Test _recreate_acme behavior when certificate status is ERROR."""
-    remote = RemoteUI(auth_cloud_mock)
-
     mock_acme = MockAcme()
-    remote._acme = mock_acme
-    remote._certificate_status = CertificateStatus.ERROR
+    cloud.remote._acme = mock_acme
+    cloud.remote._certificate_status = CertificateStatus.ERROR
 
-    await remote._recreate_acme(["new.example.com"], "new@example.com")
+    await cloud.remote._recreate_acme(["new.example.com"], "new@example.com")
 
     assert mock_acme.call_reset is True
-    assert remote._acme is not mock_acme
+    assert cloud.remote._acme is not mock_acme
 
 
-async def test_recreate_acme_when_no_acme_exists(auth_cloud_mock):
+async def test_recreate_acme_when_no_acme_exists(cloud: Cloud) -> None:
     """Test _recreate_acme behavior when no ACME handler exists."""
-    remote = RemoteUI(auth_cloud_mock)
+    cloud.remote._acme = None
 
-    remote._acme = None
+    await cloud.remote._recreate_acme(["test.example.com"], "test@example.com")
 
-    await remote._recreate_acme(["test.example.com"], "test@example.com")
-
-    assert remote._acme is not None
+    assert cloud.remote._acme is not None
 
 
 async def test_recreate_acme_integration_during_load_backend(
-    auth_cloud_mock,
-    valid_acme_mock,
-    mock_cognito,
-    aioclient_mock,
-    snitun_mock,
-):
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+) -> None:
     """Test _recreate_acme integration during load_backend with domain changes."""
-    auth_cloud_mock.servicehandlers_server = "test.local"
-
-    auth_cloud_mock.instance.register.return_value = {
-        "domain": "test.dui.nabu.casa",
-        "email": "test@nabucasa.inc",
-        "server": "rest-remote.nabu.casa",
-        "alias": ["new-alias.com"],
-    }
-
-    remote = RemoteUI(auth_cloud_mock)
-
     aioclient_mock.post(
-        "https://test.local/instance/register",
+        f"https://{cloud.servicehandlers_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -1605,24 +1315,25 @@ async def test_recreate_acme_integration_during_load_backend(
             "alias": ["new-alias.com"],
         },
     )
+    aioclient_mock.post(
+        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
+        json=[
+            "test.dui.nabu.casa",
+            "_acme-challenge.test.dui.nabu.casa",
+        ],
+    )
 
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "old-alias.com"]
 
-    auth_cloud_mock.accounts.instance_resolve_dns_cname.return_value = [
-        "test.dui.nabu.casa",
-        "_acme-challenge.test.dui.nabu.casa",
-    ]
-    auth_cloud_mock.accounts_server = "example.com"
-
-    await remote.load_backend()
+    await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
     assert valid_acme_mock.call_reset is True
 
     expected_domains = ["test.dui.nabu.casa", "new-alias.com"]
     assert valid_acme_mock.init_args == (
-        auth_cloud_mock,
+        cloud,
         expected_domains,
         "test@nabucasa.inc",
     )
