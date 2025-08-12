@@ -59,8 +59,7 @@ def test_acme_handler_create_client_jws_error_existing_registration(
     cloud: Cloud,
 ) -> None:
     """Test _create_client handles JWS error when registration exists."""
-    handler = AcmeHandler(
-        cloud, ["test.example.com"], "test@example.com", Mock())
+    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
 
     registration_data = '{"uri": "https://acme-v99.api.letsencrypt.org/acme/acct/1"}'
 
@@ -105,8 +104,7 @@ def test_acme_handler_create_client_jws_error_no_registration(
     error_location: str,
 ) -> None:
     """Test _create_client handles JWS errors when no registration exists."""
-    handler = AcmeHandler(
-        cloud, ["test.example.com"], "test@example.com", Mock())
+    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
 
     with (
         patch("hass_nabucasa.acme.client.ClientV2") as mock_clientv2,
