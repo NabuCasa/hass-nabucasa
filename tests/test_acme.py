@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 from acme import messages
 import pytest
 
+from hass_nabucasa import Cloud
 from hass_nabucasa.acme import (
     AcmeHandler,
     AcmeJWSVerificationError,
@@ -54,11 +55,12 @@ def test_raise_if_jws_verification_failed_should_not_raise(error):
     _raise_if_jws_verification_failed(error)
 
 
-def test_acme_handler_create_client_jws_error_existing_registration(auth_cloud_mock):
+def test_acme_handler_create_client_jws_error_existing_registration(
+    cloud: Cloud,
+) -> None:
     """Test _create_client handles JWS error when registration exists."""
     handler = AcmeHandler(
-        auth_cloud_mock, ["test.example.com"], "test@example.com", Mock()
-    )
+        cloud, ["test.example.com"], "test@example.com", Mock())
 
     registration_data = '{"uri": "https://acme-v99.api.letsencrypt.org/acme/acct/1"}'
 
@@ -98,12 +100,13 @@ def test_acme_handler_create_client_jws_error_existing_registration(auth_cloud_m
     ],
 )
 def test_acme_handler_create_client_jws_error_no_registration(
-    auth_cloud_mock, error_detail, error_location
-):
+    cloud: Cloud,
+    error_detail: str,
+    error_location: str,
+) -> None:
     """Test _create_client handles JWS errors when no registration exists."""
     handler = AcmeHandler(
-        auth_cloud_mock, ["test.example.com"], "test@example.com", Mock()
-    )
+        cloud, ["test.example.com"], "test@example.com", Mock())
 
     with (
         patch("hass_nabucasa.acme.client.ClientV2") as mock_clientv2,
