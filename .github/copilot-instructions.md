@@ -29,7 +29,7 @@ Important: All tests must pass. Partial success isn’t acceptable.
 - `ruff check` — Run ruff linting.
 - `mypy hass_nabucasa` — Run type checking.
 
-Environment
+### Environment
 - Python: >= 3.13 (see `pyproject.toml`). Ruff target: `py313`.
 - Before pushing, run `scripts/lint` and `scripts/test` locally.
 
