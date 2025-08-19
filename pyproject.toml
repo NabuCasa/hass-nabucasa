@@ -1,7 +1,7 @@
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [
-  "setuptools>=62.3",
+  "setuptools>=77.0",
 ]
 
 [project]
@@ -11,7 +11,6 @@ authors = [
 classifiers = [
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
     "Topic :: Internet :: Proxy Servers",
     "Topic :: Software Development :: Libraries :: Python Modules",
@@ -35,7 +34,7 @@ dependencies = [
     "sentence-stream==1.1.0",
 ]
 description = "Home Assistant cloud integration by Nabu Casa, Inc."
-license = {text = "GPL v3"}
+license = "GPL-3.0-only"
 name = "hass-nabucasa"
 readme = "README.md"
 requires-python = ">=3.13"
