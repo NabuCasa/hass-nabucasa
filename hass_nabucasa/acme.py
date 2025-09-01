@@ -412,7 +412,7 @@ class AcmeHandler:
     def _revoke_certificate(self) -> None:
         """Revoke certificate."""
         if not self.path_fullchain.exists():
-            _LOGGER.warning("Can't revoke not exists certificate")
+            _LOGGER.warning("Can't revoke a certificate that does not exist")
             return
 
         if self._acme_client is None:
