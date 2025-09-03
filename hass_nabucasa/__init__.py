@@ -18,7 +18,13 @@ import jwt
 
 from .account_api import AccountApi, AccountApiError
 from .accounts_api import AccountsApi, AccountsApiError
-from .alexa_api import AlexaApi, AlexaApiError
+from .alexa_api import (
+    AlexaAccessTokenDetails,
+    AlexaApi,
+    AlexaApiError,
+    AlexaApiNeedsRelinkError,
+    AlexaApiNoTokenError,
+)
 from .api import (
     CloudApiClientError,
     CloudApiCodedError,
@@ -66,7 +72,10 @@ __all__ = [
     "AccountApiError",
     "AccountsApi",
     "AccountsApiError",
+    "AlexaAccessTokenDetails",
     "AlexaApiError",
+    "AlexaApiNeedsRelinkError",
+    "AlexaApiNoTokenError",
     "AlreadyConnectedError",
     "CertificateStatus",
     "Cloud",
