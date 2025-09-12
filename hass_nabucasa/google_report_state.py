@@ -7,7 +7,7 @@ from asyncio.queues import Queue
 from typing import TYPE_CHECKING, Any
 import uuid
 
-from aiohttp import ClientResponse
+from aiohttp import ClientResponse, ClientTimeout
 
 from . import iot_base
 from .api import ApiBase, CloudApiError, CloudApiRawResponse, api_exception_handler
@@ -143,5 +143,6 @@ class GoogleReportState(iot_base.BaseIoT, ApiBase):
             method="POST",
             path="/request_sync",
             raw_response=True,
+            client_timeout=ClientTimeout(total=30),
         )
         return resp.response
