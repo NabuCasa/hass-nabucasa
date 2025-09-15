@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from asyncio import AbstractEventLoop
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from aiohttp import ClientSession
 from aiohttp.web import AppRunner
@@ -14,6 +14,13 @@ from .iot import HandlerError
 
 if TYPE_CHECKING:
     from . import Cloud
+
+
+class GeographicLocation(TypedDict, total=False):
+    """Geographic location information."""
+
+    country: str
+    continent: str
 
 
 class RemoteActivationNotAllowed(HandlerError):
@@ -63,6 +70,11 @@ class CloudClient(ABC):
     @abstractmethod
     def remote_autostart(self) -> bool:
         """Return true if we want start a remote connection."""
+
+    @property
+    @abstractmethod
+    def geographic_location(self) -> GeographicLocation | None:
+        """Instance geographic location information."""
 
     @abstractmethod
     async def cloud_connected(self) -> None:
