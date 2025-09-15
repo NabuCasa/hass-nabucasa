@@ -72,9 +72,9 @@ class CloudClient(ABC):
         """Return true if we want start a remote connection."""
 
     @property
-    @abstractmethod
     def geographic_location(self) -> GeographicLocation | None:
         """Instance geographic location information."""
+        return None
 
     @abstractmethod
     async def cloud_connected(self) -> None:
