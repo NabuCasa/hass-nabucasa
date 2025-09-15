@@ -41,6 +41,13 @@ class InstanceConnectionDisconnected(TypedDict):
 type InstanceConnection = InstanceConnectionConnnected | InstanceConnectionDisconnected
 
 
+class InstanceRegisterLocationHint(TypedDict, total=False):
+    """Location hint for instance registration."""
+
+    country: str
+    continent: str
+
+
 class InstanceRegistrationDetails(TypedDict):
     """Registration details from instance API."""
 
@@ -106,11 +113,20 @@ class InstanceApi(ApiBase):
         )
 
     @api_exception_handler(InstanceApiError)
-    async def register(self) -> InstanceRegistrationDetails:
+    async def register(
+        self,
+        *,
+        location_hint: InstanceRegisterLocationHint | None = None,
+    ) -> InstanceRegistrationDetails:
         """Register the instance."""
+        jsondata = {}
+        if location_hint is not None:
+            jsondata["location_hint"] = location_hint
+
         details: InstanceRegistrationDetails = await self._call_cloud_api(
             method="POST",
             path="/instance/register",
+            jsondata=jsondata if jsondata else None,
         )
         return details
 
