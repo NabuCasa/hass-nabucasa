@@ -92,3 +92,36 @@
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/dns_challenge_txt (200) 
   '''
 # ---
+# name: test_register_endpoint_problems[429-error]
+  '''
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (429) 
+  '''
+# ---
+# name: test_register_endpoint_problems[500-error]
+  '''
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (500) 
+  '''
+# ---
+# name: test_register_endpoint_problems[client-error]
+  '[DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register'
+# ---
+# name: test_register_endpoint_problems[timeout]
+  '[DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register'
+# ---
+# name: test_register_endpoint_problems[unexpected-error]
+  '[DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register'
+# ---
+# name: test_register_endpoint_success
+  '''
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
+  '''
+# ---
+# name: test_register_endpoint_success_with_location_hint
+  '''
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
+  '''
+# ---

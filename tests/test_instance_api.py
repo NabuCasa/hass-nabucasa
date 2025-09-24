@@ -227,3 +227,146 @@ async def test_create_dns_challenge_record_endpoint_success(
 
     assert result is None
     assert snapshot == extract_log_messages(caplog)
+
+
+@pytest.mark.parametrize(
+    "exception,mockargs,exception_msg",
+    [
+        [
+            InstanceApiError,
+            {"status": 500, "text": "Internal Server Error"},
+            "Failed to fetch: (500) ",
+        ],
+        [
+            InstanceApiError,
+            {"status": 429, "text": "Too fast"},
+            "Failed to fetch: (429) ",
+        ],
+        [
+            InstanceApiError,
+            {"exc": TimeoutError()},
+            "Timeout reached while calling API",
+        ],
+        [
+            InstanceApiError,
+            {"exc": ClientError("boom!")},
+            "Failed to fetch: boom!",
+        ],
+        [
+            InstanceApiError,
+            {"exc": Exception("boom!")},
+            "Unexpected error while calling API: boom!",
+        ],
+    ],
+    ids=["500-error", "429-error", "timeout", "client-error", "unexpected-error"],
+)
+async def test_register_endpoint_problems(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    exception: Exception,
+    mockargs: dict[str, Any],
+    snapshot: SnapshotAssertion,
+    exception_msg: str,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test problems with register endpoint."""
+    aioclient_mock.post(
+        f"https://{cloud.servicehandlers_server}/instance/register",
+        **mockargs,
+    )
+
+    with pytest.raises(exception, match=re.escape(exception_msg)):
+        await cloud.instance.register()
+
+    assert snapshot == extract_log_messages(caplog)
+
+
+async def test_register_endpoint_success(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+):
+    """Test successful register endpoint."""
+    expected_result = {
+        "domain": "example.nabu.casa",
+        "email": "user@example.com",
+        "server": "server.nabu.casa",
+    }
+
+    aioclient_mock.post(
+        f"https://{cloud.servicehandlers_server}/instance/register",
+        json=expected_result,
+    )
+
+    result = await cloud.instance.register()
+
+    assert result == expected_result
+    assert snapshot == extract_log_messages(caplog)
+
+    assert len(aioclient_mock.mock_calls) == 1
+
+
+async def test_register_endpoint_success_with_location_hint(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+):
+    """Test successful register endpoint with location hint."""
+    expected_result = {
+        "domain": "example.nabu.casa",
+        "email": "user@example.com",
+        "server": "server.nabu.casa",
+    }
+
+    aioclient_mock.post(
+        f"https://{cloud.servicehandlers_server}/instance/register",
+        json=expected_result,
+    )
+
+    location_hint = {"country": "US", "continent": "NA"}
+    result = await cloud.instance.register(location_hint=location_hint)
+
+    assert result == expected_result
+    assert snapshot == extract_log_messages(caplog)
+
+    assert len(aioclient_mock.mock_calls) == 1
+    call = aioclient_mock.mock_calls[0]
+    assert call[2] == {"location_hint": location_hint}
+
+
+@pytest.mark.parametrize(
+    "location_hint",
+    [
+        {"country": "US"},
+        {"continent": "NA"},
+        {"country": "US", "continent": "NA"},
+        {},
+    ],
+    ids=["country-only", "continent-only", "both", "empty"],
+)
+async def test_register_endpoint_with_partial_location_hints(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    location_hint: dict[str, str],
+):
+    """Test register endpoint with various location hint combinations."""
+    expected_result = {
+        "domain": "example.nabu.casa",
+        "email": "user@example.com",
+        "server": "server.nabu.casa",
+    }
+
+    aioclient_mock.post(
+        f"https://{cloud.servicehandlers_server}/instance/register",
+        json=expected_result,
+    )
+
+    result = await cloud.instance.register(location_hint=location_hint)
+
+    assert result == expected_result
+
+    assert len(aioclient_mock.mock_calls) == 1
+    call = aioclient_mock.mock_calls[0]
+    assert call[2] == {"location_hint": location_hint}
