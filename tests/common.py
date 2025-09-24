@@ -11,7 +11,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from hass_nabucasa.client import CloudClient
+from hass_nabucasa.client import CloudClient, GeographicLocation
 
 FROZEN_NOW_AS_TIMESTAMP = 1537185600  # 2018-09-17 12:00:00 UTC
 
@@ -26,6 +26,7 @@ class MockClient(CloudClient):
         self._cloudhooks = {}
         self._aiohttp_runner = Mock()
         self.prop_remote_autostart = True
+        self.prop_geographic_location = None
 
         self.mock_user = []
         self.mock_dispatcher = []
@@ -75,6 +76,11 @@ class MockClient(CloudClient):
     def remote_autostart(self) -> bool:
         """Return true if we want start a remote connection."""
         return self.prop_remote_autostart
+
+    @property
+    def geographic_location(self) -> GeographicLocation | None:
+        """Return geographic location information."""
+        return self.prop_geographic_location
 
     async def cloud_connected(self):
         """Handle cloud connected."""
