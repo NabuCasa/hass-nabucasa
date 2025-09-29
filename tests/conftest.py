@@ -134,7 +134,6 @@ async def cloud(
             region="xx-earth-616",
             account_link_server="account-link.example.com",
             accounts_server="accounts.example.com",
-            cloudhook_server="cloudhooks.example.com",
             acme_server="acme.example.com",
             relayer_server="relayer.example.com",
             remotestate_server="remotestate.example.com",
