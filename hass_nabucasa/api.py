@@ -198,7 +198,7 @@ class ApiBase(ABC):
         headers: dict[str, Any],
         jsondata: dict[str, Any] | None = None,
         data: Any | None = None,
-        params: Query = None,
+        params: Query | None = None,
     ) -> ClientResponse:
         """Call raw API."""
         self._do_log_request(method, url)
@@ -244,7 +244,7 @@ class ApiBase(ABC):
         headers: dict[str, Any] | None = None,
         skip_token_check: bool = False,
         raw_response: bool = False,
-        params: Query = None,
+        params: Query | None = None,
     ) -> Any:
         """Call cloud API."""
         data: dict[str, Any] | list[Any] | str | None = None
