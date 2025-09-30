@@ -279,6 +279,32 @@ async def test_raw_response_with_json_data(
     assert result.response.status == 201
 
 
+async def test_raw_response_with_params(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+) -> None:
+    """Test raw_response parameter with JSON response data."""
+    test_api = AwesomeApiClass(auth_cloud_mock)
+
+    test_data = {"message": "Hello", "count": 42}
+    aioclient_mock.get(
+        "https://example.com/test?param=value",
+        json=test_data,
+        status=200,
+    )
+
+    result = await test_api._call_cloud_api(
+        path="/test",
+        method="GET",
+        raw_response=True,
+        params={"param": "value"},
+    )
+
+    assert isinstance(result, CloudApiRawResponse)
+    assert result.data == test_data
+    assert result.response.status == 200
+
+
 def test_cloud_api_raw_response_dataclass():
     """Test CloudApiRawResponse dataclass structure."""
     mock_response = Mock()
