@@ -175,7 +175,12 @@ class ApiBase(ABC):
             return
         isok = resp.status < 400
         target = resp.url.path if resp.url.host == self.hostname else ""
-        target += f"?{resp.url.query_string}" if resp.url.query_string else ""
+        if len(resp.url.query) > 0:
+            query_params = [
+                f"{key}=***" if value not in ["true", "false"] else f"{key}={value}"
+                for key, value in resp.url.query.items()
+            ]
+            target += f"?{'&'.join(query_params)}"
         _LOGGER.debug(
             "Response for %s from %s%s (%s) %s",
             resp.method,
