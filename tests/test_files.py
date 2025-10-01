@@ -14,7 +14,7 @@ from hass_nabucasa.files import Files, FilesError, calculate_b64md5
 from tests.utils.aiohttp import AiohttpClientMocker
 
 API_HOSTNAME = "example.com"
-FILES_API_URL = "https://files.api.fakeurl/path?X-Amz-Algorithm=blah"
+FILES_API_URL = "https://files.api.fakeurl/path?X-Amz-Algorithm=***"
 
 
 STORED_BACKUP = {
@@ -221,12 +221,12 @@ async def test_upload_returning_403_and_expired_subscription(
         [
             FilesError,
             {"status": 400, "json": {"message": "Oh no!"}},
-            "Response for put from files.api.fakeurl (400)",
+            "Response for put from files.api.fakeurl?X-Amz-Algorithm=*** (400)",
         ],
         [
             FilesError,
             {"status": 500, "text": "Internal Server Error"},
-            "Response for put from files.api.fakeurl (500)",
+            "Response for put from files.api.fakeurl?X-Amz-Algorithm=*** (500)",
         ],
     ],
 )
@@ -285,7 +285,10 @@ async def test_upload(
 
     assert "Uploading test file with name lorem.ipsum" in caplog.text
     assert "Response for get from example.com/files/upload_details (200)" in caplog.text
-    assert "Response for put from files.api.fakeurl (200)" in caplog.text
+    assert (
+        "Response for put from files.api.fakeurl?X-Amz-Algorithm=*** (200)"
+        in caplog.text
+    )
 
 
 @pytest.mark.parametrize(
@@ -405,12 +408,12 @@ async def test_upload_bad_status_while_getting_download_details(
         [
             FilesError,
             {"status": 400, "json": {"message": "Oh no!"}},
-            "Response for get from files.api.fakeurl (400)",
+            "Response for get from files.api.fakeurl?X-Amz-Algorithm=*** (400)",
         ],
         [
             FilesError,
             {"status": 500, "text": "Internal Server Error"},
-            "Response for get from files.api.fakeurl (500)",
+            "Response for get from files.api.fakeurl?X-Amz-Algorithm=*** (500)",
         ],
     ],
 )
@@ -464,7 +467,10 @@ async def test_downlaod(
         "Response for get from example.com/files/download_details/test/lorem.ipsum "
         "(200)" in caplog.text
     )
-    assert "Response for get from files.api.fakeurl (200)" in caplog.text
+    assert (
+        "Response for get from files.api.fakeurl?X-Amz-Algorithm=*** (200)"
+        in caplog.text
+    )
 
 
 async def test_list(

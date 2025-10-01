@@ -279,6 +279,57 @@ async def test_raw_response_with_json_data(
     assert result.response.status == 201
 
 
+@pytest.mark.parametrize(
+    "params,query_string,params_in_log",
+    [
+        [{"param": "value"}, "param=value", "param=***"],
+        [
+            {"param": "value", "param2": "value2"},
+            "param=value&param2=value2",
+            "param=***&param2=***",
+        ],
+        [{"param": "True"}, "param=True", "param=True"],
+        [{"param": "false"}, "param=false", "param=false"],
+        [
+            {"param": "value", "param2": "true", "param3": "value3", "param4": "false"},
+            "param=value&param2=true&param3=value3&param4=false",
+            "param=***&param2=true&param3=***&param4=false",
+        ],
+    ],
+)
+async def test_raw_response_with_params(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    params: dict,
+    query_string: str,
+    params_in_log: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test raw_response parameter with JSON response data."""
+    test_api = AwesomeApiClass(auth_cloud_mock)
+
+    test_data = {"message": "Hello", "count": 42}
+    aioclient_mock.get(
+        f"https://example.com/test?{query_string}",
+        json=test_data,
+        status=200,
+    )
+
+    result = await test_api._call_cloud_api(
+        path="/test",
+        method="GET",
+        raw_response=True,
+        params=params,
+    )
+
+    assert isinstance(result, CloudApiRawResponse)
+    assert result.data == test_data
+    assert result.response.status == 200
+    assert (
+        f"Response for get from example.com/test?{params_in_log} (200)" in caplog.text
+    )
+
+
 def test_cloud_api_raw_response_dataclass():
     """Test CloudApiRawResponse dataclass structure."""
     mock_response = Mock()
