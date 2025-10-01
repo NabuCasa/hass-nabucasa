@@ -288,7 +288,7 @@ async def test_raw_response_with_json_data(
             "param=value&param2=value2",
             "param=***&param2=***",
         ],
-        [{"param": "true"}, "param=true", "param=true"],
+        [{"param": "True"}, "param=True", "param=True"],
         [{"param": "false"}, "param=false", "param=false"],
         [
             {"param": "value", "param2": "true", "param3": "value3", "param4": "false"},

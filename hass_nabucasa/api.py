@@ -176,8 +176,11 @@ class ApiBase(ABC):
         isok = resp.status < 400
         target = resp.url.path if resp.url.host == self.hostname else ""
         if len(resp.url.query) > 0:
+            allowed_values = {"true", "false"}
             query_params = [
-                f"{key}=***" if value not in ["true", "false"] else f"{key}={value}"
+                f"{key}=***"
+                if value.lower() not in allowed_values
+                else f"{key}={value}"
                 for key, value in resp.url.query.items()
             ]
             target += f"?{'&'.join(query_params)}"
