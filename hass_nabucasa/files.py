@@ -160,6 +160,9 @@ class Files(ApiBase):
                 orig_exc=err,
             ) from err
 
+        # We need to list files to clear the cache after a successful upload.
+        await self.list(storage_type, clear_cache=True)
+
     async def download(
         self,
         storage_type: StorageType,
@@ -203,10 +206,13 @@ class Files(ApiBase):
     async def list(
         self,
         storage_type: StorageType,
+        clear_cache: bool = False,
     ) -> list[StoredFile]:
         """List files."""
         files: list[StoredFile] = await self._call_cloud_api(
-            path=f"/files/{storage_type}"
+            path=f"/files/{storage_type}",
+            params={"clearCache": "true"} if clear_cache else None,
+            api_version=2,
         )
         return files
 

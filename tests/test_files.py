@@ -271,6 +271,10 @@ async def test_upload(
         f"https://{API_HOSTNAME}/files/upload_details",
         json={"url": FILES_API_URL, "headers": {}},
     )
+    aioclient_mock.get(
+        f"https://{API_HOSTNAME}/v2/files/test",
+        json=[STORED_BACKUP],
+    )
 
     aioclient_mock.put(FILES_API_URL, status=200)
 
@@ -289,6 +293,7 @@ async def test_upload(
         "Response for put from files.api.fakeurl?X-Amz-Algorithm=*** (200)"
         in caplog.text
     )
+    assert "Response for get from example.com/v2/files/test (200)" in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -481,7 +486,7 @@ async def test_list(
     """Test listing files."""
     files = Files(auth_cloud_mock)
     aioclient_mock.get(
-        f"https://{API_HOSTNAME}/files/test",
+        f"https://{API_HOSTNAME}/v2/files/test",
         json=[STORED_BACKUP],
     )
 
@@ -489,7 +494,29 @@ async def test_list(
 
     assert files[0] == STORED_BACKUP
     assert len(aioclient_mock.mock_calls) == 1
-    assert "Response for get from example.com/files/test (200)" in caplog.text
+    assert "Response for get from example.com/v2/files/test (200)" in caplog.text
+
+
+async def test_list_with_clear_cache(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test listing files."""
+    files = Files(auth_cloud_mock)
+    aioclient_mock.get(
+        f"https://{API_HOSTNAME}/v2/files/test?clearCache=true",
+        json=[STORED_BACKUP],
+    )
+
+    files = await files.list(storage_type="test", clear_cache=True)
+
+    assert files[0] == STORED_BACKUP
+    assert len(aioclient_mock.mock_calls) == 1
+    assert (
+        "Response for get from example.com/v2/files/test?clearCache=true (200)"
+        in caplog.text
+    )
 
 
 @pytest.mark.parametrize(
@@ -508,7 +535,7 @@ async def test_exceptions_while_listing(
 ):
     """Test handling exceptions during file download."""
     files = Files(auth_cloud_mock)
-    aioclient_mock.get(f"https://{API_HOSTNAME}/files/test", exc=exception("Boom!"))
+    aioclient_mock.get(f"https://{API_HOSTNAME}/v2/files/test", exc=exception("Boom!"))
 
     with pytest.raises(FilesError, match=msg):
         await files.list(storage_type="test")
