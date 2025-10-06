@@ -127,6 +127,7 @@ class Cloud(Generic[_ClientT]):
         client: _ClientT,
         mode: Literal["development", "production"],
         *,
+        api_server: str | None = None,
         cognito_client_id: str | None = None,
         region: str | None = None,
         user_pool_id: str | None = None,
@@ -168,6 +169,7 @@ class Cloud(Generic[_ClientT]):
         self.account_link_server = _servers.get("account_link", account_link_server)
         self.accounts_server = _servers.get("accounts", accounts_server)
         self.acme_server = _servers.get("acme", acme_server)
+        self.api_server = _servers.get("api", api_server)
         self.relayer_server = _servers.get("relayer", relayer_server)
         self.remotestate_server = _servers.get("remotestate", remotestate_server)
         self.servicehandlers_server = _servers.get(
