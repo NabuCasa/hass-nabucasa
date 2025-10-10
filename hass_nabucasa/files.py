@@ -206,6 +206,7 @@ class Files(ApiBase):
     async def list(
         self,
         storage_type: StorageType,
+        *,
         clear_cache: bool = False,
     ) -> list[StoredFile]:
         """List files."""
