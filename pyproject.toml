@@ -213,3 +213,6 @@ hass_nabucasa = [
 include = [
   "hass_nabucasa*",
 ]
+
+[tool.codespell]
+ignore-words-list = "hass,Mayu"

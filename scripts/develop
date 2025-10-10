@@ -1,0 +1,25 @@
+#!/bin/sh
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+# Install Home Assistant
+if [ -n "$1" ]; then
+    echo "Installing Home Assistant version $1..."
+    pip install "homeassistant==$1"
+else
+    echo "Installing latest Home Assistant version..."
+    pip install --upgrade homeassistant
+fi
+
+# Ensure config directory is present
+hass --config "${PWD}/config" --script ensure_config
+
+# Set the path to hass_nabucasa for development
+## This allows Home Assistant to use the local development version of hass_nabucasa
+## instead of the installed package, without requiring reinstallation after each change.
+export PYTHONPATH="${PYTHONPATH}:${PWD}"
+
+# Start Home Assistant
+hass --config "${PWD}/config" --debug
