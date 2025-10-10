@@ -108,7 +108,7 @@ class Files(ApiBase):
         base64md5hash: str,
         size: int,
         metadata: dict[str, Any] | None = None,
-    ) -> None:
+    ) -> list[StoredFile]:
         """Upload a file."""
         _LOGGER.debug("Uploading %s file with name %s", storage_type, filename)
         try:
@@ -161,7 +161,7 @@ class Files(ApiBase):
             ) from err
 
         # We need to list files to clear the cache after a successful upload.
-        await self.list(storage_type, clear_cache=True)
+        return await self.list(storage_type, clear_cache=True)
 
     async def download(
         self,
