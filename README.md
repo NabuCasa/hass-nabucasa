@@ -58,6 +58,14 @@ This project uses pre-commit hooks for code quality checks:
 scripts/lint
 ```
 
+### Local development environment
+
+To test the package locally within Home Assistant:
+
+```bash
+scripts/develop
+```
+
 ### Updating voice data
 
 To update the voice data with the latest from Azure:
