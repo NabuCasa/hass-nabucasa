@@ -211,7 +211,7 @@ class Files(ApiBase):
         """List files."""
         files: list[StoredFile] = await self._call_cloud_api(
             path=f"/files/{storage_type}",
-            params={"clearCache": "true"} if clear_cache else None,
+            params={"clearCache": str(clear_cache).lower()},
             api_version=2,
         )
         return files
