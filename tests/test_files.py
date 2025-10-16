@@ -66,7 +66,10 @@ async def test_upload_exceptions_while_getting_details(
 @pytest.mark.parametrize(
     "putmockargs,msg",
     [
-        [{"exc": TimeoutError("Boom!")}, "Timeout reached while calling API"],
+        [
+            {"exc": TimeoutError("Boom!")},
+            "Timeout reached while calling API: total allowed time is 43200.0 seconds",
+        ],
         [{"exc": ClientError("Boom!")}, "Failed to fetch: Boom!"],
         [{"exc": Exception("Boom!")}, "Unexpected error while calling API: Boom!"],
         [{"status": 400}, "Failed to upload: (400) "],
