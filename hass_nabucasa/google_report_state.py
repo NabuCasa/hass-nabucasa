@@ -143,6 +143,6 @@ class GoogleReportState(iot_base.BaseIoT, ApiBase):
             method="POST",
             path="/request_sync",
             raw_response=True,
-            client_timeout=ClientTimeout(total=30),
+            client_timeout=ClientTimeout(total=300),
         )
         return resp.response
