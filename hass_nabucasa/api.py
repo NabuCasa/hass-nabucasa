@@ -41,6 +41,8 @@ ALLOW_EMPTY_RESPONSE = frozenset(
     }
 )
 
+DEFAULT_API_TIMEOUT = ClientTimeout(total=60)
+
 
 def api_exception_handler(
     exception: type[CloudApiError],
@@ -222,7 +224,8 @@ class ApiBase(ABC):
             )
         except TimeoutError as err:
             raise CloudApiTimeoutError(
-                "Timeout reached while calling API",
+                f"Timeout reached while calling API: total allowed time is "
+                f"{client_timeout.total} seconds",
                 orig_exc=err,
             ) from err
         except ClientResponseError as err:
@@ -266,7 +269,7 @@ class ApiBase(ABC):
         resp = await self._call_raw_api(
             method=method,
             url=f"https://{self.hostname}{url_path}",
-            client_timeout=client_timeout or ClientTimeout(total=10),
+            client_timeout=client_timeout or DEFAULT_API_TIMEOUT,
             headers={
                 hdrs.ACCEPT: "application/json",
                 hdrs.AUTHORIZATION: f"Bearer {self._cloud.id_token}",
