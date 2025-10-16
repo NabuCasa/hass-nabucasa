@@ -107,3 +107,6 @@ venv.bak/
 # Editors
 .vscode/
 .claude
+
+# Home Assistant
+config/
