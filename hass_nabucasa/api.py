@@ -19,6 +19,7 @@ from aiohttp import (
     ContentTypeError,
     hdrs,
 )
+from aiohttp.typedefs import Query
 from yarl import URL
 
 from .auth import Unauthenticated, UnknownError
@@ -39,6 +40,8 @@ ALLOW_EMPTY_RESPONSE = frozenset(
         "HEAD",
     }
 )
+
+DEFAULT_API_TIMEOUT = ClientTimeout(total=60)
 
 
 def api_exception_handler(
@@ -174,6 +177,15 @@ class ApiBase(ABC):
             return
         isok = resp.status < 400
         target = resp.url.path if resp.url.host == self.hostname else ""
+        if len(resp.url.query) > 0:
+            allowed_values = {"true", "false"}
+            query_params = [
+                f"{key}=***"
+                if value.lower() not in allowed_values
+                else f"{key}={value}"
+                for key, value in resp.url.query.items()
+            ]
+            target += f"?{'&'.join(query_params)}"
         _LOGGER.debug(
             "Response for %s from %s%s (%s) %s",
             resp.method,
@@ -196,6 +208,7 @@ class ApiBase(ABC):
         headers: dict[str, Any],
         jsondata: dict[str, Any] | None = None,
         data: Any | None = None,
+        params: Query | None = None,
     ) -> ClientResponse:
         """Call raw API."""
         self._do_log_request(method, url)
@@ -207,10 +220,12 @@ class ApiBase(ABC):
                 headers=headers,
                 json=jsondata,
                 data=data,
+                params=params,
             )
         except TimeoutError as err:
             raise CloudApiTimeoutError(
-                "Timeout reached while calling API",
+                f"Timeout reached while calling API: total allowed time is "
+                f"{client_timeout.total} seconds",
                 orig_exc=err,
             ) from err
         except ClientResponseError as err:
@@ -240,6 +255,7 @@ class ApiBase(ABC):
         headers: dict[str, Any] | None = None,
         skip_token_check: bool = False,
         raw_response: bool = False,
+        params: Query | None = None,
     ) -> Any:
         """Call cloud API."""
         data: dict[str, Any] | list[Any] | str | None = None
@@ -253,7 +269,7 @@ class ApiBase(ABC):
         resp = await self._call_raw_api(
             method=method,
             url=f"https://{self.hostname}{url_path}",
-            client_timeout=client_timeout or ClientTimeout(total=10),
+            client_timeout=client_timeout or DEFAULT_API_TIMEOUT,
             headers={
                 hdrs.ACCEPT: "application/json",
                 hdrs.AUTHORIZATION: f"Bearer {self._cloud.id_token}",
@@ -262,6 +278,7 @@ class ApiBase(ABC):
                 **(headers or {}),
             },
             jsondata=jsondata,
+            params=params,
         )
 
         if resp.status < 500:

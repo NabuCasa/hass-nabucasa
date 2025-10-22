@@ -108,7 +108,7 @@ class Files(ApiBase):
         base64md5hash: str,
         size: int,
         metadata: dict[str, Any] | None = None,
-    ) -> None:
+    ) -> list[StoredFile]:
         """Upload a file."""
         _LOGGER.debug("Uploading %s file with name %s", storage_type, filename)
         try:
@@ -160,6 +160,9 @@ class Files(ApiBase):
                 orig_exc=err,
             ) from err
 
+        # We need to list files to clear the cache after a successful upload.
+        return await self.list(storage_type, clear_cache=True)
+
     async def download(
         self,
         storage_type: StorageType,
@@ -203,10 +206,14 @@ class Files(ApiBase):
     async def list(
         self,
         storage_type: StorageType,
+        *,
+        clear_cache: bool = False,
     ) -> list[StoredFile]:
         """List files."""
         files: list[StoredFile] = await self._call_cloud_api(
-            path=f"/files/{storage_type}"
+            path=f"/files/{storage_type}",
+            params={"clearCache": str(clear_cache).lower()},
+            api_version=2,
         )
         return files
 

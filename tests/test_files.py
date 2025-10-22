@@ -14,7 +14,7 @@ from hass_nabucasa.files import Files, FilesError, calculate_b64md5
 from tests.utils.aiohttp import AiohttpClientMocker
 
 API_HOSTNAME = "example.com"
-FILES_API_URL = "https://files.api.fakeurl/path?X-Amz-Algorithm=blah"
+FILES_API_URL = "https://files.api.fakeurl/path?X-Amz-Algorithm=***"
 
 
 STORED_BACKUP = {
@@ -66,7 +66,10 @@ async def test_upload_exceptions_while_getting_details(
 @pytest.mark.parametrize(
     "putmockargs,msg",
     [
-        [{"exc": TimeoutError("Boom!")}, "Timeout reached while calling API"],
+        [
+            {"exc": TimeoutError("Boom!")},
+            "Timeout reached while calling API: total allowed time is 43200.0 seconds",
+        ],
         [{"exc": ClientError("Boom!")}, "Failed to fetch: Boom!"],
         [{"exc": Exception("Boom!")}, "Unexpected error while calling API: Boom!"],
         [{"status": 400}, "Failed to upload: (400) "],
@@ -221,12 +224,12 @@ async def test_upload_returning_403_and_expired_subscription(
         [
             FilesError,
             {"status": 400, "json": {"message": "Oh no!"}},
-            "Response for put from files.api.fakeurl (400)",
+            "Response for put from files.api.fakeurl?X-Amz-Algorithm=*** (400)",
         ],
         [
             FilesError,
             {"status": 500, "text": "Internal Server Error"},
-            "Response for put from files.api.fakeurl (500)",
+            "Response for put from files.api.fakeurl?X-Amz-Algorithm=*** (500)",
         ],
     ],
 )
@@ -271,6 +274,10 @@ async def test_upload(
         f"https://{API_HOSTNAME}/files/upload_details",
         json={"url": FILES_API_URL, "headers": {}},
     )
+    aioclient_mock.get(
+        f"https://{API_HOSTNAME}/v2/files/test",
+        json=[STORED_BACKUP],
+    )
 
     aioclient_mock.put(FILES_API_URL, status=200)
 
@@ -285,7 +292,11 @@ async def test_upload(
 
     assert "Uploading test file with name lorem.ipsum" in caplog.text
     assert "Response for get from example.com/files/upload_details (200)" in caplog.text
-    assert "Response for put from files.api.fakeurl (200)" in caplog.text
+    assert (
+        "Response for put from files.api.fakeurl?X-Amz-Algorithm=*** (200)"
+        in caplog.text
+    )
+    assert "Response for get from example.com/v2/files/test (200)" in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -405,12 +416,12 @@ async def test_upload_bad_status_while_getting_download_details(
         [
             FilesError,
             {"status": 400, "json": {"message": "Oh no!"}},
-            "Response for get from files.api.fakeurl (400)",
+            "Response for get from files.api.fakeurl?X-Amz-Algorithm=*** (400)",
         ],
         [
             FilesError,
             {"status": 500, "text": "Internal Server Error"},
-            "Response for get from files.api.fakeurl (500)",
+            "Response for get from files.api.fakeurl?X-Amz-Algorithm=*** (500)",
         ],
     ],
 )
@@ -464,7 +475,10 @@ async def test_downlaod(
         "Response for get from example.com/files/download_details/test/lorem.ipsum "
         "(200)" in caplog.text
     )
-    assert "Response for get from files.api.fakeurl (200)" in caplog.text
+    assert (
+        "Response for get from files.api.fakeurl?X-Amz-Algorithm=*** (200)"
+        in caplog.text
+    )
 
 
 async def test_list(
@@ -475,7 +489,7 @@ async def test_list(
     """Test listing files."""
     files = Files(auth_cloud_mock)
     aioclient_mock.get(
-        f"https://{API_HOSTNAME}/files/test",
+        f"https://{API_HOSTNAME}/v2/files/test",
         json=[STORED_BACKUP],
     )
 
@@ -483,7 +497,29 @@ async def test_list(
 
     assert files[0] == STORED_BACKUP
     assert len(aioclient_mock.mock_calls) == 1
-    assert "Response for get from example.com/files/test (200)" in caplog.text
+    assert "Response for get from example.com/v2/files/test (200)" in caplog.text
+
+
+async def test_list_with_clear_cache(
+    aioclient_mock: AiohttpClientMocker,
+    auth_cloud_mock: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test listing files."""
+    files = Files(auth_cloud_mock)
+    aioclient_mock.get(
+        f"https://{API_HOSTNAME}/v2/files/test?clearCache=true",
+        json=[STORED_BACKUP],
+    )
+
+    files = await files.list(storage_type="test", clear_cache=True)
+
+    assert files[0] == STORED_BACKUP
+    assert len(aioclient_mock.mock_calls) == 1
+    assert (
+        "Response for get from example.com/v2/files/test?clearCache=true (200)"
+        in caplog.text
+    )
 
 
 @pytest.mark.parametrize(
@@ -502,7 +538,7 @@ async def test_exceptions_while_listing(
 ):
     """Test handling exceptions during file download."""
     files = Files(auth_cloud_mock)
-    aioclient_mock.get(f"https://{API_HOSTNAME}/files/test", exc=exception("Boom!"))
+    aioclient_mock.get(f"https://{API_HOSTNAME}/v2/files/test", exc=exception("Boom!"))
 
     with pytest.raises(FilesError, match=msg):
         await files.list(storage_type="test")

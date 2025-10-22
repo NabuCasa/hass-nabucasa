@@ -12,14 +12,14 @@ def mock_cloudhooks(auth_cloud_mock):
     """Mock cloudhooks class."""
     auth_cloud_mock.run_executor = AsyncMock()
     auth_cloud_mock.iot = Mock(async_send_message=AsyncMock())
-    auth_cloud_mock.cloudhook_server = "webhook-create.url"
+    auth_cloud_mock.servicehandlers_server = "webhook-create.url"
     return cloudhooks.Cloudhooks(auth_cloud_mock)
 
 
 async def test_enable(mock_cloudhooks, aioclient_mock):
     """Test enabling cloudhooks."""
-    aioclient_mock.post(
-        "https://webhook-create.url/generate",
+    aioclient_mock.get(
+        "https://webhook-create.url/instance/webhook",
         json={
             "cloudhook_id": "mock-cloud-id",
             "url": "https://hooks.nabu.casa/ZXCZCXZ",
@@ -69,8 +69,8 @@ async def test_create_without_connected(mock_cloudhooks, aioclient_mock):
     # Make sure we fail test when we send a message.
     mock_cloudhooks._cloud.iot.async_send_message.side_effect = ValueError
 
-    aioclient_mock.post(
-        "https://webhook-create.url/generate",
+    aioclient_mock.get(
+        "https://webhook-create.url/instance/webhook",
         json={
             "cloudhook_id": "mock-cloud-id",
             "url": "https://hooks.nabu.casa/ZXCZCXZ",

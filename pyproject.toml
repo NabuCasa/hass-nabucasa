@@ -18,7 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "acme==4.2.0",
+    "acme==5.1.0",
     "aiohttp>=3.6.1",
     "async_timeout>=4",
     "atomicwrites-homeassistant==1.4.1",
@@ -28,10 +28,10 @@ dependencies = [
     "josepy>=2,<3",
     "pycognito==2024.5.1",
     "PyJWT>=2.8.0",
-    "snitun==0.44.0",
+    "snitun==0.45.1",
     "webrtc-models<1.0.0",
     "yarl>=1.20,<2",
-    "sentence-stream==1.1.0",
+    "sentence-stream==1.2.1",
 ]
 description = "Home Assistant cloud integration by Nabu Casa, Inc."
 license = "GPL-3.0-only"
@@ -44,20 +44,20 @@ version = "0.0.0"
 test = [
     "codespell==2.4.1",
     "freezegun==1.5.5",
-    "mypy==1.17.1",
+    "mypy==1.18.2",
     "pre-commit==4.3.0",
     "pre-commit-hooks==6.0.0",
-    "pylint==3.3.8",
+    "pylint==4.0.2",
     "pytest-aiohttp==1.1.0",
     "pytest-socket==0.7.0",
     "pytest-timeout==2.4.0",
-    "pytest==8.4.1",
-    "ruff==0.12.8",
+    "pytest==8.4.2",
+    "ruff==0.14.1",
     "types_atomicwrites==1.4.5.1",
     "types_pyOpenSSL==24.1.0.20240722",
-    "xmltodict==0.14.2",
-    "syrupy==4.9.1",
-    "tomli==2.2.1",
+    "xmltodict==1.0.2",
+    "syrupy==5.0.0",
+    "tomli==2.3.0",
 ]
 
 [tool.mypy]

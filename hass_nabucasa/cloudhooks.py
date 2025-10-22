@@ -35,8 +35,8 @@ class Cloudhooks(ApiBase):
     def hostname(self) -> str:
         """Get the hostname."""
         if TYPE_CHECKING:
-            assert self._cloud.cloudhook_server is not None
-        return self._cloud.cloudhook_server
+            assert self._cloud.servicehandlers_server is not None
+        return self._cloud.servicehandlers_server
 
     async def async_publish_cloudhooks(self) -> None:
         """Inform the Relayer of the cloudhooks that we support."""
@@ -96,9 +96,8 @@ class Cloudhooks(ApiBase):
 
     @api_exception_handler(CloudhookApiError)
     async def generate(self) -> GeneratedCloudhookDetails:
-        """Get the voice connection details."""
+        """Get generated cloudhook details."""
         details: GeneratedCloudhookDetails = await self._call_cloud_api(
-            method="POST",
-            path="/generate",
+            path="/instance/webhook",
         )
         return details
