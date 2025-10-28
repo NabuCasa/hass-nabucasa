@@ -102,9 +102,8 @@ def _calculate_sleep_time(valid_until: float) -> int:
         return round(jitter(MIN_REFRESH_INTERVAL, 300))
 
     max_jitter = min(3600, remaining)
-    return max(
-        MIN_REFRESH_INTERVAL,
-        remaining - round(jitter(5, max_jitter)),
+    return round(
+        max(MIN_REFRESH_INTERVAL, remaining - jitter(5, max_jitter)),
     )
 
 
