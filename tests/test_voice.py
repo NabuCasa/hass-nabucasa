@@ -283,7 +283,7 @@ async def test_process_tts_stream_no_text(cloud: Cloud, aioclient_mock):
 
 
 async def test_process_tts_with_voice_and_style(
-    cloud,
+    cloud: Cloud,
     aioclient_mock,
     mock_voice_connection_details,
     snapshot,
