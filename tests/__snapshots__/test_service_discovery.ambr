@@ -184,7 +184,7 @@
 # name: test_network_failure_during_background_refresh
   dict({
     'log': '''
-      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 60 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 111 seconds
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
     ''',
     'result': dict({
@@ -195,7 +195,7 @@
 # name: test_race_condition_multiple_concurrent_stops
   dict({
     'log': '''
-      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 60 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 111 seconds
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
     ''',
     'result': dict({
@@ -214,7 +214,7 @@
 # name: test_race_condition_stop_during_fetch
   dict({
     'log': '''
-      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 60 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 111 seconds
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
     ''',
     'result': dict({

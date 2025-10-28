@@ -93,6 +93,21 @@ def _is_cache_valid(cache: ServiceDiscoveryCacheData) -> bool:
         return False
 
 
+def _calculate_sleep_time(valid_until: float) -> int:
+    """Calculate sleep time before next refresh with jitter."""
+    remaining = valid_until - utcnow().timestamp()
+
+    # For expired or very soon expiring caches, spread refreshes over 1-5 min
+    if remaining <= MIN_REFRESH_INTERVAL:
+        return round(jitter(MIN_REFRESH_INTERVAL, 300))
+
+    max_jitter = min(3600, remaining)
+    return max(
+        MIN_REFRESH_INTERVAL,
+        remaining - round(jitter(5, max_jitter)),
+    )
+
+
 class ServiceDiscovery(ApiBase):
     """Class to handle service discovery."""
 
@@ -194,17 +209,7 @@ class ServiceDiscovery(ApiBase):
                     await self._load_service_discovery_data()
                     continue
 
-                valid_until = self._memory_cache["valid_until"]
-                current_time = utcnow().timestamp()
-                remaining = valid_until - current_time  # Time until cache expires
-                sleep_time = max(
-                    MIN_REFRESH_INTERVAL,  # Never refresh more than min interval (60s)
-                    remaining
-                    - jitter(  # Subtract random offset to prevent thundering herd
-                        5,  # Min jitter: 5 seconds
-                        max(3600, remaining),  # Max jitter: 1 hour or remaining time
-                    ),
-                )
+                sleep_time = _calculate_sleep_time(self._memory_cache["valid_until"])
 
                 _LOGGER.debug(
                     "Scheduling service discovery refresh in %s seconds",

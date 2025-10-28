@@ -3,19 +3,24 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Generator
 import re
 from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
 
 from aiohttp import ClientError
 import pytest
 from syrupy import SnapshotAssertion
 
 from hass_nabucasa.service_discovery import (
+    MIN_REFRESH_INTERVAL,
     ServiceDiscovery,
     ServiceDiscoveryError,
     ServiceDiscoveryMissingActionError,
     ServiceDiscoveryMissingParameterError,
+    _calculate_sleep_time,
 )
+from hass_nabucasa.utils import utcnow
 
 from .common import construct_service_discovery_actions, extract_log_messages
 
@@ -29,6 +34,13 @@ def assert_snapshot_with_logs(
 ) -> None:
     """Assert result and logs match snapshot."""
     assert {"result": result, "log": extract_log_messages(caplog)} == snapshot
+
+
+@pytest.fixture(autouse=True)
+def jitter_patch() -> Generator[Any, Any, Any]:
+    """Mock jitter to always return 0."""
+    with patch("hass_nabucasa.service_discovery.jitter", return_value=111):
+        yield
 
 
 @pytest.mark.parametrize(
@@ -762,7 +774,7 @@ async def test_network_failure_during_background_refresh(
     await cloud.service_discovery.async_stop_service_discovery()
 
     assert_snapshot_with_logs(
-        {"cache_preserved": original_cache is cloud.service_discovery._memory_cache},
+        {"cache_preserved": (original_cache is cloud.service_discovery._memory_cache)},
         caplog,
         snapshot,
     )
@@ -839,8 +851,9 @@ async def test_race_condition_stop_during_fetch(
 
     assert_snapshot_with_logs(
         {
-            "task_stopped": cloud.service_discovery._service_discovery_refresh_task
-            is None
+            "task_stopped": (
+                cloud.service_discovery._service_discovery_refresh_task is None
+            )
         },
         caplog,
         snapshot,
@@ -983,3 +996,24 @@ async def test_background_refresh_with_changing_network_conditions(
         caplog,
         snapshot,
     )
+
+
+@pytest.mark.parametrize(
+    "valid_for_seconds,expected_min,expected_max",
+    [
+        (10, MIN_REFRESH_INTERVAL, MIN_REFRESH_INTERVAL + 240),  # Expired/small
+        (3600, MIN_REFRESH_INTERVAL, 3595),  # 1 hour - jitter up to 3600
+        (7200, MIN_REFRESH_INTERVAL, 7195),  # 2 hours - jitter up to 3600
+        (259200, 255600, 259195),  # 3 days - jitter up to 3600
+    ],
+)
+def test_sleep_time_calculation_with_jitter(
+    valid_for_seconds: int,
+    expected_min: int,
+    expected_max: int,
+):
+    """Test sleep time calculation with jitter applied."""
+    now = utcnow().timestamp()
+    valid_until = now + valid_for_seconds
+    result = _calculate_sleep_time(valid_until)
+    assert expected_min <= result <= expected_max
