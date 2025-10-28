@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import AsyncGenerator
 from datetime import datetime
+import json
 import logging
 from pathlib import Path
 from typing import Any, cast
@@ -15,10 +16,17 @@ import pytest
 
 import hass_nabucasa
 
-from .common import MockClient
+from .common import WELL_KNOWN_SERVICE_DISCOVERY_JSON, MockClient
 from .utils.aiohttp import AiohttpClientMocker, mock_aiohttp_client
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+@pytest.fixture
+def service_discovery_fixture_data():
+    """Load service discovery fixture data from JSON file."""
+    with WELL_KNOWN_SERVICE_DISCOVERY_JSON.open() as f:
+        return json.load(f)
 
 
 @pytest.fixture(autouse=True)

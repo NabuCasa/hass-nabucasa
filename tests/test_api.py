@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
+import voluptuous as vol
 
 from hass_nabucasa.api import (
     ALLOW_EMPTY_RESPONSE,
     ApiBase,
     CloudApiError,
+    CloudApiInvalidResponseError,
     CloudApiNonRetryableError,
     CloudApiRawResponse,
     api_exception_handler,
@@ -24,6 +26,22 @@ if TYPE_CHECKING:
 
 class CustomException(CloudApiError):
     """Custom exception for testing."""
+
+
+@pytest.fixture(autouse=True)
+def add_test_api_action_to_service_discovery():
+    """Add test_api_action for this module's tests."""
+    with (
+        patch(
+            "hass_nabucasa.service_discovery.VALID_ACTION_NAMES",
+            frozenset(["test_api_action"]),
+        ),
+        patch(
+            "hass_nabucasa.service_discovery.ServiceDiscovery._get_service_action_url",
+            return_value="https://example.com/test/{param}/action",
+        ),
+    ):
+        yield
 
 
 @pytest.mark.parametrize(
@@ -61,11 +79,11 @@ class AwesomeApiClass(ApiBase):
 )
 async def test_empty_response_handling_allowed_methods(
     aioclient_mock: AiohttpClientMocker,
-    auth_cloud_mock: Cloud,
+    cloud: Cloud,
     method: str,
 ) -> None:
     """Test empty response handling for methods that allow empty responses."""
-    test_api = AwesomeApiClass(auth_cloud_mock)
+    test_api = AwesomeApiClass(cloud)
 
     aioclient_mock.request(
         method.lower(),
@@ -88,11 +106,11 @@ async def test_empty_response_handling_allowed_methods(
 )
 async def test_empty_response_handling_disallowed_methods(
     aioclient_mock: AiohttpClientMocker,
-    auth_cloud_mock: Cloud,
+    cloud: Cloud,
     method: str,
 ) -> None:
     """Test empty response handling for methods that disallow empty responses."""
-    test_api = AwesomeApiClass(auth_cloud_mock)
+    test_api = AwesomeApiClass(cloud)
 
     aioclient_mock.request(
         method.lower(),
@@ -111,11 +129,11 @@ async def test_empty_response_handling_disallowed_methods(
 
 async def test_pre_request_log_handler_debug_enabled(
     aioclient_mock: AiohttpClientMocker,
-    auth_cloud_mock: Cloud,
+    cloud: Cloud,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test pre-request log handler when DEBUG logging is enabled."""
-    test_api = AwesomeApiClass(auth_cloud_mock)
+    test_api = AwesomeApiClass(cloud)
 
     aioclient_mock.get(
         "https://example.com/test",
@@ -135,11 +153,11 @@ async def test_pre_request_log_handler_debug_enabled(
 
 async def test_pre_request_log_handler_debug_disabled(
     aioclient_mock: AiohttpClientMocker,
-    auth_cloud_mock: Cloud,
+    cloud: Cloud,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test pre-request log handler when DEBUG logging is disabled."""
-    test_api = AwesomeApiClass(auth_cloud_mock)
+    test_api = AwesomeApiClass(cloud)
 
     aioclient_mock.get(
         "https://example.com/test",
@@ -159,11 +177,11 @@ async def test_pre_request_log_handler_debug_disabled(
 
 async def test_pre_request_log_handler_with_external_hostname(
     aioclient_mock: AiohttpClientMocker,
-    auth_cloud_mock: Cloud,
+    cloud: Cloud,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test pre-request log handler with external hostname (should not show path)."""
-    test_api = AwesomeApiClass(auth_cloud_mock)
+    test_api = AwesomeApiClass(cloud)
 
     aioclient_mock.get(
         "https://external.com/test",
@@ -184,10 +202,10 @@ async def test_pre_request_log_handler_with_external_hostname(
 
 async def test_raw_response_success(
     aioclient_mock: AiohttpClientMocker,
-    auth_cloud_mock: Cloud,
+    cloud: Cloud,
 ) -> None:
     """Test raw_response parameter returns CloudApiRawResponse."""
-    test_api = AwesomeApiClass(auth_cloud_mock)
+    test_api = AwesomeApiClass(cloud)
 
     aioclient_mock.get(
         "https://example.com/test",
@@ -208,10 +226,10 @@ async def test_raw_response_success(
 
 async def test_raw_response_error_handling(
     aioclient_mock: AiohttpClientMocker,
-    auth_cloud_mock: Cloud,
+    cloud: Cloud,
 ) -> None:
     """Test raw_response parameter with error status codes."""
-    test_api = AwesomeApiClass(auth_cloud_mock)
+    test_api = AwesomeApiClass(cloud)
 
     aioclient_mock.get(
         "https://example.com/test",
@@ -232,10 +250,10 @@ async def test_raw_response_error_handling(
 
 async def test_raw_response_with_empty_data(
     aioclient_mock: AiohttpClientMocker,
-    auth_cloud_mock: Cloud,
+    cloud: Cloud,
 ) -> None:
     """Test raw_response parameter with empty response data."""
-    test_api = AwesomeApiClass(auth_cloud_mock)
+    test_api = AwesomeApiClass(cloud)
 
     aioclient_mock.post(
         "https://example.com/test",
@@ -256,10 +274,10 @@ async def test_raw_response_with_empty_data(
 
 async def test_raw_response_with_json_data(
     aioclient_mock: AiohttpClientMocker,
-    auth_cloud_mock: Cloud,
+    cloud: Cloud,
 ) -> None:
     """Test raw_response parameter with JSON response data."""
-    test_api = AwesomeApiClass(auth_cloud_mock)
+    test_api = AwesomeApiClass(cloud)
 
     test_data = {"message": "Hello", "count": 42}
     aioclient_mock.put(
@@ -299,14 +317,14 @@ async def test_raw_response_with_json_data(
 )
 async def test_raw_response_with_params(
     aioclient_mock: AiohttpClientMocker,
-    auth_cloud_mock: Cloud,
+    cloud: Cloud,
     params: dict,
     query_string: str,
     params_in_log: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test raw_response parameter with JSON response data."""
-    test_api = AwesomeApiClass(auth_cloud_mock)
+    test_api = AwesomeApiClass(cloud)
 
     test_data = {"message": "Hello", "count": 42}
     aioclient_mock.get(
@@ -353,3 +371,239 @@ def test_cloud_api_raw_response_dataclass_default_data():
     assert raw_response.response == mock_response
     assert raw_response.data is None
     assert raw_response.response.status == 204
+
+
+async def test_call_cloud_api_with_url_parameter(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test _call_cloud_api with url parameter."""
+    test_api = AwesomeApiClass(cloud)
+
+    aioclient_mock.get(
+        "https://example.com/custom/endpoint",
+        json={"result": "success"},
+        status=200,
+    )
+
+    result = await test_api._call_cloud_api(
+        url="https://example.com/custom/endpoint",
+        method="GET",
+    )
+
+    assert result == {"result": "success"}
+
+
+async def test_call_cloud_api_with_path_parameter(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test _call_cloud_api with path parameter."""
+    test_api = AwesomeApiClass(cloud)
+
+    aioclient_mock.get(
+        "https://example.com/test",
+        json={"result": "success"},
+        status=200,
+    )
+
+    result = await test_api._call_cloud_api(
+        path="/test",
+        method="GET",
+    )
+
+    assert result == {"result": "success"}
+
+
+async def test_call_cloud_api_url_takes_precedence_over_path(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test that url parameter takes precedence over path parameter."""
+    test_api = AwesomeApiClass(cloud)
+
+    aioclient_mock.get(
+        "https://example.com/url-endpoint",
+        json={"result": "from url"},
+        status=200,
+    )
+
+    result = await test_api._call_cloud_api(
+        url="https://example.com/url-endpoint",
+        path="/path-endpoint",
+        method="GET",
+    )
+
+    assert result == {"result": "from url"}
+
+
+async def test_call_cloud_api_requires_url_or_path(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test that _call_cloud_api requires either url or path parameter."""
+    test_api = AwesomeApiClass(cloud)
+
+    with pytest.raises(
+        CloudApiError, match="Either 'url' or 'path' parameter must be provided"
+    ):
+        await test_api._call_cloud_api(method="GET")
+
+
+async def test_call_cloud_api_with_schema_validation_success(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test _call_cloud_api with schema validation (valid data)."""
+    test_api = AwesomeApiClass(cloud)
+
+    test_schema = vol.Schema(
+        {
+            vol.Required("name"): str,
+            vol.Required("count"): int,
+        }
+    )
+
+    aioclient_mock.get(
+        "https://example.com/test",
+        json={"name": "test", "count": 42},
+        status=200,
+    )
+
+    result = await test_api._call_cloud_api(
+        path="/test",
+        method="GET",
+        schema=test_schema,
+    )
+
+    assert result == {"name": "test", "count": 42}
+
+
+async def test_call_cloud_api_with_schema_validation_failure(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test _call_cloud_api with schema validation (invalid data)."""
+    test_api = AwesomeApiClass(cloud)
+
+    test_schema = vol.Schema(
+        {
+            vol.Required("name"): str,
+            vol.Required("count"): int,
+        }
+    )
+
+    aioclient_mock.get(
+        "https://example.com/test",
+        json={"name": "test", "count": "not-a-number"},
+        status=200,
+    )
+
+    with pytest.raises(CloudApiInvalidResponseError, match="Invalid response"):
+        await test_api._call_cloud_api(
+            path="/test",
+            method="GET",
+            schema=test_schema,
+        )
+
+
+async def test_call_cloud_api_with_schema_validation_missing_field(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test _call_cloud_api with schema validation (missing required field)."""
+    test_api = AwesomeApiClass(cloud)
+
+    test_schema = vol.Schema(
+        {
+            vol.Required("name"): str,
+            vol.Required("count"): int,
+        }
+    )
+
+    aioclient_mock.get(
+        "https://example.com/test",
+        json={"name": "test"},
+        status=200,
+    )
+
+    with pytest.raises(CloudApiInvalidResponseError, match="Invalid response"):
+        await test_api._call_cloud_api(
+            path="/test",
+            method="GET",
+            schema=test_schema,
+        )
+
+
+async def test_call_cloud_api_schema_validation_with_coercion(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test _call_cloud_api with schema that coerces data types."""
+    test_api = AwesomeApiClass(cloud)
+
+    test_schema = vol.Schema(
+        {
+            vol.Required("value"): vol.Coerce(int),
+        }
+    )
+
+    aioclient_mock.get(
+        "https://example.com/test",
+        json={"value": "123"},
+        status=200,
+    )
+
+    result = await test_api._call_cloud_api(
+        path="/test",
+        method="GET",
+        schema=test_schema,
+    )
+
+    assert result == {"value": 123}
+
+
+async def test_action_url_method(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test _action_url method delegates to service discovery."""
+    test_api = AwesomeApiClass(cloud)
+
+    url = test_api._action_url("test_api_action", param="api")
+
+    assert isinstance(url, str)
+    assert url == "https://example.com/test/api/action"
+
+
+async def test_action_url_with_format_parameters(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test _action_url method with format parameters."""
+    test_api = AwesomeApiClass(cloud)
+
+    url = test_api._action_url("test_api_action", param="value")
+
+    assert isinstance(url, str)
+    assert url == "https://example.com/test/value/action"
+
+
+async def test_hostname_property_default(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test that hostname property defaults to None."""
+    test_api = ApiBase(cloud)
+
+    assert test_api.hostname is None
+
+
+async def test_hostname_property_override(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test that hostname property can be overridden."""
+    test_api = AwesomeApiClass(cloud)
+
+    assert test_api.hostname == "example.com"

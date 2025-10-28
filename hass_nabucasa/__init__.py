@@ -29,6 +29,7 @@ from .api import (
     CloudApiClientError,
     CloudApiCodedError,
     CloudApiError,
+    CloudApiInvalidResponseError,
     CloudApiNonRetryableError,
     CloudApiTimeoutError,
 )
@@ -63,6 +64,14 @@ from .payments_api import (
     SubscriptionInfo,
 )
 from .remote import RemoteUI
+from .service_discovery import (
+    ServiceDiscovery,
+    ServiceDiscoveryAction,
+    ServiceDiscoveryError,
+    ServiceDiscoveryInvalidResponseError,
+    ServiceDiscoveryMissingActionError,
+    ServiceDiscoveryMissingParameterError,
+)
 from .utils import UTC, gather_callbacks, parse_date, utcnow
 from .voice import Voice
 from .voice_api import VoiceApi, VoiceApiError
@@ -82,6 +91,7 @@ __all__ = [
     "CloudApiClientError",
     "CloudApiCodedError",
     "CloudApiError",
+    "CloudApiInvalidResponseError",
     "CloudApiNonRetryableError",
     "CloudApiTimeoutError",
     "CloudClient",
@@ -96,6 +106,12 @@ __all__ = [
     "NabuCasaBaseError",
     "NabuCasaConnectionError",
     "PaymentsApiError",
+    "ServiceDiscovery",
+    "ServiceDiscoveryAction",
+    "ServiceDiscoveryError",
+    "ServiceDiscoveryInvalidResponseError",
+    "ServiceDiscoveryMissingActionError",
+    "ServiceDiscoveryMissingParameterError",
     "StorageType",
     "StoredFile",
     "SubscriptionInfo",
@@ -137,6 +153,7 @@ class Cloud(Generic[_ClientT]):
         relayer_server: str | None = None,
         remotestate_server: str | None = None,
         servicehandlers_server: str | None = None,
+        discovery_service_actions: dict[ServiceDiscoveryAction, str] | None = None,
         **kwargs: Any,  # noqa: ARG002
     ) -> None:
         """Create an instance of Cloud."""
@@ -192,6 +209,10 @@ class Cloud(Generic[_ClientT]):
         self.instance = InstanceApi(self)
         self.payments = PaymentsApi(self)
         self.remote = RemoteUI(self)
+        self.service_discovery = ServiceDiscovery(
+            self,
+            action_overrides=discovery_service_actions,
+        )
         self.voice = Voice(self)
         self.voice_api = VoiceApi(self)
 
@@ -438,6 +459,11 @@ class Cloud(Generic[_ClientT]):
 
             return content
 
+        try:
+            await self.service_discovery.async_start_service_discovery()
+        except ServiceDiscoveryError as err:
+            _LOGGER.info("Failed to initialize service discovery: %s", err)
+
         info = await self.run_executor(load_config)
         if info is None:
             # No previous token data
@@ -476,6 +502,7 @@ class Cloud(Generic[_ClientT]):
             self._init_task.cancel()
             self._init_task = None
 
+        await self.service_discovery.async_stop_service_discovery()
         await self.client.cloud_stopped()
         await gather_callbacks(_LOGGER, "on_stop", self._on_stop)
 

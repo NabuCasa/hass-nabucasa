@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Coroutine
 import contextlib
 from dataclasses import dataclass
@@ -20,6 +19,8 @@ from aiohttp import (
     hdrs,
 )
 from aiohttp.typedefs import Query
+import voluptuous as vol
+from voluptuous.humanize import humanize_error
 from yarl import URL
 
 from .auth import Unauthenticated, UnknownError
@@ -27,6 +28,7 @@ from .exceptions import CloudError
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
+    from .service_discovery import ServiceDiscoveryAction
 
     P = ParamSpec("P")
     T = TypeVar("T")
@@ -124,6 +126,10 @@ class CloudApiNonRetryableError(CloudApiCodedError):
     """Exception raised when handling cloud API non-retryable error."""
 
 
+class CloudApiInvalidResponseError(CloudApiError):
+    """Exception raised when API response fails schema validation."""
+
+
 @dataclass
 class CloudApiRawResponse:
     """A raw response from the cloud API."""
@@ -132,7 +138,7 @@ class CloudApiRawResponse:
     data: Any = None
 
 
-class ApiBase(ABC):
+class ApiBase:
     """Class to help communicate with the cloud API."""
 
     def __init__(self, cloud: Cloud[_ClientT]) -> None:
@@ -140,9 +146,9 @@ class ApiBase(ABC):
         self._cloud = cloud
 
     @property
-    @abstractmethod
-    def hostname(self) -> str:
-        """Get the hostname."""
+    def hostname(self) -> str | None:
+        """Get the hostname for path-based API calls."""
+        return None
 
     @property
     def non_retryable_error_codes(self) -> set[str]:
@@ -155,28 +161,38 @@ class ApiBase(ABC):
         """Get the non-retryable error codes."""
         return {"NC-CE-02", "NC-CE-03"}.union(self.non_retryable_error_codes)
 
+    def _action_url(
+        self,
+        action: ServiceDiscoveryAction,
+        **kwargs: str,
+    ) -> str:
+        """Get action URL with optional format parameters."""
+        return self._cloud.service_discovery.action_url(action, **kwargs)
+
     def _do_log_request(
         self,
         method: str,
         url: str | URL,
+        include_path_in_log: bool = True,
     ) -> None:
         """Log the response."""
         if not _LOGGER.isEnabledFor(logging.DEBUG):
             return
         url = url if isinstance(url, URL) else URL(url)
-        target = url.path if url.host == self.hostname else ""
+        target = url.path if include_path_in_log else ""
         _LOGGER.debug("Sending %s request to %s%s", method, url.host, target)
 
     def _do_log_response(
         self,
         resp: ClientResponse,
         data: list[Any] | dict[Any, Any] | str | None = None,
+        include_path_in_log: bool = True,
     ) -> None:
         """Log the response."""
         if not _LOGGER.isEnabledFor(logging.DEBUG):
             return
         isok = resp.status < 400
-        target = resp.url.path if resp.url.host == self.hostname else ""
+        target = resp.url.path if include_path_in_log else ""
         if len(resp.url.query) > 0:
             allowed_values = {"true", "false"}
             query_params = [
@@ -209,9 +225,10 @@ class ApiBase(ABC):
         jsondata: dict[str, Any] | None = None,
         data: Any | None = None,
         params: Query | None = None,
+        include_path_in_log: bool = True,
     ) -> ClientResponse:
         """Call raw API."""
-        self._do_log_request(method, url)
+        self._do_log_request(method, url, include_path_in_log)
         try:
             resp = await self._cloud.websession.request(
                 method=method,
@@ -247,28 +264,38 @@ class ApiBase(ABC):
     async def _call_cloud_api(
         self,
         *,
-        path: str,
-        method: str = "GET",
+        url: str | None = None,
+        path: str | None = None,
         api_version: int | None = None,
+        method: str = "GET",
         client_timeout: ClientTimeout | None = None,
         jsondata: dict[str, Any] | None = None,
         headers: dict[str, Any] | None = None,
         skip_token_check: bool = False,
         raw_response: bool = False,
         params: Query | None = None,
+        include_path_in_log: bool = True,
+        schema: vol.Schema | None = None,
     ) -> Any:
         """Call cloud API."""
+        if url is None and path is None:
+            raise CloudApiError("Either 'url' or 'path' parameter must be provided")
+
         data: dict[str, Any] | list[Any] | str | None = None
         if not skip_token_check:
             await self._cloud.auth.async_check_token()
         if TYPE_CHECKING:
             assert self._cloud.id_token is not None
 
-        url_path = f"{f'/v{api_version}' if api_version else ''}{path}"
+        if url is not None:
+            final_url = url
+        else:
+            url_path = f"{f'/v{api_version}' if api_version else ''}{path}"
+            final_url = f"https://{self.hostname}{url_path}"
 
         resp = await self._call_raw_api(
             method=method,
-            url=f"https://{self.hostname}{url_path}",
+            url=final_url,
             client_timeout=client_timeout or DEFAULT_API_TIMEOUT,
             headers={
                 hdrs.ACCEPT: "application/json",
@@ -279,13 +306,14 @@ class ApiBase(ABC):
             },
             jsondata=jsondata,
             params=params,
+            include_path_in_log=include_path_in_log,
         )
 
         if resp.status < 500:
             with contextlib.suppress(ContentTypeError, JSONDecodeError):
                 data = await resp.json()
 
-        self._do_log_response(resp, data)
+        self._do_log_response(resp, data, include_path_in_log)
 
         if data is None and resp.method.upper() not in ALLOW_EMPTY_RESPONSE:
             raise CloudApiError("Failed to parse API response") from None
@@ -322,4 +350,14 @@ class ApiBase(ABC):
                 reason=reason,
                 status=resp.status,
             ) from err
+
+        if schema is not None and data is not None:
+            try:
+                data = schema(data)
+            except vol.Invalid as err:
+                raise CloudApiInvalidResponseError(
+                    f"Invalid response: {humanize_error(data, err)}",
+                    orig_exc=err,
+                ) from err
+
         return data

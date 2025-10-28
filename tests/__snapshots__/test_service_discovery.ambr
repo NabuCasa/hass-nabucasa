@@ -1,0 +1,230 @@
+# serializer version: 1
+# name: test_action_url_returns_cached_url
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 3600 seconds
+    ''',
+    'result': 'https://servicehandlers.example.com/voice/connection_details',
+  })
+# ---
+# name: test_action_url_returns_fallback_url
+  dict({
+    'log': '[INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details',
+    'result': 'https://servicehandlers.example.com/voice/connection_details',
+  })
+# ---
+# name: test_action_url_with_format_parameters
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 3600 seconds
+    ''',
+    'result': 'https://example.com/voice/test',
+  })
+# ---
+# name: test_action_url_with_override
+  dict({
+    'log': '[DEBUG] hass_nabucasa.service_discovery: Using overridden action URL for voice_connection_details',
+    'result': 'https://override.example.com/custom',
+  })
+# ---
+# name: test_background_refresh_with_changing_network_conditions
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 3600 seconds
+    ''',
+    'result': dict({
+      'cache_updated': True,
+      'first_version': '1.0.0',
+      'second_version': '2.0.0',
+    }),
+  })
+# ---
+# name: test_extremely_long_running_refresh_cycle
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 31536000 seconds
+    ''',
+    'result': dict({
+      'task_running': True,
+      'url': 'https://servicehandlers.example.com/voice/connection_details',
+      'validFor': 31536000,
+    }),
+  })
+# ---
+# name: test_fetch_well_known_success
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+    ''',
+    'result': dict({
+      'actions': dict({
+        'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+      }),
+      'validFor': 3600,
+      'version': '1.0.0',
+    }),
+  })
+# ---
+# name: test_forward_compatibility_combined
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+    ''',
+    'result': dict({
+      'actions': dict({
+        'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+      }),
+      'validFor': 3600,
+      'version': '2.0.0',
+    }),
+  })
+# ---
+# name: test_forward_compatibility_extra_actions
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+    ''',
+    'result': dict({
+      'actions': dict({
+        'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+      }),
+      'validFor': 3600,
+      'version': '1.0.0',
+    }),
+  })
+# ---
+# name: test_forward_compatibility_extra_top_level_fields
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+    ''',
+    'result': dict({
+      'actions': dict({
+        'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+      }),
+      'validFor': 3600,
+      'version': '1.0.0',
+    }),
+  })
+# ---
+# name: test_invalid_action_name_in_response
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+    ''',
+    'result': dict({
+      'actions': dict({
+        'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+      }),
+      'validFor': 3600,
+      'version': '1.0.0',
+    }),
+  })
+# ---
+# name: test_load_service_discovery_data_caches_result
+  dict({
+    'log': '[DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data',
+    'result': dict({
+      'cache1': dict({
+        'actions': dict({
+          'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+        }),
+        'validFor': 3600,
+        'version': '1.0.0',
+      }),
+      'cache2': dict({
+        'actions': dict({
+          'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+        }),
+        'validFor': 3600,
+        'version': '1.0.0',
+      }),
+    }),
+  })
+# ---
+# name: test_load_service_discovery_data_uses_expired_cache_on_failure
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (500) 
+      [INFO] hass_nabucasa.service_discovery: Unable to fetch service discovery data, using expired cache
+    ''',
+    'result': dict({
+      'cache1': dict({
+        'actions': dict({
+          'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+        }),
+        'validFor': 0,
+        'version': '1.0.0',
+      }),
+      'cache2': dict({
+        'actions': dict({
+          'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+        }),
+        'validFor': 0,
+        'version': '1.0.0',
+      }),
+    }),
+  })
+# ---
+# name: test_network_failure_during_background_refresh
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 60 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
+    ''',
+    'result': dict({
+      'cache_preserved': True,
+    }),
+  })
+# ---
+# name: test_race_condition_multiple_concurrent_stops
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 60 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
+    ''',
+    'result': dict({
+      'task_stopped': True,
+    }),
+  })
+# ---
+# name: test_race_condition_stop_and_start_rapid_cycling
+  dict({
+    'log': '',
+    'result': dict({
+      'final_state_clean': True,
+    }),
+  })
+# ---
+# name: test_race_condition_stop_during_fetch
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 60 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
+    ''',
+    'result': dict({
+      'task_stopped': True,
+    }),
+  })
+# ---
+# name: test_service_discovery_with_action_overrides
+  dict({
+    'log': '[DEBUG] hass_nabucasa.service_discovery: Using overridden action URL for voice_connection_details',
+    'result': 'https://override.example.com/custom',
+  })
+# ---

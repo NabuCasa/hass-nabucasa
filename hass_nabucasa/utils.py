@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import Awaitable, Callable, Mapping
 import datetime as dt
 from logging import Logger
+import random
 import ssl
 from typing import Any, TypeVar
 
@@ -89,6 +90,11 @@ def next_midnight() -> float:
         microsecond=0,
     ) + dt.timedelta(days=1)
     return (midnight - dt.datetime.now()).total_seconds()
+
+
+def jitter(minimum: float, maximum: float) -> float:
+    """Return a random float between minimum and maximum for backoff jitter."""
+    return random.uniform(minimum, maximum)
 
 
 async def gather_callbacks(
