@@ -2,33 +2,27 @@
 # name: test_getting_connection_details[response0]
   '''
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details
-  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/voice/connection_details (200)
+  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/voice/connection_details (200) 
   '''
 # ---
 # name: test_problems_getting_connection_details[VoiceApiError-getmockargs0-Failed to parse API response]
   '''
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details
-  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/voice/connection_details (500)
+  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/voice/connection_details (500) 
   '''
 # ---
 # name: test_problems_getting_connection_details[VoiceApiError-getmockargs1-Failed to parse API response]
   '''
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details
-  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/voice/connection_details (429)
+  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/voice/connection_details (429) 
   '''
 # ---
 # name: test_problems_getting_connection_details[VoiceApiError-getmockargs2-Timeout reached while calling API]
-  '''
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details
-  '''
+  '[DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details'
 # ---
 # name: test_problems_getting_connection_details[VoiceApiError-getmockargs3-Failed to fetch: boom!]
-  '''
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details
-  '''
+  '[DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details'
 # ---
 # name: test_problems_getting_connection_details[VoiceApiError-getmockargs4-Unexpected error while calling API: boom!]
-  '''
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details
-  '''
+  '[DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details'
 # ---
