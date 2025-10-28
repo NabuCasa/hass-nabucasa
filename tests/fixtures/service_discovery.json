@@ -2,6 +2,6 @@
   "actions": {
     "voice_connection_details": "https://servicehandlers.example.com/voice/connection_details"
   },
-  "validFor": 3600,
+  "valid_for": 3600,
   "version": "1.0.0"
 }

@@ -56,7 +56,7 @@
     'result': dict({
       'task_running': True,
       'url': 'https://servicehandlers.example.com/voice/connection_details',
-      'validFor': 31536000,
+      'valid_for': 31536000,
     }),
   })
 # ---
@@ -70,7 +70,7 @@
       'actions': dict({
         'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
       }),
-      'validFor': 3600,
+      'valid_for': 3600,
       'version': '1.0.0',
     }),
   })
@@ -85,7 +85,7 @@
       'actions': dict({
         'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
       }),
-      'validFor': 3600,
+      'valid_for': 3600,
       'version': '2.0.0',
     }),
   })
@@ -100,7 +100,7 @@
       'actions': dict({
         'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
       }),
-      'validFor': 3600,
+      'valid_for': 3600,
       'version': '1.0.0',
     }),
   })
@@ -115,7 +115,7 @@
       'actions': dict({
         'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
       }),
-      'validFor': 3600,
+      'valid_for': 3600,
       'version': '1.0.0',
     }),
   })
@@ -130,7 +130,7 @@
       'actions': dict({
         'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
       }),
-      'validFor': 3600,
+      'valid_for': 3600,
       'version': '1.0.0',
     }),
   })
@@ -143,14 +143,14 @@
         'actions': dict({
           'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
         }),
-        'validFor': 3600,
+        'valid_for': 3600,
         'version': '1.0.0',
       }),
       'cache2': dict({
         'actions': dict({
           'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
         }),
-        'validFor': 3600,
+        'valid_for': 3600,
         'version': '1.0.0',
       }),
     }),
@@ -168,14 +168,14 @@
         'actions': dict({
           'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
         }),
-        'validFor': 0,
+        'valid_for': 0,
         'version': '1.0.0',
       }),
       'cache2': dict({
         'actions': dict({
           'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
         }),
-        'validFor': 0,
+        'valid_for': 0,
         'version': '1.0.0',
       }),
     }),

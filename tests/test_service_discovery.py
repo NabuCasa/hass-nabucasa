@@ -101,7 +101,7 @@ async def test_fetch_well_known_success(
     """Test successful fetch of well-known service discovery endpoint."""
     expected_result = {
         "actions": construct_service_discovery_actions(),
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
     }
 
@@ -142,7 +142,7 @@ async def test_load_service_discovery_data_caches_result(
     """Test that service discovery data is cached."""
     expected_result = {
         "actions": construct_service_discovery_actions(),
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
     }
 
@@ -176,7 +176,7 @@ async def test_load_service_discovery_data_uses_expired_cache_on_failure(
     """Test that expired cache is used when API fails."""
     expected_result = {
         "actions": construct_service_discovery_actions(),
-        "validFor": 0,
+        "valid_for": 0,
         "version": "1.0.0",
     }
 
@@ -241,7 +241,7 @@ async def test_async_start_service_discovery_success(
         "actions": {
             "voice_connection_details": "https://example.com/voice/connection_details",
         },
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
     }
 
@@ -288,7 +288,7 @@ async def test_async_stop_service_discovery(
         "actions": {
             "voice_connection_details": "https://example.com/voice/connection_details",
         },
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
     }
 
@@ -315,7 +315,7 @@ async def test_action_url_returns_cached_url(
     """Test that action_url returns cached URL."""
     expected_result = {
         "actions": construct_service_discovery_actions(),
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
     }
 
@@ -358,7 +358,7 @@ async def test_action_url_with_format_parameters(
                 "voice_connection_details": "https://example.com/voice/{format_param}",
             }
         ),
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
     }
 
@@ -389,7 +389,7 @@ async def test_action_url_missing_format_parameter(
                 "voice_connection_details": "https://example.com/voice/{format_param}",
             }
         ),
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
     }
 
@@ -462,7 +462,7 @@ async def test_invalid_action_name_in_response(
                 "invalid_action": "https://example.com/invalid",
             }
         ),
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
     }
 
@@ -485,7 +485,7 @@ async def test_concurrent_cache_load_uses_lock(
     """Test that concurrent cache loads are serialized by lock."""
     expected_result = {
         "actions": construct_service_discovery_actions(),
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
     }
 
@@ -515,7 +515,7 @@ async def test_background_task_lifecycle_success(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
             "actions": construct_service_discovery_actions(),
-            "validFor": 3600,
+            "valid_for": 3600,
             "version": "1.0.0",
         },
     )
@@ -561,7 +561,7 @@ async def test_stop_during_active_refresh(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
             "actions": construct_service_discovery_actions(),
-            "validFor": 1,
+            "valid_for": 1,
             "version": "1.0.0",
         },
     )
@@ -583,7 +583,7 @@ async def test_multiple_start_stop_cycles(
     """Test multiple start/stop cycles work correctly."""
     expected_result = {
         "actions": construct_service_discovery_actions(),
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
     }
 
@@ -608,7 +608,7 @@ async def test_cloud_initialization_lifecycle(
     """Test service discovery integrates properly with Cloud lifecycle."""
     expected_result = {
         "actions": construct_service_discovery_actions(),
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
     }
 
@@ -648,7 +648,7 @@ async def test_forward_compatibility_extra_top_level_fields(
     """Test that extra top-level fields in API response are ignored."""
     api_response = {
         "actions": construct_service_discovery_actions(),
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
         "newFeature": "some_value",
         "anotherField": {"nested": "data"},
@@ -666,7 +666,7 @@ async def test_forward_compatibility_extra_top_level_fields(
     assert "anotherField" not in result
     assert "experimental" not in result
     assert result["actions"] == construct_service_discovery_actions()
-    assert result["validFor"] == 3600
+    assert result["valid_for"] == 3600
     assert result["version"] == "1.0.0"
     assert_snapshot_with_logs(result, caplog, snapshot)
 
@@ -685,7 +685,7 @@ async def test_forward_compatibility_extra_actions(
             "future_action_2": "https://example.com/future/action2",
             "experimental_feature": "https://example.com/experimental",
         },
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "1.0.0",
     }
 
@@ -715,7 +715,7 @@ async def test_forward_compatibility_combined(
             **construct_service_discovery_actions(),
             "future_action": "https://example.com/future",
         },
-        "validFor": 3600,
+        "valid_for": 3600,
         "version": "2.0.0",
         "newTopLevelField": "future_data",
         "metadata": {"extra": "info"},
@@ -732,7 +732,7 @@ async def test_forward_compatibility_combined(
     assert "metadata" not in result
     assert "future_action" not in result["actions"]
     assert "voice_connection_details" in result["actions"]
-    assert result["validFor"] == 3600
+    assert result["valid_for"] == 3600
     assert result["version"] == "2.0.0"
 
     assert_snapshot_with_logs(result, caplog, snapshot)
@@ -749,7 +749,7 @@ async def test_network_failure_during_background_refresh(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
             "actions": construct_service_discovery_actions(),
-            "validFor": 0,
+            "valid_for": 0,
             "version": "1.0.0",
         },
     )
@@ -786,13 +786,13 @@ async def test_extremely_long_running_refresh_cycle(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
 ):
-    """Test that extremely long validFor times are handled correctly."""
+    """Test that extremely long valid_for times are handled correctly."""
     one_year_seconds = 365 * 24 * 60 * 60
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
             "actions": construct_service_discovery_actions(),
-            "validFor": one_year_seconds,
+            "valid_for": one_year_seconds,
             "version": "1.0.0",
         },
     )
@@ -800,7 +800,7 @@ async def test_extremely_long_running_refresh_cycle(
     await cloud.service_discovery.async_start_service_discovery()
     assert cloud.service_discovery._memory_cache is not None
 
-    valid_for_value = cloud.service_discovery._memory_cache["data"]["validFor"]
+    valid_for_value = cloud.service_discovery._memory_cache["data"]["valid_for"]
     assert valid_for_value == one_year_seconds
 
     assert cloud.service_discovery._service_discovery_refresh_task is not None
@@ -813,7 +813,7 @@ async def test_extremely_long_running_refresh_cycle(
     assert_snapshot_with_logs(
         {
             "url": url,
-            "validFor": valid_for_value,
+            "valid_for": valid_for_value,
             "task_running": cloud.service_discovery._service_discovery_refresh_task
             is None,
         },
@@ -833,7 +833,7 @@ async def test_race_condition_stop_during_fetch(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
             "actions": construct_service_discovery_actions(),
-            "validFor": 0,
+            "valid_for": 0,
             "version": "1.0.0",
         },
     )
@@ -871,7 +871,7 @@ async def test_race_condition_multiple_concurrent_stops(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
             "actions": construct_service_discovery_actions(),
-            "validFor": 1,
+            "valid_for": 1,
             "version": "1.0.0",
         },
     )
@@ -910,7 +910,7 @@ async def test_race_condition_stop_and_start_rapid_cycling(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
             "actions": construct_service_discovery_actions(),
-            "validFor": 3600,
+            "valid_for": 3600,
             "version": "1.0.0",
         },
     )
@@ -945,7 +945,7 @@ async def test_background_refresh_with_changing_network_conditions(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
             "actions": construct_service_discovery_actions(),
-            "validFor": 3600,
+            "valid_for": 3600,
             "version": "1.0.0",
         },
     )
@@ -976,7 +976,7 @@ async def test_background_refresh_with_changing_network_conditions(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
             "actions": construct_service_discovery_actions(),
-            "validFor": 3600,
+            "valid_for": 3600,
             "version": "2.0.0",
         },
     )

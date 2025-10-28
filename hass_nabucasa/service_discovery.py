@@ -47,7 +47,7 @@ def _filter_and_validate_actions(actions: dict[str, Any]) -> dict[str, str]:
 SERVICE_DISCOVERY_SCHEMA = vol.Schema(
     {
         vol.Required("actions"): _filter_and_validate_actions,
-        vol.Required("validFor"): vol.All(int, vol.Range(min=0)),
+        vol.Required("valid_for"): vol.All(int, vol.Range(min=0)),
         vol.Required("version"): str,
     },
     extra=vol.REMOVE_EXTRA,
@@ -74,7 +74,7 @@ class ServiceDiscoveryResponse(TypedDict):
     """Response from service discovery API."""
 
     actions: dict[str, str]
-    validFor: int
+    valid_for: int
     version: str
 
 
@@ -146,7 +146,7 @@ class ServiceDiscovery(ApiBase):
         )
         return ServiceDiscoveryResponse(
             actions=validated_data["actions"],
-            validFor=validated_data["validFor"],
+            valid_for=validated_data["valid_for"],
             version=validated_data["version"],
         )
 
@@ -172,13 +172,13 @@ class ServiceDiscovery(ApiBase):
 
             cache_data = ServiceDiscoveryCacheData(
                 data=discovery_data,
-                valid_until=utcnow().timestamp() + discovery_data["validFor"],
+                valid_until=utcnow().timestamp() + discovery_data["valid_for"],
             )
 
             self._memory_cache = cache_data
             _LOGGER.debug(
                 "Service discovery data cached, valid for %s seconds",
-                discovery_data["validFor"],
+                discovery_data["valid_for"],
             )
 
             return cache_data
