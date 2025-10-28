@@ -380,7 +380,7 @@ async def test_process_tts_bad_voice(cloud: Cloud):
 
 
 async def test_process_tss_429(
-    cloud,
+    cloud: Cloud,
     mock_voice_connection_details,
     aioclient_mock,
     caplog,
