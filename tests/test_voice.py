@@ -122,7 +122,7 @@ async def test_process_tts_with_voice(
     assert xmltodict.parse(aioclient_mock.mock_calls[1][2]) == snapshot
 
 
-async def test_process_tts_stream_with_voice(cloud, aioclient_mock, snapshot):
+async def test_process_tts_stream_with_voice(cloud: Cloud, aioclient_mock, snapshot):
     """Test handling around tts streaming."""
     with io.BytesIO() as wav_io:
         wav_writer: wave.Wave_write = wave.open(wav_io, "wb")
