@@ -10,6 +10,11 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict, get_args
 import voluptuous as vol
 
 from .api import ApiBase, CloudApiError, api_exception_handler
+from .const import (
+    FIVE_MINUTES_IN_SECONDS,
+    ONE_HOUR_IN_SECONDS,
+    TWELVE_HOURS_IN_SECONDS,
+)
 from .utils import jitter, seconds_as_dhms, utcnow
 
 if TYPE_CHECKING:
@@ -18,9 +23,14 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 MIN_REFRESH_INTERVAL = 60
-TIME_DELTA_FOR_INITIAL_LOAD_RETRY = 12 * 60 * 60
+TIME_DELTA_FOR_INITIAL_LOAD_RETRY = TWELVE_HOURS_IN_SECONDS
 
-ServiceDiscoveryAction = Literal["voice_connection_details"]
+ServiceDiscoveryAction = Literal[
+    "remote_access_resolve_dns_cname",
+    "subscription_info",
+    "subscription_migrate_paypal",
+    "voice_connection_details",
+]
 
 VALID_ACTION_NAMES = frozenset(get_args(ServiceDiscoveryAction))
 
@@ -94,16 +104,15 @@ def _is_cache_valid(cache: ServiceDiscoveryCacheData) -> bool:
 
 
 def _calculate_sleep_time(valid_until: float) -> int:
-    """Calculate sleep time before next refresh with jitter."""
+    """Calculate sleep time until next refresh."""
     remaining = valid_until - utcnow().timestamp()
 
     # For expired or very soon expiring caches, spread refreshes over 1-5 min
     if remaining <= MIN_REFRESH_INTERVAL:
-        return round(jitter(MIN_REFRESH_INTERVAL, 300))
+        return round(jitter(MIN_REFRESH_INTERVAL, FIVE_MINUTES_IN_SECONDS))
 
-    max_jitter = min(3600, remaining)
     return round(
-        max(MIN_REFRESH_INTERVAL, remaining - jitter(5, max_jitter)),
+        max(MIN_REFRESH_INTERVAL, remaining + jitter(5, ONE_HOUR_IN_SECONDS)),
     )
 
 
@@ -124,9 +133,13 @@ class ServiceDiscovery(ApiBase):
         self._action_overrides = action_overrides or {}
 
         if TYPE_CHECKING:
+            assert self._cloud.accounts_server is not None
             assert self._cloud.servicehandlers_server is not None
 
         self._fallback_actions: dict[ServiceDiscoveryAction, str] = {
+            "remote_access_resolve_dns_cname": f"https://{self._cloud.accounts_server}/instance/resolve_dns_cname",
+            "subscription_info": f"https://{self._cloud.accounts_server}/payments/subscription_info",
+            "subscription_migrate_paypal": f"https://{self._cloud.accounts_server}/payments/migrate_paypal_agreement",
             "voice_connection_details": f"https://{self._cloud.servicehandlers_server}/voice/connection_details",
         }
 
@@ -180,8 +193,8 @@ class ServiceDiscovery(ApiBase):
                 data=discovery_data,
                 valid_until=utcnow().timestamp() + discovery_data["valid_for"],
             )
-
             self._memory_cache = cache_data
+
             _LOGGER.debug(
                 "Service discovery data cached, valid for %s",
                 seconds_as_dhms(discovery_data["valid_for"]),
@@ -261,6 +274,7 @@ class ServiceDiscovery(ApiBase):
         if self._memory_cache and (
             cached := self._memory_cache["data"]["actions"].get(action)
         ):
+            _LOGGER.debug("Found cached action URL for %s: %s", action, cached)
             return cached
         return self._get_fallback_action_url(action)
 
