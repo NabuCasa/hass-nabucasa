@@ -1,0 +1,40 @@
+# serializer version: 1
+# name: test_resolve_dns_cname_endpoint_problems[429-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_resolve_dns_cname
+  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/instance/resolve_dns_cname
+  [DEBUG] hass_nabucasa.api: Response for post from accounts.example.com/instance/resolve_dns_cname (429) 
+  '''
+# ---
+# name: test_resolve_dns_cname_endpoint_problems[500-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_resolve_dns_cname
+  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/instance/resolve_dns_cname
+  [DEBUG] hass_nabucasa.api: Response for post from accounts.example.com/instance/resolve_dns_cname (500) 
+  '''
+# ---
+# name: test_resolve_dns_cname_endpoint_problems[client-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_resolve_dns_cname
+  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/instance/resolve_dns_cname
+  '''
+# ---
+# name: test_resolve_dns_cname_endpoint_problems[timeout]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_resolve_dns_cname
+  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/instance/resolve_dns_cname
+  '''
+# ---
+# name: test_resolve_dns_cname_endpoint_problems[unexpected-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_resolve_dns_cname
+  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/instance/resolve_dns_cname
+  '''
+# ---
+# name: test_resolve_dns_cname_endpoint_success
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_resolve_dns_cname
+  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/instance/resolve_dns_cname
+  [DEBUG] hass_nabucasa.api: Response for post from accounts.example.com/instance/resolve_dns_cname (200) 
+  '''
+# ---

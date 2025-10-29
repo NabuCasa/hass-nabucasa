@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, TypedDict
+from typing import TypedDict
 
 from .api import ApiBase, CloudApiError, api_exception_handler
 
@@ -61,19 +61,10 @@ class MigratePaypalAgreementInfo(TypedDict):
 class PaymentsApi(ApiBase):
     """Class to help communicate with the payments API."""
 
-    @property
-    def hostname(self) -> str:
-        """Get the hostname."""
-        if TYPE_CHECKING:
-            assert self._cloud.accounts_server is not None
-        return self._cloud.accounts_server
-
     @api_exception_handler(PaymentsApiError)
     async def subscription_info(self, skip_renew: bool = False) -> SubscriptionInfo:
         """Get the subscription information."""
-        info: SubscriptionInfo = await self._call_cloud_api(
-            path="/payments/subscription_info",
-        )
+        info: SubscriptionInfo = await self._call_cloud_api(action="subscription_info")
 
         # If subscription info indicates we are subscribed, force a refresh of the token
         if info.get("provider") and not self._cloud.started and not skip_renew:
@@ -88,7 +79,7 @@ class PaymentsApi(ApiBase):
     async def migrate_paypal_agreement(self) -> MigratePaypalAgreementInfo:
         """Migrate a PayPal agreement to the new system."""
         response: MigratePaypalAgreementInfo = await self._call_cloud_api(
-            path="/payments/migrate_paypal_agreement",
+            action="subscription_migrate_paypal",
             method="POST",
         )
         return response
