@@ -459,16 +459,16 @@ class Cloud(Generic[_ClientT]):
 
             return content
 
-        try:
-            await self.service_discovery.async_start_service_discovery()
-        except ServiceDiscoveryError as err:
-            _LOGGER.info("Failed to initialize service discovery: %s", err)
-
         info = await self.run_executor(load_config)
         if info is None:
             # No previous token data
             self.started = False
             return
+
+        try:
+            await self.service_discovery.async_start_service_discovery()
+        except ServiceDiscoveryError as err:
+            _LOGGER.info("Failed to initialize service discovery: %s", err)
 
         self.id_token = info["id_token"]
         self.access_token = info["access_token"]
