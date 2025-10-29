@@ -4,16 +4,17 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 1h
+      [DEBUG] hass_nabucasa.service_discovery: Found cached action URL for test_api_action: https://example.com/test/{param}/action
     ''',
-    'result': 'https://servicehandlers.example.com/voice/connection_details',
+    'result': 'https://example.com/test/test/action',
   })
 # ---
 # name: test_action_url_returns_fallback_url
   dict({
-    'log': '[INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details',
-    'result': 'https://servicehandlers.example.com/voice/connection_details',
+    'log': '[INFO] hass_nabucasa.service_discovery: Using fallback action URL for test_api_action',
+    'result': 'https://example.com/test/fallback/action',
   })
 # ---
 # name: test_action_url_with_format_parameters
@@ -21,15 +22,16 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 1h
+      [DEBUG] hass_nabucasa.service_discovery: Found cached action URL for test_api_action: https://example.com/test/{param}/action
     ''',
-    'result': 'https://example.com/voice/test',
+    'result': 'https://example.com/test/test/action',
   })
 # ---
 # name: test_action_url_with_override
   dict({
-    'log': '[DEBUG] hass_nabucasa.service_discovery: Using overridden action URL for voice_connection_details',
+    'log': '[DEBUG] hass_nabucasa.service_discovery: Using overridden action URL for test_api_action',
     'result': 'https://override.example.com/custom',
   })
 # ---
@@ -38,12 +40,12 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 1h
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 2.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 2.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 1h
     ''',
     'result': dict({
@@ -59,12 +61,12 @@
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (500) 
       [DEBUG] hass_nabucasa.service_discovery: Failed to load initial service discovery data: Failed to parse API response
-      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 11h:58m:9s
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 12h:1m:51s
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 1h
-      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 58m:9s
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 1h:1m:51s
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
     ''',
     'result': dict({
@@ -78,12 +80,13 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 365d
+      [DEBUG] hass_nabucasa.service_discovery: Found cached action URL for test_api_action: https://example.com/test/{param}/action
     ''',
     'result': dict({
       'task_running': True,
-      'url': 'https://servicehandlers.example.com/voice/connection_details',
+      'url': 'https://example.com/test/test/action',
       'valid_for': 31536000,
     }),
   })
@@ -93,14 +96,11 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
     ''',
     'result': dict({
       'actions': dict({
-        'remote_access_resolve_dns_cname': 'https://accounts.example.com/instance/resolve_dns_cname',
-        'subscription_info': 'https://accounts.example.com/payments/subscription_info',
-        'subscription_migrate_paypal': 'https://accounts.example.com/payments/migrate_paypal_agreement',
-        'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+        'test_api_action': 'https://example.com/test/{param}/action',
       }),
       'valid_for': 3600,
       'version': '1.0',
@@ -112,14 +112,11 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 2.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 2.0 with 1 actions fetched
     ''',
     'result': dict({
       'actions': dict({
-        'remote_access_resolve_dns_cname': 'https://accounts.example.com/instance/resolve_dns_cname',
-        'subscription_info': 'https://accounts.example.com/payments/subscription_info',
-        'subscription_migrate_paypal': 'https://accounts.example.com/payments/migrate_paypal_agreement',
-        'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+        'test_api_action': 'https://example.com/test/{param}/action',
       }),
       'valid_for': 3600,
       'version': '2.0',
@@ -131,14 +128,11 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
     ''',
     'result': dict({
       'actions': dict({
-        'remote_access_resolve_dns_cname': 'https://accounts.example.com/instance/resolve_dns_cname',
-        'subscription_info': 'https://accounts.example.com/payments/subscription_info',
-        'subscription_migrate_paypal': 'https://accounts.example.com/payments/migrate_paypal_agreement',
-        'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+        'test_api_action': 'https://example.com/test/{param}/action',
       }),
       'valid_for': 3600,
       'version': '1.0',
@@ -150,14 +144,11 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
     ''',
     'result': dict({
       'actions': dict({
-        'remote_access_resolve_dns_cname': 'https://accounts.example.com/instance/resolve_dns_cname',
-        'subscription_info': 'https://accounts.example.com/payments/subscription_info',
-        'subscription_migrate_paypal': 'https://accounts.example.com/payments/migrate_paypal_agreement',
-        'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+        'test_api_action': 'https://example.com/test/{param}/action',
       }),
       'valid_for': 3600,
       'version': '1.0',
@@ -169,14 +160,11 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
     ''',
     'result': dict({
       'actions': dict({
-        'remote_access_resolve_dns_cname': 'https://accounts.example.com/instance/resolve_dns_cname',
-        'subscription_info': 'https://accounts.example.com/payments/subscription_info',
-        'subscription_migrate_paypal': 'https://accounts.example.com/payments/migrate_paypal_agreement',
-        'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+        'test_api_action': 'https://example.com/test/{param}/action',
       }),
       'valid_for': 3600,
       'version': '1.0',
@@ -188,27 +176,21 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 1h
       [DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data
     ''',
     'result': dict({
       'cache1': dict({
         'actions': dict({
-          'remote_access_resolve_dns_cname': 'https://accounts.example.com/instance/resolve_dns_cname',
-          'subscription_info': 'https://accounts.example.com/payments/subscription_info',
-          'subscription_migrate_paypal': 'https://accounts.example.com/payments/migrate_paypal_agreement',
-          'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+          'test_api_action': 'https://example.com/test/{param}/action',
         }),
         'valid_for': 3600,
         'version': '1.0',
       }),
       'cache2': dict({
         'actions': dict({
-          'remote_access_resolve_dns_cname': 'https://accounts.example.com/instance/resolve_dns_cname',
-          'subscription_info': 'https://accounts.example.com/payments/subscription_info',
-          'subscription_migrate_paypal': 'https://accounts.example.com/payments/migrate_paypal_agreement',
-          'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+          'test_api_action': 'https://example.com/test/{param}/action',
         }),
         'valid_for': 3600,
         'version': '1.0',
@@ -221,31 +203,23 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 0s
-      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
-      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (500) 
-      [INFO] hass_nabucasa.service_discovery: Unable to fetch service discovery data, using expired cache
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 1h
+      [DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data
     ''',
     'result': dict({
       'cache1': dict({
         'actions': dict({
-          'remote_access_resolve_dns_cname': 'https://accounts.example.com/instance/resolve_dns_cname',
-          'subscription_info': 'https://accounts.example.com/payments/subscription_info',
-          'subscription_migrate_paypal': 'https://accounts.example.com/payments/migrate_paypal_agreement',
-          'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+          'test_api_action': 'https://example.com/test/{param}/action',
         }),
-        'valid_for': 0,
+        'valid_for': 3600,
         'version': '1.0',
       }),
       'cache2': dict({
         'actions': dict({
-          'remote_access_resolve_dns_cname': 'https://accounts.example.com/instance/resolve_dns_cname',
-          'subscription_info': 'https://accounts.example.com/payments/subscription_info',
-          'subscription_migrate_paypal': 'https://accounts.example.com/payments/migrate_paypal_agreement',
-          'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
+          'test_api_action': 'https://example.com/test/{param}/action',
         }),
-        'valid_for': 0,
+        'valid_for': 3600,
         'version': '1.0',
       }),
     }),
@@ -256,7 +230,7 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 0s
       [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 1m:51s
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
@@ -271,7 +245,7 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 1s
       [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 1m:51s
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
@@ -286,21 +260,21 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 1h
-      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 58m:9s
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 1h:1m:51s
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
       [DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data
-      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 58m:9s
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 1h:1m:51s
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
       [DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data
-      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 58m:9s
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 1h:1m:51s
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
       [DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data
-      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 58m:9s
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 1h:1m:51s
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
       [DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data
-      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 58m:9s
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 1h:1m:51s
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
     ''',
     'result': dict({
@@ -313,7 +287,7 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
-      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 4 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 0s
       [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 1m:51s
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
@@ -325,7 +299,7 @@
 # ---
 # name: test_service_discovery_with_action_overrides
   dict({
-    'log': '[DEBUG] hass_nabucasa.service_discovery: Using overridden action URL for voice_connection_details',
+    'log': '[DEBUG] hass_nabucasa.service_discovery: Using overridden action URL for test_api_action',
     'result': 'https://override.example.com/custom',
   })
 # ---
