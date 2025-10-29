@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 MIN_REFRESH_INTERVAL = 60
-TIME_DELTA_FOR_INITAL_LOAD_RETRY = 12 * 60 * 60
+TIME_DELTA_FOR_INITIAL_LOAD_RETRY = 12 * 60 * 60
 
 ServiceDiscoveryAction = Literal["voice_connection_details"]
 
@@ -212,7 +212,9 @@ class ServiceDiscovery(ApiBase):
             try:
                 if self._memory_cache is None:
                     # If we get here the initial load failed, retry after fixed delay
-                    next_check = utcnow().timestamp() + TIME_DELTA_FOR_INITAL_LOAD_RETRY
+                    next_check = (
+                        utcnow().timestamp() + TIME_DELTA_FOR_INITIAL_LOAD_RETRY
+                    )
                 else:
                     next_check = self._memory_cache["valid_until"]
 
