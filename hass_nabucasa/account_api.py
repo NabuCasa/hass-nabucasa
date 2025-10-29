@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypedDict
+from typing import TypedDict
 
 from .api import ApiBase, CloudApiError, api_exception_handler
 
@@ -39,17 +39,10 @@ class AccountStorageServiceDetails(AccountServiceDetails):
 class AccountApi(ApiBase):
     """Class to help communicate with the instance API."""
 
-    @property
-    def hostname(self) -> str:
-        """Get the hostname."""
-        if TYPE_CHECKING:
-            assert self._cloud.servicehandlers_server is not None
-        return self._cloud.servicehandlers_server
-
     @api_exception_handler(AccountApiError)
     async def services(self) -> AccountServicesDetails:
         """Get the services details."""
         details: AccountServicesDetails = await self._call_cloud_api(
-            path="/account/services",
+            action="account_services",
         )
         return details

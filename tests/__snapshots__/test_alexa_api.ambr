@@ -1,0 +1,47 @@
+# serializer version: 1
+# name: test_getting_access_token[response0]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/alexa/access_token (200) 
+  '''
+# ---
+# name: test_problems_getting_caccess_token[429-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/alexa/access_token (429) 
+  '''
+# ---
+# name: test_problems_getting_caccess_token[500-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/alexa/access_token (500) 
+  '''
+# ---
+# name: test_problems_getting_caccess_token[client-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  '''
+# ---
+# name: test_problems_getting_caccess_token[relink-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/alexa/access_token (400) RefreshTokenNotFound
+  '''
+# ---
+# name: test_problems_getting_caccess_token[timeout]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  '''
+# ---
+# name: test_problems_getting_caccess_token[unexpected-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  '''
+# ---

@@ -1,0 +1,14 @@
+# serializer version: 1
+# name: test_create_without_connected
+  ''
+# ---
+# name: test_disable
+  ''
+# ---
+# name: test_enable
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for webhook_generate
+  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/instance/webhook
+  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/instance/webhook (200) 
+  '''
+# ---

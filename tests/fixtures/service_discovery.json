@@ -1,9 +1,22 @@
 {
   "actions": {
+    "account_services": "https://servicehandlers.example.com/account/services",
+    "alexa_access_token": "https://servicehandlers.example.com/alexa/access_token",
+    "instance_connection": "https://servicehandlers.example.com/instance/connection",
+    "remote_access_dns_challenge_remove": "https://servicehandlers.example.com/instance/dns_challenge_cleanup",
+    "remote_access_dns_challenge_set": "https://servicehandlers.example.com/instance/dns_challenge_txt",
+    "remote_access_register": "https://servicehandlers.example.com/instance/register",
     "remote_access_resolve_dns_cname": "https://accounts.example.com/instance/resolve_dns_cname",
+    "remote_access_snitun_token": "https://servicehandlers.example.com/instance/snitun_token",
+    "storage_file_delete": "https://servicehandlers.example.com/files",
+    "storage_file_download": "https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}",
+    "storage_file_upload": "https://servicehandlers.example.com/files/upload_details",
+    "storage_files": "https://servicehandlers.example.com/v2/files/{storage_type}",
     "subscription_info": "https://accounts.example.com/payments/subscription_info",
     "subscription_migrate_paypal": "https://accounts.example.com/payments/migrate_paypal_agreement",
-    "voice_connection_details": "https://servicehandlers.example.com/voice/connection_details"
+    "voice_connection_details": "https://servicehandlers.example.com/voice/connection_details",
+    "webhook_generate": "https://servicehandlers.example.com/instance/webhook",
+    "webrtc_ice_servers": "https://servicehandlers.example.com/v2/webrtc/ice_servers"
   },
   "valid_for": 3600,
   "version": "1.0"

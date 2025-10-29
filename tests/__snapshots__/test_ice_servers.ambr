@@ -1,0 +1,16 @@
+# serializer version: 1
+# name: test_ice_servers_listener_registration_triggers_periodic_ice_servers_update
+  '''
+  [DEBUG] hass_nabucasa.ice_servers: Registering ICE servers listener
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for webrtc_ice_servers
+  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/v2/webrtc/ice_servers
+  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/v2/webrtc/ice_servers (200) 
+  [DEBUG] hass_nabucasa.ice_servers: Updating ICE servers
+  [DEBUG] hass_nabucasa.ice_servers: ICE servers updated
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for webrtc_ice_servers
+  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/v2/webrtc/ice_servers
+  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/v2/webrtc/ice_servers (200) 
+  [DEBUG] hass_nabucasa.ice_servers: Updating ICE servers
+  [DEBUG] hass_nabucasa.ice_servers: ICE servers updated
+  '''
+# ---

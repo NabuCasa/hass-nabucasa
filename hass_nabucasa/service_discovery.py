@@ -26,10 +26,23 @@ MIN_REFRESH_INTERVAL = 60
 TIME_DELTA_FOR_INITIAL_LOAD_RETRY = TWELVE_HOURS_IN_SECONDS
 
 ServiceDiscoveryAction = Literal[
+    "account_services",
+    "alexa_access_token",
+    "instance_connection",
+    "remote_access_dns_challenge_remove",
+    "remote_access_dns_challenge_set",
+    "remote_access_register",
     "remote_access_resolve_dns_cname",
+    "remote_access_snitun_token",
+    "storage_file_delete",
+    "storage_file_download",
+    "storage_file_upload",
+    "storage_files",
     "subscription_info",
     "subscription_migrate_paypal",
     "voice_connection_details",
+    "webhook_generate",
+    "webrtc_ice_servers",
 ]
 
 VALID_ACTION_NAMES = frozenset(get_args(ServiceDiscoveryAction))
@@ -137,10 +150,23 @@ class ServiceDiscovery(ApiBase):
             assert self._cloud.servicehandlers_server is not None
 
         self._fallback_actions: dict[ServiceDiscoveryAction, str] = {
+            "account_services": f"https://{self._cloud.servicehandlers_server}/account/services",
+            "alexa_access_token": f"https://{self._cloud.servicehandlers_server}/alexa/access_token",
+            "instance_connection": f"https://{self._cloud.servicehandlers_server}/instance/connection",
+            "remote_access_dns_challenge_remove": f"https://{self._cloud.servicehandlers_server}/instance/dns_challenge_cleanup",
+            "remote_access_dns_challenge_set": f"https://{self._cloud.servicehandlers_server}/instance/dns_challenge_txt",
+            "remote_access_register": f"https://{self._cloud.servicehandlers_server}/instance/register",
             "remote_access_resolve_dns_cname": f"https://{self._cloud.accounts_server}/instance/resolve_dns_cname",
+            "remote_access_snitun_token": f"https://{self._cloud.servicehandlers_server}/instance/snitun_token",
+            "storage_file_delete": f"https://{self._cloud.servicehandlers_server}/files",
+            "storage_file_download": f"https://{self._cloud.servicehandlers_server}/files/download_details/{{storage_type}}/{{filename}}",
+            "storage_file_upload": f"https://{self._cloud.servicehandlers_server}/files/upload_details",
+            "storage_files": f"https://{self._cloud.servicehandlers_server}/v2/files/{{storage_type}}",
             "subscription_info": f"https://{self._cloud.accounts_server}/payments/subscription_info",
             "subscription_migrate_paypal": f"https://{self._cloud.accounts_server}/payments/migrate_paypal_agreement",
             "voice_connection_details": f"https://{self._cloud.servicehandlers_server}/voice/connection_details",
+            "webhook_generate": f"https://{self._cloud.servicehandlers_server}/instance/webhook",
+            "webrtc_ice_servers": f"https://{self._cloud.servicehandlers_server}/v2/webrtc/ice_servers",
         }
 
     @property
