@@ -20,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 MIN_REFRESH_INTERVAL = 60
 TIME_DELTA_FOR_INITAL_LOAD_RETRY = 12 * 60 * 60
 
-ServiceDiscoveryAction = Literal["voice_connection_details",]
+ServiceDiscoveryAction = Literal["voice_connection_details"]
 
 VALID_ACTION_NAMES = frozenset(get_args(ServiceDiscoveryAction))
 VALID_ACTIONS_STR = ", ".join(sorted(VALID_ACTION_NAMES))
