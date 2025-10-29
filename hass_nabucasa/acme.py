@@ -24,7 +24,7 @@ import josepy as jose
 import OpenSSL
 
 from .const import CertificateStatus
-from .utils import utcnow
+from .utils import seconds_as_dhms, utcnow
 
 FILE_ACCOUNT_KEY = "acme_account.pem"
 FILE_PRIVATE_KEY = "remote_private.pem"
@@ -514,7 +514,8 @@ class AcmeHandler:
                 self._update_status(CertificateStatus.CHALLENGE_DNS_PROPAGATING)
                 try:
                     _LOGGER.info(
-                        "Waiting 60 seconds for publishing DNS to ACME provider",
+                        "Waiting %s for publishing DNS to ACME provider",
+                        seconds_as_dhms(60),
                     )
                     await asyncio.sleep(60)
 

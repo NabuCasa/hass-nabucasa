@@ -25,7 +25,12 @@ _LOGGER = logging.getLogger(__name__)
 MIN_REFRESH_INTERVAL = 60
 TIME_DELTA_FOR_INITIAL_LOAD_RETRY = TWELVE_HOURS_IN_SECONDS
 
-ServiceDiscoveryAction = Literal["voice_connection_details"]
+ServiceDiscoveryAction = Literal[
+    "remote_access_resolve_dns_cname",
+    "subscription_info",
+    "subscription_migrate_paypal",
+    "voice_connection_details",
+]
 
 VALID_ACTION_NAMES = frozenset(get_args(ServiceDiscoveryAction))
 
@@ -128,9 +133,13 @@ class ServiceDiscovery(ApiBase):
         self._action_overrides = action_overrides or {}
 
         if TYPE_CHECKING:
+            assert self._cloud.accounts_server is not None
             assert self._cloud.servicehandlers_server is not None
 
         self._fallback_actions: dict[ServiceDiscoveryAction, str] = {
+            "remote_access_resolve_dns_cname": f"https://{self._cloud.accounts_server}/instance/resolve_dns_cname",
+            "subscription_info": f"https://{self._cloud.accounts_server}/payments/subscription_info",
+            "subscription_migrate_paypal": f"https://{self._cloud.accounts_server}/payments/migrate_paypal_agreement",
             "voice_connection_details": f"https://{self._cloud.servicehandlers_server}/voice/connection_details",
         }
 

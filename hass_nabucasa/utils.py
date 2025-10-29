@@ -35,21 +35,22 @@ def parse_date(dt_str: str) -> dt.date | None:
         return None
 
 
-def seconds_as_dhms(seconds: int) -> str:
+def seconds_as_dhms(seconds: float) -> str:
     """Convert seconds to a DDd:HHh:MMm:SSs string."""
-    days, seconds = divmod(seconds, 86400)
+    days, seconds = divmod(int(seconds), 86400)
     hours, seconds = divmod(seconds, 3600)
     minutes, seconds = divmod(seconds, 60)
 
-    result = ""
+    parts = []
     if days > 0:
-        result += f"{days}d:"
-    if hours > 0 or days > 0:
-        result += f"{hours}h:"
-    if minutes > 0 or hours > 0 or days > 0:
-        result += f"{minutes}m:"
-    result += f"{seconds}s"
-    return result
+        parts.append(f"{days}d")
+    if hours > 0 or (parts and (minutes > 0 or seconds > 0)):
+        parts.append(f"{hours}h")
+    if minutes > 0 or (parts and seconds > 0):
+        parts.append(f"{minutes}m")
+    if seconds > 0 or not parts:
+        parts.append(f"{seconds}s")
+    return ":".join(parts)
 
 
 def expiration_from_token(token: str | None) -> int | None:
