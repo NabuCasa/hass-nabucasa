@@ -514,4 +514,4 @@ async def test_subscription_reconnection_handler_connection_error(
     _initialize_mocker.assert_awaited_once()
     assert "Stopping subscription reconnection handler" in caplog.text
     assert "Could not establish connection (attempt 1)" in caplog.text
-    assert "waiting 3.6 minutes before retrying" in caplog.text
+    assert "waiting 3m:36s before retrying" in caplog.text

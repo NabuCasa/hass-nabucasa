@@ -17,7 +17,7 @@ from pycognito.exceptions import ForceChangePasswordException, MFAChallengeExcep
 
 from .const import MESSAGE_AUTH_FAIL
 from .exceptions import CloudError
-from .utils import expiration_from_token, utcnow
+from .utils import expiration_from_token, seconds_as_dhms, utcnow
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -116,7 +116,8 @@ class CognitoAuth:
             try:
                 sleep_time = _sleep_time()
                 _LOGGER.debug(
-                    "Sleeping for %d seconds before refreshing token", sleep_time
+                    "Sleeping for %s before refreshing token",
+                    seconds_as_dhms(sleep_time),
                 )
                 await asyncio.sleep(sleep_time)
                 await self.async_renew_access_token()
