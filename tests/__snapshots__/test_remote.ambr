@@ -8,6 +8,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: validating
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for acme_directory
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
@@ -20,6 +21,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: validating
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for acme_directory
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
@@ -32,6 +34,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: validating
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for acme_directory
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
@@ -44,6 +47,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: validating
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for acme_directory
   [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't connect to ACME server: urn:ietf:params:acme:error:malformed :: The request message was malformed :: Some other malformed reason
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
@@ -57,6 +61,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: validating
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for acme_directory
   [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't connect to ACME server: about:blank :: Boom
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''

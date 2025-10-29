@@ -26,6 +26,7 @@ MIN_REFRESH_INTERVAL = 60
 TIME_DELTA_FOR_INITIAL_LOAD_RETRY = TWELVE_HOURS_IN_SECONDS
 
 ServiceDiscoveryAction = Literal[
+    "acme_directory",
     "remote_access_resolve_dns_cname",
     "subscription_info",
     "subscription_migrate_paypal",
@@ -137,6 +138,7 @@ class ServiceDiscovery(ApiBase):
             assert self._cloud.servicehandlers_server is not None
 
         self._fallback_actions: dict[ServiceDiscoveryAction, str] = {
+            "acme_directory": f"https://{self._cloud.acme_server}/directory",
             "remote_access_resolve_dns_cname": f"https://{self._cloud.accounts_server}/instance/resolve_dns_cname",
             "subscription_info": f"https://{self._cloud.accounts_server}/payments/subscription_info",
             "subscription_migrate_paypal": f"https://{self._cloud.accounts_server}/payments/migrate_paypal_agreement",
