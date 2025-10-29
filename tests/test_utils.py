@@ -88,3 +88,30 @@ def test_expiration_from_token_no_exp():
 def test_expiration_from_token_no_token():
     """Test the expiration_from_token util with no token."""
     assert utils.expiration_from_token(None) is None
+
+
+@pytest.mark.parametrize(
+    "seconds,expected",
+    [
+        (0, "0s"),
+        (30, "30s"),
+        (59, "59s"),
+        (60, "1m:0s"),
+        (90, "1m:30s"),
+        (125, "2m:5s"),
+        (3600, "1h:0m:0s"),
+        (3661, "1h:1m:1s"),
+        (3725, "1h:2m:5s"),
+        (7384, "2h:3m:4s"),
+        (43289, "12h:1m:29s"),
+        (86400, "1d:0h:0m:0s"),
+        (86461, "1d:0h:1m:1s"),
+        (90061, "1d:1h:1m:1s"),
+        (93784, "1d:2h:3m:4s"),
+        (172925, "2d:0h:2m:5s"),
+        (266543, "3d:2h:2m:23s"),
+    ],
+)
+def test_seconds_as_dhms(seconds, expected):
+    """Test the seconds_as_dhms util."""
+    assert utils.seconds_as_dhms(seconds) == expected

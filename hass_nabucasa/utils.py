@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import Awaitable, Callable, Mapping
 import datetime as dt
 from logging import Logger
+import random
 import ssl
 from typing import Any, TypeVar
 
@@ -32,6 +33,23 @@ def parse_date(dt_str: str) -> dt.date | None:
         return ciso8601.parse_datetime(dt_str).date()
     except ValueError:  # If dt_str did not match our format
         return None
+
+
+def seconds_as_dhms(seconds: int) -> str:
+    """Convert seconds to a DDd:HHh:MMm:SSs string."""
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+
+    result = ""
+    if days > 0:
+        result += f"{days}d:"
+    if hours > 0 or days > 0:
+        result += f"{hours}h:"
+    if minutes > 0 or hours > 0 or days > 0:
+        result += f"{minutes}m:"
+    result += f"{seconds}s"
+    return result
 
 
 def expiration_from_token(token: str | None) -> int | None:
@@ -89,6 +107,11 @@ def next_midnight() -> float:
         microsecond=0,
     ) + dt.timedelta(days=1)
     return (midnight - dt.datetime.now()).total_seconds()
+
+
+def jitter(minimum: float, maximum: float) -> float:
+    """Return a random float between minimum and maximum for backoff jitter."""
+    return random.uniform(minimum, maximum)
 
 
 async def gather_callbacks(

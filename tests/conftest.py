@@ -1,8 +1,9 @@
 """Set up some common test helper things."""
 
 import asyncio
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 from datetime import datetime
+import json
 import logging
 from pathlib import Path
 from typing import Any, cast
@@ -15,14 +16,21 @@ import pytest
 
 import hass_nabucasa
 
-from .common import MockClient
+from .common import WELL_KNOWN_SERVICE_DISCOVERY_JSON, FreezeTimeFixture, MockClient
 from .utils.aiohttp import AiohttpClientMocker, mock_aiohttp_client
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-@pytest.fixture(autouse=True)
-def freeze_time_fixture():
+@pytest.fixture
+def service_discovery_fixture_data():
+    """Load service discovery fixture data from JSON file."""
+    with WELL_KNOWN_SERVICE_DISCOVERY_JSON.open() as f:
+        return json.load(f)
+
+
+@pytest.fixture(autouse=True, name="frozen_time")
+def freeze_time_fixture() -> Generator[FreezeTimeFixture, Any]:
     """Freeze time for all tests by default."""
     original_timestamp = datetime.timestamp
 
@@ -31,10 +39,10 @@ def freeze_time_fixture():
         return int(original_timestamp(self))
 
     with (
-        freeze_time("2018-09-17 12:00:00", tick=True),
+        freeze_time("2018-09-17 12:00:00", tick=True) as time_freezer,
         patch("datetime.datetime.timestamp", consistent_timestamp),
     ):
-        yield
+        yield time_freezer
 
 
 @pytest.fixture(name="loop")

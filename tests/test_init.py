@@ -28,9 +28,18 @@ def mock_subscription_info(aioclient_mock):
 
 
 @pytest.fixture
-def cl(cloud_client) -> cloud.Cloud:
+async def cl(cloud_client) -> cloud.Cloud:
     """Mock cloud client."""
-    return cloud.Cloud(cloud_client, cloud.MODE_DEV, accounts_server="example.com")
+    with patch(
+        "hass_nabucasa.service_discovery.ServiceDiscovery.async_start_service_discovery",
+        new=AsyncMock(),
+    ):
+        yield cloud.Cloud(
+            cloud_client,
+            cloud.MODE_DEV,
+            accounts_server="example.com",
+            api_server="example.com",
+        )
 
 
 def test_constructor_loads_info_from_constant(cloud_client):

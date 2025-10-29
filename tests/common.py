@@ -4,16 +4,43 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Coroutine
+import json
 from pathlib import Path
 import threading
 from typing import Any, Literal
 from unittest.mock import Mock
 
+from freezegun.api import (
+    FrozenDateTimeFactory,
+    StepTickTimeFactory,
+    TickingDateTimeFactory,
+)
 import pytest
 
 from hass_nabucasa.client import CloudClient
 
 FROZEN_NOW_AS_TIMESTAMP = 1537185600  # 2018-09-17 12:00:00 UTC
+
+WELL_KNOWN_SERVICE_DISCOVERY_JSON = (
+    Path(__file__).parent / "fixtures" / "service_discovery.json"
+)
+
+type FreezeTimeFixture = (
+    FrozenDateTimeFactory | StepTickTimeFactory | TickingDateTimeFactory
+)
+
+
+def construct_service_discovery_actions(
+    overrides: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Return complete set of actions from fixture."""
+    with WELL_KNOWN_SERVICE_DISCOVERY_JSON.open() as f:
+        fixture_data = json.load(f)
+
+    return {
+        **fixture_data["actions"],
+        **(overrides or {}),
+    }
 
 
 class MockClient(CloudClient):

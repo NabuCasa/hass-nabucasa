@@ -29,6 +29,7 @@ dependencies = [
     "pycognito==2024.5.1",
     "PyJWT>=2.8.0",
     "snitun==0.45.1",
+    "voluptuous>=0.15",
     "webrtc-models<1.0.0",
     "yarl>=1.20,<2",
     "sentence-stream==1.2.1",

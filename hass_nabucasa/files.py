@@ -137,9 +137,10 @@ class Files(ApiBase):
                     connect=10.0,
                     total=_FILE_TRANSFER_TIMEOUT,
                 ),
+                include_path_in_log=False,
             )
 
-            self._do_log_response(response)
+            self._do_log_response(response, include_path_in_log=False)
             if 400 <= (status := response.status) < 500:
                 # We can try to get some context.
                 error = await response.text()
@@ -188,9 +189,10 @@ class Files(ApiBase):
                     connect=10.0,
                     total=_FILE_TRANSFER_TIMEOUT,
                 ),
+                include_path_in_log=False,
             )
 
-            self._do_log_response(response)
+            self._do_log_response(response, include_path_in_log=False)
             response.raise_for_status()
         except CloudApiError as err:
             raise FilesError(err, orig_exc=err) from err
