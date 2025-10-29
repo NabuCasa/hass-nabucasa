@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 import random
 import shutil
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar, overload
 
 from aiohttp import ClientSession
 from atomicwrites import atomic_write
@@ -138,10 +138,36 @@ class AlreadyConnectedError(CloudError):
 class Cloud(Generic[_ClientT]):
     """Store the configuration of the cloud connection."""
 
+    @overload
     def __init__(
         self,
         client: _ClientT,
-        mode: Literal["development", "production"],
+        mode: Literal["production"],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        client: _ClientT,
+        mode: Literal["development"],
+        *,
+        api_server: str,
+        cognito_client_id: str | None = None,
+        region: str | None = None,
+        user_pool_id: str | None = None,
+        account_link_server: str | None = None,
+        accounts_server: str | None = None,
+        acme_server: str | None = None,
+        relayer_server: str | None = None,
+        remotestate_server: str | None = None,
+        servicehandlers_server: str | None = None,
+        discovery_service_actions: dict[ServiceDiscoveryAction, str] | None = None,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        client: _ClientT,
+        mode: Literal["production", "development"],
         *,
         api_server: str | None = None,
         cognito_client_id: str | None = None,
