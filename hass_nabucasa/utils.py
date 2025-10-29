@@ -44,9 +44,9 @@ def seconds_as_dhms(seconds: float) -> str:
     parts = []
     if days > 0:
         parts.append(f"{days}d")
-    if hours > 0:
+    if hours > 0 or (parts and (minutes > 0 or seconds > 0)):
         parts.append(f"{hours}h")
-    if minutes > 0:
+    if minutes > 0 or (parts and seconds > 0):
         parts.append(f"{minutes}m")
     if seconds > 0 or not parts:
         parts.append(f"{seconds}s")
