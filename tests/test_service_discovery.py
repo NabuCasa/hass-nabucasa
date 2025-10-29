@@ -12,6 +12,7 @@ from aiohttp import ClientError
 import pytest
 from syrupy import SnapshotAssertion
 
+from hass_nabucasa.const import FIVE_MINUTES_IN_SECONDS
 from hass_nabucasa.service_discovery import (
     MIN_REFRESH_INTERVAL,
     ServiceDiscovery,
@@ -24,13 +25,18 @@ from hass_nabucasa.utils import utcnow
 
 from .common import (
     FreezeTimeFixture,
-    construct_service_discovery_actions,
     extract_log_messages,
 )
 
 if TYPE_CHECKING:
     from hass_nabucasa import Cloud
     from tests.utils.aiohttp import AiohttpClientMocker
+
+BASE_EXPECTED_RESULT = {
+    "actions": {"test_api_action": "https://example.com/test/{param}/action"},
+    "valid_for": 3600,
+    "version": "1.0",
+}
 
 
 def assert_snapshot_with_logs(
@@ -44,6 +50,18 @@ def assert_snapshot_with_logs(
 def jitter_patch() -> Generator[Any, Any, Any]:
     """Mock jitter to always return 0."""
     with patch("hass_nabucasa.service_discovery.jitter", return_value=111):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def add_test_api_action_to_service_discovery():
+    """Add test_api_action for this module's tests."""
+    with (
+        patch(
+            "hass_nabucasa.service_discovery.VALID_ACTION_NAMES",
+            frozenset(BASE_EXPECTED_RESULT["actions"].keys()),
+        ),
+    ):
         yield
 
 
@@ -103,20 +121,14 @@ async def test_fetch_well_known_success(
     snapshot: SnapshotAssertion,
 ):
     """Test successful fetch of well-known service discovery endpoint."""
-    expected_result = {
-        "actions": construct_service_discovery_actions(),
-        "valid_for": 3600,
-        "version": "1.0",
-    }
-
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json=expected_result,
+        json=BASE_EXPECTED_RESULT,
     )
 
     result = await cloud.service_discovery._fetch_well_known_service_discovery()
 
-    assert result == expected_result
+    assert result == BASE_EXPECTED_RESULT
     assert_snapshot_with_logs(result, caplog, snapshot)
 
 
@@ -144,15 +156,9 @@ async def test_load_service_discovery_data_caches_result(
     snapshot: SnapshotAssertion,
 ):
     """Test that service discovery data is cached."""
-    expected_result = {
-        "actions": construct_service_discovery_actions(),
-        "valid_for": 3600,
-        "version": "1.0",
-    }
-
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json=expected_result,
+        json=BASE_EXPECTED_RESULT,
     )
 
     cache1 = await cloud.service_discovery._load_service_discovery_data()
@@ -178,8 +184,7 @@ async def test_load_service_discovery_data_uses_expired_cache_on_failure(
 ):
     """Test that expired cache is used when API fails."""
     expected_result = {
-        "actions": construct_service_discovery_actions(),
-        "valid_for": 0,
+        **BASE_EXPECTED_RESULT,
         "version": "1.0",
     }
 
@@ -238,17 +243,9 @@ async def test_async_start_service_discovery_success(
     caplog: pytest.LogCaptureFixture,
 ):
     """Test starting service discovery successfully."""
-    expected_result = {
-        "actions": {
-            "voice_connection_details": "https://example.com/voice/connection_details",
-        },
-        "valid_for": 3600,
-        "version": "1.0",
-    }
-
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json=expected_result,
+        json=BASE_EXPECTED_RESULT,
     )
 
     await cloud.service_discovery.async_start_service_discovery()
@@ -285,17 +282,9 @@ async def test_async_stop_service_discovery(
     caplog: pytest.LogCaptureFixture,
 ):
     """Test stopping service discovery."""
-    expected_result = {
-        "actions": {
-            "voice_connection_details": "https://example.com/voice/connection_details",
-        },
-        "valid_for": 3600,
-        "version": "1.0",
-    }
-
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json=expected_result,
+        json=BASE_EXPECTED_RESULT,
     )
 
     await cloud.service_discovery.async_start_service_discovery()
@@ -314,22 +303,16 @@ async def test_action_url_returns_cached_url(
     snapshot: SnapshotAssertion,
 ):
     """Test that action_url returns cached URL."""
-    expected_result = {
-        "actions": construct_service_discovery_actions(),
-        "valid_for": 3600,
-        "version": "1.0",
-    }
-
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json=expected_result,
+        json=BASE_EXPECTED_RESULT,
     )
 
     await cloud.service_discovery._load_service_discovery_data()
 
-    url = cloud.service_discovery.action_url("voice_connection_details")
+    url = cloud.service_discovery.action_url("test_api_action", param="test")
     assert isinstance(url, str)
-    assert "voice/connection_details" in url
+    assert url == "https://example.com/test/test/action"
     assert_snapshot_with_logs(url, caplog, snapshot)
 
 
@@ -340,8 +323,11 @@ async def test_action_url_returns_fallback_url(
     snapshot: SnapshotAssertion,
 ):
     """Test that action_url returns fallback URL when not cached."""
-    url = cloud.service_discovery.action_url("voice_connection_details")
-    assert url == f"https://{cloud.servicehandlers_server}/voice/connection_details"
+    cloud.service_discovery._fallback_actions = {
+        "test_api_action": "https://example.com/test/fallback/action"
+    }
+    url = cloud.service_discovery.action_url("test_api_action", param="test")
+    assert url == "https://example.com/test/fallback/action"
     assert "Using fallback action URL" in caplog.text
     assert_snapshot_with_logs(url, caplog, snapshot)
 
@@ -353,26 +339,14 @@ async def test_action_url_with_format_parameters(
     snapshot: SnapshotAssertion,
 ):
     """Test that action_url correctly applies format parameters."""
-    expected_result = {
-        "actions": construct_service_discovery_actions(
-            {
-                "voice_connection_details": "https://example.com/voice/{format_param}",
-            }
-        ),
-        "valid_for": 3600,
-        "version": "1.0",
-    }
-
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json=expected_result,
+        json=BASE_EXPECTED_RESULT,
     )
 
     await cloud.service_discovery._load_service_discovery_data()
 
-    url = cloud.service_discovery.action_url(
-        "voice_connection_details", format_param="test"
-    )
+    url = cloud.service_discovery.action_url("test_api_action", param="test")
     assert isinstance(url, str)
     assert "test" in url
     assert_snapshot_with_logs(url, caplog, snapshot)
@@ -384,25 +358,15 @@ async def test_action_url_missing_format_parameter(
     caplog: pytest.LogCaptureFixture,
 ):
     """Test that action_url raises error when format parameter is missing."""
-    expected_result = {
-        "actions": construct_service_discovery_actions(
-            {
-                "voice_connection_details": "https://example.com/voice/{format_param}",
-            }
-        ),
-        "valid_for": 3600,
-        "version": "1.0",
-    }
-
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json=expected_result,
+        json=BASE_EXPECTED_RESULT,
     )
 
     await cloud.service_discovery._load_service_discovery_data()
 
     with pytest.raises(ServiceDiscoveryMissingParameterError):
-        cloud.service_discovery.action_url("voice_connection_details")
+        cloud.service_discovery.action_url("test_api_action")
 
 
 async def test_action_url_with_override(
@@ -413,11 +377,9 @@ async def test_action_url_with_override(
 ):
     """Test that action_url uses override when provided."""
     override_url = "https://override.example.com/custom"
-    cloud.service_discovery._action_overrides = {
-        "voice_connection_details": override_url
-    }
+    cloud.service_discovery._action_overrides = {"test_api_action": override_url}
 
-    url = cloud.service_discovery.action_url("voice_connection_details")
+    url = cloud.service_discovery.action_url("test_api_action")
     assert url == override_url
     assert "Using overridden action URL" in caplog.text
     assert_snapshot_with_logs(url, caplog, snapshot)
@@ -442,10 +404,10 @@ async def test_service_discovery_with_action_overrides(
     """Test that ServiceDiscovery can be initialized with action overrides."""
     override_url = "https://override.example.com/custom"
     discovery = ServiceDiscovery(
-        cloud, action_overrides={"voice_connection_details": override_url}
+        cloud, action_overrides={"test_api_action": override_url}
     )
 
-    url = discovery.action_url("voice_connection_details")
+    url = discovery.action_url("test_api_action")
     assert url == override_url
     assert_snapshot_with_logs(url, caplog, snapshot)
 
@@ -458,11 +420,11 @@ async def test_invalid_action_name_in_response(
 ):
     """Test that invalid action names in response are filtered out."""
     expected_result = {
-        "actions": construct_service_discovery_actions(
-            {
-                "invalid_action": "https://example.com/invalid",
-            }
-        ),
+        **BASE_EXPECTED_RESULT,
+        "actions": {
+            **BASE_EXPECTED_RESULT["actions"],
+            "invalid_action": "https://example.com/invalid",
+        },
         "valid_for": 3600,
         "version": "1.0",
     }
@@ -473,7 +435,7 @@ async def test_invalid_action_name_in_response(
     )
 
     result = await cloud.service_discovery._fetch_well_known_service_discovery()
-    assert "voice_connection_details" in result["actions"]
+    assert "test_api_action" in result["actions"]
     assert "invalid_action" not in result["actions"]
     assert_snapshot_with_logs(result, caplog, snapshot)
 
@@ -484,15 +446,9 @@ async def test_concurrent_cache_load_uses_lock(
     caplog: pytest.LogCaptureFixture,
 ):
     """Test that concurrent cache loads are serialized by lock."""
-    expected_result = {
-        "actions": construct_service_discovery_actions(),
-        "valid_for": 3600,
-        "version": "1.0",
-    }
-
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json=expected_result,
+        json=BASE_EXPECTED_RESULT,
     )
 
     results = await asyncio.gather(
@@ -514,11 +470,7 @@ async def test_background_task_lifecycle_success(
     """Test complete lifecycle of background refresh task."""
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json={
-            "actions": construct_service_discovery_actions(),
-            "valid_for": 3600,
-            "version": "1.0",
-        },
+        json=BASE_EXPECTED_RESULT,
     )
 
     await cloud.service_discovery.async_start_service_discovery()
@@ -561,9 +513,8 @@ async def test_stop_during_active_refresh(
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
-            "actions": construct_service_discovery_actions(),
+            **BASE_EXPECTED_RESULT,
             "valid_for": 1,
-            "version": "1.0",
         },
     )
 
@@ -582,15 +533,9 @@ async def test_multiple_start_stop_cycles(
     caplog: pytest.LogCaptureFixture,
 ):
     """Test multiple start/stop cycles work correctly."""
-    expected_result = {
-        "actions": construct_service_discovery_actions(),
-        "valid_for": 3600,
-        "version": "1.0",
-    }
-
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json=expected_result,
+        json=BASE_EXPECTED_RESULT,
     )
 
     for _ in range(3):
@@ -607,15 +552,9 @@ async def test_cloud_initialization_lifecycle(
     caplog: pytest.LogCaptureFixture,
 ):
     """Test service discovery integrates properly with Cloud lifecycle."""
-    expected_result = {
-        "actions": construct_service_discovery_actions(),
-        "valid_for": 3600,
-        "version": "1.0",
-    }
-
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json=expected_result,
+        json=BASE_EXPECTED_RESULT,
     )
 
     assert cloud.service_discovery is not None
@@ -648,9 +587,7 @@ async def test_forward_compatibility_extra_top_level_fields(
 ):
     """Test that extra top-level fields in API response are ignored."""
     api_response = {
-        "actions": construct_service_discovery_actions(),
-        "valid_for": 3600,
-        "version": "1.0",
+        **BASE_EXPECTED_RESULT,
         "newFeature": "some_value",
         "anotherField": {"nested": "data"},
         "experimental": True,
@@ -666,7 +603,7 @@ async def test_forward_compatibility_extra_top_level_fields(
     assert "newFeature" not in result
     assert "anotherField" not in result
     assert "experimental" not in result
-    assert result["actions"] == construct_service_discovery_actions()
+    assert result["actions"] == BASE_EXPECTED_RESULT["actions"]
     assert result["valid_for"] == 3600
     assert result["version"] == "1.0"
     assert_snapshot_with_logs(result, caplog, snapshot)
@@ -680,8 +617,9 @@ async def test_forward_compatibility_extra_actions(
 ):
     """Test that extra actions in API response are ignored."""
     api_response = {
+        **BASE_EXPECTED_RESULT,
         "actions": {
-            **construct_service_discovery_actions(),
+            **BASE_EXPECTED_RESULT["actions"],
             "future_action_1": "https://example.com/future/action1",
             "future_action_2": "https://example.com/future/action2",
             "experimental_feature": "https://example.com/experimental",
@@ -700,7 +638,7 @@ async def test_forward_compatibility_extra_actions(
     assert "future_action_1" not in result["actions"]
     assert "future_action_2" not in result["actions"]
     assert "experimental_feature" not in result["actions"]
-    assert "voice_connection_details" in result["actions"]
+    assert "test_api_action" in result["actions"]
     assert_snapshot_with_logs(result, caplog, snapshot)
 
 
@@ -712,8 +650,9 @@ async def test_forward_compatibility_combined(
 ):
     """Test forward compatibility with both extra top-level fields and extra actions."""
     api_response = {
+        **BASE_EXPECTED_RESULT,
         "actions": {
-            **construct_service_discovery_actions(),
+            **BASE_EXPECTED_RESULT["actions"],
             "future_action": "https://example.com/future",
         },
         "valid_for": 3600,
@@ -732,7 +671,7 @@ async def test_forward_compatibility_combined(
     assert "newTopLevelField" not in result
     assert "metadata" not in result
     assert "future_action" not in result["actions"]
-    assert "voice_connection_details" in result["actions"]
+    assert "test_api_action" in result["actions"]
     assert result["valid_for"] == 3600
     assert result["version"] == "2.0"
 
@@ -749,9 +688,8 @@ async def test_network_failure_during_background_refresh(
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
-            "actions": construct_service_discovery_actions(),
+            **BASE_EXPECTED_RESULT,
             "valid_for": 0,
-            "version": "1.0",
         },
     )
 
@@ -791,9 +729,8 @@ async def test_extremely_long_running_refresh_cycle(
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
-            "actions": construct_service_discovery_actions(),
+            **BASE_EXPECTED_RESULT,
             "valid_for": one_year_seconds,
-            "version": "1.0",
         },
     )
 
@@ -806,7 +743,7 @@ async def test_extremely_long_running_refresh_cycle(
     assert cloud.service_discovery._service_discovery_refresh_task is not None
     assert not cloud.service_discovery._service_discovery_refresh_task.done()
 
-    url = cloud.service_discovery.action_url("voice_connection_details")
+    url = cloud.service_discovery.action_url("test_api_action", param="test")
 
     await cloud.service_discovery.async_stop_service_discovery()
 
@@ -832,9 +769,8 @@ async def test_race_condition_stop_during_fetch(
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
-            "actions": construct_service_discovery_actions(),
+            **BASE_EXPECTED_RESULT,
             "valid_for": 0,
-            "version": "1.0",
         },
     )
 
@@ -868,9 +804,8 @@ async def test_race_condition_multiple_concurrent_stops(
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
-            "actions": construct_service_discovery_actions(),
+            **BASE_EXPECTED_RESULT,
             "valid_for": 1,
-            "version": "1.0",
         },
     )
 
@@ -904,11 +839,7 @@ async def test_race_condition_stop_and_start_rapid_cycling(
     """Test rapid start/stop cycling for race conditions."""
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json={
-            "actions": construct_service_discovery_actions(),
-            "valid_for": 3600,
-            "version": "1.0",
-        },
+        json=BASE_EXPECTED_RESULT,
     )
 
     for _ in range(5):
@@ -937,11 +868,7 @@ async def test_background_refresh_with_changing_network_conditions(
     """Test background refresh handles alternating success and failure."""
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json={
-            "actions": construct_service_discovery_actions(),
-            "valid_for": 3600,
-            "version": "1.0",
-        },
+        json=BASE_EXPECTED_RESULT,
     )
 
     await cloud.service_discovery.async_start_service_discovery()
@@ -967,8 +894,7 @@ async def test_background_refresh_with_changing_network_conditions(
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
-            "actions": construct_service_discovery_actions(),
-            "valid_for": 3600,
+            **BASE_EXPECTED_RESULT,
             "version": "2.0",
         },
     )
@@ -993,10 +919,11 @@ async def test_background_refresh_with_changing_network_conditions(
 @pytest.mark.parametrize(
     "valid_for_seconds,expected_min,expected_max",
     [
-        (10, MIN_REFRESH_INTERVAL, MIN_REFRESH_INTERVAL + 240),  # Expired/small
-        (3600, MIN_REFRESH_INTERVAL, 3595),  # 1 hour - jitter up to 3600
-        (7200, MIN_REFRESH_INTERVAL, 7195),  # 2 hours - jitter up to 3600
-        (259200, 255600, 259195),  # 3 days - jitter up to 3600
+        # Expired/small: jitter(60, 300)
+        (10, MIN_REFRESH_INTERVAL, FIVE_MINUTES_IN_SECONDS),
+        (3600, 3605, 7200),  # 1 hour: remaining + jitter(5, 3600)
+        (7200, 7205, 10800),  # 2 hours: remaining + jitter(5, 3600)
+        (259200, 259205, 262800),  # 3 days: remaining + jitter(5, 3600)
     ],
 )
 def test_sleep_time_calculation_with_jitter(
@@ -1033,19 +960,18 @@ async def test_background_refresh_with_no_cache_uses_12_hour_retry(
     assert not cloud.service_discovery._service_discovery_refresh_task.done()
     assert cloud.service_discovery._memory_cache is None
 
-    assert "Scheduling service discovery refresh in 11h:58m:9s" in caplog.text
+    # With jitter, expect between ~11h58m and ~13h (12h + up to 1h jitter)
+    pattern = r"Scheduling service discovery refresh in (11h:5[0-9]m|12h|13h:0m)"
+    assert re.search(pattern, caplog.text)
 
     aioclient_mock.clear_requests()
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json={
-            "actions": construct_service_discovery_actions(),
-            "valid_for": 3600,
-            "version": "1.0",
-        },
+        json=BASE_EXPECTED_RESULT,
     )
 
-    frozen_time.tick(43089)
+    # Tick past the maximum possible sleep time (12h + 1h jitter = 13h)
+    frozen_time.tick(13 * 3600 + 1)
     await asyncio.sleep(0.1)
 
     assert cloud.service_discovery._memory_cache is not None
@@ -1068,15 +994,9 @@ async def test_service_discovery_fetch_without_token_check(
     cloud: Cloud,
 ):
     """Test that service discovery fetch skips token validation."""
-    expected_result = {
-        "actions": construct_service_discovery_actions(),
-        "valid_for": 3600,
-        "version": "1.0",
-    }
-
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
-        json=expected_result,
+        json=BASE_EXPECTED_RESULT,
     )
 
     cloud.auth.async_check_token = AsyncMock(
