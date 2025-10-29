@@ -284,13 +284,13 @@ async def test_guard_no_login_authenticated_cognito(auth_mock_kwargs: dict[str, 
 @pytest.mark.parametrize(
     "exp_value,random_value,expected_sleep",
     [
-        [None, 2220, 2220],
-        [120, 120, 120],
-        [121, 120, 120],
-        [124, 120, 4],
-        [-124, 120, 120],
-        [7800, 60, 7740],
-        [1330, 60, 1270],
+        [None, 2220, "37m"],
+        [120, 120, "2m"],
+        [121, 120, "2m"],
+        [124, 120, "4s"],
+        [-124, 120, "2m"],
+        [7800, 60, "2h:9m"],
+        [1330, 60, "21m:10s"],
     ],
 )
 async def test_sleep_time_calculation(
@@ -319,7 +319,4 @@ async def test_sleep_time_calculation(
 
         await auth._async_handle_token_refresh()
 
-        assert (
-            f"Sleeping for {expected_sleep} seconds before refreshing token"
-            in caplog.text
-        )
+        assert f"Sleeping for {expected_sleep} before refreshing token" in caplog.text
