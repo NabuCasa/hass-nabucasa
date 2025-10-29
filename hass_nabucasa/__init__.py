@@ -275,6 +275,11 @@ class Cloud(Generic[_ClientT]):
     ) -> None:
         """Raise AlreadyConnectedError if already connected."""
         try:
+            await self.service_discovery.async_start_service_discovery()
+        except ServiceDiscoveryError as err:
+            _LOGGER.info("Failed to initialize service discovery: %s", err)
+
+        try:
             connection = await self.instance.connection(
                 skip_token_check=True,
                 access_token=access_token,
@@ -492,6 +497,11 @@ class Cloud(Generic[_ClientT]):
 
     async def _start(self, skip_subscription_check: bool = False) -> None:
         """Start the cloud component."""
+        try:
+            await self.service_discovery.async_start_service_discovery()
+        except ServiceDiscoveryError as err:
+            _LOGGER.info("Failed to initialize service discovery: %s", err)
+
         if skip_subscription_check or await self.async_subscription_is_valid():
             await self.client.cloud_started()
             await gather_callbacks(_LOGGER, "on_start", self._on_start)
