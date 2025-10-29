@@ -161,14 +161,6 @@ class ApiBase:
         """Get the non-retryable error codes."""
         return {"NC-CE-02", "NC-CE-03"}.union(self.non_retryable_error_codes)
 
-    def _action_url(
-        self,
-        action: ServiceDiscoveryAction,
-        **kwargs: str,
-    ) -> str:
-        """Get action URL with optional format parameters."""
-        return self._cloud.service_discovery.action_url(action, **kwargs)
-
     def _do_log_request(
         self,
         method: str,
@@ -264,7 +256,8 @@ class ApiBase:
     async def _call_cloud_api(
         self,
         *,
-        url: str | None = None,
+        action: ServiceDiscoveryAction | None = None,
+        action_values: dict[str, Any] | None = None,
         path: str | None = None,
         api_version: int | None = None,
         method: str = "GET",
@@ -278,8 +271,8 @@ class ApiBase:
         schema: vol.Schema | None = None,
     ) -> Any:
         """Call cloud API."""
-        if url is None and path is None:
-            raise CloudApiError("Either 'url' or 'path' parameter must be provided")
+        if action is None and path is None:
+            raise CloudApiError("Either 'action' or 'path' parameter must be provided")
 
         data: dict[str, Any] | list[Any] | str | None = None
         if not skip_token_check:
@@ -287,8 +280,11 @@ class ApiBase:
         if TYPE_CHECKING:
             assert self._cloud.id_token is not None
 
-        if url is not None:
-            final_url = url
+        if action is not None:
+            final_url = self._cloud.service_discovery.action_url(
+                action=action,
+                **(action_values or {}),
+            )
         else:
             url_path = f"{f'/v{api_version}' if api_version else ''}{path}"
             final_url = f"https://{self.hostname}{url_path}"

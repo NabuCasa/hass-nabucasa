@@ -27,6 +27,6 @@ class VoiceApi(ApiBase):
     async def connection_details(self) -> VoiceConnectionDetails:
         """Get the voice connection details."""
         details: VoiceConnectionDetails = await self._call_cloud_api(
-            url=self._action_url("voice_connection_details")
+            action="voice_connection_details"
         )
         return details

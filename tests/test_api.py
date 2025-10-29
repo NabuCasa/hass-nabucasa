@@ -373,21 +373,22 @@ def test_cloud_api_raw_response_dataclass_default_data():
     assert raw_response.response.status == 204
 
 
-async def test_call_cloud_api_with_url_parameter(
+async def test_call_cloud_api_with_action_parameter(
     aioclient_mock: AiohttpClientMocker,
     cloud: Cloud,
 ) -> None:
-    """Test _call_cloud_api with url parameter."""
+    """Test _call_cloud_api with action parameter."""
     test_api = AwesomeApiClass(cloud)
 
     aioclient_mock.get(
-        "https://example.com/custom/endpoint",
+        "https://example.com/test/value/action",
         json={"result": "success"},
         status=200,
     )
 
     result = await test_api._call_cloud_api(
-        url="https://example.com/custom/endpoint",
+        action="test_api_action",
+        action_values={"param": "value"},
         method="GET",
     )
 
@@ -415,37 +416,38 @@ async def test_call_cloud_api_with_path_parameter(
     assert result == {"result": "success"}
 
 
-async def test_call_cloud_api_url_takes_precedence_over_path(
+async def test_call_cloud_api_action_takes_precedence_over_path(
     aioclient_mock: AiohttpClientMocker,
     cloud: Cloud,
 ) -> None:
-    """Test that url parameter takes precedence over path parameter."""
+    """Test that action parameter takes precedence over path parameter."""
     test_api = AwesomeApiClass(cloud)
 
     aioclient_mock.get(
-        "https://example.com/url-endpoint",
-        json={"result": "from url"},
+        "https://example.com/test/value/action",
+        json={"result": "from action"},
         status=200,
     )
 
     result = await test_api._call_cloud_api(
-        url="https://example.com/url-endpoint",
+        action="test_api_action",
+        action_values={"param": "value"},
         path="/path-endpoint",
         method="GET",
     )
 
-    assert result == {"result": "from url"}
+    assert result == {"result": "from action"}
 
 
-async def test_call_cloud_api_requires_url_or_path(
+async def test_call_cloud_api_requires_action_or_path(
     aioclient_mock: AiohttpClientMocker,
     cloud: Cloud,
 ) -> None:
-    """Test that _call_cloud_api requires either url or path parameter."""
+    """Test that _call_cloud_api requires either action or path parameter."""
     test_api = AwesomeApiClass(cloud)
 
     with pytest.raises(
-        CloudApiError, match="Either 'url' or 'path' parameter must be provided"
+        CloudApiError, match="Either 'action' or 'path' parameter must be provided"
     ):
         await test_api._call_cloud_api(method="GET")
 
@@ -563,30 +565,42 @@ async def test_call_cloud_api_schema_validation_with_coercion(
     assert result == {"value": 123}
 
 
-async def test_action_url_method(
+async def test_action_url_via_service_discovery(
     aioclient_mock: AiohttpClientMocker,
     cloud: Cloud,
 ) -> None:
-    """Test _action_url method delegates to service discovery."""
-    test_api = AwesomeApiClass(cloud)
-
-    url = test_api._action_url("test_api_action", param="api")
-
-    assert isinstance(url, str)
-    assert url == "https://example.com/test/api/action"
-
-
-async def test_action_url_with_format_parameters(
-    aioclient_mock: AiohttpClientMocker,
-    cloud: Cloud,
-) -> None:
-    """Test _action_url method with format parameters."""
-    test_api = AwesomeApiClass(cloud)
-
-    url = test_api._action_url("test_api_action", param="value")
+    """Test action_url method via service discovery."""
+    url = cloud.service_discovery.action_url("test_api_action", param="value")
 
     assert isinstance(url, str)
     assert url == "https://example.com/test/value/action"
+
+
+async def test_call_cloud_api_with_action_values(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test _call_cloud_api with action_values for format parameters."""
+    test_api = AwesomeApiClass(cloud)
+
+    # Use a context manager to override the patched method for this test
+    with patch(
+        "hass_nabucasa.service_discovery.ServiceDiscovery._get_service_action_url",
+        return_value="https://example.com/test/{param}/details",
+    ):
+        aioclient_mock.get(
+            "https://example.com/test/value/details",
+            json={"result": "success"},
+            status=200,
+        )
+
+        result = await test_api._call_cloud_api(
+            action="test_api_action",
+            action_values={"param": "value"},
+            method="GET",
+        )
+
+        assert result == {"result": "success"}
 
 
 async def test_hostname_property_default(

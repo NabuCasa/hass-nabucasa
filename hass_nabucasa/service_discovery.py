@@ -131,17 +131,17 @@ class ServiceDiscovery(ApiBase):
         }
 
     @property
-    def _well_known_url(self) -> str:
-        """Get the well-known service discovery URL."""
+    def hostname(self) -> str:
+        """Get the hostname for service discovery."""
         if TYPE_CHECKING:
             assert self._cloud.api_server is not None
-        return f"https://{self._cloud.api_server}/.well-known/service-discovery"
+        return self._cloud.api_server
 
     @api_exception_handler(ServiceDiscoveryError)
     async def _fetch_well_known_service_discovery(self) -> ServiceDiscoveryResponse:
         """Fetch service discovery data from the well-known API."""
         validated_data: dict[str, Any] = await self._call_cloud_api(
-            url=self._well_known_url,
+            path="/.well-known/service-discovery",
             schema=SERVICE_DISCOVERY_SCHEMA,
             skip_token_check=True,
         )
