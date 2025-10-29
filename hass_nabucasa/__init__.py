@@ -465,11 +465,6 @@ class Cloud(Generic[_ClientT]):
             self.started = False
             return
 
-        try:
-            await self.service_discovery.async_start_service_discovery()
-        except ServiceDiscoveryError as err:
-            _LOGGER.info("Failed to initialize service discovery: %s", err)
-
         self.id_token = info["id_token"]
         self.access_token = info["access_token"]
         self.refresh_token = info["refresh_token"]
@@ -482,6 +477,11 @@ class Cloud(Generic[_ClientT]):
             await self.auth.async_check_token()
         except CloudError:
             _LOGGER.debug("Failed to check cloud token", exc_info=True)
+
+        try:
+            await self.service_discovery.async_start_service_discovery()
+        except ServiceDiscoveryError as err:
+            _LOGGER.info("Failed to initialize service discovery: %s", err)
 
         if await self.async_subscription_is_valid():
             await self._start(skip_subscription_check=True)
