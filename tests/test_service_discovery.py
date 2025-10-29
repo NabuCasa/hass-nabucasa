@@ -1033,7 +1033,7 @@ async def test_background_refresh_with_no_cache_uses_12_hour_retry(
     assert not cloud.service_discovery._service_discovery_refresh_task.done()
     assert cloud.service_discovery._memory_cache is None
 
-    assert "Scheduling service discovery refresh in 43089 seconds" in caplog.text
+    assert "Scheduling service discovery refresh in 11h:58m:9s" in caplog.text
 
     aioclient_mock.clear_requests()
     aioclient_mock.get(

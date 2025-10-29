@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict, get_args
 import voluptuous as vol
 
 from .api import ApiBase, CloudApiError, api_exception_handler
-from .utils import jitter, utcnow
+from .utils import jitter, seconds_as_dhms, utcnow
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -184,8 +184,8 @@ class ServiceDiscovery(ApiBase):
 
             self._memory_cache = cache_data
             _LOGGER.debug(
-                "Service discovery data cached, valid for %s seconds",
-                discovery_data["valid_for"],
+                "Service discovery data cached, valid for %s",
+                seconds_as_dhms(discovery_data["valid_for"]),
             )
 
             return cache_data
@@ -219,8 +219,8 @@ class ServiceDiscovery(ApiBase):
                 sleep_time = _calculate_sleep_time(next_check)
 
                 _LOGGER.debug(
-                    "Scheduling service discovery refresh in %s seconds",
-                    sleep_time,
+                    "Scheduling service discovery refresh in %s",
+                    seconds_as_dhms(sleep_time),
                 )
                 await asyncio.sleep(sleep_time)
 
