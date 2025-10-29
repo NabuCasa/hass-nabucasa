@@ -10,13 +10,23 @@ import threading
 from typing import Any, Literal
 from unittest.mock import Mock
 
+from freezegun.api import (
+    FrozenDateTimeFactory,
+    StepTickTimeFactory,
+    TickingDateTimeFactory,
+)
 import pytest
 
 from hass_nabucasa.client import CloudClient
 
 FROZEN_NOW_AS_TIMESTAMP = 1537185600  # 2018-09-17 12:00:00 UTC
+
 WELL_KNOWN_SERVICE_DISCOVERY_JSON = (
     Path(__file__).parent / "fixtures" / "service_discovery.json"
+)
+
+type FreezeTimeFixture = (
+    FrozenDateTimeFactory | StepTickTimeFactory | TickingDateTimeFactory
 )
 
 

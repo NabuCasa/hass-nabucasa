@@ -106,8 +106,10 @@ All API components extend `ApiBase` and provide specific cloud service integrati
 
 **Time handling in tests**
 - Global `freeze_time_fixture` in `tests/conftest.py` freezes time to "2018-09-17 12:00:00" with `tick=True`.
+- To advance time in tests, add `frozen_time: FreezeTimeFixture` parameter and use `frozen_time.tick(seconds)` to move time forward.
+- After calling `frozen_time.tick()`, use `await asyncio.sleep(0.1)` to let the event loop process scheduled tasks.
 - The `mock_timing` fixture (used in remote tests) provides targeted patches for sleep/random/midnight. Use it where appropriate instead of changing global behavior.
-- Don’t modify the global time freeze. Changes affect the whole suite.
+- Don't modify the global time freeze. Changes affect the whole suite.
 
 ### Code style
 - Strict typing with mypy (type all functions).

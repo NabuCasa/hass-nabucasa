@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import Generator
 import re
 from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from aiohttp import ClientError
 import pytest
@@ -22,7 +22,11 @@ from hass_nabucasa.service_discovery import (
 )
 from hass_nabucasa.utils import utcnow
 
-from .common import construct_service_discovery_actions, extract_log_messages
+from .common import (
+    FreezeTimeFixture,
+    construct_service_discovery_actions,
+    extract_log_messages,
+)
 
 if TYPE_CHECKING:
     from hass_nabucasa import Cloud
@@ -102,7 +106,7 @@ async def test_fetch_well_known_success(
     expected_result = {
         "actions": construct_service_discovery_actions(),
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -143,7 +147,7 @@ async def test_load_service_discovery_data_caches_result(
     expected_result = {
         "actions": construct_service_discovery_actions(),
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -155,7 +159,6 @@ async def test_load_service_discovery_data_caches_result(
     assert "Service discovery data cached" in caplog.text
     assert cache1 is not None
     assert cloud.service_discovery._memory_cache is not None
-    caplog.clear()
 
     cache2 = await cloud.service_discovery._load_service_discovery_data()
     assert cache1 is cache2
@@ -177,7 +180,7 @@ async def test_load_service_discovery_data_uses_expired_cache_on_failure(
     expected_result = {
         "actions": construct_service_discovery_actions(),
         "valid_for": 0,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -201,8 +204,6 @@ async def test_load_service_discovery_data_uses_expired_cache_on_failure(
         status=500,
         text="Internal Server Error",
     )
-
-    caplog.clear()
 
     cache2 = await cloud.service_discovery._load_service_discovery_data()
     assert cache2 is cache1
@@ -242,7 +243,7 @@ async def test_async_start_service_discovery_success(
             "voice_connection_details": "https://example.com/voice/connection_details",
         },
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -289,7 +290,7 @@ async def test_async_stop_service_discovery(
             "voice_connection_details": "https://example.com/voice/connection_details",
         },
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -316,7 +317,7 @@ async def test_action_url_returns_cached_url(
     expected_result = {
         "actions": construct_service_discovery_actions(),
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -359,7 +360,7 @@ async def test_action_url_with_format_parameters(
             }
         ),
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -390,7 +391,7 @@ async def test_action_url_missing_format_parameter(
             }
         ),
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -463,7 +464,7 @@ async def test_invalid_action_name_in_response(
             }
         ),
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -486,7 +487,7 @@ async def test_concurrent_cache_load_uses_lock(
     expected_result = {
         "actions": construct_service_discovery_actions(),
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -502,7 +503,7 @@ async def test_concurrent_cache_load_uses_lock(
 
     assert aioclient_mock.call_count == 1
     assert all(r == results[0] for r in results)
-    assert all(r["data"]["version"] == "1.0.0" for r in results)
+    assert all(r["data"]["version"] == "1.0" for r in results)
 
 
 async def test_background_task_lifecycle_success(
@@ -516,7 +517,7 @@ async def test_background_task_lifecycle_success(
         json={
             "actions": construct_service_discovery_actions(),
             "valid_for": 3600,
-            "version": "1.0.0",
+            "version": "1.0",
         },
     )
 
@@ -524,7 +525,7 @@ async def test_background_task_lifecycle_success(
     assert cloud.service_discovery._service_discovery_refresh_task is not None
     assert not cloud.service_discovery._service_discovery_refresh_task.done()
     assert cloud.service_discovery._memory_cache is not None
-    assert cloud.service_discovery._memory_cache["data"]["version"] == "1.0.0"
+    assert cloud.service_discovery._memory_cache["data"]["version"] == "1.0"
 
     await cloud.service_discovery.async_stop_service_discovery()
     assert cloud.service_discovery._service_discovery_refresh_task is None
@@ -562,7 +563,7 @@ async def test_stop_during_active_refresh(
         json={
             "actions": construct_service_discovery_actions(),
             "valid_for": 1,
-            "version": "1.0.0",
+            "version": "1.0",
         },
     )
 
@@ -584,7 +585,7 @@ async def test_multiple_start_stop_cycles(
     expected_result = {
         "actions": construct_service_discovery_actions(),
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -609,7 +610,7 @@ async def test_cloud_initialization_lifecycle(
     expected_result = {
         "actions": construct_service_discovery_actions(),
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -649,7 +650,7 @@ async def test_forward_compatibility_extra_top_level_fields(
     api_response = {
         "actions": construct_service_discovery_actions(),
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
         "newFeature": "some_value",
         "anotherField": {"nested": "data"},
         "experimental": True,
@@ -667,7 +668,7 @@ async def test_forward_compatibility_extra_top_level_fields(
     assert "experimental" not in result
     assert result["actions"] == construct_service_discovery_actions()
     assert result["valid_for"] == 3600
-    assert result["version"] == "1.0.0"
+    assert result["version"] == "1.0"
     assert_snapshot_with_logs(result, caplog, snapshot)
 
 
@@ -686,7 +687,7 @@ async def test_forward_compatibility_extra_actions(
             "experimental_feature": "https://example.com/experimental",
         },
         "valid_for": 3600,
-        "version": "1.0.0",
+        "version": "1.0",
     }
 
     aioclient_mock.get(
@@ -716,7 +717,7 @@ async def test_forward_compatibility_combined(
             "future_action": "https://example.com/future",
         },
         "valid_for": 3600,
-        "version": "2.0.0",
+        "version": "2.0",
         "newTopLevelField": "future_data",
         "metadata": {"extra": "info"},
     }
@@ -733,7 +734,7 @@ async def test_forward_compatibility_combined(
     assert "future_action" not in result["actions"]
     assert "voice_connection_details" in result["actions"]
     assert result["valid_for"] == 3600
-    assert result["version"] == "2.0.0"
+    assert result["version"] == "2.0"
 
     assert_snapshot_with_logs(result, caplog, snapshot)
 
@@ -750,7 +751,7 @@ async def test_network_failure_during_background_refresh(
         json={
             "actions": construct_service_discovery_actions(),
             "valid_for": 0,
-            "version": "1.0.0",
+            "version": "1.0",
         },
     )
 
@@ -764,7 +765,6 @@ async def test_network_failure_during_background_refresh(
         exc=ClientError("Network error during refresh"),
     )
 
-    caplog.clear()
     await asyncio.sleep(0.2)
 
     assert cloud.service_discovery._service_discovery_refresh_task is not None
@@ -793,7 +793,7 @@ async def test_extremely_long_running_refresh_cycle(
         json={
             "actions": construct_service_discovery_actions(),
             "valid_for": one_year_seconds,
-            "version": "1.0.0",
+            "version": "1.0",
         },
     )
 
@@ -834,14 +834,12 @@ async def test_race_condition_stop_during_fetch(
         json={
             "actions": construct_service_discovery_actions(),
             "valid_for": 0,
-            "version": "1.0.0",
+            "version": "1.0",
         },
     )
 
     await cloud.service_discovery.async_start_service_discovery()
     assert cloud.service_discovery._service_discovery_refresh_task is not None
-
-    caplog.clear()
 
     await asyncio.sleep(0.05)
 
@@ -872,14 +870,12 @@ async def test_race_condition_multiple_concurrent_stops(
         json={
             "actions": construct_service_discovery_actions(),
             "valid_for": 1,
-            "version": "1.0.0",
+            "version": "1.0",
         },
     )
 
     await cloud.service_discovery.async_start_service_discovery()
     assert cloud.service_discovery._service_discovery_refresh_task is not None
-
-    caplog.clear()
 
     await asyncio.gather(
         cloud.service_discovery.async_stop_service_discovery(),
@@ -911,7 +907,7 @@ async def test_race_condition_stop_and_start_rapid_cycling(
         json={
             "actions": construct_service_discovery_actions(),
             "valid_for": 3600,
-            "version": "1.0.0",
+            "version": "1.0",
         },
     )
 
@@ -921,8 +917,6 @@ async def test_race_condition_stop_and_start_rapid_cycling(
         await cloud.service_discovery.async_stop_service_discovery()
 
     assert cloud.service_discovery._service_discovery_refresh_task is None
-
-    caplog.clear()
 
     assert_snapshot_with_logs(
         {
@@ -946,22 +940,20 @@ async def test_background_refresh_with_changing_network_conditions(
         json={
             "actions": construct_service_discovery_actions(),
             "valid_for": 3600,
-            "version": "1.0.0",
+            "version": "1.0",
         },
     )
 
     await cloud.service_discovery.async_start_service_discovery()
     first_cache = cloud.service_discovery._memory_cache
     assert first_cache is not None
-    assert first_cache["data"]["version"] == "1.0.0"
+    assert first_cache["data"]["version"] == "1.0"
 
     aioclient_mock.clear_requests()
     aioclient_mock.get(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         exc=ClientError("Temporary network failure"),
     )
-
-    caplog.clear()
 
     cloud.service_discovery._memory_cache = None
     with pytest.raises(ServiceDiscoveryError):
@@ -977,12 +969,12 @@ async def test_background_refresh_with_changing_network_conditions(
         json={
             "actions": construct_service_discovery_actions(),
             "valid_for": 3600,
-            "version": "2.0.0",
+            "version": "2.0",
         },
     )
 
     second_cache = await cloud.service_discovery._load_service_discovery_data()
-    assert second_cache["data"]["version"] == "2.0.0"
+    assert second_cache["data"]["version"] == "2.0"
     assert first_cache is not second_cache
 
     await cloud.service_discovery.async_stop_service_discovery()
@@ -1017,3 +1009,81 @@ def test_sleep_time_calculation_with_jitter(
     valid_until = now + valid_for_seconds
     result = _calculate_sleep_time(valid_until)
     assert expected_min <= result <= expected_max
+
+
+async def test_background_refresh_with_no_cache_uses_12_hour_retry(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+    frozen_time: FreezeTimeFixture,
+):
+    """Test that background refresh with no cache schedules 12-hour retry."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        status=500,
+        text="Internal Server Error",
+    )
+
+    await cloud.service_discovery.async_start_service_discovery()
+
+    await asyncio.sleep(0.1)
+
+    assert cloud.service_discovery._service_discovery_refresh_task is not None
+    assert not cloud.service_discovery._service_discovery_refresh_task.done()
+    assert cloud.service_discovery._memory_cache is None
+
+    assert "Scheduling service discovery refresh in 43089 seconds" in caplog.text
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json={
+            "actions": construct_service_discovery_actions(),
+            "valid_for": 3600,
+            "version": "1.0",
+        },
+    )
+
+    frozen_time.tick(43089)
+    await asyncio.sleep(0.1)
+
+    assert cloud.service_discovery._memory_cache is not None
+    assert cloud.service_discovery._memory_cache["data"]["version"] == "1.0"
+
+    await cloud.service_discovery.async_stop_service_discovery()
+
+    assert_snapshot_with_logs(
+        {
+            "cache_populated_after_retry": True,
+            "version": "1.0",
+        },
+        caplog,
+        snapshot,
+    )
+
+
+async def test_service_discovery_fetch_without_token_check(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+):
+    """Test that service discovery fetch skips token validation."""
+    expected_result = {
+        "actions": construct_service_discovery_actions(),
+        "valid_for": 3600,
+        "version": "1.0",
+    }
+
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json=expected_result,
+    )
+
+    cloud.auth.async_check_token = AsyncMock(
+        side_effect=Exception("Token check should not be called!")
+    )
+
+    result = await cloud.service_discovery._fetch_well_known_service_discovery()
+
+    assert result["version"] == "1.0"
+    assert not cloud.auth.async_check_token.called

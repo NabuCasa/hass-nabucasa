@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 MIN_REFRESH_INTERVAL = 60
+TIME_DELTA_FOR_INITAL_LOAD_RETRY = 12 * 60 * 60
 
 ServiceDiscoveryAction = Literal["voice_connection_details",]
 
@@ -143,6 +144,12 @@ class ServiceDiscovery(ApiBase):
         validated_data: dict[str, Any] = await self._call_cloud_api(
             url=self._well_known_url,
             schema=SERVICE_DISCOVERY_SCHEMA,
+            skip_token_check=True,
+        )
+        _LOGGER.debug(
+            "Service discovery %s with %d actions fetched",
+            validated_data["version"],
+            len(validated_data["actions"]),
         )
         return ServiceDiscoveryResponse(
             actions=validated_data["actions"],
@@ -204,11 +211,12 @@ class ServiceDiscovery(ApiBase):
         while True:
             try:
                 if self._memory_cache is None:
-                    _LOGGER.debug("No cache, attempting initial load")
-                    await self._load_service_discovery_data()
-                    continue
+                    # If we get here the initial load failed, retry after fixed delay
+                    next_check = utcnow().timestamp() + TIME_DELTA_FOR_INITAL_LOAD_RETRY
+                else:
+                    next_check = self._memory_cache["valid_until"]
 
-                sleep_time = _calculate_sleep_time(self._memory_cache["valid_until"])
+                sleep_time = _calculate_sleep_time(next_check)
 
                 _LOGGER.debug(
                     "Scheduling service discovery refresh in %s seconds",

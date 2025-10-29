@@ -4,6 +4,7 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 3600 seconds
     ''',
     'result': 'https://servicehandlers.example.com/voice/connection_details',
@@ -20,6 +21,7 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 3600 seconds
     ''',
     'result': 'https://example.com/voice/test',
@@ -35,14 +37,39 @@
   dict({
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 3600 seconds
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 2.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 3600 seconds
     ''',
     'result': dict({
       'cache_updated': True,
-      'first_version': '1.0.0',
-      'second_version': '2.0.0',
+      'first_version': '1.0',
+      'second_version': '2.0',
+    }),
+  })
+# ---
+# name: test_background_refresh_with_no_cache_uses_12_hour_retry
+  dict({
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (500) 
+      [DEBUG] hass_nabucasa.service_discovery: Failed to load initial service discovery data: Failed to parse API response
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 43089 seconds
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 3600 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 3489 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
+    ''',
+    'result': dict({
+      'cache_populated_after_retry': True,
+      'version': '1.0',
     }),
   })
 # ---
@@ -51,6 +78,7 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 31536000 seconds
     ''',
     'result': dict({
@@ -65,13 +93,14 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
     ''',
     'result': dict({
       'actions': dict({
         'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
       }),
       'valid_for': 3600,
-      'version': '1.0.0',
+      'version': '1.0',
     }),
   })
 # ---
@@ -80,13 +109,14 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 2.0 with 1 actions fetched
     ''',
     'result': dict({
       'actions': dict({
         'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
       }),
       'valid_for': 3600,
-      'version': '2.0.0',
+      'version': '2.0',
     }),
   })
 # ---
@@ -95,13 +125,14 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
     ''',
     'result': dict({
       'actions': dict({
         'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
       }),
       'valid_for': 3600,
-      'version': '1.0.0',
+      'version': '1.0',
     }),
   })
 # ---
@@ -110,13 +141,14 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
     ''',
     'result': dict({
       'actions': dict({
         'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
       }),
       'valid_for': 3600,
-      'version': '1.0.0',
+      'version': '1.0',
     }),
   })
 # ---
@@ -125,33 +157,40 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
     ''',
     'result': dict({
       'actions': dict({
         'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
       }),
       'valid_for': 3600,
-      'version': '1.0.0',
+      'version': '1.0',
     }),
   })
 # ---
 # name: test_load_service_discovery_data_caches_result
   dict({
-    'log': '[DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data',
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 3600 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data
+    ''',
     'result': dict({
       'cache1': dict({
         'actions': dict({
           'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
         }),
         'valid_for': 3600,
-        'version': '1.0.0',
+        'version': '1.0',
       }),
       'cache2': dict({
         'actions': dict({
           'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
         }),
         'valid_for': 3600,
-        'version': '1.0.0',
+        'version': '1.0',
       }),
     }),
   })
@@ -159,6 +198,10 @@
 # name: test_load_service_discovery_data_uses_expired_cache_on_failure
   dict({
     'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 0 seconds
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (500) 
       [INFO] hass_nabucasa.service_discovery: Unable to fetch service discovery data, using expired cache
@@ -169,14 +212,14 @@
           'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
         }),
         'valid_for': 0,
-        'version': '1.0.0',
+        'version': '1.0',
       }),
       'cache2': dict({
         'actions': dict({
           'voice_connection_details': 'https://servicehandlers.example.com/voice/connection_details',
         }),
         'valid_for': 0,
-        'version': '1.0.0',
+        'version': '1.0',
       }),
     }),
   })
@@ -184,6 +227,10 @@
 # name: test_network_failure_during_background_refresh
   dict({
     'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 0 seconds
       [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 111 seconds
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
     ''',
@@ -195,6 +242,10 @@
 # name: test_race_condition_multiple_concurrent_stops
   dict({
     'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 1 seconds
       [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 111 seconds
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
     ''',
@@ -205,7 +256,26 @@
 # ---
 # name: test_race_condition_stop_and_start_rapid_cycling
   dict({
-    'log': '',
+    'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 3600 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 3489 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
+      [DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 3489 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
+      [DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 3489 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
+      [DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 3489 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
+      [DEBUG] hass_nabucasa.service_discovery: Using cached service discovery data
+      [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 3489 seconds
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
+    ''',
     'result': dict({
       'final_state_clean': True,
     }),
@@ -214,6 +284,10 @@
 # name: test_race_condition_stop_during_fetch
   dict({
     'log': '''
+      [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
+      [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
+      [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 0 seconds
       [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 111 seconds
       [DEBUG] hass_nabucasa.service_discovery: Service discovery refresh task cancelled
     ''',

@@ -3,5 +3,5 @@
     "voice_connection_details": "https://servicehandlers.example.com/voice/connection_details"
   },
   "valid_for": 3600,
-  "version": "1.0.0"
+  "version": "1.0"
 }
