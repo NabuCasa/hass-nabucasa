@@ -23,7 +23,6 @@ TIME_DELTA_FOR_INITIAL_LOAD_RETRY = 12 * 60 * 60
 ServiceDiscoveryAction = Literal["voice_connection_details"]
 
 VALID_ACTION_NAMES = frozenset(get_args(ServiceDiscoveryAction))
-VALID_ACTIONS_STR = ", ".join(sorted(VALID_ACTION_NAMES))
 
 
 def _filter_and_validate_actions(actions: dict[str, Any]) -> dict[str, str]:
