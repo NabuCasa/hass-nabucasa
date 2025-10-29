@@ -180,10 +180,11 @@ class ServiceDiscovery(ApiBase):
                 )
                 return cache
 
-            self._memory_cache = cache_data = ServiceDiscoveryCacheData(
+            cache_data = ServiceDiscoveryCacheData(
                 data=discovery_data,
                 valid_until=utcnow().timestamp() + discovery_data["valid_for"],
             )
+            self._memory_cache = cache_data
 
             _LOGGER.debug(
                 "Service discovery data cached, valid for %s",
