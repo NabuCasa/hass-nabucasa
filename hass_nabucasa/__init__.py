@@ -72,7 +72,7 @@ from .service_discovery import (
     ServiceDiscoveryMissingActionError,
     ServiceDiscoveryMissingParameterError,
 )
-from .utils import UTC, gather_callbacks, parse_date, utcnow
+from .utils import UTC, gather_callbacks, parse_date, seconds_as_dhms, utcnow
 from .voice import Voice
 from .voice_api import VoiceApi, VoiceApiError
 
@@ -596,9 +596,9 @@ class Cloud(Generic[_ClientT]):
             if reason == SubscriptionReconnectionReason.CONNECTION_ERROR:
                 _LOGGER.info(
                     "Could not establish connection (attempt %s), "
-                    "waiting %s minutes before retrying",
+                    "waiting %s before retrying",
                     self._connection_retry_count,
-                    round(wait_hours * 60, 1),
+                    seconds_as_dhms(wait_hours * 60 * 60),
                 )
                 await self.client.async_create_repair_issue(
                     identifier=issue_identifier,
@@ -607,9 +607,9 @@ class Cloud(Generic[_ClientT]):
                 )
             else:
                 _LOGGER.info(
-                    "Subscription expired at %s, waiting %s hours for activation",
+                    "Subscription expired at %s, waiting %s for activation",
                     sub_expired.strftime("%Y-%m-%d"),
-                    wait_hours,
+                    seconds_as_dhms(wait_hours * 60 * 60),
                 )
                 await self.client.async_create_repair_issue(
                     identifier=issue_identifier,
