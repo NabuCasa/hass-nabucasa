@@ -92,7 +92,6 @@ class AcmeHandler:
     ) -> None:
         """Initialize local ACME Handler."""
         self.cloud = cloud
-        self._acme_server = f"https://{cloud.acme_server}/directory"
         self._account_jwk: jose.JWKRSA | None = None
         self._acme_client: client.ClientV2 | None = None
         self._x509: x509.Certificate | None = None
@@ -104,6 +103,11 @@ class AcmeHandler:
     def _update_status(self, status: CertificateStatus) -> None:
         """Update certificate status via callback."""
         self._status_callback(status)
+
+    @property
+    def acme_directory_url(self) -> str:
+        """Return the ACME directory URL."""
+        return self.cloud.service_discovery.action_url("acme_directory")
 
     @property
     def email(self) -> str:
@@ -233,7 +237,7 @@ class AcmeHandler:
                 self.path_registration_info.read_text(encoding="utf-8"),
             )
 
-            acme_url = urllib.parse.urlparse(self._acme_server)
+            acme_url = urllib.parse.urlparse(self.acme_directory_url)
             regr_url = urllib.parse.urlparse(regr.uri)
 
             if acme_url[0] != regr_url[0] or acme_url[1] != regr_url[1]:
@@ -254,7 +258,7 @@ class AcmeHandler:
                     user_agent=USER_AGENT,
                 )
                 directory = client.ClientV2.get_directory(
-                    url=self._acme_server,
+                    url=self.acme_directory_url,
                     net=network,
                 )
                 self._acme_client = client.ClientV2(directory=directory, net=network)
@@ -269,7 +273,7 @@ class AcmeHandler:
         try:
             network = client.ClientNetwork(self._account_jwk, user_agent=USER_AGENT)
             directory = client.ClientV2.get_directory(
-                url=self._acme_server,
+                url=self.acme_directory_url,
                 net=network,
             )
             self._acme_client = client.ClientV2(directory=directory, net=network)

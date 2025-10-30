@@ -1,6 +1,7 @@
 {
   "actions": {
     "account_services": "https://servicehandlers.example.com/account/services",
+    "acme_directory": "https://acme-v02.api.letsencrypt.org/directory",
     "alexa_access_token": "https://servicehandlers.example.com/alexa/access_token",
     "instance_connection": "https://servicehandlers.example.com/instance/connection",
     "remote_access_dns_challenge_remove": "https://servicehandlers.example.com/instance/dns_challenge_cleanup",

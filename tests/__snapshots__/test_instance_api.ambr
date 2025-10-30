@@ -1,39 +1,39 @@
 # serializer version: 1
 # name: test_cleanup_dns_challenge_record_endpoint_problems[429-error]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_remove
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_remove: https://servicehandlers.example.com/instance/dns_challenge_cleanup
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/dns_challenge_cleanup
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/dns_challenge_cleanup (429) 
   '''
 # ---
 # name: test_cleanup_dns_challenge_record_endpoint_problems[500-error]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_remove
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_remove: https://servicehandlers.example.com/instance/dns_challenge_cleanup
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/dns_challenge_cleanup
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/dns_challenge_cleanup (500) 
   '''
 # ---
 # name: test_cleanup_dns_challenge_record_endpoint_problems[client-error]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_remove
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_remove: https://servicehandlers.example.com/instance/dns_challenge_cleanup
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/dns_challenge_cleanup
   '''
 # ---
 # name: test_cleanup_dns_challenge_record_endpoint_problems[timeout]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_remove
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_remove: https://servicehandlers.example.com/instance/dns_challenge_cleanup
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/dns_challenge_cleanup
   '''
 # ---
 # name: test_cleanup_dns_challenge_record_endpoint_problems[unexpected-error]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_remove
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_remove: https://servicehandlers.example.com/instance/dns_challenge_cleanup
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/dns_challenge_cleanup
   '''
 # ---
 # name: test_cleanup_dns_challenge_record_endpoint_success
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_remove
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_remove: https://servicehandlers.example.com/instance/dns_challenge_cleanup
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/dns_challenge_cleanup
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/dns_challenge_cleanup (200) 
   '''
@@ -41,7 +41,7 @@
 # name: test_connection_endpoint_problems[429-error]
   '''
   [DEBUG] hass_nabucasa.instance_api: Getting instance connection details
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for instance_connection
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for instance_connection: https://servicehandlers.example.com/instance/connection
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/instance/connection
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/instance/connection (429) 
   '''
@@ -49,7 +49,7 @@
 # name: test_connection_endpoint_problems[500-error]
   '''
   [DEBUG] hass_nabucasa.instance_api: Getting instance connection details
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for instance_connection
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for instance_connection: https://servicehandlers.example.com/instance/connection
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/instance/connection
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/instance/connection (500) 
   '''
@@ -57,67 +57,67 @@
 # name: test_connection_endpoint_problems[client-error]
   '''
   [DEBUG] hass_nabucasa.instance_api: Getting instance connection details
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for instance_connection
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for instance_connection: https://servicehandlers.example.com/instance/connection
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/instance/connection
   '''
 # ---
 # name: test_connection_endpoint_problems[timeout]
   '''
   [DEBUG] hass_nabucasa.instance_api: Getting instance connection details
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for instance_connection
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for instance_connection: https://servicehandlers.example.com/instance/connection
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/instance/connection
   '''
 # ---
 # name: test_connection_endpoint_problems[unexpected-error]
   '''
   [DEBUG] hass_nabucasa.instance_api: Getting instance connection details
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for instance_connection
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for instance_connection: https://servicehandlers.example.com/instance/connection
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/instance/connection
   '''
 # ---
 # name: test_connection_endpoint_success
   '''
   [DEBUG] hass_nabucasa.instance_api: Getting instance connection details
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for instance_connection
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for instance_connection: https://servicehandlers.example.com/instance/connection
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/instance/connection
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/instance/connection (200) 
   '''
 # ---
 # name: test_create_dns_challenge_record_endpoint_problems[429-error]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_set
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_set: https://servicehandlers.example.com/instance/dns_challenge_txt
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/dns_challenge_txt
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/dns_challenge_txt (429) 
   '''
 # ---
 # name: test_create_dns_challenge_record_endpoint_problems[500-error]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_set
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_set: https://servicehandlers.example.com/instance/dns_challenge_txt
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/dns_challenge_txt
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/dns_challenge_txt (500) 
   '''
 # ---
 # name: test_create_dns_challenge_record_endpoint_problems[client-error]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_set
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_set: https://servicehandlers.example.com/instance/dns_challenge_txt
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/dns_challenge_txt
   '''
 # ---
 # name: test_create_dns_challenge_record_endpoint_problems[timeout]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_set
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_set: https://servicehandlers.example.com/instance/dns_challenge_txt
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/dns_challenge_txt
   '''
 # ---
 # name: test_create_dns_challenge_record_endpoint_problems[unexpected-error]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_set
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_set: https://servicehandlers.example.com/instance/dns_challenge_txt
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/dns_challenge_txt
   '''
 # ---
 # name: test_create_dns_challenge_record_endpoint_success
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_set
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_dns_challenge_set: https://servicehandlers.example.com/instance/dns_challenge_txt
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/dns_challenge_txt
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/dns_challenge_txt (200) 
   '''
