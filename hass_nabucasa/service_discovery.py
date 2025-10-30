@@ -260,24 +260,30 @@ class ServiceDiscovery(ApiBase):
 
     def _get_fallback_action_url(self, action: ServiceDiscoveryAction) -> str:
         """Get fallback action."""
-        if (fallback_action := self._fallback_actions.get(action)) is not None:
-            _LOGGER.info("Using fallback action URL for %s", action)
-            return fallback_action
+        if (fallback_action_url := self._fallback_actions.get(action)) is not None:
+            _LOGGER.info(
+                "Using fallback action URL for %s: %s", action, fallback_action_url
+            )
+            return fallback_action_url
         raise ServiceDiscoveryMissingActionError(
             f"No fallback URL for action: {action}"
         )
 
     def _get_service_action_url(self, action: ServiceDiscoveryAction) -> str:
         """Get URL for a specific action."""
-        if action_override := self._action_overrides.get(action):
-            _LOGGER.debug("Using overridden action URL for %s", action)
-            return action_override
+        if action_override_url := self._action_overrides.get(action):
+            _LOGGER.info(
+                "Using overridden action URL for %s: %s", action, action_override_url
+            )
+            return action_override_url
 
         if self._memory_cache and (
-            cached := self._memory_cache["data"]["actions"].get(action)
+            cached_action_url := self._memory_cache["data"]["actions"].get(action)
         ):
-            _LOGGER.debug("Found cached action URL for %s: %s", action, cached)
-            return cached
+            _LOGGER.debug(
+                "Using cached action URL for %s: %s", action, cached_action_url
+            )
+            return cached_action_url
         return self._get_fallback_action_url(action)
 
     def action_url(self, action: ServiceDiscoveryAction, **kwargs: str) -> str:
