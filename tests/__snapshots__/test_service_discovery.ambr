@@ -6,14 +6,14 @@
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
       [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 1h
-      [DEBUG] hass_nabucasa.service_discovery: Found cached action URL for test_api_action: https://example.com/test/{param}/action
+      [DEBUG] hass_nabucasa.service_discovery: Using cached action URL for test_api_action: https://example.com/test/{param}/action
     ''',
     'result': 'https://example.com/test/test/action',
   })
 # ---
 # name: test_action_url_returns_fallback_url
   dict({
-    'log': '[INFO] hass_nabucasa.service_discovery: Using fallback action URL for test_api_action',
+    'log': '[INFO] hass_nabucasa.service_discovery: Using fallback action URL for test_api_action: https://example.com/test/fallback/action',
     'result': 'https://example.com/test/fallback/action',
   })
 # ---
@@ -24,14 +24,14 @@
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
       [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 1h
-      [DEBUG] hass_nabucasa.service_discovery: Found cached action URL for test_api_action: https://example.com/test/{param}/action
+      [DEBUG] hass_nabucasa.service_discovery: Using cached action URL for test_api_action: https://example.com/test/{param}/action
     ''',
     'result': 'https://example.com/test/test/action',
   })
 # ---
 # name: test_action_url_with_override
   dict({
-    'log': '[DEBUG] hass_nabucasa.service_discovery: Using overridden action URL for test_api_action',
+    'log': '[INFO] hass_nabucasa.service_discovery: Using overridden action URL for test_api_action: https://override.example.com/custom',
     'result': 'https://override.example.com/custom',
   })
 # ---
@@ -82,7 +82,7 @@
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
       [DEBUG] hass_nabucasa.service_discovery: Service discovery 1.0 with 1 actions fetched
       [DEBUG] hass_nabucasa.service_discovery: Service discovery data cached, valid for 365d
-      [DEBUG] hass_nabucasa.service_discovery: Found cached action URL for test_api_action: https://example.com/test/{param}/action
+      [DEBUG] hass_nabucasa.service_discovery: Using cached action URL for test_api_action: https://example.com/test/{param}/action
     ''',
     'result': dict({
       'task_running': True,
@@ -299,7 +299,7 @@
 # ---
 # name: test_service_discovery_with_action_overrides
   dict({
-    'log': '[DEBUG] hass_nabucasa.service_discovery: Using overridden action URL for test_api_action',
+    'log': '[INFO] hass_nabucasa.service_discovery: Using overridden action URL for test_api_action: https://override.example.com/custom',
     'result': 'https://override.example.com/custom',
   })
 # ---
