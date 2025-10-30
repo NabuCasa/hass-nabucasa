@@ -71,7 +71,7 @@ class CloudIoT(iot_base.BaseIoT):
     @property
     def ws_server_url(self) -> str:
         """Server to connect to."""
-        return f"wss://{self.cloud.relayer_server}/websocket"
+        return self.cloud.service_discovery.action_url("relayer_connect")
 
     async def start(self) -> None:
         """Start the CloudIoT server."""
