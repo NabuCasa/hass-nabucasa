@@ -2,4 +2,4 @@
 
 cd "$(dirname "$0")/.."
 
-python3 -m pytest
+python3 -m pytest "$@"
