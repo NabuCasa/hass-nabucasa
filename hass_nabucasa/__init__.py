@@ -46,6 +46,7 @@ from .const import (
     CertificateStatus,
     SubscriptionReconnectionReason,
 )
+from .events import CloudEventBus
 from .exceptions import (
     CloudError,
     NabuCasaAuthenticationError,
@@ -193,6 +194,9 @@ class Cloud(Generic[_ClientT]):
             "servicehandlers",
             servicehandlers_server,
         )
+
+        # Setup event bus before other components
+        self.events = CloudEventBus()
 
         # Needs to be setup before other components
         self.iot = CloudIoT(self)
