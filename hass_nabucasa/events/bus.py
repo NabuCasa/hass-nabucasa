@@ -63,7 +63,7 @@ class CloudEventBus:
             return_exceptions=True,
         )
 
-        for handler, result in zip(handlers, results, strict=False):
+        for handler, result in zip(handlers, results, strict=True):
             if isinstance(result, Exception):
                 _LOGGER.warning(
                     "Error in event handler %s for event %s",
