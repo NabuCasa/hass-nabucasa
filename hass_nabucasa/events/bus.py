@@ -42,7 +42,6 @@ class CloudEventBus:
 
     async def publish(
         self,
-        *,
         event: CloudEvent,
     ) -> None:
         """Publish an event to all subscribers."""
