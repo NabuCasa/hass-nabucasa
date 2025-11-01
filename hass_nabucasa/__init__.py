@@ -98,6 +98,7 @@ __all__ = [
     "CloudClient",
     "CloudError",
     "CloudEvent",
+    "CloudEventBus",
     "CloudEventType",
     "FilesError",
     "GoogleReportStateError",
