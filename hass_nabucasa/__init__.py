@@ -33,7 +33,17 @@ from .api import (
     CloudApiNonRetryableError,
     CloudApiTimeoutError,
 )
-from .auth import CognitoAuth
+from .auth import (
+    CognitoAuth,
+    InvalidTotpCode,
+    MFARequired,
+    PasswordChangeRequired,
+    Unauthenticated,
+    UnknownError,
+    UserExists,
+    UserNotConfirmed,
+    UserNotFound,
+)
 from .client import CloudClient
 from .cloudhooks import Cloudhooks
 from .const import (
@@ -101,10 +111,13 @@ __all__ = [
     "IceServersApiError",
     "InstanceApiError",
     "InstanceConnectionDetails",
+    "InvalidTotpCode",
+    "MFARequired",
     "MigratePaypalAgreementInfo",
     "NabuCasaAuthenticationError",
     "NabuCasaBaseError",
     "NabuCasaConnectionError",
+    "PasswordChangeRequired",
     "PaymentsApiError",
     "ServiceDiscovery",
     "ServiceDiscoveryAction",
@@ -116,6 +129,11 @@ __all__ = [
     "StoredFile",
     "SubscriptionInfo",
     "SubscriptionReconnectionReason",
+    "Unauthenticated",
+    "UnknownError",
+    "UserExists",
+    "UserNotConfirmed",
+    "UserNotFound",
     "VoiceApiError",
     "calculate_b64md5",
 ]

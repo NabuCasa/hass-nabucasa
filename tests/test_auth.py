@@ -304,10 +304,10 @@ async def test_sleep_time_calculation(
     auth = auth_api.CognitoAuth(mock_cloud)
 
     with (
-        patch("hass_nabucasa.auth.expiration_from_token") as mock_exp,
-        patch("hass_nabucasa.auth.asyncio.sleep", AsyncMock()),
+        patch("hass_nabucasa.auth.cognito.expiration_from_token") as mock_exp,
+        patch("hass_nabucasa.auth.cognito.asyncio.sleep", AsyncMock()),
         patch(
-            "hass_nabucasa.auth.CognitoAuth.async_renew_access_token",
+            "hass_nabucasa.auth.cognito.CognitoAuth.async_renew_access_token",
             side_effect=asyncio.CancelledError,
         ),
         patch("random.randint") as mock_random,

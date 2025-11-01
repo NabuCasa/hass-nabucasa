@@ -155,6 +155,7 @@ ignore = [
   "S101", # https://docs.astral.sh/ruff/rules/assert/
   "S303", # https://docs.astral.sh/ruff/rules/suspicious-insecure-hash-usage/
   "S311", # https://docs.astral.sh/ruff/rules/suspicious-non-cryptographic-random-usage/
+  "TID252", # https://docs.astral.sh/ruff/rules/relative-imports/
   "TC002", # https://docs.astral.sh/ruff/rules/typing-only-third-party-import/
   "TC003", # https://docs.astral.sh/ruff/rules/typing-only-standard-library-import/
   "TRY003", # https://docs.astral.sh/ruff/rules/raise-vanilla-args/
