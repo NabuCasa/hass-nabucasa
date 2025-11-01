@@ -1,24 +1,39 @@
 # serializer version: 1
 # name: test_error_handling
   '''
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_connected']
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_connected']
   [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 2 subscribers
-  [WARNING] hass_nabucasa.events.bus: Error in event handler AsyncMock for event relayer_connected
+  [ERROR] hass_nabucasa.events.bus: Error in event handler AsyncMock for event relayer_connected
   '''
 # ---
 # name: test_event_timestamp
-  '[DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 1 subscribers'
+  '''
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_connected']
+  [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 1 subscribers
+  '''
 # ---
 # name: test_multiple_event_types
   '''
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_connected']
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_disconnected']
   [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 1 subscribers
   [DEBUG] hass_nabucasa.events.bus: Publish relayer_disconnected to 1 subscribers
   '''
 # ---
 # name: test_multiple_subscribers
-  '[DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 3 subscribers'
+  '''
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_connected']
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_connected']
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_connected']
+  [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 3 subscribers
+  '''
 # ---
 # name: test_publish_without_data
-  '[DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 1 subscribers'
+  '''
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_connected']
+  [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 1 subscribers
+  '''
 # ---
 # name: test_publish_without_subscribers
   ''
@@ -35,21 +50,34 @@
   ])
 # ---
 # name: test_subscribe_and_publish.1
-  '[DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 1 subscribers'
+  '''
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_connected']
+  [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 1 subscribers
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock unsubscribed from ['relayer_connected']
+  '''
 # ---
 # name: test_subscribe_to_multiple_event_types
   '''
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_connected', 'relayer_disconnected']
   [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 1 subscribers
   [DEBUG] hass_nabucasa.events.bus: Publish relayer_disconnected to 1 subscribers
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock unsubscribed from ['relayer_connected', 'relayer_disconnected']
   [DEBUG] hass_nabucasa.events.bus: No subscribers for event relayer_connected
   '''
 # ---
 # name: test_unsubscribe
   '''
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_connected']
   [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 1 subscribers
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock unsubscribed from ['relayer_connected']
   [DEBUG] hass_nabucasa.events.bus: No subscribers for event relayer_connected
   '''
 # ---
 # name: test_unsubscribe_multiple_times
-  '[DEBUG] hass_nabucasa.events.bus: No subscribers for event relayer_connected'
+  '''
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to ['relayer_connected']
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock unsubscribed from ['relayer_connected']
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock unsubscribed from ['relayer_connected']
+  [DEBUG] hass_nabucasa.events.bus: No subscribers for event relayer_connected
+  '''
 # ---

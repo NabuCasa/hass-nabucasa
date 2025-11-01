@@ -32,11 +32,14 @@ class CloudEventBus:
         for evt_type in event_types:
             self._subscribers.setdefault(evt_type, []).append(handler)
 
+        _LOGGER.debug("%s subscribed to %s", handler.__name__, event_types)
+
         def unsubscribe() -> None:
             """Remove this subscription."""
             for evt_type in event_types:
                 with contextlib.suppress(ValueError):
                     self._subscribers[evt_type].remove(handler)
+            _LOGGER.debug("%s unsubscribed from %s", handler.__name__, event_types)
 
         return unsubscribe
 
@@ -65,7 +68,7 @@ class CloudEventBus:
 
         for handler, result in zip(handlers, results, strict=True):
             if isinstance(result, Exception):
-                _LOGGER.warning(
+                _LOGGER.error(
                     "Error in event handler %s for event %s",
                     handler.__name__,
                     event_type,
