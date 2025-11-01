@@ -118,7 +118,6 @@ __all__ = [
     "NabuCasaBaseError",
     "NabuCasaConnectionError",
     "PasswordChangeRequired",
-    "PasswordChangeRequired",
     "PaymentsApiError",
     "ServiceDiscovery",
     "ServiceDiscoveryAction",
