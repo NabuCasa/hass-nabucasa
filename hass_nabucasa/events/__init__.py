@@ -1,7 +1,7 @@
 """Event system for cloud services."""
 
-from .bus import CloudEvent, CloudEventBus
-from .types import CloudEventType
+from .bus import CloudEventBus
+from .types import CloudEvent, CloudEventType
 
 __all__ = [
     "CloudEvent",

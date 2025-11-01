@@ -3,23 +3,11 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 import contextlib
-from dataclasses import dataclass
-from datetime import UTC, datetime
 import logging
-from typing import Any
 
-from .types import CloudEventType
+from .types import CloudEvent, CloudEventType
 
 _LOGGER = logging.getLogger(__name__)
-
-
-@dataclass
-class CloudEvent:
-    """Event that occurred in the cloud system."""
-
-    type: CloudEventType
-    data: dict[str, Any]
-    timestamp: datetime
 
 
 class CloudEventBus:
@@ -28,49 +16,48 @@ class CloudEventBus:
     def __init__(self) -> None:
         """Initialize the event bus."""
         self._subscribers: dict[
-            CloudEventType,
+            str,
             list[Callable[[CloudEvent], Awaitable[None]]],
         ] = {}
 
     def subscribe(
         self,
         *,
-        event_type: CloudEventType,
+        event_type: CloudEventType | list[CloudEventType],
         handler: Callable[[CloudEvent], Awaitable[None]],
-        **_: Any,
     ) -> Callable[[], None]:
-        """Subscribe to an event type."""
-        self._subscribers.setdefault(event_type, []).append(handler)
+        """Subscribe to an event type or list of event types."""
+        event_types = [event_type] if isinstance(event_type, str) else event_type
+
+        for evt_type in event_types:
+            self._subscribers.setdefault(evt_type, []).append(handler)
 
         def unsubscribe() -> None:
             """Remove this subscription."""
-            with contextlib.suppress(ValueError):
-                self._subscribers[event_type].remove(handler)
+            for evt_type in event_types:
+                with contextlib.suppress(ValueError):
+                    self._subscribers[evt_type].remove(handler)
 
         return unsubscribe
 
     async def publish(
         self,
         *,
-        event_type: CloudEventType,
-        data: dict[str, Any] | None = None,
-        **_: Any,
+        event: CloudEvent,
     ) -> None:
         """Publish an event to all subscribers."""
-        event = CloudEvent(
-            type=event_type,
-            data=data or {},
-            timestamp=datetime.now(UTC),
-        )
+        event_type = event.type
 
         if event_type not in self._subscribers:
             return
 
         handlers = self._subscribers[event_type]
 
-        _LOGGER.debug(
-            "Publishing event %s to %d subscribers", event_type.name, len(handlers)
-        )
+        if not handlers:
+            _LOGGER.debug("No subscribers for event %s", event_type)
+            return
+
+        _LOGGER.debug("Publish %s to %d subscribers", event_type, len(handlers))
 
         results = await asyncio.gather(
             *[handler(event) for handler in handlers],
@@ -79,9 +66,9 @@ class CloudEventBus:
 
         for handler, result in zip(handlers, results, strict=False):
             if isinstance(result, Exception):
-                _LOGGER.exception(
+                _LOGGER.warning(
                     "Error in event handler %s for event %s",
                     handler.__name__,
-                    event_type.name,
+                    event_type,
                     exc_info=result,
                 )

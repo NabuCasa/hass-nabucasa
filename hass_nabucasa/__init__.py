@@ -46,7 +46,7 @@ from .const import (
     CertificateStatus,
     SubscriptionReconnectionReason,
 )
-from .events import CloudEventBus
+from .events import CloudEvent, CloudEventBus, CloudEventType
 from .exceptions import (
     CloudError,
     NabuCasaAuthenticationError,
@@ -97,6 +97,8 @@ __all__ = [
     "CloudApiTimeoutError",
     "CloudClient",
     "CloudError",
+    "CloudEvent",
+    "CloudEventType",
     "FilesError",
     "GoogleReportStateError",
     "IceServersApiError",
