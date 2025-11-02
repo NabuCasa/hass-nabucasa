@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from hass_nabucasa.iot_base import DisconnectReason
+    from ..iot_base import DisconnectReason
 
 
 def _timestamp_factory() -> float:
