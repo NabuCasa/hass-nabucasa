@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from enum import StrEnum
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
@@ -38,4 +39,10 @@ class RelayerDisconnectedEvent(_CloudEventBase):
 
 
 CloudEvent = RelayerConnectedEvent | RelayerDisconnectedEvent
-type CloudEventType = Literal["relayer_connected", "relayer_disconnected"]
+
+
+class CloudEventType(StrEnum):
+    """Cloud event types."""
+
+    RELAYER_CONNECTED = "relayer_connected"
+    RELAYER_DISCONNECTED = "relayer_disconnected"
