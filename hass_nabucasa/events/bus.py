@@ -1,5 +1,7 @@
 """Central event bus."""
 
+from __future__ import annotations
+
 import asyncio
 from collections.abc import Awaitable, Callable
 import contextlib
@@ -32,7 +34,7 @@ class CloudEventBus:
         handler: Callable[[CloudEvent], Awaitable[None]],
     ) -> Callable[[], None]:
         """Subscribe to an event type or list of event types."""
-        event_types = [event_type] if isinstance(event_type, str) else event_type
+        event_types = event_type if isinstance(event_type, list) else [event_type]
 
         for evt_type in event_types:
             if evt_type not in self._subscribers:

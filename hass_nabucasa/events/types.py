@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
+
+from ..utils import utcnow
 
 if TYPE_CHECKING:
     from ..iot_base import DisconnectReason
@@ -13,32 +14,7 @@ if TYPE_CHECKING:
 
 def _timestamp_factory() -> float:
     """Generate a timestamp for the current time."""
-    return datetime.now(UTC).timestamp()
-
-
-@dataclass(kw_only=True)
-class _CloudEventBase:
-    """Base class for all cloud events."""
-
-    timestamp: float = field(default_factory=_timestamp_factory)
-
-
-@dataclass(kw_only=True)
-class RelayerConnectedEvent(_CloudEventBase):
-    """Relayer connected event."""
-
-    type: Literal["relayer_connected"] = "relayer_connected"
-
-
-@dataclass(kw_only=True)
-class RelayerDisconnectedEvent(_CloudEventBase):
-    """Relayer disconnected event."""
-
-    type: Literal["relayer_disconnected"] = "relayer_disconnected"
-    reason: DisconnectReason | None = None
-
-
-CloudEvent = RelayerConnectedEvent | RelayerDisconnectedEvent
+    return utcnow().timestamp()
 
 
 class CloudEventType(StrEnum):
@@ -46,3 +22,26 @@ class CloudEventType(StrEnum):
 
     RELAYER_CONNECTED = "relayer_connected"
     RELAYER_DISCONNECTED = "relayer_disconnected"
+
+
+@dataclass(kw_only=True, frozen=True)
+class CloudEvent:
+    """Base class for all cloud events."""
+
+    timestamp: float = field(default_factory=_timestamp_factory)
+    type: CloudEventType = field(init=False)
+
+
+@dataclass(kw_only=True, frozen=True)
+class RelayerConnectedEvent(CloudEvent):
+    """Relayer connected event."""
+
+    type = CloudEventType.RELAYER_CONNECTED
+
+
+@dataclass(kw_only=True, frozen=True)
+class RelayerDisconnectedEvent(CloudEvent):
+    """Relayer disconnected event."""
+
+    type = CloudEventType.RELAYER_DISCONNECTED
+    reason: DisconnectReason | None = None
