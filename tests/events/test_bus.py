@@ -6,6 +6,7 @@ import pytest
 from syrupy import SnapshotAssertion
 
 from hass_nabucasa.events import CloudEventBus
+from hass_nabucasa.events.bus import EventBusError
 from hass_nabucasa.events.types import (
     RelayerConnectedEvent,
     RelayerDisconnectedEvent,
@@ -225,3 +226,13 @@ async def test_subscribe_to_multiple_event_types(
     assert len(subscriber.call_args_list) == 2
 
     assert extract_log_messages(caplog) == snapshot
+
+
+@pytest.mark.asyncio
+async def test_subscribe_to_invalid_event_type():
+    """Test that subscribing to an invalid event type raises an error."""
+    subscriber = AsyncMock()
+    event_bus = CloudEventBus()
+
+    with pytest.raises(EventBusError, match="Unknown event type: invalid_event"):
+        event_bus.subscribe(event_type="invalid_event", handler=subscriber)  # type: ignore[arg-type]

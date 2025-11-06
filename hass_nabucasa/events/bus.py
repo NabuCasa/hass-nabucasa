@@ -5,9 +5,19 @@ from collections.abc import Awaitable, Callable
 import contextlib
 import logging
 
+from ..exceptions import CloudError
 from .types import CloudEvent, CloudEventType
 
 _LOGGER = logging.getLogger(__name__)
+
+EVENT_TYPES: set[str] = {
+    "relayer_connected",
+    "relayer_disconnected",
+}
+
+
+class EventBusError(CloudError):
+    """Exception raised for event bus errors."""
 
 
 class CloudEventBus:
@@ -18,7 +28,7 @@ class CloudEventBus:
         self._subscribers: dict[
             str,
             list[Callable[[CloudEvent], Awaitable[None]]],
-        ] = {}
+        ] = {k: [] for k in EVENT_TYPES}
 
     def subscribe(
         self,
@@ -30,7 +40,9 @@ class CloudEventBus:
         event_types = [event_type] if isinstance(event_type, str) else event_type
 
         for evt_type in event_types:
-            self._subscribers.setdefault(evt_type, []).append(handler)
+            if evt_type not in EVENT_TYPES:
+                raise EventBusError(f"Unknown event type: {evt_type}")
+            self._subscribers[evt_type].append(handler)
 
         _LOGGER.debug("%s subscribed to %s", handler.__name__, event_types)
 

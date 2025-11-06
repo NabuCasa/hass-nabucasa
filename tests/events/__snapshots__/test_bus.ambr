@@ -36,7 +36,7 @@
   '''
 # ---
 # name: test_publish_without_subscribers
-  ''
+  '[DEBUG] hass_nabucasa.events.bus: No subscribers for event relayer_connected'
 # ---
 # name: test_subscribe_and_publish
   _CallList([
