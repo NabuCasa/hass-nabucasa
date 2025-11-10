@@ -56,6 +56,7 @@ from .const import (
     CertificateStatus,
     SubscriptionReconnectionReason,
 )
+from .events import CloudEvent, CloudEventBus, CloudEventType
 from .exceptions import (
     CloudError,
     NabuCasaAuthenticationError,
@@ -106,6 +107,9 @@ __all__ = [
     "CloudApiTimeoutError",
     "CloudClient",
     "CloudError",
+    "CloudEvent",
+    "CloudEventBus",
+    "CloudEventType",
     "FilesError",
     "GoogleReportStateError",
     "IceServersApiError",
@@ -211,6 +215,9 @@ class Cloud(Generic[_ClientT]):
             "servicehandlers",
             servicehandlers_server,
         )
+
+        # Setup event bus before other components
+        self.events = CloudEventBus()
 
         # Needs to be setup before other components
         self.iot = CloudIoT(self)
