@@ -1,4 +1,10 @@
 # serializer version: 1
+# name: test_dispatcher_message_on_publish
+  '''
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to [<CloudEventType.RELAYER_CONNECTED: 'relayer_connected'>]
+  [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 1 subscribers
+  '''
+# ---
 # name: test_error_handling
   '''
   [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to [<CloudEventType.RELAYER_CONNECTED: 'relayer_connected'>]

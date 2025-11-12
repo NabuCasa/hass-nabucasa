@@ -6,9 +6,15 @@ import asyncio
 from collections.abc import Awaitable, Callable
 import contextlib
 import logging
+from typing import TYPE_CHECKING
 
+from ..const import DISPATCH_EVENT
 from ..exceptions import CloudError
 from .types import CloudEvent, CloudEventType
+
+if TYPE_CHECKING:
+    from .. import Cloud, _ClientT
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,8 +26,9 @@ class EventBusError(CloudError):
 class CloudEventBus:
     """Central event bus for all cloud events."""
 
-    def __init__(self) -> None:
+    def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Initialize the event bus."""
+        self._cloud = cloud
         self._subscribers: dict[
             str,
             list[Callable[[CloudEvent], Awaitable[None]]],
@@ -83,3 +90,4 @@ class CloudEventBus:
                     event_type,
                     exc_info=result,
                 )
+        self._cloud.client.dispatcher_message(f"{DISPATCH_EVENT}_{event_type}", event)

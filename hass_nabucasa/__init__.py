@@ -217,7 +217,7 @@ class Cloud(Generic[_ClientT]):
         )
 
         # Setup event bus before other components
-        self.events = CloudEventBus()
+        self.events = CloudEventBus(self)
 
         # Needs to be setup before other components
         self.iot = CloudIoT(self)

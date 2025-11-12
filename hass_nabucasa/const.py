@@ -22,6 +22,7 @@ STATE_CONNECTED = "connected"
 STATE_DISCONNECTED = "disconnected"
 
 DISPATCH_CERTIFICATE_STATUS = "certificate_status"
+DISPATCH_EVENT = "event"
 DISPATCH_REMOTE_CONNECT = "remote_connect"
 DISPATCH_REMOTE_DISCONNECT = "remote_disconnect"
 DISPATCH_REMOTE_BACKEND_UP = "remote_backend_up"
