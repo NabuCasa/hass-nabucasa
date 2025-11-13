@@ -1,5 +1,6 @@
 """Tests for event bus."""
 
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
@@ -28,7 +29,7 @@ async def test_subscribe_and_publish(
         event_type=CloudEventType.RELAYER_CONNECTED, handler=subscriber
     )
 
-    await event_bus.publish(event=RelayerConnectedEvent())
+    await event_bus.async_publish(event=RelayerConnectedEvent())
 
     assert len(subscriber.call_args_list) == 1
 
@@ -50,7 +51,7 @@ async def test_publish_without_data(
     event_bus.subscribe(event_type=CloudEventType.RELAYER_CONNECTED, handler=subscriber)
 
     event = RelayerConnectedEvent()
-    await event_bus.publish(event=event)
+    await event_bus.async_publish(event=event)
 
     assert len(subscriber.call_args_list) == 1
     assert subscriber.call_args_list[0][0][0].type == CloudEventType.RELAYER_CONNECTED
@@ -66,7 +67,7 @@ async def test_publish_without_subscribers(
     event_bus = CloudEventBus()
 
     event = RelayerConnectedEvent()
-    await event_bus.publish(event=event)
+    await event_bus.async_publish(event=event)
 
     assert extract_log_messages(caplog) == snapshot
 
@@ -84,12 +85,12 @@ async def test_unsubscribe(
         event_type=CloudEventType.RELAYER_CONNECTED, handler=subscriber
     )
 
-    await event_bus.publish(event=RelayerConnectedEvent())
+    await event_bus.async_publish(event=RelayerConnectedEvent())
     assert len(subscriber.call_args_list) == 1
 
     unsubscribe()
 
-    await event_bus.publish(event=RelayerConnectedEvent())
+    await event_bus.async_publish(event=RelayerConnectedEvent())
     assert len(subscriber.call_args_list) == 1
 
     assert extract_log_messages(caplog) == snapshot
@@ -111,7 +112,7 @@ async def test_unsubscribe_multiple_times(
     unsubscribe()
     unsubscribe()
 
-    await event_bus.publish(event=RelayerConnectedEvent())
+    await event_bus.async_publish(event=RelayerConnectedEvent())
     assert len(subscriber.call_args_list) == 0
 
     assert extract_log_messages(caplog) == snapshot
@@ -134,7 +135,7 @@ async def test_error_handling(
         event_type=CloudEventType.RELAYER_CONNECTED, handler=working_subscriber
     )
 
-    await event_bus.publish(event=RelayerConnectedEvent())
+    await event_bus.async_publish(event=RelayerConnectedEvent())
 
     assert len(failing_subscriber.call_args_list) == 1
     assert len(working_subscriber.call_args_list) == 1
@@ -158,8 +159,8 @@ async def test_multiple_event_types(
         event_type=CloudEventType.RELAYER_DISCONNECTED, handler=disconnected_subscriber
     )
 
-    await event_bus.publish(event=RelayerConnectedEvent())
-    await event_bus.publish(event=RelayerDisconnectedEvent())
+    await event_bus.async_publish(event=RelayerConnectedEvent())
+    await event_bus.async_publish(event=RelayerDisconnectedEvent())
 
     assert len(connected_subscriber.call_args_list) == 1
     assert len(disconnected_subscriber.call_args_list) == 1
@@ -187,7 +188,7 @@ async def test_multiple_subscribers(
         event_type=CloudEventType.RELAYER_CONNECTED, handler=subscriber3
     )
 
-    await event_bus.publish(event=RelayerConnectedEvent())
+    await event_bus.async_publish(event=RelayerConnectedEvent())
 
     assert len(subscriber1.call_args_list) == 1
     assert len(subscriber2.call_args_list) == 1
@@ -206,7 +207,7 @@ async def test_event_timestamp(
 
     event_bus.subscribe(event_type=CloudEventType.RELAYER_CONNECTED, handler=subscriber)
 
-    await event_bus.publish(event=RelayerConnectedEvent())
+    await event_bus.async_publish(event=RelayerConnectedEvent())
 
     assert len(subscriber.call_args_list) == 1
     assert subscriber.call_args_list[0][0][0].timestamp is not None
@@ -230,8 +231,8 @@ async def test_subscribe_to_multiple_event_types(
         handler=subscriber,
     )
 
-    await event_bus.publish(event=RelayerConnectedEvent())
-    await event_bus.publish(event=RelayerDisconnectedEvent())
+    await event_bus.async_publish(event=RelayerConnectedEvent())
+    await event_bus.async_publish(event=RelayerDisconnectedEvent())
 
     assert len(subscriber.call_args_list) == 2
     assert subscriber.call_args_list[0][0][0].type == CloudEventType.RELAYER_CONNECTED
@@ -241,7 +242,7 @@ async def test_subscribe_to_multiple_event_types(
 
     unsubscribe()
 
-    await event_bus.publish(event=RelayerConnectedEvent())
+    await event_bus.async_publish(event=RelayerConnectedEvent())
     assert len(subscriber.call_args_list) == 2
 
     assert extract_log_messages(caplog) == snapshot
@@ -255,3 +256,25 @@ async def test_subscribe_to_invalid_event_type():
 
     with pytest.raises(EventBusError, match="Unknown event type: invalid_event"):
         event_bus.subscribe(event_type="invalid_event", handler=subscriber)  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+async def test_publish_non_async(
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+):
+    """Test non-async publish method that creates a task."""
+    subscriber = AsyncMock()
+    event_bus = CloudEventBus()
+
+    event_bus.subscribe(event_type=CloudEventType.RELAYER_CONNECTED, handler=subscriber)
+
+    event = RelayerConnectedEvent()
+    event_bus.publish(event=event)
+
+    # Wait for the task to complete
+    await asyncio.sleep(0.1)
+
+    assert len(subscriber.call_args_list) == 1
+    assert subscriber.call_args_list[0][0][0].type == CloudEventType.RELAYER_CONNECTED
+    assert extract_log_messages(caplog) == snapshot

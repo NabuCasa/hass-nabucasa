@@ -29,6 +29,12 @@
   [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 3 subscribers
   '''
 # ---
+# name: test_publish_non_async
+  '''
+  [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to [<CloudEventType.RELAYER_CONNECTED: 'relayer_connected'>]
+  [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 1 subscribers
+  '''
+# ---
 # name: test_publish_without_data
   '''
   [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to [<CloudEventType.RELAYER_CONNECTED: 'relayer_connected'>]

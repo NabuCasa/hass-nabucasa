@@ -85,12 +85,12 @@ async def test_cloud_calling_handler(mock_iot_client, cloud_mock_iot, message):
     }
 
     # Verify events were published (connected and disconnected)
-    assert cloud_mock_iot.events.publish.call_count == 2
+    assert cloud_mock_iot.events.async_publish.call_count == 2
     # First call: RelayerConnectedEvent
-    first_event = cloud_mock_iot.events.publish.call_args_list[0][1]["event"]
+    first_event = cloud_mock_iot.events.async_publish.call_args_list[0][1]["event"]
     assert first_event.type == "relayer_connected"
     # Second call: RelayerDisconnectedEvent
-    second_event = cloud_mock_iot.events.publish.call_args_list[1][1]["event"]
+    second_event = cloud_mock_iot.events.async_publish.call_args_list[1][1]["event"]
     assert second_event.type == "relayer_disconnected"
     assert second_event.reason is not None
     assert second_event.reason.clean is True

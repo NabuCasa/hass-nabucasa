@@ -107,7 +107,8 @@ def auth_cloud_mock(cloud_mock):
         cleanup_dns_challenge_record=AsyncMock(),
     )
     cloud_mock.events = MagicMock(
-        publish=AsyncMock(),
+        publish=MagicMock(),
+        async_publish=AsyncMock(),
     )
     return cloud_mock
 

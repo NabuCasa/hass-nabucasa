@@ -160,13 +160,13 @@ class CloudIoT(iot_base.BaseIoT):
     async def _connected(self) -> None:
         """Handle connected."""
         await super()._connected()
-        await self.cloud.events.publish(event=RelayerConnectedEvent())
+        await self.cloud.events.async_publish(event=RelayerConnectedEvent())
         await self.cloud.client.cloud_connected()
 
     async def _disconnected(self) -> None:
         """Handle connected."""
         await super()._disconnected()
-        await self.cloud.events.publish(
+        await self.cloud.events.async_publish(
             event=RelayerDisconnectedEvent(reason=self.last_disconnect_reason)
         )
         await self.cloud.client.cloud_disconnected()

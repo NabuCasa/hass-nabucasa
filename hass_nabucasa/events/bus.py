@@ -52,7 +52,14 @@ class CloudEventBus:
 
         return unsubscribe
 
-    async def publish(
+    def publish(
+        self,
+        event: CloudEvent,
+    ) -> None:
+        """Publish an event to all subscribers."""
+        asyncio.create_task(self.async_publish(event))
+
+    async def async_publish(
         self,
         event: CloudEvent,
     ) -> None:
