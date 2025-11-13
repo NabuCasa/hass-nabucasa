@@ -48,10 +48,7 @@ class Ai:
         try:
             details = await self.cloud.ai_api.ai_connection_details()
         except AiApiError as err:
-            _LOGGER.info("AI token update failed: %s", err)
             raise AiTokenError(err) from err
-
-        _LOGGER.info("AI token updated, valid until %s", details["valid_until"])
 
         self._token = details["token"]
         self._valid_until = utc_from_timestamp(float(details["valid_until"]))
