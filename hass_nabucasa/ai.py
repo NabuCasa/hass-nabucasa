@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
-from hass_nabucasa.ai_api import AiApiError
+from .api import ApiBase, CloudApiError, api_exception_handler
 from hass_nabucasa.utils import utc_from_timestamp, utcnow
 
 if TYPE_CHECKING:
@@ -12,20 +12,22 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-
 class AiError(Exception):
-    """General AI error."""
-
-
-class AiTokenError(AiError):
     """Error with token handling."""
 
+class AiConnectionDetails(TypedDict):
+    """AI connection details from AI API."""
 
-class Ai:
-    """Class to help manage azure STT and TTS."""
+    token: str
+    valid_until: int
+    generate_data_endpoint: str
+    generate_image_endpoint: str
+
+class Ai(ApiBase):
+    """Class to handle AI services."""
 
     def __init__(self, cloud: Cloud[_ClientT]) -> None:
-        """Initialize azure voice."""
+        """Initialize AI services."""
         self.cloud = cloud
         self._token: str | None = None
         self._generate_data_endpoint: str | None = None
@@ -43,12 +45,15 @@ class Ai:
     async def _update_token(self) -> None:
         """Update token details."""
         if not self.cloud.valid_subscription:
-            raise AiTokenError("Invalid subscription")
+            raise AiError("Invalid subscription")
 
         try:
-            details = await self.cloud.ai_api.ai_connection_details()
-        except AiApiError as err:
-            raise AiTokenError(err) from err
+            details: AiConnectionDetails = await self._call_cloud_api(
+                action="ai_connection_details",
+            )
+
+        except CloudApiError as err:
+            raise AiError(err) from err
 
         self._token = details["token"]
         self._valid_until = utc_from_timestamp(float(details["valid_until"]))
