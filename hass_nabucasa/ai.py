@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import logging
 from typing import TYPE_CHECKING, TypedDict
 
-from .api import ApiBase, CloudApiError, api_exception_handler
+from .api import ApiBase, CloudApiError
 from hass_nabucasa.utils import utc_from_timestamp, utcnow
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class Ai(ApiBase):
 
     def __init__(self, cloud: Cloud[_ClientT]) -> None:
         """Initialize AI services."""
-        self.cloud = cloud
+        super().__init__(cloud)
         self._token: str | None = None
         self._generate_data_endpoint: str | None = None
         self._generate_image_endpoint: str | None = None
@@ -37,14 +37,14 @@ class Ai(ApiBase):
     def _validate_token(self) -> bool:
         """Validate token outside of coroutine."""
         # Add a 5-minute buffer to avoid race conditions near expiry
-        return self.cloud.valid_subscription and bool(
+        return self._cloud.valid_subscription and bool(
             self._valid_until
             and utcnow() + timedelta(minutes=5) < self._valid_until
         )
 
     async def _update_token(self) -> None:
         """Update token details."""
-        if not self.cloud.valid_subscription:
+        if not self._cloud.valid_subscription:
             raise AiError("Invalid subscription")
 
         try:
@@ -53,6 +53,7 @@ class Ai(ApiBase):
             )
 
         except CloudApiError as err:
+            _LOGGER.error("Failed to update AI token: %s", err)
             raise AiError(err) from err
 
         self._token = details["token"]
