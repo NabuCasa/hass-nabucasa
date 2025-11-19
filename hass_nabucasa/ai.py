@@ -4,24 +4,29 @@ from datetime import datetime, timedelta
 import logging
 from typing import TYPE_CHECKING, TypedDict
 
-from .api import ApiBase, CloudApiError
 from hass_nabucasa.utils import utc_from_timestamp, utcnow
+
+from .api import ApiBase, CloudApiError
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class AiError(Exception):
     """Error with token handling."""
+
 
 class AiConnectionDetails(TypedDict):
     """AI connection details from AI API."""
 
     token: str
     valid_until: int
-    generate_data_endpoint: str
-    generate_image_endpoint: str
+    base_url: str
+    generate_data_model: str
+    generate_image_model: str
+
 
 class Ai(ApiBase):
     """Class to handle AI services."""
@@ -30,8 +35,9 @@ class Ai(ApiBase):
         """Initialize AI services."""
         super().__init__(cloud)
         self._token: str | None = None
-        self._generate_data_endpoint: str | None = None
-        self._generate_image_endpoint: str | None = None
+        self.base_url: str | None = None
+        self._generate_data_model: str | None = None
+        self._generate_image_model: str | None = None
         self._valid_until: datetime | None = None
 
     def _validate_token(self) -> bool:
@@ -58,5 +64,6 @@ class Ai(ApiBase):
 
         self._token = details["token"]
         self._valid_until = utc_from_timestamp(float(details["valid_until"]))
-        self._generate_data_endpoint = details["generate_data_endpoint"]
-        self._generate_image_endpoint = details["generate_image_endpoint"]
+        self.base_url = details["base_url"]
+        self._generate_data_model = details["generate_data_model"]
+        self._generate_image_model = details["generate_image_model"]
