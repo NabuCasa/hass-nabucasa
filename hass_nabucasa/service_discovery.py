@@ -31,6 +31,7 @@ ServiceDiscoveryAction = Literal[
     "subscription_info",
     "subscription_migrate_paypal",
     "voice_connection_details",
+    "ai_connection_details",
 ]
 
 VALID_ACTION_NAMES = frozenset(get_args(ServiceDiscoveryAction))
@@ -143,6 +144,7 @@ class ServiceDiscovery(ApiBase):
             "subscription_info": f"https://{self._cloud.accounts_server}/payments/subscription_info",
             "subscription_migrate_paypal": f"https://{self._cloud.accounts_server}/payments/migrate_paypal_agreement",
             "voice_connection_details": f"https://{self._cloud.servicehandlers_server}/voice/connection_details",
+            "ai_connection_details": f"https://{self._cloud.api_server}/ai/connection_details",
         }
 
     @property
