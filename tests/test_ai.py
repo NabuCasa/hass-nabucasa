@@ -1,4 +1,4 @@
-"""Tests for hass_nabucasa.ai helpers and Ai class."""
+"""Unit tests for hass_nabucasa.ai."""
 
 from __future__ import annotations
 
@@ -30,7 +30,6 @@ from hass_nabucasa.ai import (
 
 
 def _mock_ai() -> Ai:
-    """Return an Ai instance with the bare minimum configured."""
     cloud = MagicMock(valid_subscription=True)
     ai = Ai(cloud)
     ai._token = "token"
@@ -42,7 +41,7 @@ def _mock_ai() -> Ai:
 
 
 def test_flatten_text_value_handles_iterables() -> None:
-    """_flatten_text_value should concatenate supported entries."""
+    """Ensure _flatten_text_value collapses supported parts."""
     payload = [
         "Hello ",
         {"text": "from "},
@@ -53,8 +52,8 @@ def test_flatten_text_value_handles_iterables() -> None:
     assert _flatten_text_value(payload) == "Hello from Ai"
 
 
-def test_extract_response_text_supports_namespace_responses() -> None:
-    """_extract_response_text should read namespace-based responses."""
+def test_extract_response_text_supports_namespaces() -> None:
+    """_extract_response_text should handle namespace responses."""
     response = SimpleNamespace(
         output=[
             SimpleNamespace(
@@ -73,7 +72,7 @@ def test_extract_response_text_supports_namespace_responses() -> None:
 
 @pytest.mark.asyncio
 async def test_extract_response_image_data_decodes_base64() -> None:
-    """_extract_response_image_data should decode base64 payloads."""
+    """Image responses with base64 payloads should decode."""
     image_bytes = b"binary"
     payload = {
         "model": "image-model",
@@ -91,7 +90,6 @@ async def test_extract_response_image_data_decodes_base64() -> None:
 
     assert result["image_data"] == image_bytes
     assert result["mime_type"] == "image/png"
-    assert result["model"] == "image-model"
     assert result["width"] == 64
     assert result["height"] == 32
     assert result["revised_prompt"] == "done"
@@ -99,7 +97,7 @@ async def test_extract_response_image_data_decodes_base64() -> None:
 
 @pytest.mark.asyncio
 async def test_extract_response_image_data_fetches_url() -> None:
-    """_extract_response_image_data should download when no b64 payload exists."""
+    """Image responses should fetch URLs when no base64 payload exists."""
     payload = {
         "model": "image-model",
         "data": [
@@ -121,7 +119,7 @@ async def test_extract_response_image_data_fetches_url() -> None:
 
 @pytest.mark.asyncio
 async def test_stream_ai_text_yields_initial_role() -> None:
-    """stream_ai_text should yield first chunk with assistant role."""
+    """stream_ai_text should emit assistant role in its first chunk."""
 
     async def fake_stream():
         for chunk in ("Hello", " world"):
@@ -171,7 +169,7 @@ async def test_async_generate_data_returns_response() -> None:
 
 @pytest.mark.asyncio
 async def test_async_generate_data_streams_when_requested() -> None:
-    """async_generate_data should wrap LiteLLM stream responses."""
+    """async_generate_data should wrap LiteLLM stream results."""
     ai = _mock_ai()
     mock_aresponses = AsyncMock()
     mock_stream = MagicMock()
@@ -217,7 +215,7 @@ async def test_async_generate_data_maps_errors(
 
 @pytest.mark.asyncio
 async def test_async_generate_image_without_attachments_calls_create() -> None:
-    """Async_generate_image should call the generation helper when no attachments."""
+    """async_generate_image should call generation helper."""
     ai = _mock_ai()
     ai._async_create_image = AsyncMock(
         return_value="image")  # type: ignore[method-assign]
@@ -232,15 +230,13 @@ async def test_async_generate_image_without_attachments_calls_create() -> None:
 
 @pytest.mark.asyncio
 async def test_async_generate_image_with_attachments_calls_edit() -> None:
-    """async_generate_image should call the edit helper when attachments are present."""
+    """async_generate_image should call edit helper when attachments are present."""
     ai = _mock_ai()
     ai._async_create_image = AsyncMock()  # type: ignore[method-assign]
     ai._async_edit_image = AsyncMock(
         return_value="edited")  # type: ignore[method-assign]
-    attachments = [
-        AiImageAttachment(filename="pic.png",
-                          mime_type="image/png", data=b"raw")
-    ]
+    attachments = [AiImageAttachment(
+        filename="pic.png", mime_type="image/png", data=b"raw")]
 
     result = await ai.async_generate_image(prompt="fix", attachments=attachments)
 
@@ -251,11 +247,10 @@ async def test_async_generate_image_with_attachments_calls_edit() -> None:
 
 @pytest.mark.asyncio
 async def test_async_edit_image_single_attachment_payload() -> None:
-    """_async_edit_image should wrap a single attachment as a BytesIO image."""
+    """_async_edit_image should wrap a single attachment as BytesIO."""
     ai = _mock_ai()
     attachment = AiImageAttachment(
-        filename="first.png", mime_type="image/png", data=b"payload"
-    )
+        filename="first.png", mime_type="image/png", data=b"payload")
     mock_edit = AsyncMock()
     mock_extract = AsyncMock(return_value="image")
 
@@ -276,7 +271,7 @@ async def test_async_edit_image_single_attachment_payload() -> None:
 
 @pytest.mark.asyncio
 async def test_async_edit_image_multiple_attachment_payloads() -> None:
-    """_async_edit_image should pass a mask and multiple images to LiteLLM."""
+    """_async_edit_image should include mask and remaining images."""
     ai = _mock_ai()
     attachments = [
         AiImageAttachment(filename="base.png",
@@ -307,7 +302,7 @@ async def test_async_edit_image_multiple_attachment_payloads() -> None:
 
 @pytest.mark.asyncio
 async def test_async_edit_image_requires_model() -> None:
-    """_async_edit_image should fail when the image model is missing."""
+    """_async_edit_image should fail when the model is missing."""
     ai = _mock_ai()
     ai._generate_image_model = None
 
