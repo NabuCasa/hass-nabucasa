@@ -36,7 +36,7 @@ def _mock_ai() -> Ai:
     ai.base_url = "https://api.example"
     ai._generate_data_model = "responses-model"
     ai._generate_image_model = "image-model"
-    ai.async_ensure_token = AsyncMock()  # type: ignore[method-assign]
+    ai.async_ensure_token = AsyncMock()
     return ai
 
 
@@ -217,9 +217,8 @@ async def test_async_generate_data_maps_errors(
 async def test_async_generate_image_without_attachments_calls_create() -> None:
     """async_generate_image should call generation helper."""
     ai = _mock_ai()
-    ai._async_create_image = AsyncMock(
-        return_value="image")  # type: ignore[method-assign]
-    ai._async_edit_image = AsyncMock()  # type: ignore[method-assign]
+    ai._async_create_image = AsyncMock(return_value="image")
+    ai._async_edit_image = AsyncMock()
 
     result = await ai.async_generate_image(prompt="draw")
 
@@ -232,11 +231,11 @@ async def test_async_generate_image_without_attachments_calls_create() -> None:
 async def test_async_generate_image_with_attachments_calls_edit() -> None:
     """async_generate_image should call edit helper when attachments are present."""
     ai = _mock_ai()
-    ai._async_create_image = AsyncMock()  # type: ignore[method-assign]
-    ai._async_edit_image = AsyncMock(
-        return_value="edited")  # type: ignore[method-assign]
-    attachments = [AiImageAttachment(
-        filename="pic.png", mime_type="image/png", data=b"raw")]
+    ai._async_create_image = AsyncMock()
+    ai._async_edit_image = AsyncMock(return_value="edited")
+    attachments = [
+        AiImageAttachment(filename="pic.png", mime_type="image/png", data=b"raw")
+    ]
 
     result = await ai.async_generate_image(prompt="fix", attachments=attachments)
 
@@ -250,7 +249,8 @@ async def test_async_edit_image_single_attachment_payload() -> None:
     """_async_edit_image should wrap a single attachment as BytesIO."""
     ai = _mock_ai()
     attachment = AiImageAttachment(
-        filename="first.png", mime_type="image/png", data=b"payload")
+        filename="first.png", mime_type="image/png", data=b"payload"
+    )
     mock_edit = AsyncMock()
     mock_extract = AsyncMock(return_value="image")
 
@@ -274,12 +274,9 @@ async def test_async_edit_image_multiple_attachment_payloads() -> None:
     """_async_edit_image should include mask and remaining images."""
     ai = _mock_ai()
     attachments = [
-        AiImageAttachment(filename="base.png",
-                          mime_type="image/png", data=b"base"),
-        AiImageAttachment(filename="mask.png",
-                          mime_type="image/png", data=b"mask"),
-        AiImageAttachment(filename="extra.png",
-                          mime_type="image/png", data=b"extra"),
+        AiImageAttachment(filename="base.png", mime_type="image/png", data=b"base"),
+        AiImageAttachment(filename="mask.png", mime_type="image/png", data=b"mask"),
+        AiImageAttachment(filename="extra.png", mime_type="image/png", data=b"extra"),
     ]
     mock_edit = AsyncMock()
     mock_extract = AsyncMock(return_value="image")
@@ -308,6 +305,5 @@ async def test_async_edit_image_requires_model() -> None:
 
     with pytest.raises(AiServiceError):
         await ai._async_edit_image(
-            "prompt", [AiImageAttachment(
-                filename=None, mime_type=None, data=b"img")]
+            "prompt", [AiImageAttachment(filename=None, mime_type=None, data=b"img")]
         )
