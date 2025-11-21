@@ -37,7 +37,7 @@ def _mock_ai() -> Ai:
 
 @pytest.mark.asyncio
 async def test_async_generate_data_returns_response() -> None:
-    """async_generate_data should forward parameters to LiteLLM and return its response."""
+    """async_generate_data should forward parameters to LiteLLM and return response."""
     ai = _mock_ai()
     response = SimpleNamespace(
         output=[
