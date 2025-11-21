@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import base64
-from collections.abc import AsyncIterator, Iterable
 from datetime import datetime, timedelta
 import io
 import logging
-from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, cast
 
 import aiohttp
 from litellm import (
     BaseResponsesAPIStreamingIterator,
+    ResponsesAPIResponse,
     aimage_edit,
     aimage_generation,
     aresponses,
@@ -23,7 +23,6 @@ from litellm.exceptions import (
     RateLimitError,
     ServiceUnavailableError,
 )
-from litellm.types.llms.openai import ResponsesAPIResponse
 
 from hass_nabucasa.utils import utc_from_timestamp, utcnow
 
@@ -95,72 +94,6 @@ class AiResponseError(AiRequestError):
     """Raised when AI responses are unexpected."""
 
 
-def _flatten_text_value(text: Any) -> str | None:
-    """Normalize text payloads from OpenAI Responses API objects."""
-    if isinstance(text, str):
-        return text
-
-    if isinstance(text, Iterable):
-        parts: list[str] = []
-        for entry in text:
-            if isinstance(entry, str):
-                parts.append(entry)
-            elif isinstance(entry, dict):
-                value = entry.get("text")
-                if isinstance(value, str):
-                    parts.append(value)
-            else:
-                value = getattr(entry, "text", None)
-                if isinstance(value, str):
-                    parts.append(value)
-        if parts:
-            return "".join(parts)
-
-    return None
-
-
-def _extract_text_from_output(output: Any) -> str | None:
-    """Extract the first assistant text segment from a Responses output list."""
-    if not isinstance(output, Iterable):
-        return None
-
-    for item in output:
-        if isinstance(item, dict):
-            contents = getattr(item, "content", None)
-        else:
-            contents = getattr(item, "content", None)
-
-        if not contents:
-            continue
-
-        for content in contents:
-            if isinstance(content, dict):
-                text_value = _flatten_text_value(getattr(content, "text", None))
-            else:
-                text_value = _flatten_text_value(getattr(content, "text", None))
-
-            if text_value:
-                return text_value
-
-    return None
-
-
-def _extract_response_text(
-    response: ResponsesAPIResponse | BaseResponsesAPIStreamingIterator,
-) -> AiGeneratedData:
-    """Extract the first text response from a Responses API reply."""
-    text_value = _extract_text_from_output(getattr(response, "output", None))
-    if text_value:
-        return AiGeneratedData(role="user", content=text_value)
-
-    if isinstance(response, dict):
-        text_value = _extract_text_from_output(response.get("output"))
-        if text_value:
-            return AiGeneratedData(role="user", content=text_value)
-
-    raise TypeError("Unexpected response shape")
-
-
 @api_exception_handler(AiServiceError)
 async def _async_fetch_image_from_url(url: str) -> bytes:
     """Fetch image data from a URL asynchronously."""
@@ -171,7 +104,7 @@ async def _async_fetch_image_from_url(url: str) -> bytes:
 
 @api_exception_handler(AiServiceError)
 async def _extract_response_image_data(
-    response: Any,
+    response: dict[str, Any],
 ) -> AiGeneratedImage:
     data = response.get("data")
     if not data or not isinstance(data, list):
@@ -199,37 +132,6 @@ async def _extract_response_image_data(
         height=item.get("height"),
         revised_prompt=item.get("revised_prompt"),
     )
-
-
-async def stream_ai_text(
-    raw_stream: AsyncIterator[Any],
-) -> AsyncIterator[AiGeneratedData]:
-    """Wrap LiteLLM Responses API streaming events and yield AiGenerateDataResponse."""
-    first_chunk = True
-    async for event in raw_stream:
-        event_type = event.get("type")
-        if hasattr(event_type, "value"):
-            event_type = event_type.value
-
-        if event_type != "response.output_text.delta":
-            continue
-
-        delta_text = event.get("delta")
-        if not delta_text:
-            continue
-
-        text_piece = str(delta_text)
-
-        if first_chunk:
-            first_chunk = False
-            yield {
-                "role": "assistant",
-                "content": text_piece,
-            }
-        else:
-            yield {
-                "content": text_piece,
-            }
 
 
 class Ai(ApiBase):
@@ -288,7 +190,9 @@ class Ai(ApiBase):
         conversation_id: str,
         response_format: dict[str, Any] | None = None,
         stream: bool = False,
-    ) -> AiGeneratedData | AsyncIterator[AiGeneratedData]:
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: Literal["auto", "none", "required"] | dict[str, Any] | None = None,
+    ) -> ResponsesAPIResponse | BaseResponsesAPIStreamingIterator:
         """Generate structured or free-form AI data."""
         await self.async_ensure_token()
 
@@ -299,15 +203,16 @@ class Ai(ApiBase):
             "api_base": self.base_url,
             "user": conversation_id,
             "stream": stream,
+            "response_format": response_format,
+            "tools": tools,
+            "tool_choice": tool_choice,
         }
-        if response_format:
-            response_kwargs["text"] = response_format
 
         try:
             response = await aresponses(**response_kwargs)
-            if stream:
-                return stream_ai_text(response)
-            return _extract_response_text(response)
+            return cast(
+                "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
+            )
         except AuthenticationError as err:
             raise AiAuthenticationError("Cloud AI authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:

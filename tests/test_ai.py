@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import io
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -22,10 +21,6 @@ from hass_nabucasa.ai import (
     AiImageAttachment,
     AiRateLimitError,
     AiServiceError,
-    _extract_response_image_data,
-    _extract_response_text,
-    _flatten_text_value,
-    stream_ai_text,
 )
 
 
@@ -40,102 +35,9 @@ def _mock_ai() -> Ai:
     return ai
 
 
-def test_flatten_text_value_handles_iterables() -> None:
-    """Ensure _flatten_text_value collapses supported parts."""
-    payload = [
-        "Hello ",
-        {"text": "from "},
-        SimpleNamespace(text="Ai"),
-        123,
-    ]
-
-    assert _flatten_text_value(payload) == "Hello from Ai"
-
-
-def test_extract_response_text_supports_namespaces() -> None:
-    """_extract_response_text should handle namespace responses."""
-    response = SimpleNamespace(
-        output=[
-            SimpleNamespace(
-                content=[
-                    SimpleNamespace(text="assistant text"),
-                ],
-            )
-        ]
-    )
-
-    assert _extract_response_text(response) == {
-        "role": "user",
-        "content": "assistant text",
-    }
-
-
-@pytest.mark.asyncio
-async def test_extract_response_image_data_decodes_base64() -> None:
-    """Image responses with base64 payloads should decode."""
-    image_bytes = b"binary"
-    payload = {
-        "model": "image-model",
-        "data": [
-            {
-                "b64_json": base64.b64encode(image_bytes).decode(),
-                "width": 64,
-                "height": 32,
-                "revised_prompt": "done",
-            }
-        ],
-    }
-
-    result = await _extract_response_image_data(payload)
-
-    assert result["image_data"] == image_bytes
-    assert result["mime_type"] == "image/png"
-    assert result["width"] == 64
-    assert result["height"] == 32
-    assert result["revised_prompt"] == "done"
-
-
-@pytest.mark.asyncio
-async def test_extract_response_image_data_fetches_url() -> None:
-    """Image responses should fetch URLs when no base64 payload exists."""
-    payload = {
-        "model": "image-model",
-        "data": [
-            {
-                "url": "https://images.example/render",
-                "width": 128,
-                "height": 128,
-            }
-        ],
-    }
-
-    mock_fetch = AsyncMock(return_value=b"downloaded")
-    with patch.object(ai_module, "_async_fetch_image_from_url", mock_fetch):
-        result = await _extract_response_image_data(payload)
-
-    assert result["image_data"] == b"downloaded"
-    mock_fetch.assert_awaited_once_with("https://images.example/render")
-
-
-@pytest.mark.asyncio
-async def test_stream_ai_text_yields_initial_role() -> None:
-    """stream_ai_text should emit assistant role in its first chunk."""
-
-    async def fake_stream():
-        for chunk in ("Hello", " world"):
-            yield {"type": "response.output_text.delta", "delta": chunk}
-
-    result = [chunk async for chunk in stream_ai_text(fake_stream())]
-
-    assert result == [
-        {"role": "assistant", "content": "Hello"},
-        {"content": " world"},
-    ]
-
-
 @pytest.mark.asyncio
 async def test_async_generate_data_returns_response() -> None:
-    """async_generate_data should forward parameters to LiteLLM and parse responses."""
+    """async_generate_data should forward parameters to LiteLLM and return its response."""
     ai = _mock_ai()
     response = SimpleNamespace(
         output=[
@@ -155,7 +57,7 @@ async def test_async_generate_data_returns_response() -> None:
             response_format={"type": "json_object"},
         )
 
-    assert result == {"role": "user", "content": "Hi there"}
+    assert result is response
     assert mock_aresponses.await_args is not None
     kwargs = mock_aresponses.await_args.kwargs
     assert kwargs["model"] == "responses-model"
@@ -164,28 +66,23 @@ async def test_async_generate_data_returns_response() -> None:
     assert kwargs["api_base"] == "https://api.example"
     assert kwargs["user"] == "conversation-id"
     assert kwargs["stream"] is False
-    assert kwargs["text"] == {"type": "json_object"}
+    assert kwargs["response_format"] == {"type": "json_object"}
 
 
 @pytest.mark.asyncio
 async def test_async_generate_data_streams_when_requested() -> None:
-    """async_generate_data should wrap LiteLLM stream results."""
+    """async_generate_data should return LiteLLM stream results."""
     ai = _mock_ai()
     mock_aresponses = AsyncMock()
-    mock_stream = MagicMock()
 
-    with (
-        patch.object(ai_module, "aresponses", mock_aresponses),
-        patch.object(ai_module, "stream_ai_text", mock_stream),
-    ):
+    with patch.object(ai_module, "aresponses", mock_aresponses):
         result = await ai.async_generate_data(
             messages=[],
             conversation_id="abc",
             stream=True,
         )
 
-    assert result is mock_stream.return_value
-    mock_stream.assert_called_once_with(mock_aresponses.return_value)
+    assert result is mock_aresponses.return_value
     assert mock_aresponses.await_args.kwargs["stream"] is True
 
 
