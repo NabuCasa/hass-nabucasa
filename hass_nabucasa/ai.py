@@ -46,6 +46,7 @@ class AiConnectionDetails(TypedDict):
     base_url: str
     generate_data_model: str
     generate_image_model: str
+    conversation_model: str
 
 
 class AiGeneratedData(TypedDict):
@@ -120,7 +121,8 @@ async def _extract_response_image_data(
         b64 = base64.b64encode(image_bytes).decode("utf-8")
 
     if not b64:
-        raise ValueError("Image generation response contains neither url nor b64_json.")
+        raise ValueError(
+            "Image generation response contains neither url nor b64_json.")
 
     decoded_image = base64.b64decode(b64)
 
@@ -144,6 +146,7 @@ class Ai(ApiBase):
         self.base_url: str | None = None
         self._generate_data_model: str | None = None
         self._generate_image_model: str | None = None
+        self._conversation_model: str | None = None
         self._valid_until: datetime | None = None
         self._lock = asyncio.Lock()
 
@@ -173,6 +176,7 @@ class Ai(ApiBase):
         self.base_url = details["base_url"]
         self._generate_data_model = details["generate_data_model"]
         self._generate_image_model = details["generate_image_model"]
+        self._conversation_model = details["conversation_model"]
 
     async def async_ensure_token(self) -> None:
         """Ensure the AI token is valid and available."""
@@ -191,7 +195,8 @@ class Ai(ApiBase):
         response_format: dict[str, Any] | None = None,
         stream: bool = False,
         tools: list[dict[str, Any]] | None = None,
-        tool_choice: Literal["auto", "none", "required"] | dict[str, Any] | None = None,
+        tool_choice: Literal["auto", "none",
+                             "required"] | dict[str, Any] | None = None,
     ) -> ResponsesAPIResponse | BaseResponsesAPIStreamingIterator:
         """Generate structured or free-form AI data."""
         await self.async_ensure_token()
@@ -214,7 +219,8 @@ class Ai(ApiBase):
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
             )
         except AuthenticationError as err:
-            raise AiAuthenticationError("Cloud AI authentication failed") from err
+            raise AiAuthenticationError(
+                "Cloud AI authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise AiRateLimitError("Cloud AI is rate limited") from err
         except APIError as err:
@@ -234,7 +240,8 @@ class Ai(ApiBase):
                 return await self._async_edit_image(prompt, attachments)
             return await self._async_create_image(prompt)
         except AuthenticationError as err:
-            raise AiAuthenticationError("Cloud AI authentication failed") from err
+            raise AiAuthenticationError(
+                "Cloud AI authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise AiRateLimitError("Cloud AI is rate limited") from err
         except APIError as err:
@@ -281,3 +288,42 @@ class Ai(ApiBase):
         )
 
         return await _extract_response_image_data(response)
+
+    async def async_process_conversation(
+        self,
+        *,
+        messages: list[dict[str, Any]],
+        conversation_id: str,
+        response_format: dict[str, Any] | None = None,
+        stream: bool = False,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: Literal["auto", "none",
+                             "required"] | dict[str, Any] | None = None,
+    ) -> ResponsesAPIResponse | BaseResponsesAPIStreamingIterator:
+        """Generate a response for a conversation."""
+        await self.async_ensure_token()
+
+        response_kwargs: dict[str, Any] = {
+            "model": self._conversation_model,
+            "input": messages,
+            "api_key": self._token,
+            "api_base": self.base_url,
+            "user": conversation_id,
+            "stream": stream,
+            "response_format": response_format,
+            "tools": tools,
+            "tool_choice": tool_choice,
+        }
+
+        try:
+            response = await aresponses(**response_kwargs)
+            return cast(
+                "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
+            )
+        except AuthenticationError as err:
+            raise AiAuthenticationError(
+                "Cloud AI authentication failed") from err
+        except (RateLimitError, ServiceUnavailableError) as err:
+            raise AiRateLimitError("Cloud AI is rate limited") from err
+        except APIError as err:
+            raise AiServiceError("Error talking to Cloud AI") from err
