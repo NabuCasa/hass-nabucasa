@@ -18,7 +18,7 @@ import jwt
 
 from .account_api import AccountApi, AccountApiError
 from .accounts_api import AccountsApi, AccountsApiError
-from .ai import Ai
+from .ai import AI
 from .alexa_api import (
     AlexaAccessTokenDetails,
     AlexaApi,
@@ -226,7 +226,7 @@ class Cloud(Generic[_ClientT]):
         # Setup the rest of the components
         self.account = AccountApi(self)
         self.accounts = AccountsApi(self)
-        self.ai = Ai(self)
+        self.ai = AI(self)
         self.alexa_api = AlexaApi(self)
         self.auth = CognitoAuth(self)
         self.cloudhooks = Cloudhooks(self)

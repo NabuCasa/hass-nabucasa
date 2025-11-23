@@ -1,4 +1,4 @@
-"""AI Task handler."""
+"""LLM Task handler."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import asyncio
 import base64
 from datetime import datetime, timedelta
 import io
-import logging
 from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, cast
 
 import aiohttp
@@ -31,14 +30,12 @@ from .api import ApiBase, CloudApiError, api_exception_handler
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
-_LOGGER = logging.getLogger(__name__)
 
-
-class AiError(CloudApiError):
+class AIError(CloudApiError):
     """Error with token handling."""
 
 
-class AiConnectionDetails(TypedDict):
+class AIConnectionDetails(TypedDict):
     """AI connection details from AI API."""
 
     token: str
@@ -49,14 +46,14 @@ class AiConnectionDetails(TypedDict):
     conversation_model: str
 
 
-class AiGeneratedData(TypedDict):
+class AIGeneratedData(TypedDict):
     """AI data generation response."""
 
     role: NotRequired[Literal["assistant", "user"]]
     content: str
 
 
-class AiGeneratedImage(TypedDict):
+class AIGeneratedImage(TypedDict):
     """Normalized AI image generation response."""
 
     mime_type: str
@@ -67,7 +64,7 @@ class AiGeneratedImage(TypedDict):
     revised_prompt: str | None
 
 
-class AiImageAttachment(TypedDict):
+class AIImageAttachment(TypedDict):
     """Image attachment for editing requests."""
 
     filename: str | None
@@ -75,27 +72,27 @@ class AiImageAttachment(TypedDict):
     data: bytes
 
 
-class AiRequestError(AiError):
+class AIRequestError(AIError):
     """Base error for AI generation failures."""
 
 
-class AiAuthenticationError(AiRequestError):
+class AIAuthenticationError(AIRequestError):
     """Raised when AI authentication fails."""
 
 
-class AiRateLimitError(AiRequestError):
+class AIRateLimitError(AIRequestError):
     """Raised when AI requests are rate limited."""
 
 
-class AiServiceError(AiRequestError):
+class AIServiceError(AIRequestError):
     """Raised when AI requests fail due to service issues."""
 
 
-class AiResponseError(AiRequestError):
+class AIResponseError(AIRequestError):
     """Raised when AI responses are unexpected."""
 
 
-@api_exception_handler(AiServiceError)
+@api_exception_handler(AIServiceError)
 async def _async_fetch_image_from_url(url: str) -> bytes:
     """Fetch image data from a URL asynchronously."""
     async with aiohttp.ClientSession() as session, session.get(url) as response:
@@ -103,13 +100,13 @@ async def _async_fetch_image_from_url(url: str) -> bytes:
         return await response.read()
 
 
-@api_exception_handler(AiServiceError)
+@api_exception_handler(AIServiceError)
 async def _extract_response_image_data(
     response: dict[str, Any],
-) -> AiGeneratedImage:
+) -> AIGeneratedImage:
     data = response.get("data")
     if not data or not isinstance(data, list):
-        raise AiResponseError("Unexpected response from Cloud AI")
+        raise AIResponseError("Unexpected response from Cloud AI")
 
     item = data[0]
 
@@ -121,12 +118,11 @@ async def _extract_response_image_data(
         b64 = base64.b64encode(image_bytes).decode("utf-8")
 
     if not b64:
-        raise ValueError(
-            "Image generation response contains neither url nor b64_json.")
+        raise ValueError("Image generation response contains neither url nor b64_json.")
 
     decoded_image = base64.b64decode(b64)
 
-    return AiGeneratedImage(
+    return AIGeneratedImage(
         mime_type="image/png",
         model=response.get("model"),
         image_data=decoded_image,
@@ -136,7 +132,7 @@ async def _extract_response_image_data(
     )
 
 
-class Ai(ApiBase):
+class AI(ApiBase):
     """Class to handle AI services."""
 
     def __init__(self, cloud: Cloud[_ClientT]) -> None:
@@ -157,9 +153,9 @@ class Ai(ApiBase):
             self._valid_until and utcnow() + timedelta(minutes=5) < self._valid_until
         )
 
-    @api_exception_handler(AiAuthenticationError)
-    async def _get_connection_details(self) -> AiConnectionDetails:
-        details: AiConnectionDetails = await self._call_cloud_api(
+    @api_exception_handler(AIAuthenticationError)
+    async def _get_connection_details(self) -> AIConnectionDetails:
+        details: AIConnectionDetails = await self._call_cloud_api(
             action="ai_connection_details",
         )
         return details
@@ -167,9 +163,9 @@ class Ai(ApiBase):
     async def _update_token(self) -> None:
         """Update token details."""
         if not self._cloud.valid_subscription:
-            raise AiAuthenticationError("Invalid subscription")
+            raise AIAuthenticationError("Invalid subscription")
 
-        details: AiConnectionDetails = await self._get_connection_details()
+        details: AIConnectionDetails = await self._get_connection_details()
 
         self._token = details["token"]
         self._valid_until = utc_from_timestamp(float(details["valid_until"]))
@@ -185,7 +181,7 @@ class Ai(ApiBase):
                 await self._update_token()
 
             if not self._token or not self.base_url:
-                raise AiError("Cloud AI connection details are unavailable")
+                raise AIError("Cloud AI connection details are unavailable")
 
     async def async_generate_data(
         self,
@@ -195,8 +191,7 @@ class Ai(ApiBase):
         response_format: dict[str, Any] | None = None,
         stream: bool = False,
         tools: list[dict[str, Any]] | None = None,
-        tool_choice: Literal["auto", "none",
-                             "required"] | dict[str, Any] | None = None,
+        tool_choice: Literal["auto", "none", "required"] | dict[str, Any] | None = None,
     ) -> ResponsesAPIResponse | BaseResponsesAPIStreamingIterator:
         """Generate structured or free-form AI data."""
         await self.async_ensure_token()
@@ -219,19 +214,18 @@ class Ai(ApiBase):
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
             )
         except AuthenticationError as err:
-            raise AiAuthenticationError(
-                "Cloud AI authentication failed") from err
+            raise AIAuthenticationError("Cloud AI authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
-            raise AiRateLimitError("Cloud AI is rate limited") from err
+            raise AIRateLimitError("Cloud AI is rate limited") from err
         except APIError as err:
-            raise AiServiceError("Error talking to Cloud AI") from err
+            raise AIServiceError("Error talking to Cloud AI") from err
 
     async def async_generate_image(
         self,
         *,
         prompt: str,
-        attachments: list[AiImageAttachment] | None = None,
-    ) -> AiGeneratedImage:
+        attachments: list[AIImageAttachment] | None = None,
+    ) -> AIGeneratedImage:
         """Generate or edit an image via Cloud AI."""
         await self.async_ensure_token()
 
@@ -240,14 +234,13 @@ class Ai(ApiBase):
                 return await self._async_edit_image(prompt, attachments)
             return await self._async_create_image(prompt)
         except AuthenticationError as err:
-            raise AiAuthenticationError(
-                "Cloud AI authentication failed") from err
+            raise AIAuthenticationError("Cloud AI authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
-            raise AiRateLimitError("Cloud AI is rate limited") from err
+            raise AIRateLimitError("Cloud AI is rate limited") from err
         except APIError as err:
-            raise AiServiceError("Error talking to Cloud AI") from err
+            raise AIServiceError("Error talking to Cloud AI") from err
 
-    async def _async_create_image(self, prompt: str) -> AiGeneratedImage:
+    async def _async_create_image(self, prompt: str) -> AIGeneratedImage:
         response = await aimage_generation(
             prompt=prompt,
             api_key=self._token,
@@ -258,10 +251,10 @@ class Ai(ApiBase):
         return await _extract_response_image_data(response)
 
     async def _async_edit_image(
-        self, prompt: str, attachments: list[AiImageAttachment]
-    ) -> AiGeneratedImage:
+        self, prompt: str, attachments: list[AIImageAttachment]
+    ) -> AIGeneratedImage:
         if not self._generate_image_model:
-            raise AiServiceError("Image editing model is not configured")
+            raise AIServiceError("Image editing model is not configured")
 
         file_buffers: list[io.BytesIO] = []
         for idx, attachment in enumerate(attachments):
@@ -297,8 +290,7 @@ class Ai(ApiBase):
         response_format: dict[str, Any] | None = None,
         stream: bool = False,
         tools: list[dict[str, Any]] | None = None,
-        tool_choice: Literal["auto", "none",
-                             "required"] | dict[str, Any] | None = None,
+        tool_choice: Literal["auto", "none", "required"] | dict[str, Any] | None = None,
     ) -> ResponsesAPIResponse | BaseResponsesAPIStreamingIterator:
         """Generate a response for a conversation."""
         await self.async_ensure_token()
@@ -321,9 +313,8 @@ class Ai(ApiBase):
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
             )
         except AuthenticationError as err:
-            raise AiAuthenticationError(
-                "Cloud AI authentication failed") from err
+            raise AIAuthenticationError("Cloud AI authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
-            raise AiRateLimitError("Cloud AI is rate limited") from err
+            raise AIRateLimitError("Cloud AI is rate limited") from err
         except APIError as err:
-            raise AiServiceError("Error talking to Cloud AI") from err
+            raise AIServiceError("Error talking to Cloud AI") from err
