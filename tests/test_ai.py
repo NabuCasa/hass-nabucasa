@@ -16,17 +16,17 @@ import pytest
 
 import hass_nabucasa.ai as ai_module
 from hass_nabucasa.ai import (
-    Ai,
-    AiAuthenticationError,
-    AiImageAttachment,
-    AiRateLimitError,
-    AiServiceError,
+    AI,
+    AIAuthenticationError,
+    AIImageAttachment,
+    AIRateLimitError,
+    AIServiceError,
 )
 
 
-def _mock_ai() -> Ai:
+def _mock_ai() -> AI:
     cloud = MagicMock(valid_subscription=True)
-    ai = Ai(cloud)
+    ai = AI(cloud)
     ai._token = "token"
     ai.base_url = "https://api.example"
     ai._generate_data_model = "responses-model"
@@ -90,10 +90,10 @@ async def test_async_generate_data_streams_when_requested() -> None:
 @pytest.mark.parametrize(
     ("raised", "expected"),
     [
-        (AuthenticationError("auth", "provider", "model"), AiAuthenticationError),
-        (RateLimitError("ratelimit", "provider", "model"), AiRateLimitError),
-        (ServiceUnavailableError("svc", "provider", "model"), AiRateLimitError),
-        (APIError(500, "api", "provider", "model"), AiServiceError),
+        (AuthenticationError("auth", "provider", "model"), AIAuthenticationError),
+        (RateLimitError("ratelimit", "provider", "model"), AIRateLimitError),
+        (ServiceUnavailableError("svc", "provider", "model"), AIRateLimitError),
+        (APIError(500, "api", "provider", "model"), AIServiceError),
     ],
 )
 async def test_async_generate_data_maps_errors(
@@ -131,7 +131,7 @@ async def test_async_generate_image_with_attachments_calls_edit() -> None:
     ai._async_create_image = AsyncMock()
     ai._async_edit_image = AsyncMock(return_value="edited")
     attachments = [
-        AiImageAttachment(filename="pic.png", mime_type="image/png", data=b"raw")
+        AIImageAttachment(filename="pic.png", mime_type="image/png", data=b"raw")
     ]
 
     result = await ai.async_generate_image(prompt="fix", attachments=attachments)
@@ -145,7 +145,7 @@ async def test_async_generate_image_with_attachments_calls_edit() -> None:
 async def test_async_edit_image_single_attachment_payload() -> None:
     """_async_edit_image should wrap a single attachment as BytesIO."""
     ai = _mock_ai()
-    attachment = AiImageAttachment(
+    attachment = AIImageAttachment(
         filename="first.png", mime_type="image/png", data=b"payload"
     )
     mock_edit = AsyncMock()
@@ -171,9 +171,9 @@ async def test_async_edit_image_multiple_attachment_payloads() -> None:
     """_async_edit_image should include mask and remaining images."""
     ai = _mock_ai()
     attachments = [
-        AiImageAttachment(filename="base.png", mime_type="image/png", data=b"base"),
-        AiImageAttachment(filename="mask.png", mime_type="image/png", data=b"mask"),
-        AiImageAttachment(filename="extra.png", mime_type="image/png", data=b"extra"),
+        AIImageAttachment(filename="base.png", mime_type="image/png", data=b"base"),
+        AIImageAttachment(filename="mask.png", mime_type="image/png", data=b"mask"),
+        AIImageAttachment(filename="extra.png", mime_type="image/png", data=b"extra"),
     ]
     mock_edit = AsyncMock()
     mock_extract = AsyncMock(return_value="image")
@@ -200,7 +200,7 @@ async def test_async_edit_image_requires_model() -> None:
     ai = _mock_ai()
     ai._generate_image_model = None
 
-    with pytest.raises(AiServiceError):
+    with pytest.raises(AIServiceError):
         await ai._async_edit_image(
-            "prompt", [AiImageAttachment(filename=None, mime_type=None, data=b"img")]
+            "prompt", [AIImageAttachment(filename=None, mime_type=None, data=b"img")]
         )
