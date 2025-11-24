@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import io
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, patch
 
+from litellm import ToolChoice, ToolParam
 from litellm.exceptions import (
     APIError,
     AuthenticationError,
@@ -259,3 +260,92 @@ async def test_async_edit_image_multiple_attachment_payloads(cloud: Cloud) -> No
     assert kwargs["api_base"] == "https://api.example"
 
     mock_extract.assert_awaited_once()
+
+
+async def test_async_process_conversation_forwards_arguments(
+    cloud: Cloud,
+) -> None:
+    """async_process_conversation should forward params and return response."""
+    response = SimpleNamespace(ok=True)
+    mock_aresponses = AsyncMock(return_value=response)
+
+    with patch("hass_nabucasa.llm.aresponses", mock_aresponses):
+        result = await cloud.llm.async_process_conversation(
+            messages=[{"role": "user", "content": "hello"}],
+            conversation_id="conv-id",
+            response_format={"type": "json_object"},
+            stream=False,
+            tools=cast(
+                "list[ToolParam]",
+                [{"type": "function", "function": {"name": "do_something"}}],
+            ),
+            tool_choice=cast(
+                "ToolChoice", {"type": "function", "function": {"name": "do_something"}}
+            ),
+        )
+
+    assert result is response
+    assert mock_aresponses.await_args is not None
+    kwargs = mock_aresponses.await_args.kwargs
+
+    assert kwargs["model"] == "conv-model"
+    assert kwargs["input"] == [{"role": "user", "content": "hello"}]
+    assert kwargs["api_key"] == "token"
+    assert kwargs["api_base"] == "https://api.example"
+    assert kwargs["user"] == "conv-id"
+    assert kwargs["stream"] is False
+    assert kwargs["response_format"] == {"type": "json_object"}
+    assert kwargs["tools"] == [
+        {"type": "function", "function": {"name": "do_something"}}
+    ]
+    assert kwargs["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "do_something"},
+    }
+
+
+async def test_async_process_conversation_streams_when_requested(
+    cloud: Cloud,
+) -> None:
+    """async_process_conversation should return LiteLLM stream when stream=True."""
+    mock_aresponses = AsyncMock()
+
+    with patch("hass_nabucasa.llm.aresponses", mock_aresponses):
+        result = await cloud.llm.async_process_conversation(
+            messages=[],
+            conversation_id="conv-stream",
+            stream=True,
+        )
+
+    assert result is mock_aresponses.return_value
+    assert mock_aresponses.await_args is not None
+    assert mock_aresponses.await_args.kwargs["stream"] is True
+    # Still should use the conversation model
+    assert mock_aresponses.await_args.kwargs["model"] == "conv-model"
+
+
+@pytest.mark.parametrize(
+    ("raised", "expected"),
+    [
+        (AuthenticationError("auth", "provider", "model"), LLMAuthenticationError),
+        (RateLimitError("ratelimit", "provider", "model"), LLMRateLimitError),
+        (ServiceUnavailableError("svc", "provider", "model"), LLMRateLimitError),
+        (APIError(500, "api", "provider", "model"), LLMServiceError),
+    ],
+)
+async def test_async_process_conversation_maps_errors(
+    raised: Exception,
+    expected: type[Exception],
+    cloud: Cloud,
+) -> None:
+    """async_process_conversation should convert LiteLLM errors to Cloud equivalents."""
+    mock_aresponses = AsyncMock(side_effect=raised)
+
+    with (
+        patch("hass_nabucasa.llm.aresponses", mock_aresponses),
+        pytest.raises(expected),
+    ):
+        await cloud.llm.async_process_conversation(
+            messages=[],
+            conversation_id="conv",
+        )
