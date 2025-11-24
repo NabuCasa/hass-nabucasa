@@ -121,7 +121,7 @@ class LLMHandler(ApiBase):
 
     def _validate_token(self) -> bool:
         """Validate token outside of coroutine."""
-        # Add a 5-minute buffer to avoid race conditions near expiry
+        # Check subscription and token expiry with buffer
         return self._cloud.valid_subscription and bool(
             self._valid_until
             and utcnow() + TOKEN_EXP_BUFFER_MINUTES < self._valid_until
