@@ -174,8 +174,8 @@ class LLMHandler(ApiBase):
             revised_prompt=item.get("revised_prompt"),
         )
 
-    async def _update_token(self) -> None:
-        """Update token details."""
+    async def _update_connection_details(self) -> None:
+        """Update connection details."""
         if not self._cloud.valid_subscription:
             raise LLMAuthenticationError("Invalid subscription")
 
@@ -192,7 +192,7 @@ class LLMHandler(ApiBase):
         """Ensure the LLM token is valid and available."""
         async with self._lock:
             if not self._validate_token():
-                await self._update_token()
+                await self._update_connection_details()
 
             if not self._token or not self._base_url:
                 raise LLMError("Cloud LLM connection details are unavailable")
