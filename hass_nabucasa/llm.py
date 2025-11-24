@@ -118,8 +118,7 @@ async def _extract_response_image_data(
         b64 = base64.b64encode(image_bytes).decode("utf-8")
 
     if not b64:
-        raise ValueError(
-            "Image generation response contains neither url nor b64_json.")
+        raise ValueError("Image generation response contains neither url nor b64_json.")
 
     decoded_image = base64.b64decode(b64)
 
@@ -157,7 +156,7 @@ class LLM(ApiBase):
     @api_exception_handler(LLMAuthenticationError)
     async def _get_connection_details(self) -> LLMConnectionDetails:
         details: LLMConnectionDetails = await self._call_cloud_api(
-            action="ai_connection_details",
+            action="llm_connection_details",
         )
         return details
 
@@ -192,8 +191,7 @@ class LLM(ApiBase):
         response_format: dict[str, Any] | None = None,
         stream: bool = False,
         tools: list[dict[str, Any]] | None = None,
-        tool_choice: Literal["auto", "none",
-                             "required"] | dict[str, Any] | None = None,
+        tool_choice: Literal["auto", "none", "required"] | dict[str, Any] | None = None,
     ) -> ResponsesAPIResponse | BaseResponsesAPIStreamingIterator:
         """Generate structured or free-form LLM data."""
         await self.async_ensure_token()
@@ -216,15 +214,15 @@ class LLM(ApiBase):
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
             )
         except AuthenticationError as err:
-            raise LLMAuthenticationError(
-                "Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
             raise LLMServiceError(
-                "Unexpected error during LLM data generation") from err
+                "Unexpected error during LLM data generation"
+            ) from err
 
     async def async_generate_image(
         self,
@@ -240,15 +238,15 @@ class LLM(ApiBase):
                 return await self._async_edit_image(prompt, attachments)
             return await self._async_create_image(prompt)
         except AuthenticationError as err:
-            raise LLMAuthenticationError(
-                "Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
             raise LLMServiceError(
-                "Unexpected error during LLM data generation") from err
+                "Unexpected error during LLM data generation"
+            ) from err
 
     async def _async_create_image(self, prompt: str) -> LLMGeneratedImage:
         response = await aimage_generation(

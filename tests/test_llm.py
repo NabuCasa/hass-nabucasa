@@ -14,7 +14,7 @@ from litellm.exceptions import (
 )
 import pytest
 
-import hass_nabucasa.llm as ai_module
+import hass_nabucasa.llm as llm_module
 from hass_nabucasa.llm import (
     LLM,
     LLMAuthenticationError,
@@ -50,7 +50,7 @@ async def test_async_generate_data_returns_response() -> None:
     )
     mock_aresponses = AsyncMock(return_value=response)
 
-    with patch.object(ai_module, "aresponses", mock_aresponses):
+    with patch.object(llm_module, "aresponses", mock_aresponses):
         result = await llm.async_generate_data(
             messages=[{"role": "user", "content": "hi"}],
             conversation_id="conversation-id",
@@ -75,7 +75,7 @@ async def test_async_generate_data_streams_when_requested() -> None:
     llm = _mock_llm()
     mock_aresponses = AsyncMock()
 
-    with patch.object(ai_module, "aresponses", mock_aresponses):
+    with patch.object(llm_module, "aresponses", mock_aresponses):
         result = await llm.async_generate_data(
             messages=[],
             conversation_id="abc",
@@ -104,7 +104,7 @@ async def test_async_generate_data_maps_errors(
     mock_aresponses = AsyncMock(side_effect=raised)
 
     with (
-        patch.object(ai_module, "aresponses", mock_aresponses),
+        patch.object(llm_module, "aresponses", mock_aresponses),
         pytest.raises(expected),
     ):
         await llm.async_generate_data(messages=[], conversation_id="conv")
@@ -131,7 +131,8 @@ async def test_async_generate_image_with_attachments_calls_edit() -> None:
     llm._async_create_image = AsyncMock()
     llm._async_edit_image = AsyncMock(return_value="edited")
     attachments = [
-        LLMImageAttachment(filename="pic.png", mime_type="image/png", data=b"raw")
+        LLMImageAttachment(filename="pic.png",
+                           mime_type="image/png", data=b"raw")
     ]
 
     result = await llm.async_generate_image(prompt="fix", attachments=attachments)
@@ -152,8 +153,8 @@ async def test_async_edit_image_single_attachment_payload() -> None:
     mock_extract = AsyncMock(return_value="image")
 
     with (
-        patch.object(ai_module, "aimage_edit", mock_edit),
-        patch.object(ai_module, "_extract_response_image_data", mock_extract),
+        patch.object(llm_module, "aimage_edit", mock_edit),
+        patch.object(llm_module, "_extract_response_image_data", mock_extract),
     ):
         result = await llm._async_edit_image("prompt", [attachment])
 
@@ -171,16 +172,19 @@ async def test_async_edit_image_multiple_attachment_payloads() -> None:
     """_async_edit_image should include mask and remaining images."""
     llm = _mock_llm()
     attachments = [
-        LLMImageAttachment(filename="base.png", mime_type="image/png", data=b"base"),
-        LLMImageAttachment(filename="mask.png", mime_type="image/png", data=b"mask"),
-        LLMImageAttachment(filename="extra.png", mime_type="image/png", data=b"extra"),
+        LLMImageAttachment(filename="base.png",
+                           mime_type="image/png", data=b"base"),
+        LLMImageAttachment(filename="mask.png",
+                           mime_type="image/png", data=b"mask"),
+        LLMImageAttachment(filename="extra.png",
+                           mime_type="image/png", data=b"extra"),
     ]
     mock_edit = AsyncMock()
     mock_extract = AsyncMock(return_value="image")
 
     with (
-        patch.object(ai_module, "aimage_edit", mock_edit),
-        patch.object(ai_module, "_extract_response_image_data", mock_extract),
+        patch.object(llm_module, "aimage_edit", mock_edit),
+        patch.object(llm_module, "_extract_response_image_data", mock_extract),
     ):
         result = await llm._async_edit_image("prompt", attachments)
 
@@ -202,5 +206,6 @@ async def test_async_edit_image_requires_model() -> None:
 
     with pytest.raises(LLMServiceError):
         await llm._async_edit_image(
-            "prompt", [LLMImageAttachment(filename=None, mime_type=None, data=b"img")]
+            "prompt", [LLMImageAttachment(
+                filename=None, mime_type=None, data=b"img")]
         )
