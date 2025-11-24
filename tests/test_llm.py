@@ -1,4 +1,4 @@
-"""Unit tests for hass_nabucasa.cloud.llm."""
+"""Unit tests for hass_nabucasa.llm."""
 
 from __future__ import annotations
 
@@ -74,7 +74,6 @@ async def test_async_generate_data_returns_response(cloud: Cloud) -> None:
     assert kwargs["response_format"] == {"type": "json_object"}
 
 
-@pytest.mark.asyncio
 async def test_async_generate_data_streams_when_requested(cloud: Cloud) -> None:
     """async_generate_data should return LiteLLM stream results."""
     mock_aresponses = AsyncMock()
@@ -90,7 +89,6 @@ async def test_async_generate_data_streams_when_requested(cloud: Cloud) -> None:
     assert mock_aresponses.await_args.kwargs["stream"] is True
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("raised", "expected"),
     [
@@ -115,7 +113,6 @@ async def test_async_generate_data_maps_errors(
         await cloud.llm.async_generate_data(messages=[], conversation_id="conv")
 
 
-@pytest.mark.asyncio
 async def test_async_generate_image_calls_aimage_generation(
     cloud: Cloud, mock_llm_connection_details
 ) -> None:
@@ -143,7 +140,6 @@ async def test_async_generate_image_calls_aimage_generation(
     mock_extract.assert_awaited_once_with(raw_response)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("raised", "expected"),
     [
@@ -168,7 +164,6 @@ async def test_async_generate_image_maps_errors(
         await cloud.llm.async_generate_image(prompt="draw")
 
 
-@pytest.mark.asyncio
 async def test_async_edit_image_single_attachment_payload(cloud: Cloud) -> None:
     """async_edit_image should wrap a single attachment as BytesIO."""
     await cloud.llm.async_ensure_token()
@@ -209,7 +204,6 @@ async def test_async_edit_image_single_attachment_payload(cloud: Cloud) -> None:
     mock_extract.assert_awaited_once()
 
 
-@pytest.mark.asyncio
 async def test_async_edit_image_multiple_attachment_payloads(cloud: Cloud) -> None:
     """async_edit_image should include mask and remaining images."""
     await cloud.llm.async_ensure_token()
