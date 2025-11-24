@@ -31,29 +31,30 @@ if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
 
-class AIError(CloudApiError):
+class LLMError(CloudApiError):
     """Error with token handling."""
 
 
-class AIConnectionDetails(TypedDict):
-    """AI connection details from AI API."""
+class LLMConnectionDetails(TypedDict):
+    """LLM connection details from LLM API."""
 
     token: str
     valid_until: int
     base_url: str
     generate_data_model: str
     generate_image_model: str
+    conversation_model: str
 
 
-class AIGeneratedData(TypedDict):
-    """AI data generation response."""
+class LLMGeneratedData(TypedDict):
+    """LLM data generation response."""
 
     role: NotRequired[Literal["assistant", "user"]]
     content: str
 
 
-class AIGeneratedImage(TypedDict):
-    """Normalized AI image generation response."""
+class LLMGeneratedImage(TypedDict):
+    """Normalized LLM image generation response."""
 
     mime_type: str
     image_data: bytes
@@ -63,7 +64,7 @@ class AIGeneratedImage(TypedDict):
     revised_prompt: str | None
 
 
-class AIImageAttachment(TypedDict):
+class LLMImageAttachment(TypedDict):
     """Image attachment for editing requests."""
 
     filename: str | None
@@ -71,27 +72,27 @@ class AIImageAttachment(TypedDict):
     data: bytes
 
 
-class AIRequestError(AIError):
-    """Base error for AI generation failures."""
+class LLMRequestError(LLMError):
+    """Base error for LLM generation failures."""
 
 
-class AIAuthenticationError(AIRequestError):
-    """Raised when AI authentication fails."""
+class LLMAuthenticationError(LLMRequestError):
+    """Raised when LLM authentication fails."""
 
 
-class AIRateLimitError(AIRequestError):
-    """Raised when AI requests are rate limited."""
+class LLMRateLimitError(LLMRequestError):
+    """Raised when LLM requests are rate limited."""
 
 
-class AIServiceError(AIRequestError):
-    """Raised when AI requests fail due to service issues."""
+class LLMServiceError(LLMRequestError):
+    """Raised when LLM requests fail due to service issues."""
 
 
-class AIResponseError(AIRequestError):
-    """Raised when AI responses are unexpected."""
+class LLMResponseError(LLMRequestError):
+    """Raised when LLM responses are unexpected."""
 
 
-@api_exception_handler(AIServiceError)
+@api_exception_handler(LLMServiceError)
 async def _async_fetch_image_from_url(url: str) -> bytes:
     """Fetch image data from a URL asynchronously."""
     async with aiohttp.ClientSession() as session, session.get(url) as response:
@@ -99,13 +100,13 @@ async def _async_fetch_image_from_url(url: str) -> bytes:
         return await response.read()
 
 
-@api_exception_handler(AIServiceError)
+@api_exception_handler(LLMServiceError)
 async def _extract_response_image_data(
     response: dict[str, Any],
-) -> AIGeneratedImage:
+) -> LLMGeneratedImage:
     data = response.get("data")
     if not data or not isinstance(data, list):
-        raise AIResponseError("Unexpected response from Cloud AI")
+        raise LLMResponseError("Unexpected response from Cloud LLM")
 
     item = data[0]
 
@@ -117,11 +118,12 @@ async def _extract_response_image_data(
         b64 = base64.b64encode(image_bytes).decode("utf-8")
 
     if not b64:
-        raise ValueError("Image generation response contains neither url nor b64_json.")
+        raise ValueError(
+            "Image generation response contains neither url nor b64_json.")
 
     decoded_image = base64.b64decode(b64)
 
-    return AIGeneratedImage(
+    return LLMGeneratedImage(
         mime_type="image/png",
         model=response.get("model"),
         image_data=decoded_image,
@@ -131,16 +133,17 @@ async def _extract_response_image_data(
     )
 
 
-class AI(ApiBase):
-    """Class to handle AI services."""
+class LLM(ApiBase):
+    """Class to handle LLM services."""
 
     def __init__(self, cloud: Cloud[_ClientT]) -> None:
-        """Initialize AI services."""
+        """Initialize LLM services."""
         super().__init__(cloud)
         self._token: str | None = None
-        self.base_url: str | None = None
+        self._base_url: str | None = None
         self._generate_data_model: str | None = None
         self._generate_image_model: str | None = None
+        self._conversation_model: str | None = None
         self._valid_until: datetime | None = None
         self._lock = asyncio.Lock()
 
@@ -151,9 +154,9 @@ class AI(ApiBase):
             self._valid_until and utcnow() + timedelta(minutes=5) < self._valid_until
         )
 
-    @api_exception_handler(AIAuthenticationError)
-    async def _get_connection_details(self) -> AIConnectionDetails:
-        details: AIConnectionDetails = await self._call_cloud_api(
+    @api_exception_handler(LLMAuthenticationError)
+    async def _get_connection_details(self) -> LLMConnectionDetails:
+        details: LLMConnectionDetails = await self._call_cloud_api(
             action="ai_connection_details",
         )
         return details
@@ -161,24 +164,25 @@ class AI(ApiBase):
     async def _update_token(self) -> None:
         """Update token details."""
         if not self._cloud.valid_subscription:
-            raise AIAuthenticationError("Invalid subscription")
+            raise LLMAuthenticationError("Invalid subscription")
 
-        details: AIConnectionDetails = await self._get_connection_details()
+        details: LLMConnectionDetails = await self._get_connection_details()
 
         self._token = details["token"]
         self._valid_until = utc_from_timestamp(float(details["valid_until"]))
-        self.base_url = details["base_url"]
+        self._base_url = details["base_url"]
         self._generate_data_model = details["generate_data_model"]
         self._generate_image_model = details["generate_image_model"]
+        self._conversation_model = details["conversation_model"]
 
     async def async_ensure_token(self) -> None:
-        """Ensure the AI token is valid and available."""
+        """Ensure the LLM token is valid and available."""
         async with self._lock:
             if not self._validate_token():
                 await self._update_token()
 
-            if not self._token or not self.base_url:
-                raise AIError("Cloud AI connection details are unavailable")
+            if not self._token or not self._base_url:
+                raise LLMError("Cloud LLM connection details are unavailable")
 
     async def async_generate_data(
         self,
@@ -188,16 +192,17 @@ class AI(ApiBase):
         response_format: dict[str, Any] | None = None,
         stream: bool = False,
         tools: list[dict[str, Any]] | None = None,
-        tool_choice: Literal["auto", "none", "required"] | dict[str, Any] | None = None,
+        tool_choice: Literal["auto", "none",
+                             "required"] | dict[str, Any] | None = None,
     ) -> ResponsesAPIResponse | BaseResponsesAPIStreamingIterator:
-        """Generate structured or free-form AI data."""
+        """Generate structured or free-form LLM data."""
         await self.async_ensure_token()
 
         response_kwargs: dict[str, Any] = {
             "model": self._generate_data_model,
             "input": messages,
             "api_key": self._token,
-            "api_base": self.base_url,
+            "api_base": self._base_url,
             "user": conversation_id,
             "stream": stream,
             "response_format": response_format,
@@ -211,19 +216,23 @@ class AI(ApiBase):
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
             )
         except AuthenticationError as err:
-            raise AIAuthenticationError("Cloud AI authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
-            raise AIRateLimitError("Cloud AI is rate limited") from err
+            raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
-            raise AIServiceError("Error talking to Cloud AI") from err
+            raise LLMServiceError("Error talking to Cloud LLM") from err
+        except Exception as err:
+            raise LLMServiceError(
+                "Unexpected error during LLM data generation") from err
 
     async def async_generate_image(
         self,
         *,
         prompt: str,
-        attachments: list[AIImageAttachment] | None = None,
-    ) -> AIGeneratedImage:
-        """Generate or edit an image via Cloud AI."""
+        attachments: list[LLMImageAttachment] | None = None,
+    ) -> LLMGeneratedImage:
+        """Generate or edit an image via Cloud LLM."""
         await self.async_ensure_token()
 
         try:
@@ -231,27 +240,31 @@ class AI(ApiBase):
                 return await self._async_edit_image(prompt, attachments)
             return await self._async_create_image(prompt)
         except AuthenticationError as err:
-            raise AIAuthenticationError("Cloud AI authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
-            raise AIRateLimitError("Cloud AI is rate limited") from err
+            raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
-            raise AIServiceError("Error talking to Cloud AI") from err
+            raise LLMServiceError("Error talking to Cloud LLM") from err
+        except Exception as err:
+            raise LLMServiceError(
+                "Unexpected error during LLM data generation") from err
 
-    async def _async_create_image(self, prompt: str) -> AIGeneratedImage:
+    async def _async_create_image(self, prompt: str) -> LLMGeneratedImage:
         response = await aimage_generation(
             prompt=prompt,
             api_key=self._token,
-            api_base=self.base_url,
+            api_base=self._base_url,
             model=self._generate_image_model,
         )
 
         return await _extract_response_image_data(response)
 
     async def _async_edit_image(
-        self, prompt: str, attachments: list[AIImageAttachment]
-    ) -> AIGeneratedImage:
+        self, prompt: str, attachments: list[LLMImageAttachment]
+    ) -> LLMGeneratedImage:
         if not self._generate_image_model:
-            raise AIServiceError("Image editing model is not configured")
+            raise LLMServiceError("Image editing model is not configured")
 
         file_buffers: list[io.BytesIO] = []
         for idx, attachment in enumerate(attachments):
@@ -274,7 +287,7 @@ class AI(ApiBase):
             model=self._generate_image_model,
             mask=mask_payload,
             api_key=self._token,
-            api_base=self.base_url,
+            api_base=self._base_url,
         )
 
         return await _extract_response_image_data(response)

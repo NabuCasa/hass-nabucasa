@@ -1,4 +1,4 @@
-"""Unit tests for hass_nabucasa.ai."""
+"""Unit tests for hass_nabucasa.llm."""
 
 from __future__ import annotations
 
@@ -14,31 +14,31 @@ from litellm.exceptions import (
 )
 import pytest
 
-import hass_nabucasa.ai as ai_module
-from hass_nabucasa.ai import (
-    AI,
-    AIAuthenticationError,
-    AIImageAttachment,
-    AIRateLimitError,
-    AIServiceError,
+import hass_nabucasa.llm as ai_module
+from hass_nabucasa.llm import (
+    LLM,
+    LLMAuthenticationError,
+    LLMImageAttachment,
+    LLMRateLimitError,
+    LLMServiceError,
 )
 
 
-def _mock_ai() -> AI:
+def _mock_llm() -> LLM:
     cloud = MagicMock(valid_subscription=True)
-    ai = AI(cloud)
-    ai._token = "token"
-    ai.base_url = "https://api.example"
-    ai._generate_data_model = "responses-model"
-    ai._generate_image_model = "image-model"
-    ai.async_ensure_token = AsyncMock()
-    return ai
+    llm = LLM(cloud)
+    llm._token = "token"
+    llm._base_url = "https://api.example"
+    llm._generate_data_model = "responses-model"
+    llm._generate_image_model = "image-model"
+    llm.async_ensure_token = AsyncMock()
+    return llm
 
 
 @pytest.mark.asyncio
 async def test_async_generate_data_returns_response() -> None:
     """async_generate_data should forward parameters to LiteLLM and return response."""
-    ai = _mock_ai()
+    llm = _mock_llm()
     response = SimpleNamespace(
         output=[
             SimpleNamespace(
@@ -51,7 +51,7 @@ async def test_async_generate_data_returns_response() -> None:
     mock_aresponses = AsyncMock(return_value=response)
 
     with patch.object(ai_module, "aresponses", mock_aresponses):
-        result = await ai.async_generate_data(
+        result = await llm.async_generate_data(
             messages=[{"role": "user", "content": "hi"}],
             conversation_id="conversation-id",
             response_format={"type": "json_object"},
@@ -72,11 +72,11 @@ async def test_async_generate_data_returns_response() -> None:
 @pytest.mark.asyncio
 async def test_async_generate_data_streams_when_requested() -> None:
     """async_generate_data should return LiteLLM stream results."""
-    ai = _mock_ai()
+    llm = _mock_llm()
     mock_aresponses = AsyncMock()
 
     with patch.object(ai_module, "aresponses", mock_aresponses):
-        result = await ai.async_generate_data(
+        result = await llm.async_generate_data(
             messages=[],
             conversation_id="abc",
             stream=True,
@@ -90,62 +90,62 @@ async def test_async_generate_data_streams_when_requested() -> None:
 @pytest.mark.parametrize(
     ("raised", "expected"),
     [
-        (AuthenticationError("auth", "provider", "model"), AIAuthenticationError),
-        (RateLimitError("ratelimit", "provider", "model"), AIRateLimitError),
-        (ServiceUnavailableError("svc", "provider", "model"), AIRateLimitError),
-        (APIError(500, "api", "provider", "model"), AIServiceError),
+        (AuthenticationError("auth", "provider", "model"), LLMAuthenticationError),
+        (RateLimitError("ratelimit", "provider", "model"), LLMRateLimitError),
+        (ServiceUnavailableError("svc", "provider", "model"), LLMRateLimitError),
+        (APIError(500, "api", "provider", "model"), LLMServiceError),
     ],
 )
 async def test_async_generate_data_maps_errors(
     raised: Exception, expected: type[Exception]
 ) -> None:
     """async_generate_data should convert LiteLLM errors to Cloud equivalents."""
-    ai = _mock_ai()
+    llm = _mock_llm()
     mock_aresponses = AsyncMock(side_effect=raised)
 
     with (
         patch.object(ai_module, "aresponses", mock_aresponses),
         pytest.raises(expected),
     ):
-        await ai.async_generate_data(messages=[], conversation_id="conv")
+        await llm.async_generate_data(messages=[], conversation_id="conv")
 
 
 @pytest.mark.asyncio
 async def test_async_generate_image_without_attachments_calls_create() -> None:
     """async_generate_image should call generation helper."""
-    ai = _mock_ai()
-    ai._async_create_image = AsyncMock(return_value="image")
-    ai._async_edit_image = AsyncMock()
+    llm = _mock_llm()
+    llm._async_create_image = AsyncMock(return_value="image")
+    llm._async_edit_image = AsyncMock()
 
-    result = await ai.async_generate_image(prompt="draw")
+    result = await llm.async_generate_image(prompt="draw")
 
     assert result == "image"
-    ai._async_create_image.assert_awaited_once_with("draw")
-    ai._async_edit_image.assert_not_called()
+    llm._async_create_image.assert_awaited_once_with("draw")
+    llm._async_edit_image.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_async_generate_image_with_attachments_calls_edit() -> None:
     """async_generate_image should call edit helper when attachments are present."""
-    ai = _mock_ai()
-    ai._async_create_image = AsyncMock()
-    ai._async_edit_image = AsyncMock(return_value="edited")
+    llm = _mock_llm()
+    llm._async_create_image = AsyncMock()
+    llm._async_edit_image = AsyncMock(return_value="edited")
     attachments = [
-        AIImageAttachment(filename="pic.png", mime_type="image/png", data=b"raw")
+        LLMImageAttachment(filename="pic.png", mime_type="image/png", data=b"raw")
     ]
 
-    result = await ai.async_generate_image(prompt="fix", attachments=attachments)
+    result = await llm.async_generate_image(prompt="fix", attachments=attachments)
 
     assert result == "edited"
-    ai._async_edit_image.assert_awaited_once_with("fix", attachments)
-    ai._async_create_image.assert_not_called()
+    llm._async_edit_image.assert_awaited_once_with("fix", attachments)
+    llm._async_create_image.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_async_edit_image_single_attachment_payload() -> None:
     """_async_edit_image should wrap a single attachment as BytesIO."""
-    ai = _mock_ai()
-    attachment = AIImageAttachment(
+    llm = _mock_llm()
+    attachment = LLMImageAttachment(
         filename="first.png", mime_type="image/png", data=b"payload"
     )
     mock_edit = AsyncMock()
@@ -155,7 +155,7 @@ async def test_async_edit_image_single_attachment_payload() -> None:
         patch.object(ai_module, "aimage_edit", mock_edit),
         patch.object(ai_module, "_extract_response_image_data", mock_extract),
     ):
-        result = await ai._async_edit_image("prompt", [attachment])
+        result = await llm._async_edit_image("prompt", [attachment])
 
     assert result == "image"
     kwargs = mock_edit.await_args.kwargs
@@ -169,11 +169,11 @@ async def test_async_edit_image_single_attachment_payload() -> None:
 @pytest.mark.asyncio
 async def test_async_edit_image_multiple_attachment_payloads() -> None:
     """_async_edit_image should include mask and remaining images."""
-    ai = _mock_ai()
+    llm = _mock_llm()
     attachments = [
-        AIImageAttachment(filename="base.png", mime_type="image/png", data=b"base"),
-        AIImageAttachment(filename="mask.png", mime_type="image/png", data=b"mask"),
-        AIImageAttachment(filename="extra.png", mime_type="image/png", data=b"extra"),
+        LLMImageAttachment(filename="base.png", mime_type="image/png", data=b"base"),
+        LLMImageAttachment(filename="mask.png", mime_type="image/png", data=b"mask"),
+        LLMImageAttachment(filename="extra.png", mime_type="image/png", data=b"extra"),
     ]
     mock_edit = AsyncMock()
     mock_extract = AsyncMock(return_value="image")
@@ -182,7 +182,7 @@ async def test_async_edit_image_multiple_attachment_payloads() -> None:
         patch.object(ai_module, "aimage_edit", mock_edit),
         patch.object(ai_module, "_extract_response_image_data", mock_extract),
     ):
-        result = await ai._async_edit_image("prompt", attachments)
+        result = await llm._async_edit_image("prompt", attachments)
 
     assert result == "image"
     kwargs = mock_edit.await_args.kwargs
@@ -197,10 +197,10 @@ async def test_async_edit_image_multiple_attachment_payloads() -> None:
 @pytest.mark.asyncio
 async def test_async_edit_image_requires_model() -> None:
     """_async_edit_image should fail when the model is missing."""
-    ai = _mock_ai()
-    ai._generate_image_model = None
+    llm = _mock_llm()
+    llm._generate_image_model = None
 
-    with pytest.raises(AIServiceError):
-        await ai._async_edit_image(
-            "prompt", [AIImageAttachment(filename=None, mime_type=None, data=b"img")]
+    with pytest.raises(LLMServiceError):
+        await llm._async_edit_image(
+            "prompt", [LLMImageAttachment(filename=None, mime_type=None, data=b"img")]
         )
