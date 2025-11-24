@@ -264,7 +264,6 @@ async def test_async_edit_image_multiple_attachment_payloads(cloud: Cloud) -> No
 @pytest.mark.asyncio
 async def test_async_process_conversation_forwards_arguments(
     cloud: Cloud,
-    mock_llm_connection_details,
 ) -> None:
     """async_process_conversation should forward params and return response."""
     response = SimpleNamespace(ok=True)
@@ -275,7 +274,7 @@ async def test_async_process_conversation_forwards_arguments(
     tools = [{"type": "function", "function": {"name": "do_something"}}]
     tool_choice = {"type": "function", "function": {"name": "do_something"}}
 
-    with patch.object(cloud, "aresponses", mock_aresponses):
+    with patch("hass_nabucasa.llm.aresponses", mock_aresponses):
         result = await cloud.llm.async_process_conversation(
             messages=messages,
             conversation_id="conv-id",
@@ -303,12 +302,11 @@ async def test_async_process_conversation_forwards_arguments(
 @pytest.mark.asyncio
 async def test_async_process_conversation_streams_when_requested(
     cloud: Cloud,
-    mock_llm_connection_details,
 ) -> None:
     """async_process_conversation should return LiteLLM stream when stream=True."""
     mock_aresponses = AsyncMock()
 
-    with patch.object(cloud, "aresponses", mock_aresponses):
+    with patch("hass_nabucasa.llm.aresponses", mock_aresponses):
         result = await cloud.llm.async_process_conversation(
             messages=[],
             conversation_id="conv-stream",
@@ -322,7 +320,6 @@ async def test_async_process_conversation_streams_when_requested(
     assert mock_aresponses.await_args.kwargs["model"] == "conv-model"
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("raised", "expected"),
     [
@@ -336,13 +333,12 @@ async def test_async_process_conversation_maps_errors(
     raised: Exception,
     expected: type[Exception],
     cloud: Cloud,
-    mock_llm_connection_details,
 ) -> None:
     """async_process_conversation should convert LiteLLM errors to Cloud equivalents."""
     mock_aresponses = AsyncMock(side_effect=raised)
 
     with (
-        patch.object(cloud, "aresponses", mock_aresponses),
+        patch("hass_nabucasa.llm.aresponses", mock_aresponses),
         pytest.raises(expected),
     ):
         await cloud.llm.async_process_conversation(
