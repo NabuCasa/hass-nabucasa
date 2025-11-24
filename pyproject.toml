@@ -26,6 +26,7 @@ dependencies = [
     "ciso8601>=2.3.0",
     "cryptography>=42.0.0",
     "josepy>=2,<3",
+    "litellm>=1.80.0,<2",
     "pycognito==2024.5.1",
     "PyJWT>=2.8.0",
     "snitun==0.45.1",
