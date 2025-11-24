@@ -255,7 +255,6 @@ class LLMHandler(ApiBase):
                 model=self._generate_image_model,
             )
 
-            return await self._extract_response_image_data(response)
         except AuthenticationError as err:
             raise LLMAuthenticationError("Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
@@ -266,6 +265,7 @@ class LLMHandler(ApiBase):
             raise LLMServiceError(
                 "Unexpected error during LLM data generation"
             ) from err
+        return await self._extract_response_image_data(response)
 
     async def async_edit_image(
         self,
