@@ -27,11 +27,11 @@ TIME_DELTA_FOR_INITIAL_LOAD_RETRY = TWELVE_HOURS_IN_SECONDS
 
 ServiceDiscoveryAction = Literal[
     "acme_directory",
+    "llm_connection_details",
     "remote_access_resolve_dns_cname",
     "subscription_info",
     "subscription_migrate_paypal",
     "voice_connection_details",
-    "llm_connection_details",
 ]
 
 VALID_ACTION_NAMES = frozenset(get_args(ServiceDiscoveryAction))
