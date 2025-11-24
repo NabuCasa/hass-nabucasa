@@ -229,7 +229,8 @@ class LLMHandler(ApiBase):
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
             )
         except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
@@ -256,7 +257,8 @@ class LLMHandler(ApiBase):
             )
 
         except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
@@ -306,13 +308,15 @@ class LLMHandler(ApiBase):
             )
 
         except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
-            raise LLMServiceError("Unexpected error during LLM image editing") from err
+            raise LLMServiceError(
+                "Unexpected error during LLM image editing") from err
 
         return await self._extract_response_image_data(response)
 
@@ -324,7 +328,8 @@ class LLMHandler(ApiBase):
         response_format: dict[str, Any] | None = None,
         stream: bool = False,
         tools: list[dict[str, Any]] | None = None,
-        tool_choice: Literal["auto", "none", "required"] | dict[str, Any] | None = None,
+        tool_choice: Literal["auto", "none",
+                             "required"] | dict[str, Any] | None = None,
     ) -> ResponsesAPIResponse | BaseResponsesAPIStreamingIterator:
         """Generate a response for a conversation."""
         await self.async_ensure_token()
@@ -343,11 +348,9 @@ class LLMHandler(ApiBase):
 
         try:
             response = await aresponses(**response_kwargs)
-            return cast(
-                "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
-            )
         except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
@@ -356,3 +359,7 @@ class LLMHandler(ApiBase):
             raise LLMServiceError(
                 "Unexpected error during LLM data generation"
             ) from err
+
+        return cast(
+            "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
+        )
