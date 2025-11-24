@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 from litellm.exceptions import (
@@ -14,14 +15,15 @@ from litellm.exceptions import (
 )
 import pytest
 
-from hass_nabucasa import Cloud
-import hass_nabucasa.llm as llm_module
 from hass_nabucasa.llm import (
     LLMAuthenticationError,
     LLMImageAttachment,
     LLMRateLimitError,
     LLMServiceError,
 )
+
+if TYPE_CHECKING:
+    from hass_nabucasa import Cloud
 
 
 @pytest.fixture(autouse=True)
@@ -40,9 +42,7 @@ def mock_llm_connection_details(aioclient_mock):
     )
 
 
-async def test_async_generate_data_returns_response(
-    cloud: Cloud, mock_llm_connection_details
-) -> None:
+async def test_async_generate_data_returns_response(cloud: Cloud) -> None:
     """async_generate_data should forward parameters to LiteLLM and return response."""
     response = SimpleNamespace(
         output=[
@@ -55,7 +55,7 @@ async def test_async_generate_data_returns_response(
     )
     mock_aresponses = AsyncMock(return_value=response)
 
-    with patch.object(llm_module, "aresponses", mock_aresponses):
+    with patch("hass_nabucasa.llm.aresponses", mock_aresponses):
         result = await cloud.llm.async_generate_data(
             messages=[{"role": "user", "content": "hi"}],
             conversation_id="conversation-id",
@@ -75,13 +75,11 @@ async def test_async_generate_data_returns_response(
 
 
 @pytest.mark.asyncio
-async def test_async_generate_data_streams_when_requested(
-    cloud: Cloud, mock_llm_connection_details
-) -> None:
+async def test_async_generate_data_streams_when_requested(cloud: Cloud) -> None:
     """async_generate_data should return LiteLLM stream results."""
     mock_aresponses = AsyncMock()
 
-    with patch.object(llm_module, "aresponses", mock_aresponses):
+    with patch("hass_nabucasa.llm.aresponses", mock_aresponses):
         result = await cloud.llm.async_generate_data(
             messages=[],
             conversation_id="abc",
@@ -106,13 +104,12 @@ async def test_async_generate_data_maps_errors(
     raised: Exception,
     expected: type[Exception],
     cloud: Cloud,
-    mock_llm_connection_details,
 ) -> None:
     """async_generate_data should convert LiteLLM errors to Cloud equivalents."""
     mock_aresponses = AsyncMock(side_effect=raised)
 
     with (
-        patch.object(llm_module, "aresponses", mock_aresponses),
+        patch("hass_nabucasa.llm.aresponses", mock_aresponses),
         pytest.raises(expected),
     ):
         await cloud.llm.async_generate_data(messages=[], conversation_id="conv")
@@ -128,8 +125,10 @@ async def test_async_generate_image_calls_aimage_generation(
     mock_extract = AsyncMock(return_value="normalized-image")
 
     with (
-        patch.object(llm_module, "aimage_generation", mock_generate),
-        patch.object(cloud.llm, "_extract_response_image_data", mock_extract),
+        patch("hass_nabucasa.llm.aimage_generation", mock_generate),
+        patch(
+            "hass_nabucasa.llm.LLMHandler._extract_response_image_data", mock_extract
+        ),
     ):
         result = await cloud.llm.async_generate_image(prompt="draw a cat")
 
@@ -158,22 +157,19 @@ async def test_async_generate_image_maps_errors(
     raised: Exception,
     expected: type[Exception],
     cloud: Cloud,
-    mock_llm_connection_details,
 ) -> None:
     """async_generate_image should convert LiteLLM errors to Cloud equivalents."""
     mock_generate = AsyncMock(side_effect=raised)
 
     with (
-        patch.object(llm_module, "aimage_generation", mock_generate),
+        patch("hass_nabucasa.llm.aimage_generation", mock_generate),
         pytest.raises(expected),
     ):
         await cloud.llm.async_generate_image(prompt="draw")
 
 
 @pytest.mark.asyncio
-async def test_async_edit_image_single_attachment_payload(
-    cloud: Cloud, mock_llm_connection_details
-) -> None:
+async def test_async_edit_image_single_attachment_payload(cloud: Cloud) -> None:
     """async_edit_image should wrap a single attachment as BytesIO."""
     await cloud.llm.async_ensure_token()
 
@@ -186,8 +182,10 @@ async def test_async_edit_image_single_attachment_payload(
     mock_extract = AsyncMock(return_value="image")
 
     with (
-        patch.object(llm_module, "aimage_edit", mock_edit),
-        patch.object(cloud.llm, "_extract_response_image_data", mock_extract),
+        patch("hass_nabucasa.llm.aimage_edit", mock_edit),
+        patch(
+            "hass_nabucasa.llm.LLMHandler._extract_response_image_data", mock_extract
+        ),
     ):
         result = await cloud.llm.async_edit_image(
             prompt="prompt",
@@ -212,9 +210,7 @@ async def test_async_edit_image_single_attachment_payload(
 
 
 @pytest.mark.asyncio
-async def test_async_edit_image_multiple_attachment_payloads(
-    cloud: Cloud, mock_llm_connection_details
-) -> None:
+async def test_async_edit_image_multiple_attachment_payloads(cloud: Cloud) -> None:
     """async_edit_image should include mask and remaining images."""
     await cloud.llm.async_ensure_token()
 
@@ -240,8 +236,10 @@ async def test_async_edit_image_multiple_attachment_payloads(
     mock_extract = AsyncMock(return_value="image")
 
     with (
-        patch.object(llm_module, "aimage_edit", mock_edit),
-        patch.object(cloud.llm, "_extract_response_image_data", mock_extract),
+        patch("hass_nabucasa.llm.aimage_edit", mock_edit),
+        patch(
+            "hass_nabucasa.llm.LLMHandler._extract_response_image_data", mock_extract
+        ),
     ):
         result = await cloud.llm.async_edit_image(
             prompt="prompt",
