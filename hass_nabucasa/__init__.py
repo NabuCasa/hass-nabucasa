@@ -18,7 +18,6 @@ import jwt
 
 from .account_api import AccountApi, AccountApiError
 from .accounts_api import AccountsApi, AccountsApiError
-from .ai import AI
 from .alexa_api import (
     AlexaAccessTokenDetails,
     AlexaApi,
@@ -69,6 +68,15 @@ from .google_report_state import GoogleReportState, GoogleReportStateError
 from .ice_servers import IceServers, IceServersApiError
 from .instance_api import InstanceApi, InstanceApiError, InstanceConnectionDetails
 from .iot import CloudIoT
+from .llm import (
+    LLMAuthenticationError,
+    LLMError,
+    LLMHandler,
+    LLMRateLimitError,
+    LLMRequestError,
+    LLMResponseError,
+    LLMServiceError,
+)
 from .payments_api import (
     MigratePaypalAgreementInfo,
     PaymentsApi,
@@ -117,6 +125,13 @@ __all__ = [
     "InstanceApiError",
     "InstanceConnectionDetails",
     "InvalidTotpCode",
+    "LLMAuthenticationError",
+    "LLMError",
+    "LLMHandler",
+    "LLMRateLimitError",
+    "LLMRequestError",
+    "LLMResponseError",
+    "LLMServiceError",
     "MFARequired",
     "MigratePaypalAgreementInfo",
     "NabuCasaAuthenticationError",
@@ -226,7 +241,7 @@ class Cloud(Generic[_ClientT]):
         # Setup the rest of the components
         self.account = AccountApi(self)
         self.accounts = AccountsApi(self)
-        self.ai = AI(self)
+        self.llm = LLMHandler(self)
         self.alexa_api = AlexaApi(self)
         self.auth = CognitoAuth(self)
         self.cloudhooks = Cloudhooks(self)
