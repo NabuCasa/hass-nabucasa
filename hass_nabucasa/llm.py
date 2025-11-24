@@ -344,6 +344,10 @@ class LLMHandler(ApiBase):
                 tools=tools,
                 tool_choice=tool_choice,
             )
+
+            return cast(
+                "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
+            )
         except AuthenticationError as err:
             raise LLMAuthenticationError("Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
@@ -354,7 +358,3 @@ class LLMHandler(ApiBase):
             raise LLMServiceError(
                 "Unexpected error during LLM conversation processing"
             ) from err
-
-        return cast(
-            "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
-        )
