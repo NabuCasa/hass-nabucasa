@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 
 class LLMError(CloudApiError):
-    """Error with token handling."""
+    """Base exception for LLM-related errors."""
 
 
 class LLMConnectionDetails(TypedDict):
@@ -159,7 +159,7 @@ class LLMHandler(ApiBase):
             b64 = base64.b64encode(image_bytes).decode("utf-8")
 
         if not b64:
-            raise ValueError(
+            raise LLMResponseError(
                 "Image generation response contains neither url nor b64_json"
             )
 
@@ -263,7 +263,7 @@ class LLMHandler(ApiBase):
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
             raise LLMServiceError(
-                "Unexpected error during LLM data generation"
+                "Unexpected error during LLM image generation"
             ) from err
         return await self._extract_response_image_data(response)
 
@@ -312,9 +312,7 @@ class LLMHandler(ApiBase):
         except APIError as err:
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
-            raise LLMServiceError(
-                "Unexpected error during LLM data generation"
-            ) from err
+            raise LLMServiceError("Unexpected error during LLM image editing") from err
 
         return await self._extract_response_image_data(response)
 

@@ -15,7 +15,6 @@ from hass_nabucasa.events.types import (
 from tests.common import extract_log_messages
 
 
-@pytest.mark.asyncio
 async def test_subscribe_and_publish(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
@@ -38,7 +37,6 @@ async def test_subscribe_and_publish(
     assert extract_log_messages(caplog) == snapshot
 
 
-@pytest.mark.asyncio
 async def test_publish_without_data(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
@@ -57,7 +55,6 @@ async def test_publish_without_data(
     assert extract_log_messages(caplog) == snapshot
 
 
-@pytest.mark.asyncio
 async def test_publish_without_subscribers(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
@@ -71,7 +68,6 @@ async def test_publish_without_subscribers(
     assert extract_log_messages(caplog) == snapshot
 
 
-@pytest.mark.asyncio
 async def test_unsubscribe(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
@@ -95,7 +91,6 @@ async def test_unsubscribe(
     assert extract_log_messages(caplog) == snapshot
 
 
-@pytest.mark.asyncio
 async def test_unsubscribe_multiple_times(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
@@ -117,7 +112,6 @@ async def test_unsubscribe_multiple_times(
     assert extract_log_messages(caplog) == snapshot
 
 
-@pytest.mark.asyncio
 async def test_error_handling(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
@@ -141,7 +135,6 @@ async def test_error_handling(
     assert extract_log_messages(caplog) == snapshot
 
 
-@pytest.mark.asyncio
 async def test_multiple_event_types(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
@@ -166,7 +159,6 @@ async def test_multiple_event_types(
     assert extract_log_messages(caplog) == snapshot
 
 
-@pytest.mark.asyncio
 async def test_multiple_subscribers(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
@@ -195,7 +187,6 @@ async def test_multiple_subscribers(
     assert extract_log_messages(caplog) == snapshot
 
 
-@pytest.mark.asyncio
 async def test_event_timestamp(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
@@ -213,7 +204,6 @@ async def test_event_timestamp(
     assert extract_log_messages(caplog) == snapshot
 
 
-@pytest.mark.asyncio
 async def test_subscribe_to_multiple_event_types(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
@@ -247,7 +237,6 @@ async def test_subscribe_to_multiple_event_types(
     assert extract_log_messages(caplog) == snapshot
 
 
-@pytest.mark.asyncio
 async def test_subscribe_to_invalid_event_type():
     """Test that subscribing to an invalid event type raises an error."""
     subscriber = AsyncMock()
