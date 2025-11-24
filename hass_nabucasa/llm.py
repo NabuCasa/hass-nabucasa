@@ -274,6 +274,8 @@ class LLMHandler(ApiBase):
         attachments: list[LLMImageAttachment],
     ) -> LLMGeneratedImage:
         """Edit an image via Cloud LLM."""
+        await self.async_ensure_token()
+
         if TYPE_CHECKING:
             assert self._generate_image_model is not None
 
@@ -292,13 +294,24 @@ class LLMHandler(ApiBase):
             remaining = [file_buffers[0], *file_buffers[2:]]
             image_payload = remaining if len(remaining) > 1 else remaining[0]
 
-        response = await aimage_edit(
-            image=image_payload,
-            prompt=prompt,
-            model=self._generate_image_model,
-            mask=mask_payload,
-            api_key=self._token,
-            api_base=self._base_url,
-        )
+        try:
+            response = await aimage_edit(
+                image=image_payload,
+                prompt=prompt,
+                model=self._generate_image_model,
+                mask=mask_payload,
+                api_key=self._token,
+                api_base=self._base_url,
+            )
 
-        return await self._extract_response_image_data(response)
+            return await self._extract_response_image_data(response)
+        except AuthenticationError as err:
+            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+        except (RateLimitError, ServiceUnavailableError) as err:
+            raise LLMRateLimitError("Cloud LLM is rate limited") from err
+        except APIError as err:
+            raise LLMServiceError("Error talking to Cloud LLM") from err
+        except Exception as err:
+            raise LLMServiceError(
+                "Unexpected error during LLM data generation"
+            ) from err
