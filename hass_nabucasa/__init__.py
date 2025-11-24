@@ -69,9 +69,9 @@ from .ice_servers import IceServers, IceServersApiError
 from .instance_api import InstanceApi, InstanceApiError, InstanceConnectionDetails
 from .iot import CloudIoT
 from .llm import (
-    LLM,
     LLMAuthenticationError,
     LLMError,
+    LLMHandler,
     LLMRateLimitError,
     LLMRequestError,
     LLMResponseError,
@@ -97,7 +97,6 @@ from .voice import Voice
 from .voice_api import VoiceApi, VoiceApiError
 
 __all__ = [
-    "LLM",
     "MODE_DEV",
     "AccountApiError",
     "AccountsApi",
@@ -128,6 +127,7 @@ __all__ = [
     "InvalidTotpCode",
     "LLMAuthenticationError",
     "LLMError",
+    "LLMHandler",
     "LLMRateLimitError",
     "LLMRequestError",
     "LLMResponseError",
@@ -241,7 +241,7 @@ class Cloud(Generic[_ClientT]):
         # Setup the rest of the components
         self.account = AccountApi(self)
         self.accounts = AccountsApi(self)
-        self.llm = LLM(self)
+        self.llm = LLMHandler(self)
         self.alexa_api = AlexaApi(self)
         self.auth = CognitoAuth(self)
         self.cloudhooks = Cloudhooks(self)

@@ -1,17 +1,26 @@
-"""LLM Task handler."""
+"""LLM handler."""
 
 from __future__ import annotations
 
 import asyncio
 import base64
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 import io
-from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    TypedDict,
+    cast,
+)
 
-import aiohttp
 from litellm import (
     BaseResponsesAPIStreamingIterator,
+    ResponseInputParam,
     ResponsesAPIResponse,
+    ToolChoice,
+    ToolParam,
     aimage_edit,
     aimage_generation,
     aresponses,
@@ -49,8 +58,8 @@ class LLMConnectionDetails(TypedDict):
 class LLMGeneratedData(TypedDict):
     """LLM data generation response."""
 
-    role: NotRequired[Literal["assistant", "user"]]
     content: str
+    role: Literal["assistant", "user"] | None
 
 
 class LLMGeneratedImage(TypedDict):
@@ -92,47 +101,11 @@ class LLMResponseError(LLMRequestError):
     """Raised when LLM responses are unexpected."""
 
 
-@api_exception_handler(LLMServiceError)
-async def _async_fetch_image_from_url(url: str) -> bytes:
-    """Fetch image data from a URL asynchronously."""
-    async with aiohttp.ClientSession() as session, session.get(url) as response:
-        response.raise_for_status()
-        return await response.read()
+IMAGE_MIME_TYPE = "image/png"
+TOKEN_EXP_BUFFER_MINUTES = timedelta(minutes=5)
 
 
-@api_exception_handler(LLMServiceError)
-async def _extract_response_image_data(
-    response: dict[str, Any],
-) -> LLMGeneratedImage:
-    data = response.get("data")
-    if not data or not isinstance(data, list):
-        raise LLMResponseError("Unexpected response from Cloud LLM")
-
-    item = data[0]
-
-    url = item.get("url")
-    b64 = item.get("b64_json")
-
-    if not b64 and url:
-        image_bytes = await _async_fetch_image_from_url(url)
-        b64 = base64.b64encode(image_bytes).decode("utf-8")
-
-    if not b64:
-        raise ValueError("Image generation response contains neither url nor b64_json.")
-
-    decoded_image = base64.b64decode(b64)
-
-    return LLMGeneratedImage(
-        mime_type="image/png",
-        model=response.get("model"),
-        image_data=decoded_image,
-        width=item.get("width"),
-        height=item.get("height"),
-        revised_prompt=item.get("revised_prompt"),
-    )
-
-
-class LLM(ApiBase):
+class LLMHandler(ApiBase):
     """Class to handle LLM services."""
 
     def __init__(self, cloud: Cloud[_ClientT]) -> None:
@@ -150,7 +123,8 @@ class LLM(ApiBase):
         """Validate token outside of coroutine."""
         # Add a 5-minute buffer to avoid race conditions near expiry
         return self._cloud.valid_subscription and bool(
-            self._valid_until and utcnow() + timedelta(minutes=5) < self._valid_until
+            self._valid_until
+            and utcnow() + TOKEN_EXP_BUFFER_MINUTES < self._valid_until
         )
 
     @api_exception_handler(LLMAuthenticationError)
@@ -159,6 +133,46 @@ class LLM(ApiBase):
             action="llm_connection_details",
         )
         return details
+
+    @api_exception_handler(LLMServiceError)
+    async def _async_fetch_image_from_url(self, url: str) -> bytes:
+        """Fetch image data from a URL asynchronously."""
+        async with self._cloud.websession.get(url) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _extract_response_image_data(
+        self,
+        response: dict[str, Any],
+    ) -> LLMGeneratedImage:
+        data = response.get("data")
+        if not data or not isinstance(data, list) or len(data) == 0:
+            raise LLMResponseError("Unexpected response from Cloud LLM")
+
+        item = data[0]
+
+        url = item.get("url")
+        b64 = item.get("b64_json")
+
+        if not b64 and url:
+            image_bytes = await self._async_fetch_image_from_url(url)
+            b64 = base64.b64encode(image_bytes).decode("utf-8")
+
+        if not b64:
+            raise ValueError(
+                "Image generation response contains neither url nor b64_json"
+            )
+
+        decoded_image = base64.b64decode(b64)
+
+        return LLMGeneratedImage(
+            mime_type=IMAGE_MIME_TYPE,
+            model=response.get("model"),
+            image_data=decoded_image,
+            width=item.get("width"),
+            height=item.get("height"),
+            revised_prompt=item.get("revised_prompt"),
+        )
 
     async def _update_token(self) -> None:
         """Update token details."""
@@ -186,30 +200,31 @@ class LLM(ApiBase):
     async def async_generate_data(
         self,
         *,
-        messages: list[dict[str, Any]],
+        messages: str | ResponseInputParam,
         conversation_id: str,
         response_format: dict[str, Any] | None = None,
         stream: bool = False,
-        tools: list[dict[str, Any]] | None = None,
-        tool_choice: Literal["auto", "none", "required"] | dict[str, Any] | None = None,
+        tools: Iterable[ToolParam] | None = None,
+        tool_choice: ToolChoice | None = None,
     ) -> ResponsesAPIResponse | BaseResponsesAPIStreamingIterator:
         """Generate structured or free-form LLM data."""
         await self.async_ensure_token()
 
-        response_kwargs: dict[str, Any] = {
-            "model": self._generate_data_model,
-            "input": messages,
-            "api_key": self._token,
-            "api_base": self._base_url,
-            "user": conversation_id,
-            "stream": stream,
-            "response_format": response_format,
-            "tools": tools,
-            "tool_choice": tool_choice,
-        }
+        if TYPE_CHECKING:
+            assert self._generate_data_model is not None
 
         try:
-            response = await aresponses(**response_kwargs)
+            response = await aresponses(
+                model=self._generate_data_model,
+                input=messages,
+                api_key=self._token,
+                api_base=self._base_url,
+                user=conversation_id,
+                stream=stream,
+                response_format=response_format,
+                tools=tools,
+                tool_choice=tool_choice,
+            )
             return cast(
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
             )
@@ -228,15 +243,19 @@ class LLM(ApiBase):
         self,
         *,
         prompt: str,
-        attachments: list[LLMImageAttachment] | None = None,
     ) -> LLMGeneratedImage:
-        """Generate or edit an image via Cloud LLM."""
+        """Generate an image via Cloud LLM."""
         await self.async_ensure_token()
 
         try:
-            if attachments:
-                return await self._async_edit_image(prompt, attachments)
-            return await self._async_create_image(prompt)
+            response = await aimage_generation(
+                prompt=prompt,
+                api_key=self._token,
+                api_base=self._base_url,
+                model=self._generate_image_model,
+            )
+
+            return await self._extract_response_image_data(response)
         except AuthenticationError as err:
             raise LLMAuthenticationError("Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
@@ -248,21 +267,15 @@ class LLM(ApiBase):
                 "Unexpected error during LLM data generation"
             ) from err
 
-    async def _async_create_image(self, prompt: str) -> LLMGeneratedImage:
-        response = await aimage_generation(
-            prompt=prompt,
-            api_key=self._token,
-            api_base=self._base_url,
-            model=self._generate_image_model,
-        )
-
-        return await _extract_response_image_data(response)
-
-    async def _async_edit_image(
-        self, prompt: str, attachments: list[LLMImageAttachment]
+    async def async_edit_image(
+        self,
+        *,
+        prompt: str,
+        attachments: list[LLMImageAttachment],
     ) -> LLMGeneratedImage:
-        if not self._generate_image_model:
-            raise LLMServiceError("Image editing model is not configured")
+        """Edit an image via Cloud LLM."""
+        if TYPE_CHECKING:
+            assert self._generate_image_model is not None
 
         file_buffers: list[io.BytesIO] = []
         for idx, attachment in enumerate(attachments):
@@ -288,4 +301,4 @@ class LLM(ApiBase):
             api_base=self._base_url,
         )
 
-        return await _extract_response_image_data(response)
+        return await self._extract_response_image_data(response)

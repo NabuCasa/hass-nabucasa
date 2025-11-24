@@ -140,11 +140,11 @@ class ServiceDiscovery(ApiBase):
 
         self._fallback_actions: dict[ServiceDiscoveryAction, str] = {
             "acme_directory": f"https://{self._cloud.acme_server}/directory",
+            "llm_connection_details": f"https://{self._cloud.api_server}/llm/connection_details",
             "remote_access_resolve_dns_cname": f"https://{self._cloud.accounts_server}/instance/resolve_dns_cname",
             "subscription_info": f"https://{self._cloud.accounts_server}/payments/subscription_info",
             "subscription_migrate_paypal": f"https://{self._cloud.accounts_server}/payments/migrate_paypal_agreement",
             "voice_connection_details": f"https://{self._cloud.servicehandlers_server}/voice/connection_details",
-            "llm_connection_details": f"https://{self._cloud.api_server}/llm/connection_details",
         }
 
     @property
