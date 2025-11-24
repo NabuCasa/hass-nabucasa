@@ -281,7 +281,7 @@ async def test_async_process_conversation_forwards_arguments(
     tools = [{"type": "function", "function": {"name": "do_something"}}]
     tool_choice = {"type": "function", "function": {"name": "do_something"}}
 
-    with patch.object(llm_module, "aresponses", mock_aresponses):
+    with patch.object(cloud, "aresponses", mock_aresponses):
         result = await cloud.llm.async_process_conversation(
             messages=messages,
             conversation_id="conv-id",
@@ -314,7 +314,7 @@ async def test_async_process_conversation_streams_when_requested(
     """async_process_conversation should return LiteLLM stream when stream=True."""
     mock_aresponses = AsyncMock()
 
-    with patch.object(llm_module, "aresponses", mock_aresponses):
+    with patch.object(cloud, "aresponses", mock_aresponses):
         result = await cloud.llm.async_process_conversation(
             messages=[],
             conversation_id="conv-stream",
@@ -348,7 +348,7 @@ async def test_async_process_conversation_maps_errors(
     mock_aresponses = AsyncMock(side_effect=raised)
 
     with (
-        patch.object(llm_module, "aresponses", mock_aresponses),
+        patch.object(cloud, "aresponses", mock_aresponses),
         pytest.raises(expected),
     ):
         await cloud.llm.async_process_conversation(
