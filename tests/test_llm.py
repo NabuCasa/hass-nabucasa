@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import io
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, patch
 
+from litellm import ToolChoice, ToolParam
 from litellm.exceptions import (
     APIError,
     AuthenticationError,
@@ -261,7 +262,6 @@ async def test_async_edit_image_multiple_attachment_payloads(cloud: Cloud) -> No
     mock_extract.assert_awaited_once()
 
 
-@pytest.mark.asyncio
 async def test_async_process_conversation_forwards_arguments(
     cloud: Cloud,
 ) -> None:
@@ -269,19 +269,19 @@ async def test_async_process_conversation_forwards_arguments(
     response = SimpleNamespace(ok=True)
     mock_aresponses = AsyncMock(return_value=response)
 
-    messages = [{"role": "user", "content": "hello"}]
-    response_format = {"type": "json_object"}
-    tools = [{"type": "function", "function": {"name": "do_something"}}]
-    tool_choice = {"type": "function", "function": {"name": "do_something"}}
-
     with patch("hass_nabucasa.llm.aresponses", mock_aresponses):
         result = await cloud.llm.async_process_conversation(
-            messages=messages,
+            messages=[{"role": "user", "content": "hello"}],
             conversation_id="conv-id",
-            response_format=response_format,
+            response_format={"type": "json_object"},
             stream=False,
-            tools=tools,
-            tool_choice=tool_choice,
+            tools=cast(
+                "list[ToolParam]",
+                [{"type": "function", "function": {"name": "do_something"}}],
+            ),
+            tool_choice=cast(
+                "ToolChoice", {"type": "function", "function": {"name": "do_something"}}
+            ),
         )
 
     assert result is response
@@ -289,17 +289,21 @@ async def test_async_process_conversation_forwards_arguments(
     kwargs = mock_aresponses.await_args.kwargs
 
     assert kwargs["model"] == "conv-model"
-    assert kwargs["input"] == messages
+    assert kwargs["input"] == [{"role": "user", "content": "hello"}]
     assert kwargs["api_key"] == "token"
     assert kwargs["api_base"] == "https://api.example"
     assert kwargs["user"] == "conv-id"
     assert kwargs["stream"] is False
-    assert kwargs["response_format"] == response_format
-    assert kwargs["tools"] == tools
-    assert kwargs["tool_choice"] == tool_choice
+    assert kwargs["response_format"] == {"type": "json_object"}
+    assert kwargs["tools"] == [
+        {"type": "function", "function": {"name": "do_something"}}
+    ]
+    assert kwargs["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "do_something"},
+    }
 
 
-@pytest.mark.asyncio
 async def test_async_process_conversation_streams_when_requested(
     cloud: Cloud,
 ) -> None:

@@ -319,30 +319,31 @@ class LLMHandler(ApiBase):
     async def async_process_conversation(
         self,
         *,
-        messages: list[dict[str, Any]],
+        messages: str | ResponseInputParam,
         conversation_id: str,
         response_format: dict[str, Any] | None = None,
         stream: bool = False,
-        tools: list[dict[str, Any]] | None = None,
-        tool_choice: Literal["auto", "none", "required"] | dict[str, Any] | None = None,
+        tools: Iterable[ToolParam] | None = None,
+        tool_choice: ToolChoice | None = None,
     ) -> ResponsesAPIResponse | BaseResponsesAPIStreamingIterator:
         """Generate a response for a conversation."""
         await self.async_ensure_token()
 
-        response_kwargs: dict[str, Any] = {
-            "model": self._conversation_model,
-            "input": messages,
-            "api_key": self._token,
-            "api_base": self._base_url,
-            "user": conversation_id,
-            "stream": stream,
-            "response_format": response_format,
-            "tools": tools,
-            "tool_choice": tool_choice,
-        }
+        if TYPE_CHECKING:
+            assert self._conversation_model is not None
 
         try:
-            response = await aresponses(**response_kwargs)
+            response = await aresponses(
+                model=self._conversation_model,
+                input=messages,
+                api_key=self._token,
+                api_base=self._base_url,
+                user=conversation_id,
+                stream=stream,
+                response_format=response_format,
+                tools=tools,
+                tool_choice=tool_choice,
+            )
         except AuthenticationError as err:
             raise LLMAuthenticationError("Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
@@ -351,7 +352,7 @@ class LLMHandler(ApiBase):
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
             raise LLMServiceError(
-                "Unexpected error during LLM data generation"
+                "Unexpected error during LLM conversation processing"
             ) from err
 
         return cast(
