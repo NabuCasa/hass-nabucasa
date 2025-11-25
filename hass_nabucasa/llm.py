@@ -221,7 +221,7 @@ class LLMHandler(ApiBase):
                 api_base=self._base_url,
                 user=conversation_id,
                 stream=stream,
-                response_format=response_format,
+                text_format=response_format,
                 tools=tools,
                 tool_choice=tool_choice,
             )
@@ -340,7 +340,7 @@ class LLMHandler(ApiBase):
                 api_base=self._base_url,
                 user=conversation_id,
                 stream=stream,
-                response_format=response_format,
+                text_format=response_format,
                 tools=tools,
                 tool_choice=tool_choice,
             )

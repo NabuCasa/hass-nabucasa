@@ -72,7 +72,7 @@ async def test_async_generate_data_returns_response(cloud: Cloud) -> None:
     assert kwargs["api_base"] == "https://api.example"
     assert kwargs["user"] == "conversation-id"
     assert kwargs["stream"] is False
-    assert kwargs["response_format"] == {"type": "json_object"}
+    assert kwargs["text_format"] == {"type": "json_object"}
 
 
 async def test_async_generate_data_streams_when_requested(cloud: Cloud) -> None:
@@ -294,7 +294,7 @@ async def test_async_process_conversation_forwards_arguments(
     assert kwargs["api_base"] == "https://api.example"
     assert kwargs["user"] == "conv-id"
     assert kwargs["stream"] is False
-    assert kwargs["response_format"] == {"type": "json_object"}
+    assert kwargs["text_format"] == {"type": "json_object"}
     assert kwargs["tools"] == [
         {"type": "function", "function": {"name": "do_something"}}
     ]
