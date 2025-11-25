@@ -60,7 +60,7 @@ async def test_async_generate_data_returns_response(cloud: Cloud) -> None:
         result = await cloud.llm.async_generate_data(
             messages=[{"role": "user", "content": "hi"}],
             conversation_id="conversation-id",
-            response_format={"type": "json_object"},
+            text_format={"type": "json_object"},
         )
 
     assert result is response
@@ -72,7 +72,7 @@ async def test_async_generate_data_returns_response(cloud: Cloud) -> None:
     assert kwargs["api_base"] == "https://api.example"
     assert kwargs["user"] == "conversation-id"
     assert kwargs["stream"] is False
-    assert kwargs["response_format"] == {"type": "json_object"}
+    assert kwargs["text_format"] == {"type": "json_object"}
 
 
 async def test_async_generate_data_streams_when_requested(cloud: Cloud) -> None:
@@ -273,7 +273,7 @@ async def test_async_process_conversation_forwards_arguments(
         result = await cloud.llm.async_process_conversation(
             messages=[{"role": "user", "content": "hello"}],
             conversation_id="conv-id",
-            response_format={"type": "json_object"},
+            text_format={"type": "json_object"},
             stream=False,
             tools=cast(
                 "list[ToolParam]",
@@ -294,7 +294,7 @@ async def test_async_process_conversation_forwards_arguments(
     assert kwargs["api_base"] == "https://api.example"
     assert kwargs["user"] == "conv-id"
     assert kwargs["stream"] is False
-    assert kwargs["response_format"] == {"type": "json_object"}
+    assert kwargs["text_format"] == {"type": "json_object"}
     assert kwargs["tools"] == [
         {"type": "function", "function": {"name": "do_something"}}
     ]
