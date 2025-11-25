@@ -202,7 +202,7 @@ class LLMHandler(ApiBase):
         *,
         messages: str | ResponseInputParam,
         conversation_id: str,
-        text_format: dict[str, Any] | None = None,
+        response_format: dict[str, Any] | None = None,
         stream: bool = False,
         tools: Iterable[ToolParam] | None = None,
         tool_choice: ToolChoice | None = None,
@@ -221,7 +221,7 @@ class LLMHandler(ApiBase):
                 api_base=self._base_url,
                 user=conversation_id,
                 stream=stream,
-                text_format=text_format,
+                text_format=response_format,
                 tools=tools,
                 tool_choice=tool_choice,
             )
@@ -229,7 +229,8 @@ class LLMHandler(ApiBase):
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
             )
         except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
@@ -256,7 +257,8 @@ class LLMHandler(ApiBase):
             )
 
         except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
@@ -306,13 +308,15 @@ class LLMHandler(ApiBase):
             )
 
         except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
-            raise LLMServiceError("Unexpected error during LLM image editing") from err
+            raise LLMServiceError(
+                "Unexpected error during LLM image editing") from err
 
         return await self._extract_response_image_data(response)
 
@@ -321,7 +325,7 @@ class LLMHandler(ApiBase):
         *,
         messages: str | ResponseInputParam,
         conversation_id: str,
-        text_format: dict[str, Any] | None = None,
+        response_format: dict[str, Any] | None = None,
         stream: bool = False,
         tools: Iterable[ToolParam] | None = None,
         tool_choice: ToolChoice | None = None,
@@ -340,7 +344,7 @@ class LLMHandler(ApiBase):
                 api_base=self._base_url,
                 user=conversation_id,
                 stream=stream,
-                text_format=text_format,
+                text_format=response_format,
                 tools=tools,
                 tool_choice=tool_choice,
             )
@@ -349,7 +353,8 @@ class LLMHandler(ApiBase):
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
             )
         except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
