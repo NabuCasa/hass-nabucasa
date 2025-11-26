@@ -300,8 +300,7 @@ async def test_async_process_conversation_forwards_arguments(
                 [{"type": "function", "function": {"name": "do_something"}}],
             ),
             tool_choice=cast(
-                "ToolChoice", {"type": "function",
-                               "function": {"name": "do_something"}}
+                "ToolChoice", {"type": "function", "function": {"name": "do_something"}}
             ),
         )
 
