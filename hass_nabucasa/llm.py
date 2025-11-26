@@ -191,7 +191,7 @@ class LLMHandler(ApiBase):
     async def async_ensure_token(self) -> None:
         """Ensure the LLM token is valid and available."""
         async with self._lock:
-            if self._cloud.is_logged_in is False:
+            if not self._cloud.is_logged_in:
                 return
 
             if not self._validate_token():
@@ -232,7 +232,8 @@ class LLMHandler(ApiBase):
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
             )
         except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
@@ -259,7 +260,8 @@ class LLMHandler(ApiBase):
             )
 
         except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
@@ -309,13 +311,15 @@ class LLMHandler(ApiBase):
             )
 
         except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
-            raise LLMServiceError("Unexpected error during LLM image editing") from err
+            raise LLMServiceError(
+                "Unexpected error during LLM image editing") from err
 
         return await self._extract_response_image_data(response)
 
@@ -352,7 +356,8 @@ class LLMHandler(ApiBase):
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
             )
         except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            raise LLMAuthenticationError(
+                "Cloud LLM authentication failed") from err
         except (RateLimitError, ServiceUnavailableError) as err:
             raise LLMRateLimitError("Cloud LLM is rate limited") from err
         except APIError as err:
