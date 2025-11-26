@@ -45,7 +45,7 @@ def mock_llm_connection_details(aioclient_mock):
 
 async def test_async_ensure_token_skips_when_not_logged_in(cloud: Cloud) -> None:
     """Ensure async_ensure_token exits early when the user is not logged in."""
-    mock_update = AsyncMock()
+    mock_validate = AsyncMock()
 
     with (
         patch.object(
@@ -54,13 +54,13 @@ async def test_async_ensure_token_skips_when_not_logged_in(cloud: Cloud) -> None
             new=property(lambda _: False),
         ),
         patch(
-            "hass_nabucasa.llm.LLMHandler._update_connection_details",
-            mock_update,
+            "hass_nabucasa.llm.LLMHandler._validate_token",
+            mock_validate,
         ),
     ):
         await cloud.llm.async_ensure_token()
 
-    mock_update.assert_not_awaited()
+    mock_validate.assert_not_awaited()
 
 
 async def test_async_generate_data_returns_response(cloud: Cloud) -> None:
@@ -300,7 +300,8 @@ async def test_async_process_conversation_forwards_arguments(
                 [{"type": "function", "function": {"name": "do_something"}}],
             ),
             tool_choice=cast(
-                "ToolChoice", {"type": "function", "function": {"name": "do_something"}}
+                "ToolChoice", {"type": "function",
+                               "function": {"name": "do_something"}}
             ),
         )
 
