@@ -43,6 +43,26 @@ def mock_llm_connection_details(aioclient_mock):
     )
 
 
+async def test_async_ensure_token_skips_when_not_logged_in(cloud: Cloud) -> None:
+    """Ensure async_ensure_token exits early when the user is not logged in."""
+    mock_update = AsyncMock()
+
+    with (
+        patch.object(
+            type(cloud),
+            "is_logged_in",
+            new=property(lambda _: False),
+        ),
+        patch(
+            "hass_nabucasa.llm.LLMHandler._update_connection_details",
+            mock_update,
+        ),
+    ):
+        await cloud.llm.async_ensure_token()
+
+    mock_update.assert_not_awaited()
+
+
 async def test_async_generate_data_returns_response(cloud: Cloud) -> None:
     """async_generate_data should forward parameters to LiteLLM and return response."""
     response = SimpleNamespace(

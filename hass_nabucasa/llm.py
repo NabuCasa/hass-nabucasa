@@ -191,6 +191,9 @@ class LLMHandler(ApiBase):
     async def async_ensure_token(self) -> None:
         """Ensure the LLM token is valid and available."""
         async with self._lock:
+            if self._cloud.is_logged_in is False:
+                return
+
             if not self._validate_token():
                 await self._update_connection_details()
 
