@@ -46,19 +46,12 @@ def mock_llm_connection_details(aioclient_mock):
 
 async def test_async_ensure_token_skips_when_not_logged_in(cloud: Cloud) -> None:
     """Ensure async_ensure_token exits early when the user is not logged in."""
-    mock_validate = AsyncMock()
-
     with (
-        patch.object(
-            type(cloud),
-            "is_logged_in",
-            new=property(lambda _: False),
-        ),
         patch(
-            "hass_nabucasa.llm.LLMHandler._validate_token",
-            mock_validate,
+            "hass_nabucasa.Cloud.is_logged_in",
+            False,
         ),
-        pytest.raises(NabuCasaNotLoggedInError),
+        pytest.raises(NabuCasaNotLoggedInError, match="User is not logged in"),
     ):
         await cloud.llm.async_ensure_token()
 
