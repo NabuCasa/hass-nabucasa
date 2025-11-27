@@ -62,6 +62,7 @@ from .exceptions import (
     NabuCasaAuthenticationError,
     NabuCasaBaseError,
     NabuCasaConnectionError,
+    NabuCasaNotLoggedInError,
 )
 from .files import Files, FilesError, StorageType, StoredFile, calculate_b64md5
 from .google_report_state import GoogleReportState, GoogleReportStateError
@@ -141,6 +142,7 @@ __all__ = [
     "NabuCasaAuthenticationError",
     "NabuCasaBaseError",
     "NabuCasaConnectionError",
+    "NabuCasaNotLoggedInError",
     "PasswordChangeRequired",
     "PaymentsApiError",
     "ServiceDiscovery",

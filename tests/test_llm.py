@@ -16,6 +16,7 @@ from litellm.exceptions import (
 )
 import pytest
 
+from hass_nabucasa.exceptions import NabuCasaNotLoggedInError
 from hass_nabucasa.llm import (
     LLMAuthenticationError,
     LLMImageAttachment,
@@ -57,10 +58,9 @@ async def test_async_ensure_token_skips_when_not_logged_in(cloud: Cloud) -> None
             "hass_nabucasa.llm.LLMHandler._validate_token",
             mock_validate,
         ),
+        pytest.raises(NabuCasaNotLoggedInError),
     ):
         await cloud.llm.async_ensure_token()
-
-    mock_validate.assert_not_awaited()
 
 
 async def test_async_generate_data_returns_response(cloud: Cloud) -> None:
