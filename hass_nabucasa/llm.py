@@ -32,6 +32,7 @@ from litellm.exceptions import (
     ServiceUnavailableError,
 )
 
+from hass_nabucasa.exceptions import NabuCasaNotLoggedInError
 from hass_nabucasa.utils import utc_from_timestamp, utcnow
 
 from .api import ApiBase, CloudApiError, api_exception_handler
@@ -191,6 +192,9 @@ class LLMHandler(ApiBase):
     async def async_ensure_token(self) -> None:
         """Ensure the LLM token is valid and available."""
         async with self._lock:
+            if not self._cloud.is_logged_in:
+                raise NabuCasaNotLoggedInError("User is not logged in")
+
             if not self._validate_token():
                 await self._update_connection_details()
 

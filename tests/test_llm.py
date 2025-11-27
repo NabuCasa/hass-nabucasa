@@ -16,6 +16,7 @@ from litellm.exceptions import (
 )
 import pytest
 
+from hass_nabucasa.exceptions import NabuCasaNotLoggedInError
 from hass_nabucasa.llm import (
     LLMAuthenticationError,
     LLMImageAttachment,
@@ -41,6 +42,18 @@ def mock_llm_connection_details(aioclient_mock):
             "conversation_model": "conv-model",
         },
     )
+
+
+async def test_async_ensure_token_skips_when_not_logged_in(cloud: Cloud) -> None:
+    """Ensure async_ensure_token exits early when the user is not logged in."""
+    with (
+        patch(
+            "hass_nabucasa.Cloud.is_logged_in",
+            False,
+        ),
+        pytest.raises(NabuCasaNotLoggedInError, match="User is not logged in"),
+    ):
+        await cloud.llm.async_ensure_token()
 
 
 async def test_async_generate_data_returns_response(cloud: Cloud) -> None:

@@ -15,6 +15,10 @@ class NabuCasaAuthenticationError(NabuCasaBaseError):
     """Base class for all Nabu Casa authentication exceptions."""
 
 
+class NabuCasaNotLoggedInError(NabuCasaBaseError):
+    """Exception raised when the user is not logged in."""
+
+
 class CloudError(NabuCasaBaseError):
     """
     Base class for all Nabu Casa cloud exceptions.
