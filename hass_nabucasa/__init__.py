@@ -33,7 +33,17 @@ from .api import (
     CloudApiNonRetryableError,
     CloudApiTimeoutError,
 )
-from .auth import CognitoAuth
+from .auth import (
+    CognitoAuth,
+    InvalidTotpCode,
+    MFARequired,
+    PasswordChangeRequired,
+    Unauthenticated,
+    UnknownError,
+    UserExists,
+    UserNotConfirmed,
+    UserNotFound,
+)
 from .client import CloudClient
 from .cloudhooks import Cloudhooks
 from .const import (
@@ -46,17 +56,30 @@ from .const import (
     CertificateStatus,
     SubscriptionReconnectionReason,
 )
+from .events import CloudEvent, CloudEventBus, CloudEventType
 from .exceptions import (
     CloudError,
     NabuCasaAuthenticationError,
     NabuCasaBaseError,
     NabuCasaConnectionError,
+    NabuCasaNotLoggedInError,
 )
 from .files import Files, FilesError, StorageType, StoredFile, calculate_b64md5
 from .google_report_state import GoogleReportState, GoogleReportStateError
 from .ice_servers import IceServers, IceServersApiError
 from .instance_api import InstanceApi, InstanceApiError, InstanceConnectionDetails
 from .iot import CloudIoT
+from .llm import (
+    LLMAuthenticationError,
+    LLMError,
+    LLMGeneratedImage,
+    LLMHandler,
+    LLMImageAttachment,
+    LLMRateLimitError,
+    LLMRequestError,
+    LLMResponseError,
+    LLMServiceError,
+)
 from .payments_api import (
     MigratePaypalAgreementInfo,
     PaymentsApi,
@@ -96,15 +119,31 @@ __all__ = [
     "CloudApiTimeoutError",
     "CloudClient",
     "CloudError",
+    "CloudEvent",
+    "CloudEventBus",
+    "CloudEventType",
     "FilesError",
     "GoogleReportStateError",
     "IceServersApiError",
     "InstanceApiError",
     "InstanceConnectionDetails",
+    "InvalidTotpCode",
+    "LLMAuthenticationError",
+    "LLMError",
+    "LLMGeneratedImage",
+    "LLMHandler",
+    "LLMImageAttachment",
+    "LLMRateLimitError",
+    "LLMRequestError",
+    "LLMResponseError",
+    "LLMServiceError",
+    "MFARequired",
     "MigratePaypalAgreementInfo",
     "NabuCasaAuthenticationError",
     "NabuCasaBaseError",
     "NabuCasaConnectionError",
+    "NabuCasaNotLoggedInError",
+    "PasswordChangeRequired",
     "PaymentsApiError",
     "ServiceDiscovery",
     "ServiceDiscoveryAction",
@@ -116,6 +155,11 @@ __all__ = [
     "StoredFile",
     "SubscriptionInfo",
     "SubscriptionReconnectionReason",
+    "Unauthenticated",
+    "UnknownError",
+    "UserExists",
+    "UserNotConfirmed",
+    "UserNotFound",
     "VoiceApiError",
     "calculate_b64md5",
 ]
@@ -194,12 +238,16 @@ class Cloud(Generic[_ClientT]):
             servicehandlers_server,
         )
 
+        # Setup event bus before other components
+        self.events = CloudEventBus()
+
         # Needs to be setup before other components
         self.iot = CloudIoT(self)
 
         # Setup the rest of the components
         self.account = AccountApi(self)
         self.accounts = AccountsApi(self)
+        self.llm = LLMHandler(self)
         self.alexa_api = AlexaApi(self)
         self.auth = CognitoAuth(self)
         self.cloudhooks = Cloudhooks(self)
