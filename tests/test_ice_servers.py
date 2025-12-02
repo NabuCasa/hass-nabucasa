@@ -4,7 +4,6 @@ import asyncio
 import time
 
 import pytest
-from webrtc_models import RTCIceServer
 
 from hass_nabucasa import ice_servers
 from tests.utils.aiohttp import AiohttpClientMocker
@@ -37,110 +36,109 @@ def mock_ice_servers(aioclient_mock: AiohttpClientMocker):
     )
 
 
-async def test_ice_servers_listener_registration_triggers_periodic_ice_servers_update(
+async def test_async_get_ice_servers_fetches_and_returns_servers(
     ice_servers_api: ice_servers.IceServers,
     mock_ice_servers,
 ):
-    """Test that registering an ICE servers listener triggers a periodic update."""
-    times_register_called_successfully = 0
+    """Test that async_get_ice_servers fetches and returns ICE servers."""
+    result = await ice_servers_api.async_get_ice_servers()
 
-    ice_servers_api._get_refresh_sleep_time = lambda: 0
+    assert len(result) == 2
+    assert result[0].urls == "stun:example.com:80"
+    assert result[0].username is None
+    assert result[0].credential is None
+    assert result[1].urls == "turn:example.com:80"
+    assert result[1].username == "some-user"
+    assert result[1].credential == "secret-value"
 
-    async def register_ice_servers(ice_servers_to_register: list[RTCIceServer]):
-        nonlocal times_register_called_successfully
-
-        # These asserts will silently fail and variable will not be incremented
-        assert len(ice_servers_to_register) == 2
-        assert ice_servers_to_register[0].urls == "stun:example.com:80"
-        assert ice_servers_to_register[0].username is None
-        assert ice_servers_to_register[0].credential is None
-        assert ice_servers_to_register[1].urls == "turn:example.com:80"
-        assert ice_servers_to_register[1].username == "some-user"
-        assert ice_servers_to_register[1].credential == "secret-value"
-
-        assert ice_servers_api._nabucasa_ice_servers[0].urls == "stun:example.com:80"
-        assert ice_servers_api._nabucasa_ice_servers[0].username is None
-        assert ice_servers_api._nabucasa_ice_servers[0].credential is None
-        assert ice_servers_api._nabucasa_ice_servers[1].urls == "turn:example.com:80"
-        assert ice_servers_api._nabucasa_ice_servers[1].username == "some-user"
-        assert ice_servers_api._nabucasa_ice_servers[1].credential == "secret-value"
-        assert (
-            ice_servers_api._nabucasa_ice_servers[1].expiration_timestamp
-            == int(time.time()) + 3600
-        )
-
-        times_register_called_successfully += 1
-
-        def unregister():
-            pass
-
-        return unregister
-
-    unregister = await ice_servers_api.async_register_ice_servers_listener(
-        register_ice_servers,
+    # Internal state should be populated
+    assert len(ice_servers_api._nabucasa_ice_servers) == 2
+    assert (
+        ice_servers_api._nabucasa_ice_servers[1].expiration_timestamp
+        == int(time.time()) + 3600
     )
 
-    # Let the periodic update run once
-    await asyncio.sleep(0)
-    # Let the periodic update run again
-    await asyncio.sleep(0)
+    # Refresh task should be running
+    assert ice_servers_api._refresh_task is not None
+    assert not ice_servers_api._refresh_task.done()
 
-    assert times_register_called_successfully == 2
+    # Clean up
+    ice_servers_api._refresh_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await ice_servers_api._refresh_task
 
-    unregister()
 
-    # The periodic update should not run again
-    await asyncio.sleep(0)
+async def test_async_get_ice_servers_triggers_periodic_update(
+    ice_servers_api: ice_servers.IceServers,
+    mock_ice_servers,
+    aioclient_mock: AiohttpClientMocker,
+):
+    """Test that async_get_ice_servers triggers periodic updates."""
+    ice_servers_api._get_refresh_sleep_time = lambda: 0
 
-    assert times_register_called_successfully == 2
+    result = await ice_servers_api.async_get_ice_servers()
+    assert len(result) == 2
+
+    # Let the periodic update run a few times
+    await asyncio.sleep(0.01)
+    await asyncio.sleep(0.01)
+
+    # Should have made multiple API calls due to periodic refresh
+    assert len(aioclient_mock.mock_calls) >= 2
+
+    # Verify publish was called with events
+    assert ice_servers_api._cloud.events.publish.call_count >= 2
+
+    # Clean up
+    ice_servers_api._refresh_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await ice_servers_api._refresh_task
+
+
+async def test_async_stop_cancels_refresh_task(
+    ice_servers_api: ice_servers.IceServers,
+    mock_ice_servers,
+):
+    """Test that async_stop cancels the refresh task and clears state."""
+    # Start the refresh task by getting ice servers
+    result = await ice_servers_api.async_get_ice_servers()
+    assert len(result) == 2
+    assert ice_servers_api._refresh_task is not None
+    assert not ice_servers_api._refresh_task.done()
+
+    # Stop the refresh task
+    await ice_servers_api.async_stop()
+
+    # Verify state is cleared
+    assert ice_servers_api._refresh_task is None
+    assert ice_servers_api._nabucasa_ice_servers == []
+    assert ice_servers_api._initial_fetch_event is None
+
+
+async def test_async_stop_when_not_started(
+    ice_servers_api: ice_servers.IceServers,
+):
+    """Test that async_stop works when no task is running."""
+    # Should not raise any errors
+    await ice_servers_api.async_stop()
 
     assert ice_servers_api._refresh_task is None
     assert ice_servers_api._nabucasa_ice_servers == []
-    assert ice_servers_api._ice_servers_listener is None
-    assert ice_servers_api._ice_servers_listener_unregister is None
 
 
-async def test_ice_server_refresh_sets_ice_server_list_empty_on_expired_subscription(
+async def test_async_get_ice_servers_returns_empty_on_expired_subscription(
     ice_servers_api: ice_servers.IceServers,
     aioclient_mock: AiohttpClientMocker,
 ):
-    """Test that the ICE server list is set to empty when the subscription expires."""
-    times_register_called_successfully = 0
-
-    ice_servers_api._get_refresh_sleep_time = lambda: 0
-
+    """Test that async_get_ice_servers returns empty list when subscription expired."""
     ice_servers_api._cloud.subscription_expired = True
 
-    async def register_ice_servers(ice_servers: list[RTCIceServer]):
-        nonlocal times_register_called_successfully
+    result = await ice_servers_api.async_get_ice_servers()
 
-        # This assert will silently fail and variable will not be incremented
-        assert len(ice_servers) == 0
-
-        times_register_called_successfully += 1
-
-        def unregister():
-            pass
-
-        return unregister
-
-    unregister = await ice_servers_api.async_register_ice_servers_listener(
-        register_ice_servers
-    )
-
-    # Let the periodic update run once
-    await asyncio.sleep(0)
-
-    assert ice_servers_api._nabucasa_ice_servers == []
-
+    assert result == []
     assert len(aioclient_mock.mock_calls) == 0
-    assert times_register_called_successfully == 1
-    assert ice_servers_api._refresh_task is not None
-    assert ice_servers_api._ice_servers_listener is not None
-    assert ice_servers_api._ice_servers_listener_unregister is not None
-
-    # Clean up the task
-    unregister()
+    # No task should be created for expired subscription
+    assert ice_servers_api._refresh_task is None
 
 
 async def test_ice_server_refresh_sets_ice_server_list_empty_on_401_403_client_error(
@@ -154,10 +152,9 @@ async def test_ice_server_refresh_sets_ice_server_list_empty_on_401_403_client_e
         json={"message": "Boom!"},
     )
 
-    times_register_called_successfully = 0
-
     ice_servers_api._get_refresh_sleep_time = lambda: 0
 
+    # Pre-populate with servers
     ice_servers_api._nabucasa_ice_servers = [
         ice_servers.NabucasaIceServer(
             {"urls": "stun:example.com:80"},
@@ -172,35 +169,20 @@ async def test_ice_server_refresh_sets_ice_server_list_empty_on_401_403_client_e
         ),
     ]
 
-    async def register_ice_servers(ice_servers: list[RTCIceServer]):
-        nonlocal times_register_called_successfully
+    # Getting servers should trigger refresh which will fail
+    result = await ice_servers_api.async_get_ice_servers()
 
-        # This assert will silently fail and variable will not be incremented
-        assert len(ice_servers) == 0
-
-        times_register_called_successfully += 1
-
-        def unregister():
-            pass
-
-        return unregister
-
-    unregister = await ice_servers_api.async_register_ice_servers_listener(
-        register_ice_servers
-    )
-
-    # Let the periodic update run once
-    await asyncio.sleep(0)
-
+    # Servers should be cleared on 403
+    assert result == []
     assert ice_servers_api._nabucasa_ice_servers == []
 
-    assert times_register_called_successfully == 1
-    assert ice_servers_api._refresh_task is not None
-    assert ice_servers_api._ice_servers_listener is not None
-    assert ice_servers_api._ice_servers_listener_unregister is not None
+    # Event should have been published
+    assert ice_servers_api._cloud.events.publish.call_count >= 1
 
-    # Clean up the task
-    unregister()
+    # Clean up
+    ice_servers_api._refresh_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await ice_servers_api._refresh_task
 
 
 async def test_ice_server_refresh_keeps_ice_server_list_on_other_client_errors(
@@ -214,10 +196,9 @@ async def test_ice_server_refresh_keeps_ice_server_list_on_other_client_errors(
         json={"message": "Boom!"},
     )
 
-    times_register_called_successfully = 0
-
     ice_servers_api._get_refresh_sleep_time = lambda: 0
 
+    # Pre-populate with servers
     ice_servers_api._nabucasa_ice_servers = [
         ice_servers.NabucasaIceServer(
             {"urls": "stun:example.com:80"},
@@ -232,41 +213,20 @@ async def test_ice_server_refresh_keeps_ice_server_list_on_other_client_errors(
         ),
     ]
 
-    async def register_ice_servers(ice_servers: list[RTCIceServer]):
-        nonlocal times_register_called_successfully
+    # Getting servers should trigger refresh which will fail
+    result = await ice_servers_api.async_get_ice_servers()
 
-        # These asserts will silently fail and variable will not be incremented
-        assert len(ice_servers) == 2
-        assert ice_servers[0].urls == "stun:example.com:80"
-        assert ice_servers[0].username is None
-        assert ice_servers[0].credential is None
-        assert ice_servers[1].urls == "turn:example.com:80"
-        assert ice_servers[1].username == "some-user"
-        assert ice_servers[1].credential == "secret-value"
+    # Servers should be kept on 500 error
+    assert len(result) == 2
+    assert len(ice_servers_api._nabucasa_ice_servers) == 2
 
-        times_register_called_successfully += 1
+    # Event should have been published
+    assert ice_servers_api._cloud.events.publish.call_count >= 1
 
-        def unregister():
-            pass
-
-        return unregister
-
-    unregister = await ice_servers_api.async_register_ice_servers_listener(
-        register_ice_servers
-    )
-
-    # Let the periodic update run once
-    await asyncio.sleep(0)
-
-    assert ice_servers_api._nabucasa_ice_servers != []
-
-    assert times_register_called_successfully == 1
-    assert ice_servers_api._refresh_task is not None
-    assert ice_servers_api._ice_servers_listener is not None
-    assert ice_servers_api._ice_servers_listener_unregister is not None
-
-    # Clean up the task
-    unregister()
+    # Clean up
+    ice_servers_api._refresh_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await ice_servers_api._refresh_task
 
 
 def test_get_refresh_sleep_time(ice_servers_api: ice_servers.IceServers):

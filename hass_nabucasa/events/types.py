@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 from ..utils import utcnow
 
 if TYPE_CHECKING:
+    from webrtc_models import RTCIceServer
+
     from ..iot_base import DisconnectReason
 
 
@@ -20,6 +22,7 @@ def _timestamp_factory() -> float:
 class CloudEventType(StrEnum):
     """Cloud event types."""
 
+    ICE_SERVERS_UPDATED = "ice_servers_updated"
     RELAYER_CONNECTED = "relayer_connected"
     RELAYER_DISCONNECTED = "relayer_disconnected"
 
@@ -45,3 +48,11 @@ class RelayerDisconnectedEvent(CloudEvent):
 
     type = CloudEventType.RELAYER_DISCONNECTED
     reason: DisconnectReason | None = None
+
+
+@dataclass(kw_only=True, frozen=True)
+class IceServersUpdatedEvent(CloudEvent):
+    """ICE servers updated event."""
+
+    type = CloudEventType.ICE_SERVERS_UPDATED
+    ice_servers: list[RTCIceServer] = field(default_factory=list)

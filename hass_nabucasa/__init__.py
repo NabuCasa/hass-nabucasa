@@ -562,6 +562,7 @@ class Cloud(Generic[_ClientT]):
 
         await self.service_discovery.async_stop_service_discovery()
         await self.client.cloud_stopped()
+        await self.ice_servers.async_stop()
         await gather_callbacks(_LOGGER, "on_stop", self._on_stop)
 
     @staticmethod
