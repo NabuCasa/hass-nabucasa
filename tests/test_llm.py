@@ -127,6 +127,50 @@ async def test_async_generate_data_maps_errors(
         await cloud.llm.async_generate_data(messages=[], conversation_id="conv")
 
 
+def test_prepare_text_format_adds_missing_properties_to_required(cloud: Cloud) -> None:
+    """_prepare_text_format should ensure required matches all properties."""
+    response_format_incomplete = {
+        "type": "json_schema",
+        "json_schema": {
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "field1": {"type": "string"},
+                    "field2": {"type": "number"},
+                },
+                "required": ["field1"],
+            }
+        },
+    }
+
+    result_incomplete = cloud.llm._prepare_text_format(response_format_incomplete)
+    assert result_incomplete is response_format_incomplete  # mutated in-place
+    schema_incomplete = result_incomplete["json_schema"]["schema"]
+
+    assert schema_incomplete["required"] == ["field1", "field2"]
+
+
+def test_prepare_text_format_adds_required_when_missing(cloud: Cloud) -> None:
+    """_prepare_text_format should ensure required matches all properties."""
+    response_format_missing = {
+        "type": "json_schema",
+        "json_schema": {
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "field1": {"type": "string"},
+                    "field2": {"type": "number"},
+                },
+            }
+        },
+    }
+
+    result_missing = cloud.llm._prepare_text_format(response_format_missing)
+    assert result_missing is response_format_missing
+    schema_missing = result_missing["json_schema"]["schema"]
+    assert schema_missing["required"] == ["field1", "field2"]
+
+
 async def test_async_generate_image_calls_aimage_generation(
     cloud: Cloud, mock_llm_connection_details
 ) -> None:

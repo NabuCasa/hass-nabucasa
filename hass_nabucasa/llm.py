@@ -7,6 +7,7 @@ import base64
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 import io
+import logging
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -15,6 +16,7 @@ from typing import (
     cast,
 )
 
+import litellm
 from litellm import (
     BaseResponsesAPIStreamingIterator,
     ResponseInputParam,
@@ -106,6 +108,9 @@ IMAGE_MIME_TYPE = "image/png"
 TOKEN_EXP_BUFFER_MINUTES = timedelta(minutes=5)
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 class LLMHandler(ApiBase):
     """Class to handle LLM services."""
 
@@ -119,6 +124,8 @@ class LLMHandler(ApiBase):
         self._conversation_model: str | None = None
         self._valid_until: datetime | None = None
         self._lock = asyncio.Lock()
+
+        litellm.use_litellm_proxy = True
 
     def _validate_token(self) -> bool:
         """Validate token outside of coroutine."""
@@ -141,6 +148,29 @@ class LLMHandler(ApiBase):
         async with self._cloud.websession.get(url) as response:
             response.raise_for_status()
             return await response.read()
+
+    def _prepare_text_format(
+        self,
+        response_format: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        """Return text format for LLM requests."""
+        if response_format is not None and response_format.get("type") == "json_schema":
+            json_schema = response_format.get("json_schema") or {}
+            schema = json_schema.get("schema") or {}
+            props = schema.get("properties")
+            if isinstance(props, dict):
+                prop_keys = list(props.keys())
+                current_required = schema.get("required")
+
+                if not isinstance(current_required, list) or set(
+                    current_required
+                ) != set(prop_keys):
+                    schema["required"] = prop_keys
+
+                json_schema["schema"] = schema
+                response_format["json_schema"] = json_schema
+
+        return response_format
 
     async def _extract_response_image_data(
         self,
@@ -217,6 +247,8 @@ class LLMHandler(ApiBase):
         if TYPE_CHECKING:
             assert self._generate_data_model is not None
 
+        text_format = self._prepare_text_format(response_format)
+
         try:
             response = await aresponses(
                 model=self._generate_data_model,
@@ -225,9 +257,10 @@ class LLMHandler(ApiBase):
                 api_base=self._base_url,
                 user=conversation_id,
                 stream=stream,
-                text_format=response_format,
+                text_format=text_format,
                 tools=tools,
                 tool_choice=tool_choice,
+                llm_provider="litellm_proxy",
             )
             return cast(
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
