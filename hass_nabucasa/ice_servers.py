@@ -13,7 +13,6 @@ from aiohttp import ClientResponseError
 from webrtc_models import RTCIceServer
 
 from .api import ApiBase, CloudApiError, api_exception_handler
-from .events.types import IceServersUpdatedEvent
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -62,7 +61,7 @@ class IceServers(ApiBase):
         return self._cloud.servicehandlers_server
 
     @property
-    def _ice_servers(self) -> list[RTCIceServer]:
+    def ice_servers(self) -> list[RTCIceServer]:
         """Get the current ICE servers."""
         return [
             RTCIceServer(
@@ -126,28 +125,20 @@ class IceServers(ApiBase):
                 self._initial_fetch_event.set()
                 self._initial_fetch_event = None
 
-            await self._cloud.events.publish(
-                IceServersUpdatedEvent(ice_servers=self._ice_servers)
-            )
-
             sleep_time = self._get_refresh_sleep_time()
             await asyncio.sleep(sleep_time)
 
-    async def async_get_ice_servers(self) -> list[RTCIceServer]:
-        """Get ICE servers."""
-        if self._cloud.subscription_expired:
-            return []
-
+    async def async_start(self) -> None:
+        """Start the ICE servers refresh task."""
+        if not self._cloud.is_logged_in or self._cloud.subscription_expired:
+            return
         if self._refresh_task is None or self._refresh_task.done():
             self._initial_fetch_event = asyncio.Event()
             self._refresh_task = asyncio.create_task(
                 self._async_refresh_nabucasa_ice_servers()
             )
-
-        if self._initial_fetch_event is not None:
-            await self._initial_fetch_event.wait()
-
-        return self._ice_servers
+            if self._initial_fetch_event is not None:
+                await self._initial_fetch_event.wait()
 
     async def async_stop(self) -> None:
         """Stop the ICE servers refresh task."""

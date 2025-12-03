@@ -36,12 +36,13 @@ def mock_ice_servers(aioclient_mock: AiohttpClientMocker):
     )
 
 
-async def test_async_get_ice_servers_fetches_and_returns_servers(
+async def test_async_start_fetches_and_ice_servers_returns(
     ice_servers_api: ice_servers.IceServers,
     mock_ice_servers,
 ):
-    """Test that async_get_ice_servers fetches and returns ICE servers."""
-    result = await ice_servers_api.async_get_ice_servers()
+    """Test that async_start fetches and ice_servers returns ICE servers."""
+    await ice_servers_api.async_start()
+    result = ice_servers_api.ice_servers
 
     assert len(result) == 2
     assert result[0].urls == "stun:example.com:80"
@@ -68,15 +69,16 @@ async def test_async_get_ice_servers_fetches_and_returns_servers(
         await ice_servers_api._refresh_task
 
 
-async def test_async_get_ice_servers_triggers_periodic_update(
+async def test_async_start_triggers_periodic_update(
     ice_servers_api: ice_servers.IceServers,
     mock_ice_servers,
     aioclient_mock: AiohttpClientMocker,
 ):
-    """Test that async_get_ice_servers triggers periodic updates."""
+    """Test that async_start triggers periodic ICE server updates."""
     ice_servers_api._get_refresh_sleep_time = lambda: 0
 
-    result = await ice_servers_api.async_get_ice_servers()
+    await ice_servers_api.async_start()
+    result = ice_servers_api.ice_servers
     assert len(result) == 2
 
     # Let the periodic update run a few times
@@ -85,9 +87,6 @@ async def test_async_get_ice_servers_triggers_periodic_update(
 
     # Should have made multiple API calls due to periodic refresh
     assert len(aioclient_mock.mock_calls) >= 2
-
-    # Verify publish was called with events
-    assert ice_servers_api._cloud.events.publish.call_count >= 2
 
     # Clean up
     ice_servers_api._refresh_task.cancel()
@@ -101,7 +100,8 @@ async def test_async_stop_cancels_refresh_task(
 ):
     """Test that async_stop cancels the refresh task and clears state."""
     # Start the refresh task by getting ice servers
-    result = await ice_servers_api.async_get_ice_servers()
+    await ice_servers_api.async_start()
+    result = ice_servers_api.ice_servers
     assert len(result) == 2
     assert ice_servers_api._refresh_task is not None
     assert not ice_servers_api._refresh_task.done()
@@ -126,14 +126,15 @@ async def test_async_stop_when_not_started(
     assert ice_servers_api._nabucasa_ice_servers == []
 
 
-async def test_async_get_ice_servers_returns_empty_on_expired_subscription(
+async def test_async_start_returns_empty_on_expired_subscription(
     ice_servers_api: ice_servers.IceServers,
     aioclient_mock: AiohttpClientMocker,
 ):
-    """Test that async_get_ice_servers returns empty list when subscription expired."""
+    """Test that async_start returns empty list when subscription expired."""
     ice_servers_api._cloud.subscription_expired = True
 
-    result = await ice_servers_api.async_get_ice_servers()
+    await ice_servers_api.async_start()
+    result = ice_servers_api.ice_servers
 
     assert result == []
     assert len(aioclient_mock.mock_calls) == 0
@@ -170,14 +171,12 @@ async def test_ice_server_refresh_sets_ice_server_list_empty_on_401_403_client_e
     ]
 
     # Getting servers should trigger refresh which will fail
-    result = await ice_servers_api.async_get_ice_servers()
+    await ice_servers_api.async_start()
+    result = ice_servers_api.ice_servers
 
     # Servers should be cleared on 403
     assert result == []
     assert ice_servers_api._nabucasa_ice_servers == []
-
-    # Event should have been published
-    assert ice_servers_api._cloud.events.publish.call_count >= 1
 
     # Clean up
     ice_servers_api._refresh_task.cancel()
@@ -214,14 +213,12 @@ async def test_ice_server_refresh_keeps_ice_server_list_on_other_client_errors(
     ]
 
     # Getting servers should trigger refresh which will fail
-    result = await ice_servers_api.async_get_ice_servers()
+    await ice_servers_api.async_start()
+    result = ice_servers_api.ice_servers
 
     # Servers should be kept on 500 error
     assert len(result) == 2
     assert len(ice_servers_api._nabucasa_ice_servers) == 2
-
-    # Event should have been published
-    assert ice_servers_api._cloud.events.publish.call_count >= 1
 
     # Clean up
     ice_servers_api._refresh_task.cancel()
