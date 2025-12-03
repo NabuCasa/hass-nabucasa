@@ -7,7 +7,6 @@ import base64
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 import io
-import logging
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -105,9 +104,6 @@ class LLMResponseError(LLMRequestError):
 
 IMAGE_MIME_TYPE = "image/png"
 TOKEN_EXP_BUFFER_MINUTES = timedelta(minutes=5)
-
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class LLMHandler(ApiBase):
