@@ -253,7 +253,6 @@ class LLMHandler(ApiBase):
                 text_format=text_format,
                 tools=tools,
                 tool_choice=tool_choice,
-                llm_provider="litellm_proxy",
             )
             return cast(
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
