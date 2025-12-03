@@ -16,7 +16,6 @@ from typing import (
     cast,
 )
 
-import litellm
 from litellm import (
     BaseResponsesAPIStreamingIterator,
     ResponseInputParam,
@@ -124,8 +123,6 @@ class LLMHandler(ApiBase):
         self._conversation_model: str | None = None
         self._valid_until: datetime | None = None
         self._lock = asyncio.Lock()
-
-        litellm.use_litellm_proxy = True
 
     def _validate_token(self) -> bool:
         """Validate token outside of coroutine."""
