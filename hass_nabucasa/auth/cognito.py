@@ -373,7 +373,7 @@ class CognitoAuth:
 
 def _map_aws_exception(err: ClientError | BotoCoreError) -> CloudError:
     """Map AWS exception to our exceptions."""
-    if issubclass(err.__class__, BotoCoreError):
+    if isinstance(err, BotoCoreError):
         return AWS_EXCEPTIONS.get(err.__class__.__name__, UnknownError)(
             f"{err.fmt} {err.kwargs.get('error', '')}".strip()
         )
