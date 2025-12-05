@@ -375,7 +375,7 @@ def _map_aws_exception(err: ClientError | BotoCoreError) -> CloudError:
     """Map AWS exception to our exceptions."""
     if isinstance(err, BotoCoreError):
         return AWS_EXCEPTIONS.get(err.__class__.__name__, UnknownError)(
-            f"{err.fmt} {err.kwargs.get('error', '')}".strip()
+            err.kwargs.get("error", str(err))
         )
     return AWS_EXCEPTIONS.get(err.response["Error"]["Code"], UnknownError)(
         err.response["Error"]["Message"]
