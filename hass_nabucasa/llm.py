@@ -228,6 +228,7 @@ class LLMHandler(ApiBase):
                 text_format=response_format,
                 tools=tools,
                 tool_choice=tool_choice,
+                custom_llm_provider="litellm_proxy",
             )
             return cast(
                 "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
@@ -257,6 +258,7 @@ class LLMHandler(ApiBase):
                 api_key=self._token,
                 api_base=self._base_url,
                 model=self._generate_image_model,
+                custom_llm_provider="litellm_proxy",
             )
 
         except AuthenticationError as err:
@@ -307,6 +309,7 @@ class LLMHandler(ApiBase):
                 mask=mask_payload,
                 api_key=self._token,
                 api_base=self._base_url,
+                custom_llm_provider="litellm_proxy",
             )
 
         except AuthenticationError as err:
@@ -347,6 +350,7 @@ class LLMHandler(ApiBase):
                 text_format=response_format,
                 tools=tools,
                 tool_choice=tool_choice,
+                custom_llm_provider="litellm_proxy",
             )
 
             return cast(
