@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .cognito import (
+    CloudConnectionError,
     CloudError,
     CognitoAuth,
     InvalidTotpCode,
@@ -16,6 +17,7 @@ from .cognito import (
 )
 
 __all__ = [
+    "CloudConnectionError",
     "CloudError",
     "CognitoAuth",
     "InvalidTotpCode",

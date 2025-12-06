@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 import async_timeout
 import boto3
 import botocore
-from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import BotoCoreError, ClientError, EndpointConnectionError
 import pycognito
 from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
@@ -61,6 +61,10 @@ class UserNotConfirmed(CloudError):
     """Raised when a user has not confirmed email yet."""
 
 
+class CloudConnectionError(CloudError):
+    """Raised when unable to connect to the cloud."""
+
+
 class PasswordChangeRequired(CloudError):
     """Raised when a password change is required."""
 
@@ -82,6 +86,7 @@ AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
     "UsernameExistsException": UserExists,
     "NotAuthorizedException": Unauthenticated,
     "PasswordResetRequiredException": PasswordChangeRequired,
+    "EndpointConnectionError": CloudConnectionError,
 }
 
 
@@ -158,7 +163,7 @@ class CognitoAuth:
                     ),
                 )
 
-        except ClientError as err:
+        except (ClientError, EndpointConnectionError) as err:
             raise _map_aws_exception(err) from err
         except BotoCoreError as err:
             raise UnknownError from err
@@ -177,7 +182,7 @@ class CognitoAuth:
                         ClientId=cognito.client_id,
                     ),
                 )
-        except ClientError as err:
+        except (ClientError, EndpointConnectionError) as err:
             raise _map_aws_exception(err) from err
         except BotoCoreError as err:
             raise UnknownError from err
@@ -191,7 +196,7 @@ class CognitoAuth:
                 )
                 await self.cloud.run_executor(cognito.initiate_forgot_password)
 
-        except ClientError as err:
+        except (ClientError, EndpointConnectionError) as err:
             raise _map_aws_exception(err) from err
         except BotoCoreError as err:
             raise UnknownError from err
@@ -237,7 +242,7 @@ class CognitoAuth:
         except ForceChangePasswordException as err:
             raise PasswordChangeRequired from err
 
-        except ClientError as err:
+        except (ClientError, EndpointConnectionError) as err:
             raise _map_aws_exception(err) from err
 
         except BotoCoreError as err:
@@ -285,7 +290,7 @@ class CognitoAuth:
             if task:
                 await task
 
-        except ClientError as err:
+        except (ClientError, EndpointConnectionError) as err:
             raise _map_aws_exception(err) from err
 
         except BotoCoreError as err:
@@ -329,7 +334,7 @@ class CognitoAuth:
             await self.cloud.run_executor(cognito.renew_access_token)
             await self.cloud.update_token(cognito.id_token, cognito.access_token)
 
-        except ClientError as err:
+        except (ClientError, EndpointConnectionError) as err:
             raise _map_aws_exception(err) from err
 
         except BotoCoreError as err:
@@ -366,10 +371,15 @@ class CognitoAuth:
         )
 
 
-def _map_aws_exception(err: ClientError) -> CloudError:
+def _map_aws_exception(err: ClientError | BotoCoreError) -> CloudError:
     """Map AWS exception to our exceptions."""
-    ex = AWS_EXCEPTIONS.get(err.response["Error"]["Code"], UnknownError)
-    return ex(err.response["Error"]["Message"])
+    if isinstance(err, BotoCoreError):
+        return AWS_EXCEPTIONS.get(err.__class__.__name__, UnknownError)(
+            err.kwargs.get("error", str(err))
+        )
+    return AWS_EXCEPTIONS.get(err.response["Error"]["Code"], UnknownError)(
+        err.response["Error"]["Message"]
+    )
 
 
 @lru_cache(maxsize=2)
