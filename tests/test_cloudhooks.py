@@ -78,7 +78,6 @@ async def test_delete(
 
 async def test_create_without_connected(
     cloud: Cloud,
-    aioclient_mock: AiohttpClientMocker,
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
 ):
