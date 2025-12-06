@@ -20,6 +20,8 @@ def _timestamp_factory() -> float:
 class CloudEventType(StrEnum):
     """Cloud event types."""
 
+    LOGIN = "login"
+    LOGOUT = "logout"
     RELAYER_CONNECTED = "relayer_connected"
     RELAYER_DISCONNECTED = "relayer_disconnected"
 
@@ -28,20 +30,22 @@ class CloudEventType(StrEnum):
 class CloudEvent:
     """Base class for all cloud events."""
 
+    type: CloudEventType
     timestamp: float = field(default_factory=_timestamp_factory)
-    type: CloudEventType = field(init=False)
 
 
 @dataclass(kw_only=True, frozen=True)
 class RelayerConnectedEvent(CloudEvent):
     """Relayer connected event."""
 
-    type = CloudEventType.RELAYER_CONNECTED
+    type: CloudEventType = field(default=CloudEventType.RELAYER_CONNECTED, init=False)
 
 
 @dataclass(kw_only=True, frozen=True)
 class RelayerDisconnectedEvent(CloudEvent):
     """Relayer disconnected event."""
 
-    type = CloudEventType.RELAYER_DISCONNECTED
+    type: CloudEventType = field(
+        default=CloudEventType.RELAYER_DISCONNECTED, init=False
+    )
     reason: DisconnectReason | None = None

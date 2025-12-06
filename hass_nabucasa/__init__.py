@@ -407,6 +407,7 @@ class Cloud(Generic[_ClientT]):
     ) -> None:
         """Log a user in."""
         await self.auth.async_login(email, password, check_connection=check_connection)
+        await self.events.publish(CloudEvent(type=CloudEventType.LOGIN))
 
     async def login_verify_totp(
         self,
@@ -420,9 +421,11 @@ class Cloud(Generic[_ClientT]):
         await self.auth.async_login_verify_totp(
             email, code, mfa_tokens, check_connection=check_connection
         )
+        await self.events.publish(CloudEvent(type=CloudEventType.LOGIN))
 
     async def logout(self) -> None:
         """Close connection and remove all credentials."""
+        await self.events.publish(CloudEvent(type=CloudEventType.LOGOUT))
         self.id_token = None
         self.access_token = None
         self.refresh_token = None
