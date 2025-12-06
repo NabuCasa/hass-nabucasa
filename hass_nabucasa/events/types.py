@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from ..utils import utcnow
 
 if TYPE_CHECKING:
+    from ..cloudhooks import CloudhookDetails
     from ..iot_base import DisconnectReason
 
 
@@ -20,6 +21,8 @@ def _timestamp_factory() -> float:
 class CloudEventType(StrEnum):
     """Cloud event types."""
 
+    CLOUDHOOK_CREATED = "cloudhook_created"
+    CLOUDHOOK_DELETED = "cloudhook_deleted"
     LOGIN = "login"
     LOGOUT = "logout"
     RELAYER_CONNECTED = "relayer_connected"
@@ -49,3 +52,19 @@ class RelayerDisconnectedEvent(CloudEvent):
         default=CloudEventType.RELAYER_DISCONNECTED, init=False
     )
     reason: DisconnectReason | None = None
+
+
+@dataclass(kw_only=True, frozen=True)
+class CloudhookCreatedEvent(CloudEvent):
+    """Cloudhook created event."""
+
+    type: CloudEventType = field(default=CloudEventType.CLOUDHOOK_CREATED, init=False)
+    cloudhook: CloudhookDetails
+
+
+@dataclass(kw_only=True, frozen=True)
+class CloudhookDeletedEvent(CloudEvent):
+    """Cloudhook deleted event."""
+
+    type: CloudEventType = field(default=CloudEventType.CLOUDHOOK_DELETED, init=False)
+    cloudhook: CloudhookDetails
