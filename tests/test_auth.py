@@ -3,7 +3,7 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, EndpointConnectionError
 from pycognito.exceptions import MFAChallengeException
 import pytest
 
@@ -52,6 +52,23 @@ async def test_login_user_not_confirmed(mock_cognito, mock_cloud):
     mock_cognito.authenticate.side_effect = aws_error("UserNotConfirmedException")
 
     with pytest.raises(auth_api.UserNotConfirmed):
+        await auth.async_login("user", "pass")
+
+    assert len(mock_cloud.update_token.mock_calls) == 0
+
+
+async def test_login_connection_error(mock_cognito, mock_cloud):
+    """Test login raises CloudConnectionError instead of UnknownError."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    mock_cognito.authenticate.side_effect = EndpointConnectionError(
+        endpoint_url="https://cognito-idp.us-east-1.amazonaws.com/",
+        error="Failed to establish a new connection: [Errno 111] Connection refused",
+    )
+
+    with pytest.raises(
+        auth_api.CloudConnectionError,
+        match="Connection refused",
+    ):
         await auth.async_login("user", "pass")
 
     assert len(mock_cloud.update_token.mock_calls) == 0
