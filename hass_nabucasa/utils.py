@@ -8,13 +8,23 @@ import datetime as dt
 from logging import Logger
 import random
 import ssl
-from typing import Any, TypeVar
+from typing import Any, TypedDict, TypeVar
 
 import ciso8601
+from icmplib import Host, ICMPLibError, async_multiping, async_resolve
 import jwt
 
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 UTC = dt.UTC
+
+
+class HostLatency(TypedDict):
+    """Result of a latency check for a single host."""
+
+    hostname: str
+    ip: str
+    is_alive: bool
+    avg_rtt: float
 
 
 def utcnow() -> dt.datetime:
@@ -108,6 +118,68 @@ def next_midnight() -> float:
         microsecond=0,
     ) + dt.timedelta(days=1)
     return (midnight - dt.datetime.now()).total_seconds()
+
+
+async def async_check_latency(
+    servers: list[str],
+    *,
+    count: int = 1,
+    ping_timeout: int = 5,
+    privileged: bool = False,
+) -> list[HostLatency] | None:
+    """Check latency to a list of servers and return them sorted by avg_rtt.
+
+    Args:
+        servers: List of hostnames or IP addresses to ping.
+        count: Number of ping packets to send to each server.
+        ping_timeout: Timeout in seconds for each ping.
+        privileged: Whether to use privileged (raw socket) mode.
+
+    Returns:
+        List of HostLatency dicts sorted by avg_rtt (fastest first),
+        or None if no servers could be resolved.
+
+    """
+    # Resolve hostnames to IPs
+    resolved = await asyncio.gather(
+        *(async_resolve(server) for server in servers), return_exceptions=True
+    )
+
+    # Build mapping from IP to hostname, skip failed resolutions
+    ip_to_hostname: dict[str, str] = {}
+    for server, result in zip(servers, resolved, strict=True):
+        if isinstance(result, BaseException):
+            continue
+        ip: str = result[0] if isinstance(result, list) else result
+        ip_to_hostname[ip] = server
+
+    if not ip_to_hostname:
+        return None
+
+    hosts: list[Host]
+    try:
+        hosts = await async_multiping(
+            addresses=ip_to_hostname.keys(),
+            count=count,
+            timeout=ping_timeout,
+            privileged=privileged,
+        )
+    except ICMPLibError:
+        return None
+
+    # Sort hosts by latency and map back to HostLatency dicts
+    sorted_hosts = sorted(
+        hosts, key=lambda h: h.avg_rtt if h.is_alive else float("inf")
+    )
+    return [
+        HostLatency(
+            hostname=ip_to_hostname[host.address],
+            ip=host.address,
+            is_alive=host.is_alive,
+            avg_rtt=host.avg_rtt,
+        )
+        for host in sorted_hosts
+    ]
 
 
 def jitter(minimum: float, maximum: float) -> float:
