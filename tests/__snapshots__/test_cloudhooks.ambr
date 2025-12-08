@@ -1,0 +1,13 @@
+# serializer version: 1
+# name: test_create_without_connected
+  ''
+# ---
+# name: test_delete
+  ''
+# ---
+# name: test_enable
+  '''
+  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/instance/webhook
+  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/instance/webhook (200) 
+  '''
+# ---
