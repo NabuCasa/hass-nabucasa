@@ -4,32 +4,29 @@ from __future__ import annotations
 
 import asyncio
 import base64
-from collections.abc import Iterable
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 from datetime import datetime, timedelta
+from functools import wraps
 import io
+import json
+import logging
+from types import SimpleNamespace
 from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
+    ParamSpec,
     TypedDict,
+    TypeVar,
     cast,
 )
 
-from litellm import (
-    BaseResponsesAPIStreamingIterator,
-    ResponseInputParam,
-    ResponsesAPIResponse,
-    ToolChoice,
-    ToolParam,
-    aimage_edit,
-    aimage_generation,
-    aresponses,
-)
-from litellm.exceptions import (
-    APIError,
-    AuthenticationError,
-    RateLimitError,
-    ServiceUnavailableError,
+from aiohttp import (
+    ClientResponse,
+    ClientResponseError,
+    ClientTimeout,
+    ContentTypeError,
+    FormData,
 )
 
 from hass_nabucasa.exceptions import NabuCasaNotLoggedInError
@@ -39,6 +36,14 @@ from .api import ApiBase, CloudApiError, api_exception_handler
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
+
+
+_LOGGER = logging.getLogger(__name__)
+
+ResponsesAPIResponse = dict[str, Any]
+ResponseInputParam = dict[str, Any] | list[Any]
+ToolParam = dict[str, Any]
+ToolChoice = Literal["auto", "none"] | dict[str, Any]
 
 
 class LLMError(CloudApiError):
@@ -104,6 +109,95 @@ class LLMResponseError(LLMRequestError):
 
 IMAGE_MIME_TYPE = "image/png"
 TOKEN_EXP_BUFFER_MINUTES = timedelta(minutes=5)
+RESPONSES_API_TIMEOUT = 30.0
+IMAGE_API_TIMEOUT = 60.0
+
+
+class ResponsesAPIStreamEvent(SimpleNamespace):
+    """Simple namespace with helper to convert back to plain dicts."""
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the namespace back to a plain dict recursively."""
+        return {
+            key: _namespace_to_primitive(value) for key, value in self.__dict__.items()
+        }
+
+
+def _namespace_to_primitive(value: Any) -> Any:
+    if isinstance(value, ResponsesAPIStreamEvent):
+        return value.to_dict()
+    if isinstance(value, list):
+        return [_namespace_to_primitive(item) for item in value]
+    return value
+
+
+def _build_stream_event(payload: Any) -> Any:
+    """Convert a JSON payload into a Responses API stream event object."""
+    if isinstance(payload, dict):
+        return ResponsesAPIStreamEvent(
+            **{key: _build_stream_event(value) for key, value in payload.items()}
+        )
+    if isinstance(payload, list):
+        return [_build_stream_event(item) for item in payload]
+    return payload
+
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def llm_http_exception_handler(
+    func: Callable[P, Awaitable[R]],
+) -> Callable[P, Awaitable[R]]:
+    """Convert HTTP/client errors into LLM-specific exceptions."""
+
+    @wraps(func)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        try:
+            return await func(*args, **kwargs)
+        except LLMRequestError:
+            raise
+        except ClientResponseError as err:
+            if err.status == 401:
+                raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+            if err.status in (429, 503):
+                raise LLMRateLimitError("Cloud LLM is rate limited") from err
+            raise LLMServiceError("Error talking to Cloud LLM") from err
+        except CloudApiError as err:
+            raise LLMServiceError("Error talking to Cloud LLM") from err
+        except Exception as err:
+            _LOGGER.debug("Unexpected error during LLM API call: %s", err)
+            raise LLMServiceError("Error talking to Cloud LLM") from err
+
+    return wrapper
+
+
+async def stream_llm_response_events(
+    response: ClientResponse,
+) -> AsyncIterator[Any]:
+    """Yield response events from the Cloud LLM stream."""
+    try:
+        while True:
+            line_bytes = await response.content.readline()
+            if not line_bytes:
+                break
+            line = line_bytes.decode("utf-8").strip()
+            if not line or not line.startswith("data:"):
+                continue
+            chunk = line[len("data:") :].strip()
+            if chunk == "[DONE]":
+                break
+            try:
+                payload = json.loads(chunk)
+            except json.JSONDecodeError:
+                _LOGGER.debug(
+                    "Failed to decode Cloud LLM stream chunk: %s",
+                    chunk,
+                )
+                continue
+            yield _build_stream_event(payload)
+    finally:
+        response.release()
 
 
 class LLMHandler(ApiBase):
@@ -142,6 +236,144 @@ class LLMHandler(ApiBase):
             response.raise_for_status()
             return await response.read()
 
+    async def _update_connection_details(self) -> None:
+        """Update connection details."""
+        if not self._cloud.valid_subscription:
+            raise LLMAuthenticationError("Invalid subscription")
+
+        details: LLMConnectionDetails = await self._get_connection_details()
+
+        self._token = details["token"]
+        self._valid_until = utc_from_timestamp(float(details["valid_until"]))
+        self._base_url = details["base_url"]
+        self._generate_data_model = details["generate_data_model"]
+        self._generate_image_model = details["generate_image_model"]
+        self._conversation_model = details["conversation_model"]
+
+    async def async_ensure_token(self) -> None:
+        """Ensure the LLM token is valid and available."""
+        async with self._lock:
+            if not self._cloud.is_logged_in:
+                raise NabuCasaNotLoggedInError("User is not logged in")
+
+            if not self._validate_token():
+                await self._update_connection_details()
+
+            if not self._token or not self._base_url:
+                raise LLMError("Cloud LLM connection details are unavailable")
+
+    @llm_http_exception_handler
+    async def _call_llm_api(
+        self,
+        endpoint: str,
+        *,
+        method: str = "POST",
+        accept: str = "application/json",
+        content_type: str | None = "application/json",
+        payload: dict[str, Any] | None = None,
+        data: Any | None = None,
+        include_path_in_log: bool = False,
+    ) -> ClientResponse:
+        """Call the Cloud LLM API and ensure errors are handled uniformly."""
+        if TYPE_CHECKING:
+            assert self._base_url is not None
+
+        await self.async_ensure_token()
+
+        url = f"{self._base_url.rstrip('/')}/{endpoint.lstrip('/')}"
+        headers: dict[str, str] = {
+            "Authorization": f"Bearer {self._token}",
+            "Accept": accept,
+        }
+        if content_type:
+            headers["Content-Type"] = content_type
+
+        timeout = RESPONSES_API_TIMEOUT
+        if "/images" in endpoint:
+            timeout = IMAGE_API_TIMEOUT
+
+        async with asyncio.timeout(timeout):
+            response = await self._call_raw_api(
+                method=method,
+                url=url,
+                headers=headers,
+                jsondata=payload,
+                data=data,
+                client_timeout=ClientTimeout(total=timeout),
+                include_path_in_log=include_path_in_log,
+            )
+
+            if response.status >= 400:
+                error_body = await response.text()
+                self._do_log_response(response, error_body, include_path_in_log)
+                response.raise_for_status()
+
+            return response
+
+    async def _get_response(
+        self,
+        response: ClientResponse,
+        *,
+        include_path_in_log: bool = False,
+    ) -> dict[str, Any]:
+        """Parse a JSON response from the Cloud LLM API."""
+        try:
+            data = cast("dict[str, Any]", await response.json())
+        except (ContentTypeError, json.JSONDecodeError) as err:
+            raise LLMResponseError("Invalid JSON response from Cloud LLM") from err
+
+        self._do_log_response(response, data, include_path_in_log)
+        return data
+
+    def _build_responses_payload(
+        self,
+        *,
+        model: str,
+        messages: str | ResponseInputParam,
+        conversation_id: str,
+        response_format: dict[str, Any] | None,
+        stream: bool,
+        tools: Iterable[ToolParam] | None,
+        tool_choice: ToolChoice | None,
+    ) -> dict[str, Any]:
+        """Build the payload for the Responses API."""
+        payload: dict[str, Any] = {
+            "model": model,
+            "input": messages,
+            "stream": stream,
+            "conversation": conversation_id,
+        }
+        if response_format is not None:
+            payload["response_format"] = response_format
+        if tools is not None:
+            payload["tools"] = list(tools)
+        if tool_choice is not None:
+            payload["tool_choice"] = tool_choice
+        return payload
+
+    @llm_http_exception_handler
+    async def _responses_api_call(
+        self,
+        payload: dict[str, Any],
+        *,
+        stream: bool,
+    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]:
+        """Call the Responses API via HTTP."""
+        accept = "text/event-stream" if stream else "application/json"
+        response = await self._call_llm_api(
+            "responses",
+            accept=accept,
+            payload=payload,
+        )
+
+        if not stream:
+            return await self._get_response(response)
+
+        return cast(
+            "ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]",
+            stream_llm_response_events(response),
+        )
+
     async def _extract_response_image_data(
         self,
         response: dict[str, Any],
@@ -175,32 +407,6 @@ class LLMHandler(ApiBase):
             revised_prompt=item.get("revised_prompt"),
         )
 
-    async def _update_connection_details(self) -> None:
-        """Update connection details."""
-        if not self._cloud.valid_subscription:
-            raise LLMAuthenticationError("Invalid subscription")
-
-        details: LLMConnectionDetails = await self._get_connection_details()
-
-        self._token = details["token"]
-        self._valid_until = utc_from_timestamp(float(details["valid_until"]))
-        self._base_url = details["base_url"]
-        self._generate_data_model = details["generate_data_model"]
-        self._generate_image_model = details["generate_image_model"]
-        self._conversation_model = details["conversation_model"]
-
-    async def async_ensure_token(self) -> None:
-        """Ensure the LLM token is valid and available."""
-        async with self._lock:
-            if not self._cloud.is_logged_in:
-                raise NabuCasaNotLoggedInError("User is not logged in")
-
-            if not self._validate_token():
-                await self._update_connection_details()
-
-            if not self._token or not self._base_url:
-                raise LLMError("Cloud LLM connection details are unavailable")
-
     async def async_generate_data(
         self,
         *,
@@ -210,39 +416,25 @@ class LLMHandler(ApiBase):
         stream: bool = False,
         tools: Iterable[ToolParam] | None = None,
         tool_choice: ToolChoice | None = None,
-    ) -> ResponsesAPIResponse | BaseResponsesAPIStreamingIterator:
+    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]:
         """Generate structured or free-form LLM data."""
-        await self.async_ensure_token()
-
         if TYPE_CHECKING:
             assert self._generate_data_model is not None
 
-        try:
-            response = await aresponses(
-                model=self._generate_data_model,
-                input=messages,
-                api_key=self._token,
-                api_base=self._base_url,
-                user=conversation_id,
-                stream=stream,
-                text_format=response_format,
-                tools=tools,
-                tool_choice=tool_choice,
-                custom_llm_provider="litellm_proxy",
-            )
-            return cast(
-                "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
-            )
-        except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
-        except (RateLimitError, ServiceUnavailableError) as err:
-            raise LLMRateLimitError("Cloud LLM is rate limited") from err
-        except APIError as err:
-            raise LLMServiceError("Error talking to Cloud LLM") from err
-        except Exception as err:
-            raise LLMServiceError(
-                "Unexpected error during LLM data generation"
-            ) from err
+        payload = self._build_responses_payload(
+            model=self._generate_data_model,
+            messages=messages,
+            conversation_id=conversation_id,
+            response_format=response_format,
+            stream=stream,
+            tools=tools,
+            tool_choice=tool_choice,
+        )
+
+        return await self._responses_api_call(
+            payload,
+            stream=stream,
+        )
 
     async def async_generate_image(
         self,
@@ -250,28 +442,21 @@ class LLMHandler(ApiBase):
         prompt: str,
     ) -> LLMGeneratedImage:
         """Generate an image via Cloud LLM."""
-        await self.async_ensure_token()
+        if TYPE_CHECKING:
+            assert self._generate_image_model is not None
 
-        try:
-            response = await aimage_generation(
-                prompt=prompt,
-                api_key=self._token,
-                api_base=self._base_url,
-                model=self._generate_image_model,
-                custom_llm_provider="litellm_proxy",
-            )
+        payload = {
+            "prompt": prompt,
+            "model": self._generate_image_model,
+        }
 
-        except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
-        except (RateLimitError, ServiceUnavailableError) as err:
-            raise LLMRateLimitError("Cloud LLM is rate limited") from err
-        except APIError as err:
-            raise LLMServiceError("Error talking to Cloud LLM") from err
-        except Exception as err:
-            raise LLMServiceError(
-                "Unexpected error during LLM image generation"
-            ) from err
-        return await self._extract_response_image_data(response)
+        response = await self._call_llm_api(
+            "images/generations",
+            payload=payload,
+        )
+        data = await self._get_response(response)
+
+        return await self._extract_response_image_data(data)
 
     async def async_edit_image(
         self,
@@ -280,48 +465,49 @@ class LLMHandler(ApiBase):
         attachments: list[LLMImageAttachment],
     ) -> LLMGeneratedImage:
         """Edit an image via Cloud LLM."""
-        await self.async_ensure_token()
-
-        image_payload: Any
-        mask_payload: Any | None = None
-
         if TYPE_CHECKING:
             assert self._generate_image_model is not None
 
-        file_buffers: list[io.BytesIO] = []
+        file_buffers: list[tuple[io.BytesIO, str | None]] = []
         for idx, attachment in enumerate(attachments):
             buffer = io.BytesIO(attachment["data"])
             buffer.name = attachment["filename"] or f"attachment_{idx}"
-            file_buffers.append(buffer)
+            file_buffers.append((buffer, attachment["mime_type"]))
+
+        if not file_buffers:
+            raise LLMRequestError("No attachments provided for LLM image editing")
+
+        image_buffers: list[tuple[io.BytesIO, str | None]]
 
         if len(file_buffers) == 1:
-            image_payload = file_buffers[0]
+            image_buffers = file_buffers
         else:
-            mask_payload = file_buffers[1]
-            remaining = [file_buffers[0], *file_buffers[2:]]
-            image_payload = remaining if len(remaining) > 1 else remaining[0]
+            image_buffers = [file_buffers[0], *file_buffers[2:]]
 
-        try:
-            response = await aimage_edit(
-                image=image_payload,
-                prompt=prompt,
-                model=self._generate_image_model,
-                mask=mask_payload,
-                api_key=self._token,
-                api_base=self._base_url,
-                custom_llm_provider="litellm_proxy",
+        form = FormData()
+        for key, value in {
+            "prompt": prompt,
+            "model": self._generate_image_model,
+        }.items():
+            form.add_field(key, str(value))
+
+        for image_buffer, mime_type in image_buffers:
+            image_buffer.seek(0)
+            form.add_field(
+                "image",
+                image_buffer,
+                filename=getattr(image_buffer, "name", "image.png"),
+                content_type=mime_type or IMAGE_MIME_TYPE,
             )
 
-        except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
-        except (RateLimitError, ServiceUnavailableError) as err:
-            raise LLMRateLimitError("Cloud LLM is rate limited") from err
-        except APIError as err:
-            raise LLMServiceError("Error talking to Cloud LLM") from err
-        except Exception as err:
-            raise LLMServiceError("Unexpected error during LLM image editing") from err
+        response = await self._call_llm_api(
+            "images/edits",
+            content_type=None,
+            data=form,
+        )
+        result = await self._get_response(response)
 
-        return await self._extract_response_image_data(response)
+        return await self._extract_response_image_data(result)
 
     async def async_process_conversation(
         self,
@@ -332,37 +518,21 @@ class LLMHandler(ApiBase):
         stream: bool = False,
         tools: Iterable[ToolParam] | None = None,
         tool_choice: ToolChoice | None = None,
-    ) -> ResponsesAPIResponse | BaseResponsesAPIStreamingIterator:
+    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]:
         """Generate a response for a conversation."""
-        await self.async_ensure_token()
-
         if TYPE_CHECKING:
             assert self._conversation_model is not None
+        payload = self._build_responses_payload(
+            model=self._conversation_model,
+            messages=messages,
+            conversation_id=conversation_id,
+            response_format=response_format,
+            stream=stream,
+            tools=tools,
+            tool_choice=tool_choice,
+        )
 
-        try:
-            response = await aresponses(
-                model=self._conversation_model,
-                input=messages,
-                api_key=self._token,
-                api_base=self._base_url,
-                user=conversation_id,
-                stream=stream,
-                text_format=response_format,
-                tools=tools,
-                tool_choice=tool_choice,
-                custom_llm_provider="litellm_proxy",
-            )
-
-            return cast(
-                "ResponsesAPIResponse | BaseResponsesAPIStreamingIterator", response
-            )
-        except AuthenticationError as err:
-            raise LLMAuthenticationError("Cloud LLM authentication failed") from err
-        except (RateLimitError, ServiceUnavailableError) as err:
-            raise LLMRateLimitError("Cloud LLM is rate limited") from err
-        except APIError as err:
-            raise LLMServiceError("Error talking to Cloud LLM") from err
-        except Exception as err:
-            raise LLMServiceError(
-                "Unexpected error during LLM conversation processing"
-            ) from err
+        return await self._responses_api_call(
+            payload,
+            stream=stream,
+        )
