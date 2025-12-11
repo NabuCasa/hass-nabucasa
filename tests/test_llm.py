@@ -2,18 +2,12 @@
 
 from __future__ import annotations
 
-import io
+import asyncio
+from collections.abc import AsyncIterator
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, cast
-from unittest.mock import AsyncMock, patch
+from typing import TYPE_CHECKING, Any, cast
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from litellm import ToolChoice, ToolParam
-from litellm.exceptions import (
-    APIError,
-    AuthenticationError,
-    RateLimitError,
-    ServiceUnavailableError,
-)
 import pytest
 
 from hass_nabucasa.exceptions import NabuCasaNotLoggedInError
@@ -21,16 +15,57 @@ from hass_nabucasa.llm import (
     LLMAuthenticationError,
     LLMImageAttachment,
     LLMRateLimitError,
+    LLMRequestError,
     LLMServiceError,
+    ResponsesAPIStreamEvent,
+    ToolChoice,
+    ToolParam,
+    stream_llm_response_events,
 )
 
 if TYPE_CHECKING:
+    from .utils.aiohttp import AiohttpClientMocker
+
+try:
     from hass_nabucasa import Cloud
+except ImportError:  # pragma: no cover
+    Cloud = Any  # type: ignore[misc, assignment]
+
+
+class _FakeStream:
+    """Simple async stream for simulating SSE responses."""
+
+    def __init__(self, lines: list[str]) -> None:
+        self._lines = [line.encode("utf-8") for line in lines]
+
+    async def readline(self) -> bytes:
+        if not self._lines:
+            await asyncio.sleep(0)
+            return b""
+        return self._lines.pop(0)
+
+
+class _FakeResponse:
+    """Simplified ClientResponse for SSE tests."""
+
+    def __init__(self, lines: list[str]) -> None:
+        self.status = 200
+        self.content = _FakeStream(lines)
+        self._released = False
+
+    def release(self) -> None:
+        """Mark the response as released."""
+        self._released = True
+
+    @property
+    def released(self) -> bool:
+        """Return True when release() was called."""
+        return self._released
 
 
 @pytest.fixture(autouse=True)
-def mock_llm_connection_details(aioclient_mock):
-    """Mock LLM connection details API call for all tests."""
+def mock_llm_connection_details(aioclient_mock: AiohttpClientMocker) -> None:
+    """Mock the initial LLM connection details fetch."""
     aioclient_mock.get(
         "https://api.example.com/llm/connection_details",
         json={
@@ -46,319 +81,268 @@ def mock_llm_connection_details(aioclient_mock):
 
 async def test_async_ensure_token_skips_when_not_logged_in(cloud: Cloud) -> None:
     """Ensure async_ensure_token exits early when the user is not logged in."""
-    with (
-        patch(
-            "hass_nabucasa.Cloud.is_logged_in",
-            False,
-        ),
-        pytest.raises(NabuCasaNotLoggedInError, match="User is not logged in"),
-    ):
+    cloud.id_token = None
+
+    with pytest.raises(NabuCasaNotLoggedInError, match="User is not logged in"):
         await cloud.llm.async_ensure_token()
 
 
 async def test_async_generate_data_returns_response(cloud: Cloud) -> None:
-    """async_generate_data should forward parameters to LiteLLM and return response."""
-    response = SimpleNamespace(
-        output=[
-            SimpleNamespace(
-                content=[
-                    SimpleNamespace(text="Hi there"),
-                ],
-            )
-        ]
-    )
-    mock_aresponses = AsyncMock(return_value=response)
+    """async_generate_data should call the Responses API with expected payload."""
+    await cloud.llm.async_ensure_token()
+    messages = [{"role": "user", "content": "Hello"}]
+    expected = {"output": [{"content": [{"type": "output_text", "text": "Hi"}]}]}
+    fake_response = SimpleNamespace()
+    mock_call = AsyncMock(return_value=fake_response)
+    mock_get_response = AsyncMock(return_value=expected)
 
-    with patch("hass_nabucasa.llm.aresponses", mock_aresponses):
+    with (
+        patch.object(cloud.llm, "_call_llm_api", mock_call),
+        patch.object(cloud.llm, "_get_response", mock_get_response),
+    ):
         result = await cloud.llm.async_generate_data(
-            messages=[{"role": "user", "content": "hi"}],
+            messages=messages,
             conversation_id="conversation-id",
             response_format={"type": "json_object"},
         )
 
-    assert result is response
-    assert mock_aresponses.await_args is not None
-    kwargs = mock_aresponses.await_args.kwargs
-    assert kwargs["model"] == "responses-model"
-    assert kwargs["input"] == [{"role": "user", "content": "hi"}]
-    assert kwargs["api_key"] == "token"
-    assert kwargs["api_base"] == "https://api.example"
-    assert kwargs["user"] == "conversation-id"
-    assert kwargs["stream"] is False
-    assert kwargs["text_format"] == {"type": "json_object"}
+    assert result == expected
+    mock_get_response.assert_awaited_once_with(fake_response)
+    assert mock_call.await_args is not None
+    call_payload = mock_call.await_args.kwargs["payload"]
+    assert call_payload["model"] == "responses-model"
+    assert call_payload["input"] == messages
+    assert call_payload["conversation"] == "conversation-id"
+    assert call_payload["response_format"] == {"type": "json_object"}
+    assert call_payload["stream"] is False
 
 
 async def test_async_generate_data_streams_when_requested(cloud: Cloud) -> None:
-    """async_generate_data should return LiteLLM stream results."""
-    mock_aresponses = AsyncMock()
-
-    with patch("hass_nabucasa.llm.aresponses", mock_aresponses):
-        result = await cloud.llm.async_generate_data(
-            messages=[],
-            conversation_id="abc",
-            stream=True,
-        )
-
-    assert result is mock_aresponses.return_value
-    assert mock_aresponses.await_args.kwargs["stream"] is True
-
-
-@pytest.mark.parametrize(
-    ("raised", "expected"),
-    [
-        (AuthenticationError("auth", "provider", "model"), LLMAuthenticationError),
-        (RateLimitError("ratelimit", "provider", "model"), LLMRateLimitError),
-        (ServiceUnavailableError("svc", "provider", "model"), LLMRateLimitError),
-        (APIError(500, "api", "provider", "model"), LLMServiceError),
-    ],
-)
-async def test_async_generate_data_maps_errors(
-    raised: Exception,
-    expected: type[Exception],
-    cloud: Cloud,
-) -> None:
-    """async_generate_data should convert LiteLLM errors to Cloud equivalents."""
-    mock_aresponses = AsyncMock(side_effect=raised)
-
-    with (
-        patch("hass_nabucasa.llm.aresponses", mock_aresponses),
-        pytest.raises(expected),
-    ):
-        await cloud.llm.async_generate_data(messages=[], conversation_id="conv")
-
-
-async def test_async_generate_image_calls_aimage_generation(
-    cloud: Cloud, mock_llm_connection_details
-) -> None:
-    """async_generate_image should call aimage_generation with proper args."""
-    raw_response = {"data": "raw"}
-    mock_generate = AsyncMock(return_value=raw_response)
-    mock_extract = AsyncMock(return_value="normalized-image")
-
-    with (
-        patch("hass_nabucasa.llm.aimage_generation", mock_generate),
-        patch(
-            "hass_nabucasa.llm.LLMHandler._extract_response_image_data", mock_extract
-        ),
-    ):
-        result = await cloud.llm.async_generate_image(prompt="draw a cat")
-
-    assert result == "normalized-image"
-    assert mock_generate.await_args is not None
-    kwargs = mock_generate.await_args.kwargs
-    assert kwargs["prompt"] == "draw a cat"
-    assert kwargs["api_key"] == "token"
-    assert kwargs["api_base"] == "https://api.example"
-    assert kwargs["model"] == "image-model"
-
-    mock_extract.assert_awaited_once_with(raw_response)
-
-
-@pytest.mark.parametrize(
-    ("raised", "expected"),
-    [
-        (AuthenticationError("auth", "provider", "model"), LLMAuthenticationError),
-        (RateLimitError("ratelimit", "provider", "model"), LLMRateLimitError),
-        (ServiceUnavailableError("svc", "provider", "model"), LLMRateLimitError),
-        (APIError(500, "api", "provider", "model"), LLMServiceError),
-    ],
-)
-async def test_async_generate_image_maps_errors(
-    raised: Exception,
-    expected: type[Exception],
-    cloud: Cloud,
-) -> None:
-    """async_generate_image should convert LiteLLM errors to Cloud equivalents."""
-    mock_generate = AsyncMock(side_effect=raised)
-
-    with (
-        patch("hass_nabucasa.llm.aimage_generation", mock_generate),
-        pytest.raises(expected),
-    ):
-        await cloud.llm.async_generate_image(prompt="draw")
-
-
-async def test_async_edit_image_single_attachment_payload(cloud: Cloud) -> None:
-    """async_edit_image should wrap a single attachment as BytesIO."""
+    """async_generate_data should return a streaming iterator when stream=True."""
     await cloud.llm.async_ensure_token()
+    fake_response = _FakeResponse(
+        lines=[
+            'data: {"delta":"hello"}',
+            "data: [DONE]",
+        ]
+    )
+    mock_call = AsyncMock(return_value=fake_response)
 
-    attachment: LLMImageAttachment = {
-        "filename": "first.png",
-        "mime_type": "image/png",
-        "data": b"payload",
-    }
-    mock_edit = AsyncMock()
-    mock_extract = AsyncMock(return_value="image")
-
-    with (
-        patch("hass_nabucasa.llm.aimage_edit", mock_edit),
-        patch(
-            "hass_nabucasa.llm.LLMHandler._extract_response_image_data", mock_extract
-        ),
-    ):
-        result = await cloud.llm.async_edit_image(
-            prompt="prompt",
-            attachments=[attachment],
-        )
-
-    assert result == "image"
-    assert mock_edit.await_args is not None
-    kwargs = mock_edit.await_args.kwargs
-
-    assert kwargs["mask"] is None
-    image_arg = kwargs["image"]
-    assert isinstance(image_arg, io.BytesIO)
-    assert image_arg.getvalue() == b"payload"
-    assert image_arg.name == "first.png"
-
-    assert kwargs["model"] == "image-model"
-    assert kwargs["api_key"] == "token"
-    assert kwargs["api_base"] == "https://api.example"
-
-    mock_extract.assert_awaited_once()
-
-
-async def test_async_edit_image_multiple_attachment_payloads(cloud: Cloud) -> None:
-    """async_edit_image should include mask and remaining images."""
-    await cloud.llm.async_ensure_token()
-
-    attachments: list[LLMImageAttachment] = [
-        {
-            "filename": "base.png",
-            "mime_type": "image/png",
-            "data": b"base",
-        },
-        {
-            "filename": "mask.png",
-            "mime_type": "image/png",
-            "data": b"mask",
-        },
-        {
-            "filename": "extra.png",
-            "mime_type": "image/png",
-            "data": b"extra",
-        },
-    ]
-
-    mock_edit = AsyncMock()
-    mock_extract = AsyncMock(return_value="image")
-
-    with (
-        patch("hass_nabucasa.llm.aimage_edit", mock_edit),
-        patch(
-            "hass_nabucasa.llm.LLMHandler._extract_response_image_data", mock_extract
-        ),
-    ):
-        result = await cloud.llm.async_edit_image(
-            prompt="prompt",
-            attachments=attachments,
-        )
-
-    assert result == "image"
-    assert mock_edit.await_args is not None
-    kwargs = mock_edit.await_args.kwargs
-
-    mask_arg = kwargs["mask"]
-    assert isinstance(mask_arg, io.BytesIO)
-    assert mask_arg.getvalue() == b"mask"
-    assert mask_arg.name == "mask.png"
-
-    image_arg = kwargs["image"]
-    assert isinstance(image_arg, list)
-    assert [part.getvalue() for part in image_arg] == [b"base", b"extra"]
-    assert [part.name for part in image_arg] == ["base.png", "extra.png"]
-
-    assert kwargs["model"] == "image-model"
-    assert kwargs["api_key"] == "token"
-    assert kwargs["api_base"] == "https://api.example"
-
-    mock_extract.assert_awaited_once()
-
-
-async def test_async_process_conversation_forwards_arguments(
-    cloud: Cloud,
-) -> None:
-    """async_process_conversation should forward params and return response."""
-    response = SimpleNamespace(ok=True)
-    mock_aresponses = AsyncMock(return_value=response)
-
-    with patch("hass_nabucasa.llm.aresponses", mock_aresponses):
-        result = await cloud.llm.async_process_conversation(
-            messages=[{"role": "user", "content": "hello"}],
-            conversation_id="conv-id",
-            response_format={"type": "json_object"},
-            stream=False,
-            tools=cast(
-                "list[ToolParam]",
-                [{"type": "function", "function": {"name": "do_something"}}],
-            ),
-            tool_choice=cast(
-                "ToolChoice", {"type": "function", "function": {"name": "do_something"}}
-            ),
-        )
-
-    assert result is response
-    assert mock_aresponses.await_args is not None
-    kwargs = mock_aresponses.await_args.kwargs
-
-    assert kwargs["model"] == "conv-model"
-    assert kwargs["input"] == [{"role": "user", "content": "hello"}]
-    assert kwargs["api_key"] == "token"
-    assert kwargs["api_base"] == "https://api.example"
-    assert kwargs["user"] == "conv-id"
-    assert kwargs["stream"] is False
-    assert kwargs["text_format"] == {"type": "json_object"}
-    assert kwargs["tools"] == [
-        {"type": "function", "function": {"name": "do_something"}}
-    ]
-    assert kwargs["tool_choice"] == {
-        "type": "function",
-        "function": {"name": "do_something"},
-    }
-
-
-async def test_async_process_conversation_streams_when_requested(
-    cloud: Cloud,
-) -> None:
-    """async_process_conversation should return LiteLLM stream when stream=True."""
-    mock_aresponses = AsyncMock()
-
-    with patch("hass_nabucasa.llm.aresponses", mock_aresponses):
-        result = await cloud.llm.async_process_conversation(
+    with patch.object(cloud.llm, "_call_llm_api", mock_call):
+        iterator = await cloud.llm.async_generate_data(
             messages=[],
             conversation_id="conv-stream",
             stream=True,
         )
 
-    assert result is mock_aresponses.return_value
-    assert mock_aresponses.await_args is not None
-    assert mock_aresponses.await_args.kwargs["stream"] is True
-    # Still should use the conversation model
-    assert mock_aresponses.await_args.kwargs["model"] == "conv-model"
+        events = [
+            event.to_dict()
+            async for event in cast("AsyncIterator[ResponsesAPIStreamEvent]", iterator)
+        ]
+
+    assert events == [{"delta": "hello"}]
+    assert fake_response.released
+    assert mock_call.await_args is not None
+    payload = mock_call.await_args.kwargs["payload"]
+    assert payload["stream"] is True
+    assert payload["model"] == "responses-model"
 
 
 @pytest.mark.parametrize(
-    ("raised", "expected"),
+    ("status", "expected"),
     [
-        (AuthenticationError("auth", "provider", "model"), LLMAuthenticationError),
-        (RateLimitError("ratelimit", "provider", "model"), LLMRateLimitError),
-        (ServiceUnavailableError("svc", "provider", "model"), LLMRateLimitError),
-        (APIError(500, "api", "provider", "model"), LLMServiceError),
+        (401, LLMAuthenticationError),
+        (429, LLMRateLimitError),
+        (503, LLMRateLimitError),
+        (500, LLMServiceError),
     ],
 )
-async def test_async_process_conversation_maps_errors(
-    raised: Exception,
+async def test_async_generate_data_maps_http_errors(
+    status: int,
     expected: type[Exception],
     cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
 ) -> None:
-    """async_process_conversation should convert LiteLLM errors to Cloud equivalents."""
-    mock_aresponses = AsyncMock(side_effect=raised)
+    """async_generate_data should translate HTTP errors to LLM errors."""
+    aioclient_mock.post("https://api.example/responses", status=status, text="err")
+
+    with pytest.raises(expected):
+        await cloud.llm.async_generate_data(messages=[], conversation_id="conv")
+
+
+async def test_async_generate_image_posts_payload(cloud: Cloud) -> None:
+    """async_generate_image should call the image generation endpoint."""
+    await cloud.llm.async_ensure_token()
+    fake_response = SimpleNamespace()
+    mock_call = AsyncMock(return_value=fake_response)
+    mock_get_response = AsyncMock(return_value={"data": []})
+    mock_extract = AsyncMock(return_value="normalized-image")
 
     with (
-        patch("hass_nabucasa.llm.aresponses", mock_aresponses),
-        pytest.raises(expected),
+        patch.object(cloud.llm, "_call_llm_api", mock_call),
+        patch.object(cloud.llm, "_get_response", mock_get_response),
+        patch.object(cloud.llm, "_extract_response_image_data", mock_extract),
     ):
-        await cloud.llm.async_process_conversation(
-            messages=[],
-            conversation_id="conv",
+        result = await cloud.llm.async_generate_image(prompt="draw a cat")
+
+    assert result == "normalized-image"
+    payload = mock_call.await_args.kwargs["payload"]
+    assert payload == {"prompt": "draw a cat", "model": "image-model"}
+    mock_get_response.assert_awaited_once_with(fake_response)
+    mock_extract.assert_awaited_once_with({"data": []})
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (401, LLMAuthenticationError),
+        (429, LLMRateLimitError),
+        (503, LLMRateLimitError),
+        (500, LLMServiceError),
+    ],
+)
+async def test_async_generate_image_maps_http_errors(
+    status: int,
+    expected: type[Exception],
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """async_generate_image should translate HTTP failures."""
+    aioclient_mock.post("https://api.example/images/generations", status=status)
+
+    with pytest.raises(expected):
+        await cloud.llm.async_generate_image(prompt="draw anything")
+
+
+async def test_async_edit_image_builds_file_payloads(cloud: Cloud) -> None:
+    """async_edit_image should convert attachments into multipart payloads."""
+    await cloud.llm.async_ensure_token()
+
+    attachments: list[LLMImageAttachment] = [
+        {"filename": "base.png", "mime_type": "image/png", "data": b"base-bytes"},
+    ]
+
+    mock_response = SimpleNamespace()
+    mock_call = AsyncMock(return_value=mock_response)
+    mock_get_response = AsyncMock(return_value={"data": []})
+    mock_extract = AsyncMock(return_value="image-bytes")
+    form_mock = MagicMock()
+
+    with (
+        patch("hass_nabucasa.llm.FormData", return_value=form_mock),
+        patch.object(cloud.llm, "_call_llm_api", mock_call),
+        patch.object(cloud.llm, "_get_response", mock_get_response),
+        patch.object(cloud.llm, "_extract_response_image_data", mock_extract),
+    ):
+        result = await cloud.llm.async_edit_image(
+            prompt="enhance",
+            attachments=attachments,
         )
+
+    assert result == "image-bytes"
+    mock_call.assert_awaited_once()
+    assert mock_call.await_args.kwargs["data"] is form_mock
+    prompt_calls = [
+        entry
+        for entry in form_mock.add_field.mock_calls
+        if entry.args[0] in {"prompt", "model"}
+    ]
+    assert prompt_calls[0].args == ("prompt", "enhance")
+    assert prompt_calls[1].args == ("model", "image-model")
+
+    image_calls = [
+        entry for entry in form_mock.add_field.mock_calls if entry.args[0] == "image"
+    ]
+    image = image_calls[0]
+    assert image.kwargs["filename"] == "base.png"
+    assert image.kwargs["content_type"] == "image/png"
+    assert image.args[1].getvalue() == b"base-bytes"
+
+
+async def test_async_edit_image_requires_attachment(cloud: Cloud) -> None:
+    """async_edit_image should raise when no attachments are provided."""
+    await cloud.llm.async_ensure_token()
+
+    with pytest.raises(LLMRequestError, match="No attachments provided"):
+        await cloud.llm.async_edit_image(prompt="prompt", attachments=[])
+
+
+async def test_async_process_conversation_returns_response(cloud: Cloud) -> None:
+    """async_process_conversation should call Responses API using conversation model."""
+    await cloud.llm.async_ensure_token()
+    fake_response = SimpleNamespace()
+    mock_call = AsyncMock(return_value=fake_response)
+    mock_get_response = AsyncMock(return_value={"output": []})
+
+    tools: list[ToolParam] = [
+        {"type": "function", "function": {"name": "do_something"}},
+    ]
+    tool_choice: ToolChoice = {
+        "type": "function",
+        "function": {"name": "do_something"},
+    }
+
+    payload = [{"role": "user", "content": "Hi"}]
+    with (
+        patch.object(cloud.llm, "_call_llm_api", mock_call),
+        patch.object(cloud.llm, "_get_response", mock_get_response),
+    ):
+        result = await cloud.llm.async_process_conversation(
+            messages=payload,
+            conversation_id="abc",
+            response_format={"type": "json_schema"},
+            tools=tools,
+            tool_choice=tool_choice,
+        )
+
+    assert result == {"output": []}
+    payload = mock_call.await_args.kwargs["payload"]
+    assert payload["model"] == "conv-model"
+    assert payload["tools"] == tools
+    assert payload["tool_choice"] == tool_choice
+    assert payload["response_format"] == {"type": "json_schema"}
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (401, LLMAuthenticationError),
+        (429, LLMRateLimitError),
+        (503, LLMRateLimitError),
+        (500, LLMServiceError),
+    ],
+)
+async def test_async_process_conversation_maps_http_errors(
+    status: int,
+    expected: type[Exception],
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """async_process_conversation should translate HTTP errors."""
+    aioclient_mock.post("https://api.example/responses", status=status)
+
+    with pytest.raises(expected):
+        await cloud.llm.async_process_conversation(messages=[], conversation_id="conv")
+
+
+async def test_stream_llm_response_events_parses_lines() -> None:
+    """stream_llm_response_events should emit valid events and skip invalid chunks."""
+    fake_response = _FakeResponse(
+        [
+            'data: {"foo": 1}',
+            "data: not-json",
+            'data: {"bar": 2}',
+            "data: [DONE]",
+        ]
+    )
+
+    events = [
+        event.to_dict()
+        async for event in cast(
+            "AsyncIterator[ResponsesAPIStreamEvent]",
+            stream_llm_response_events(fake_response),
+        )
+    ]
+
+    assert events == [{"foo": 1}, {"bar": 2}]
+    assert fake_response.released
