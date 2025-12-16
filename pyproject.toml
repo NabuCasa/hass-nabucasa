@@ -18,7 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "acme==5.2.1",
+    "acme==5.2.2",
     "aiohttp>=3.6.1",
     "async_timeout>=4",
     "atomicwrites-homeassistant==1.4.1",
