@@ -1,37 +1,43 @@
 # serializer version: 1
-# name: test_check_latency_all_working
+# name: test_async_check_latency_multiple_addresses
   list([
     dict({
       'avg_rtt': 10.0,
-      'hostname': 'server2.example.com',
+      'hostname': '8.8.8.8',
       'ip': '8.8.8.8',
       'is_alive': True,
     }),
     dict({
       'avg_rtt': 15.0,
-      'hostname': 'server3.example.com',
+      'hostname': '9.9.9.9',
       'ip': '9.9.9.9',
       'is_alive': True,
     }),
     dict({
       'avg_rtt': 20.0,
-      'hostname': 'server1.example.com',
+      'hostname': '1.1.1.1',
       'ip': '1.1.1.1',
       'is_alive': True,
     }),
   ])
 # ---
-# name: test_check_latency_partial_failure
+# name: test_async_check_latency_partial_unreachable
   list([
     dict({
       'avg_rtt': 15.0,
-      'hostname': 'good.example.com',
-      'ip': '1.2.3.4',
+      'hostname': '9.9.9.9',
+      'ip': '9.9.9.9',
+      'is_alive': True,
+    }),
+    dict({
+      'avg_rtt': 20.0,
+      'hostname': '1.1.1.1',
+      'ip': '1.1.1.1',
       'is_alive': True,
     }),
   ])
 # ---
-# name: test_check_latency_with_ip
+# name: test_async_check_latency_with_ip
   list([
     dict({
       'avg_rtt': 10.5,

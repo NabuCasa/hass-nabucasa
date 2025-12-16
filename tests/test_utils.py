@@ -124,101 +124,63 @@ def test_seconds_as_dhms(seconds, expected):
     assert utils.seconds_as_dhms(seconds) == expected
 
 
-async def test_check_latency_no_servers():
-    """Test check_latency with empty server list."""
+async def test_async_check_latency_no_addresses():
+    """Test async_check_latency with empty address list."""
     result = await utils.async_check_latency([])
     assert result is None
 
 
-async def test_check_latency_no_servers_resolve():
-    """Test check_latency when no servers can be resolved."""
-    with patch(
-        "hass_nabucasa.utils.async_resolve",
-        side_effect=OSError("DNS resolution failed"),
-    ):
-        result = await utils.async_check_latency(
-            ["invalid.example.com", "bad.example.org"]
-        )
-    assert result is None
-
-
-async def test_check_latency_with_ip(snapshot: SnapshotAssertion):
-    """Test check_latency with an IP address."""
+async def test_async_check_latency_with_ip(snapshot: SnapshotAssertion):
+    """Test async_check_latency with an IP address."""
     mock_host = MagicMock(address="8.8.8.8", is_alive=True, avg_rtt=10.5)
 
-    with (
-        patch(
-            "hass_nabucasa.utils.async_resolve",
-            return_value=["8.8.8.8"],
-        ),
-        patch(
-            "hass_nabucasa.utils.async_multiping",
-            return_value=[mock_host],
-        ),
+    with patch(
+        "hass_nabucasa.utils.async_multiping",
+        return_value=[mock_host],
     ):
         result = await utils.async_check_latency(["8.8.8.8"])
 
     assert result == snapshot
 
 
-async def test_check_latency_partial_failure(snapshot: SnapshotAssertion):
-    """Test check_latency when one server fails to resolve."""
-    mock_host = MagicMock(address="1.2.3.4", is_alive=True, avg_rtt=15.0)
-
-    async def mock_resolve(server):
-        if server == "good.example.com":
-            return ["1.2.3.4"]
-        raise OSError("DNS resolution failed")
-
-    with (
-        patch("hass_nabucasa.utils.async_resolve", side_effect=mock_resolve),
-        patch("hass_nabucasa.utils.async_multiping", return_value=[mock_host]),
-    ):
-        result = await utils.async_check_latency(
-            ["good.example.com", "bad.example.com"]
-        )
-
-    assert result == snapshot
-
-
-async def test_check_latency_all_working(snapshot: SnapshotAssertion):
-    """Test check_latency with multiple working servers sorted by latency."""
+async def test_async_check_latency_multiple_addresses(snapshot: SnapshotAssertion):
+    """Test async_check_latency with multiple addresses sorted by latency."""
     mock_host1 = MagicMock(address="1.1.1.1", is_alive=True, avg_rtt=20.0)
     mock_host2 = MagicMock(address="8.8.8.8", is_alive=True, avg_rtt=10.0)
     mock_host3 = MagicMock(address="9.9.9.9", is_alive=True, avg_rtt=15.0)
 
-    async def mock_resolve(server):
-        mapping = {
-            "server1.example.com": ["1.1.1.1"],
-            "server2.example.com": ["8.8.8.8"],
-            "server3.example.com": ["9.9.9.9"],
-        }
-        return mapping[server]
-
-    with (
-        patch("hass_nabucasa.utils.async_resolve", side_effect=mock_resolve),
-        patch(
-            "hass_nabucasa.utils.async_multiping",
-            return_value=[mock_host1, mock_host2, mock_host3],
-        ),
+    with patch(
+        "hass_nabucasa.utils.async_multiping",
+        return_value=[mock_host1, mock_host2, mock_host3],
     ):
-        result = await utils.async_check_latency(
-            ["server1.example.com", "server2.example.com", "server3.example.com"]
-        )
+        result = await utils.async_check_latency(["1.1.1.1", "8.8.8.8", "9.9.9.9"])
 
     # Should be sorted by avg_rtt (fastest first)
     assert result == snapshot
 
 
-async def test_check_latency_icmp_error():
-    """Test check_latency when ICMP ping fails."""
-    with (
-        patch("hass_nabucasa.utils.async_resolve", return_value=["1.2.3.4"]),
-        patch(
-            "hass_nabucasa.utils.async_multiping",
-            side_effect=ICMPLibError("ICMP error"),
-        ),
+async def test_async_check_latency_partial_unreachable(snapshot: SnapshotAssertion):
+    """Test async_check_latency when some hosts are unreachable."""
+    mock_host1 = MagicMock(address="1.1.1.1", is_alive=True, avg_rtt=20.0)
+    mock_host2 = MagicMock(address="8.8.8.8", is_alive=False, avg_rtt=0.0)
+    mock_host3 = MagicMock(address="9.9.9.9", is_alive=True, avg_rtt=15.0)
+
+    with patch(
+        "hass_nabucasa.utils.async_multiping",
+        return_value=[mock_host1, mock_host2, mock_host3],
     ):
-        result = await utils.async_check_latency(["example.com"])
+        result = await utils.async_check_latency(["1.1.1.1", "8.8.8.8", "9.9.9.9"])
+
+    # Unreachable hosts should be filtered out
+    assert result == snapshot
+
+
+async def test_async_check_latency_icmp_error():
+    """Test async_check_latency when ICMP ping fails."""
+    with patch(
+        "hass_nabucasa.utils.async_multiping",
+        side_effect=ICMPLibError("ICMP error"),
+    ):
+        result = await utils.async_check_latency(["8.8.8.8"])
 
     assert result is None

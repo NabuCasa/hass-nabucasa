@@ -11,7 +11,7 @@ import ssl
 from typing import Any, TypedDict, TypeVar
 
 import ciso8601
-from icmplib import Host, ICMPLibError, async_multiping, async_resolve
+from icmplib import Host, ICMPLibError, async_multiping
 import jwt
 
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
@@ -121,45 +121,32 @@ def next_midnight() -> float:
 
 
 async def async_check_latency(
-    servers: list[str],
+    addresses: list[str],
     *,
     count: int = 1,
     ping_timeout: int = 5,
     privileged: bool = False,
 ) -> list[HostLatency] | None:
-    """Check latency to a list of servers and return them sorted by avg_rtt.
+    """Check latency to a list of IP addresses and return them sorted by avg_rtt.
 
     Args:
-        servers: List of hostnames or IP addresses to ping.
-        count: Number of ping packets to send to each server.
+        addresses: List of IP addresses to ping.
+        count: Number of ping packets to send to each address.
         ping_timeout: Timeout in seconds for each ping.
         privileged: Whether to use privileged (raw socket) mode.
 
     Returns:
         List of HostLatency dicts sorted by avg_rtt (fastest first),
-        or None if no servers could be resolved.
+        or None if ping fails.
 
     """
-    # Resolve hostnames to IPs
-    resolved = await asyncio.gather(
-        *(async_resolve(server) for server in servers), return_exceptions=True
-    )
-
-    # Build mapping from IP to hostname, skip failed resolutions
-    ip_to_hostname: dict[str, str] = {}
-    for server, result in zip(servers, resolved, strict=True):
-        if isinstance(result, BaseException):
-            continue
-        ip: str = result[0] if isinstance(result, list) else result
-        ip_to_hostname[ip] = server
-
-    if not ip_to_hostname:
+    if not addresses:
         return None
 
     hosts: list[Host]
     try:
         hosts = await async_multiping(
-            addresses=ip_to_hostname.keys(),
+            addresses=addresses,
             count=count,
             timeout=ping_timeout,
             privileged=privileged,
@@ -167,13 +154,11 @@ async def async_check_latency(
     except ICMPLibError:
         return None
 
-    # Sort hosts by latency and map back to HostLatency dicts
-    sorted_hosts = sorted(
-        hosts, key=lambda h: h.avg_rtt if h.is_alive else float("inf")
-    )
+    # Filter to only alive hosts and sort by latency
+    sorted_hosts = sorted([h for h in hosts if h.is_alive], key=lambda h: h.avg_rtt)
     return [
         HostLatency(
-            hostname=ip_to_hostname[host.address],
+            hostname=host.address,
             ip=host.address,
             is_alive=host.is_alive,
             avg_rtt=host.avg_rtt,
