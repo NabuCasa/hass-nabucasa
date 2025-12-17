@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -24,12 +24,9 @@ from hass_nabucasa.llm import (
 )
 
 if TYPE_CHECKING:
-    from .utils.aiohttp import AiohttpClientMocker
-
-try:
     from hass_nabucasa import Cloud
-except ImportError:  # pragma: no cover
-    Cloud = Any  # type: ignore[misc, assignment]
+
+    from .utils.aiohttp import AiohttpClientMocker
 
 
 class _FakeStream:

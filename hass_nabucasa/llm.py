@@ -189,10 +189,10 @@ async def stream_llm_response_events(
                 break
             try:
                 payload = json.loads(chunk)
-            except json.JSONDecodeError:
-                _LOGGER.debug(
-                    "Failed to decode Cloud LLM stream chunk: %s",
-                    chunk,
+            except json.JSONDecodeError as err:
+                _LOGGER.error(
+                    "Failed to decode Cloud LLM stream: %s",
+                    err,
                 )
                 continue
             yield _build_stream_event(payload)
