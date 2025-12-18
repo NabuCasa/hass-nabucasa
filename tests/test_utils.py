@@ -1,4 +1,4 @@
-"""Tests for hass_nabucaa utils."""
+"""Tests for hass_nabucasa utils."""
 
 from unittest.mock import MagicMock, patch
 

@@ -24,7 +24,7 @@ class CheckLatencyError(NabuCasaBaseError):
     """Error to indicate a ping failure."""
 
 
-class HostLatency(TypedDict):
+class CheckLatencyHostResult(TypedDict):
     """Result of a latency check for a single host."""
 
     hostname: str
@@ -132,7 +132,7 @@ async def async_check_latency(
     count: int = 1,
     ping_timeout: int = 5,
     privileged: bool = False,
-) -> list[HostLatency]:
+) -> list[CheckLatencyHostResult]:
     """Check latency to a list of IP addresses and return them sorted by avg_rtt.
 
     Args:
@@ -142,12 +142,11 @@ async def async_check_latency(
         privileged: Whether to use privileged (raw socket) mode.
 
     Returns:
-        List of HostLatency dicts sorted by avg_rtt (fastest first),
-        or None if ping fails.
+        List of CheckLatencyHostResult dicts sorted by avg_rtt (fastest first).
 
     """
     if not addresses:
-        raise CheckLatencyError("No addresses provided for latency check.")
+        raise CheckLatencyError("No addresses provided")
 
     hosts: list[Host]
     try:
@@ -158,16 +157,16 @@ async def async_check_latency(
             privileged=privileged,
         )
     except ICMPLibError:
-        raise CheckLatencyError("ICMP ping failed.") from None
+        raise CheckLatencyError("ICMP ping failed") from None
 
     # Filter to only alive hosts and sort by latency
     sorted_hosts = sorted([h for h in hosts if h.is_alive], key=lambda h: h.avg_rtt)
 
     if not sorted_hosts:
-        raise CheckLatencyError("All hosts are unreachable.")
+        raise CheckLatencyError("All hosts are unreachable")
 
     return [
-        HostLatency(
+        CheckLatencyHostResult(
             hostname=host.address,
             ip=host.address,
             is_alive=host.is_alive,

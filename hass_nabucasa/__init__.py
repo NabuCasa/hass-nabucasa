@@ -98,6 +98,7 @@ from .service_discovery import (
 from .utils import (
     UTC,
     CheckLatencyError,
+    CheckLatencyHostResult,
     async_check_latency,
     gather_callbacks,
     parse_date,
@@ -119,6 +120,7 @@ __all__ = [
     "AlreadyConnectedError",
     "CertificateStatus",
     "CheckLatencyError",
+    "CheckLatencyHostResult",
     "Cloud",
     "CloudApiClientError",
     "CloudApiCodedError",
