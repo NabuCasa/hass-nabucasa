@@ -14,8 +14,14 @@ import ciso8601
 from icmplib import Host, ICMPLibError, async_multiping
 import jwt
 
+from .exceptions import NabuCasaBaseError
+
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 UTC = dt.UTC
+
+
+class PingError(NabuCasaBaseError):
+    """Error to indicate a ping failure."""
 
 
 class HostLatency(TypedDict):
@@ -126,7 +132,7 @@ async def async_check_latency(
     count: int = 1,
     ping_timeout: int = 5,
     privileged: bool = False,
-) -> list[HostLatency] | None:
+) -> list[HostLatency]:
     """Check latency to a list of IP addresses and return them sorted by avg_rtt.
 
     Args:
@@ -141,7 +147,7 @@ async def async_check_latency(
 
     """
     if not addresses:
-        return None
+        raise PingError("No addresses provided for latency check.")
 
     hosts: list[Host]
     try:
@@ -152,7 +158,7 @@ async def async_check_latency(
             privileged=privileged,
         )
     except ICMPLibError:
-        return None
+        raise PingError("ICMP ping failed.") from None
 
     # Filter to only alive hosts and sort by latency
     sorted_hosts = sorted([h for h in hosts if h.is_alive], key=lambda h: h.avg_rtt)

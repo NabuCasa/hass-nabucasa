@@ -125,9 +125,9 @@ def test_seconds_as_dhms(seconds, expected):
 
 
 async def test_async_check_latency_no_addresses():
-    """Test async_check_latency with empty address list."""
-    result = await utils.async_check_latency([])
-    assert result is None
+    """Test async_check_latency with empty address list raises PingError."""
+    with pytest.raises(utils.PingError, match="No addresses provided"):
+        await utils.async_check_latency([])
 
 
 async def test_async_check_latency_with_ip(snapshot: SnapshotAssertion):
@@ -176,11 +176,12 @@ async def test_async_check_latency_partial_unreachable(snapshot: SnapshotAsserti
 
 
 async def test_async_check_latency_icmp_error():
-    """Test async_check_latency when ICMP ping fails."""
-    with patch(
-        "hass_nabucasa.utils.async_multiping",
-        side_effect=ICMPLibError("ICMP error"),
+    """Test async_check_latency when ICMP ping fails raises PingError."""
+    with (
+        patch(
+            "hass_nabucasa.utils.async_multiping",
+            side_effect=ICMPLibError("ICMP error"),
+        ),
+        pytest.raises(utils.PingError, match="ICMP ping failed"),
     ):
-        result = await utils.async_check_latency(["8.8.8.8"])
-
-    assert result is None
+        await utils.async_check_latency(["8.8.8.8"])
