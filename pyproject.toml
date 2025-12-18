@@ -26,6 +26,7 @@ dependencies = [
     "ciso8601>=2.3.0",
     "cryptography>=42.0.0",
     "grpcio>=1.75.1,<2",
+    "icmplib>3,<4",
     "josepy>=2,<3",
     "litellm>=1.80.0,<2",
     "pycognito==2024.5.1",

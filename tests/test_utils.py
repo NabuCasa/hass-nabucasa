@@ -125,8 +125,8 @@ def test_seconds_as_dhms(seconds, expected):
 
 
 async def test_async_check_latency_no_addresses():
-    """Test async_check_latency with empty address list raises PingError."""
-    with pytest.raises(utils.PingError, match="No addresses provided"):
+    """Test async_check_latency with empty address list raises CheckLatencyError."""
+    with pytest.raises(utils.CheckLatencyError, match="No addresses provided"):
         await utils.async_check_latency([])
 
 
@@ -176,12 +176,27 @@ async def test_async_check_latency_partial_unreachable(snapshot: SnapshotAsserti
 
 
 async def test_async_check_latency_icmp_error():
-    """Test async_check_latency when ICMP ping fails raises PingError."""
+    """Test async_check_latency when ICMP ping fails raises CheckLatencyError."""
     with (
         patch(
             "hass_nabucasa.utils.async_multiping",
             side_effect=ICMPLibError("ICMP error"),
         ),
-        pytest.raises(utils.PingError, match="ICMP ping failed"),
+        pytest.raises(utils.CheckLatencyError, match="ICMP ping failed"),
     ):
         await utils.async_check_latency(["8.8.8.8"])
+
+
+async def test_async_check_latency_all_unreachable():
+    """Test async_check_latency when all hosts are unreachable raises CheckLatencyError."""
+    mock_host1 = MagicMock(address="1.1.1.1", is_alive=False, avg_rtt=0.0)
+    mock_host2 = MagicMock(address="8.8.8.8", is_alive=False, avg_rtt=0.0)
+
+    with (
+        patch(
+            "hass_nabucasa.utils.async_multiping",
+            return_value=[mock_host1, mock_host2],
+        ),
+        pytest.raises(utils.CheckLatencyError, match="All hosts are unreachable"),
+    ):
+        await utils.async_check_latency(["1.1.1.1", "8.8.8.8"])

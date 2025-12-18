@@ -20,7 +20,7 @@ CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-na
 UTC = dt.UTC
 
 
-class PingError(NabuCasaBaseError):
+class CheckLatencyError(NabuCasaBaseError):
     """Error to indicate a ping failure."""
 
 
@@ -147,7 +147,7 @@ async def async_check_latency(
 
     """
     if not addresses:
-        raise PingError("No addresses provided for latency check.")
+        raise CheckLatencyError("No addresses provided for latency check.")
 
     hosts: list[Host]
     try:
@@ -158,10 +158,14 @@ async def async_check_latency(
             privileged=privileged,
         )
     except ICMPLibError:
-        raise PingError("ICMP ping failed.") from None
+        raise CheckLatencyError("ICMP ping failed.") from None
 
     # Filter to only alive hosts and sort by latency
     sorted_hosts = sorted([h for h in hosts if h.is_alive], key=lambda h: h.avg_rtt)
+
+    if not sorted_hosts:
+        raise CheckLatencyError("All hosts are unreachable.")
+
     return [
         HostLatency(
             hostname=host.address,

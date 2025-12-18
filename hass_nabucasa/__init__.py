@@ -95,7 +95,15 @@ from .service_discovery import (
     ServiceDiscoveryMissingActionError,
     ServiceDiscoveryMissingParameterError,
 )
-from .utils import UTC, gather_callbacks, parse_date, seconds_as_dhms, utcnow
+from .utils import (
+    UTC,
+    CheckLatencyError,
+    async_check_latency,
+    gather_callbacks,
+    parse_date,
+    seconds_as_dhms,
+    utcnow,
+)
 from .voice import Voice
 from .voice_api import VoiceApi, VoiceApiError
 
@@ -110,6 +118,7 @@ __all__ = [
     "AlexaApiNoTokenError",
     "AlreadyConnectedError",
     "CertificateStatus",
+    "CheckLatencyError",
     "Cloud",
     "CloudApiClientError",
     "CloudApiCodedError",
@@ -161,6 +170,7 @@ __all__ = [
     "UserNotConfirmed",
     "UserNotFound",
     "VoiceApiError",
+    "async_check_latency",
     "calculate_b64md5",
 ]
 
