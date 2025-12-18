@@ -188,7 +188,7 @@ async def test_async_check_latency_icmp_error():
 
 
 async def test_async_check_latency_all_unreachable():
-    """Test async_check_latency when all hosts are unreachable raises CheckLatencyError."""
+    """Test async_check_latency when all hosts are unreachable raises."""
     mock_host1 = MagicMock(address="1.1.1.1", is_alive=False, avg_rtt=0.0)
     mock_host2 = MagicMock(address="8.8.8.8", is_alive=False, avg_rtt=0.0)
 
