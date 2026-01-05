@@ -324,7 +324,7 @@ async def test_load_backend_exists_wrong_cert(
     )
 
     aioclient_mock.post(
-        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
+        f"https://{cloud.api_server}/account/instance/resolve_dns_cname",
         json=[
             "test.dui.nabu.casa",
             "_acme-challenge.test.dui.nabu.casa",
@@ -772,7 +772,7 @@ async def test_recreating_old_certificate_with_bad_dns_config(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
+        f"https://{cloud.api_server}/account/instance/resolve_dns_cname",
         json=["test.dui.nabu.casa"],
     )
 
@@ -851,7 +851,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
+        f"https://{cloud.api_server}/account/instance/resolve_dns_cname",
         exc=exception,
     )
 
@@ -912,7 +912,7 @@ async def test_regeneration_without_warning_for_good_dns_config(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
+        f"https://{cloud.api_server}/account/instance/resolve_dns_cname",
         json=[
             "test.dui.nabu.casa",
             "_acme-challenge.test.dui.nabu.casa",
@@ -1309,7 +1309,7 @@ async def test_recreate_acme_integration_during_load_backend(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
+        f"https://{cloud.api_server}/account/instance/resolve_dns_cname",
         json=[
             "test.dui.nabu.casa",
             "_acme-challenge.test.dui.nabu.casa",

@@ -192,7 +192,6 @@ class Cloud(Generic[_ClientT]):
         region: str | None = None,
         user_pool_id: str | None = None,
         account_link_server: str | None = None,
-        accounts_server: str | None = None,
         acme_server: str | None = None,
         relayer_server: str | None = None,
         remotestate_server: str | None = None,
@@ -228,7 +227,6 @@ class Cloud(Generic[_ClientT]):
         self.user_pool_id = _values.get("user_pool_id", user_pool_id)
 
         self.account_link_server = _servers.get("account_link", account_link_server)
-        self.accounts_server = _servers.get("accounts", accounts_server)
         self.acme_server = _servers.get("acme", acme_server)
         self.api_server = _servers.get("api", api_server)
         self.relayer_server = _servers.get("relayer", relayer_server)

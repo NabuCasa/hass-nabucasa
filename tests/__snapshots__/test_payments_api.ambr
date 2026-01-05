@@ -1,103 +1,103 @@
 # serializer version: 1
 # name: test_getting_connection_details[response0]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Sending GET request to accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Response for get from accounts.example.com/payments/subscription_info (200) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/account/payments/subscription_info (200) 
   [DEBUG] hass_nabucasa.payments_api: Found disconnected account with valid subscription, connecting
   '''
 # ---
 # name: test_migrate_paypal_agreement_success[response0]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://accounts.example.com/payments/migrate_paypal_agreement
-  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/payments/migrate_paypal_agreement
-  [DEBUG] hass_nabucasa.api: Response for post from accounts.example.com/payments/migrate_paypal_agreement (200) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://api.example.com/account/payments/migrate_paypal_agreement
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/account/payments/migrate_paypal_agreement
+  [DEBUG] hass_nabucasa.api: Response for post from api.example.com/account/payments/migrate_paypal_agreement (200) 
   '''
 # ---
 # name: test_migrate_paypal_agreement_success[response1]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://accounts.example.com/payments/migrate_paypal_agreement
-  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/payments/migrate_paypal_agreement
-  [DEBUG] hass_nabucasa.api: Response for post from accounts.example.com/payments/migrate_paypal_agreement (200) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://api.example.com/account/payments/migrate_paypal_agreement
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/account/payments/migrate_paypal_agreement
+  [DEBUG] hass_nabucasa.api: Response for post from api.example.com/account/payments/migrate_paypal_agreement (200) 
   '''
 # ---
 # name: test_problems_getting_connection_details[PaymentsApiError-getmockargs0-Failed to parse API response]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Sending GET request to accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Response for get from accounts.example.com/payments/subscription_info (500) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/account/payments/subscription_info (500) 
   '''
 # ---
 # name: test_problems_getting_connection_details[PaymentsApiError-getmockargs1-Failed to parse API response]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Sending GET request to accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Response for get from accounts.example.com/payments/subscription_info (429) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/account/payments/subscription_info (429) 
   '''
 # ---
 # name: test_problems_getting_connection_details[PaymentsApiError-getmockargs2-Timeout reached while calling API]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Sending GET request to accounts.example.com/payments/subscription_info
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/payments/subscription_info
   '''
 # ---
 # name: test_problems_getting_connection_details[PaymentsApiError-getmockargs3-Failed to fetch: boom!]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Sending GET request to accounts.example.com/payments/subscription_info
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/payments/subscription_info
   '''
 # ---
 # name: test_problems_getting_connection_details[PaymentsApiError-getmockargs4-Unexpected error while calling API: boom!]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Sending GET request to accounts.example.com/payments/subscription_info
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/payments/subscription_info
   '''
 # ---
 # name: test_problems_migrating_paypal_agreement[PaymentsApiError-postmockargs0-Failed to fetch: (500)]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://accounts.example.com/payments/migrate_paypal_agreement
-  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/payments/migrate_paypal_agreement
-  [DEBUG] hass_nabucasa.api: Response for post from accounts.example.com/payments/migrate_paypal_agreement (500) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://api.example.com/account/payments/migrate_paypal_agreement
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/account/payments/migrate_paypal_agreement
+  [DEBUG] hass_nabucasa.api: Response for post from api.example.com/account/payments/migrate_paypal_agreement (500) 
   '''
 # ---
 # name: test_problems_migrating_paypal_agreement[PaymentsApiError-postmockargs1-Failed to fetch: (429)]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://accounts.example.com/payments/migrate_paypal_agreement
-  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/payments/migrate_paypal_agreement
-  [DEBUG] hass_nabucasa.api: Response for post from accounts.example.com/payments/migrate_paypal_agreement (429) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://api.example.com/account/payments/migrate_paypal_agreement
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/account/payments/migrate_paypal_agreement
+  [DEBUG] hass_nabucasa.api: Response for post from api.example.com/account/payments/migrate_paypal_agreement (429) 
   '''
 # ---
 # name: test_problems_migrating_paypal_agreement[PaymentsApiError-postmockargs2-Timeout reached while calling API]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://accounts.example.com/payments/migrate_paypal_agreement
-  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/payments/migrate_paypal_agreement
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://api.example.com/account/payments/migrate_paypal_agreement
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/account/payments/migrate_paypal_agreement
   '''
 # ---
 # name: test_problems_migrating_paypal_agreement[PaymentsApiError-postmockargs3-Failed to fetch: boom!]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://accounts.example.com/payments/migrate_paypal_agreement
-  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/payments/migrate_paypal_agreement
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://api.example.com/account/payments/migrate_paypal_agreement
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/account/payments/migrate_paypal_agreement
   '''
 # ---
 # name: test_problems_migrating_paypal_agreement[PaymentsApiError-postmockargs4-Unexpected error while calling API: boom!]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://accounts.example.com/payments/migrate_paypal_agreement
-  [DEBUG] hass_nabucasa.api: Sending POST request to accounts.example.com/payments/migrate_paypal_agreement
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_migrate_paypal: https://api.example.com/account/payments/migrate_paypal_agreement
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/account/payments/migrate_paypal_agreement
   '''
 # ---
 # name: test_token_refresh_debug_log
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Sending GET request to accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Response for get from accounts.example.com/payments/subscription_info (200) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/account/payments/subscription_info (200) 
   [DEBUG] hass_nabucasa.payments_api: Found disconnected account with valid subscription, connecting
   '''
 # ---
 # name: test_trigger_async_renew_access_token
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Sending GET request to accounts.example.com/payments/subscription_info
-  [DEBUG] hass_nabucasa.api: Response for get from accounts.example.com/payments/subscription_info (200) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/payments/subscription_info
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/account/payments/subscription_info (200) 
   [DEBUG] hass_nabucasa.payments_api: Found disconnected account with valid subscription, connecting
   '''
 # ---

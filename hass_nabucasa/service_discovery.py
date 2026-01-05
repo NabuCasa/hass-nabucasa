@@ -136,7 +136,6 @@ class ServiceDiscovery(ApiBase):
         self._action_overrides = action_overrides or {}
 
         if TYPE_CHECKING:
-            assert self._cloud.accounts_server is not None
             assert self._cloud.relayer_server is not None
             assert self._cloud.servicehandlers_server is not None
 
@@ -144,9 +143,9 @@ class ServiceDiscovery(ApiBase):
             "acme_directory": f"https://{self._cloud.acme_server}/directory",
             "llm_connection_details": f"https://{self._cloud.api_server}/llm/connection_details",
             "relayer_connect": f"wss://{self._cloud.relayer_server}/websocket",
-            "remote_access_resolve_dns_cname": f"https://{self._cloud.accounts_server}/instance/resolve_dns_cname",
-            "subscription_info": f"https://{self._cloud.accounts_server}/payments/subscription_info",
-            "subscription_migrate_paypal": f"https://{self._cloud.accounts_server}/payments/migrate_paypal_agreement",
+            "remote_access_resolve_dns_cname": f"https://{self._cloud.api_server}/account/instance/resolve_dns_cname",
+            "subscription_info": f"https://{self._cloud.api_server}/account/payments/subscription_info",
+            "subscription_migrate_paypal": f"https://{self._cloud.api_server}/account/payments/migrate_paypal_agreement",
             "voice_connection_details": f"https://{self._cloud.servicehandlers_server}/voice/connection_details",
         }
 
