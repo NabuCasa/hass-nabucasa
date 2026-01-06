@@ -27,8 +27,7 @@ class CheckLatencyError(NabuCasaBaseError):
 class CheckLatencyHostResult(TypedDict):
     """Result of a latency check for a single host."""
 
-    hostname: str
-    ip: str
+    address: str
     is_alive: bool
     avg_rtt: float
 
@@ -167,8 +166,7 @@ async def async_check_latency(
 
     return [
         CheckLatencyHostResult(
-            hostname=host.address,
-            ip=host.address,
+            address=host.address,
             is_alive=host.is_alive,
             avg_rtt=host.avg_rtt,
         )
