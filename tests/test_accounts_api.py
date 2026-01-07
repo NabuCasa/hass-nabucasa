@@ -54,7 +54,7 @@ async def test_resolve_dns_cname_endpoint_problems(
 ):
     """Test problems with resolve_dns_cname endpoint."""
     aioclient_mock.post(
-        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
+        f"https://{cloud.api_server}/account/instance/resolve_dns_cname",
         **mockargs,
     )
 
@@ -74,7 +74,7 @@ async def test_resolve_dns_cname_endpoint_success(
     expected_result = ["alias1.example.com", "alias2.example.com"]
 
     aioclient_mock.post(
-        f"https://{cloud.accounts_server}/instance/resolve_dns_cname",
+        f"https://{cloud.api_server}/account/instance/resolve_dns_cname",
         json=expected_result,
     )
 

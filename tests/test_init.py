@@ -19,7 +19,7 @@ from .common import MockClient
 def mock_subscription_info(aioclient_mock):
     """Mock subscription info."""
     aioclient_mock.get(
-        "https://example.com/payments/subscription_info",
+        "https://example.com/account/payments/subscription_info",
         json={
             "success": True,
             "billing_plan_type": "mock-plan",
@@ -37,7 +37,6 @@ async def cl(cloud_client) -> cloud.Cloud:
         yield cloud.Cloud(
             cloud_client,
             cloud.MODE_DEV,
-            accounts_server="example.com",
             api_server="example.com",
         )
 
@@ -60,7 +59,6 @@ def test_constructor_loads_info_from_constant(cloud_client):
             {
                 "beer": {
                     "relayer": "test-relayer",
-                    "accounts": "test-subscription-info-url",
                     "acme": "test-acme-directory-server",
                     "remotestate": "test-google-actions-report-state-url",
                     "account_link": "test-account-link-url",
@@ -76,7 +74,6 @@ def test_constructor_loads_info_from_constant(cloud_client):
     assert cl.user_pool_id == "test-user_pool_id"
     assert cl.region == "test-region"
     assert cl.relayer_server == "test-relayer"
-    assert cl.accounts_server == "test-subscription-info-url"
     assert cl.acme_server == "test-acme-directory-server"
     assert cl.remotestate_server == "test-google-actions-report-state-url"
     assert cl.account_link_server == "test-account-link-url"
