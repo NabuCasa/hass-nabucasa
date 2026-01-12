@@ -50,7 +50,7 @@ class AlexaApi(ApiBase):
         """Get the Alexa API access token."""
         details: CloudApiRawResponse = await self._call_cloud_api(
             method="POST",
-            path="/alexa/access_token",
+            action="alexa_access_token",
             raw_response=True,
         )
 
