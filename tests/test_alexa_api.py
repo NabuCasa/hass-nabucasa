@@ -58,7 +58,7 @@ if TYPE_CHECKING:
         ],
     ],
 )
-async def test_problems_getting_caccess_token(
+async def test_problems_getting_access_token(
     aioclient_mock: AiohttpClientMocker,
     cloud: Cloud,
     exception: Exception,
