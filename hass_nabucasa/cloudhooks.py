@@ -31,13 +31,6 @@ class Cloudhooks(ApiBase):
         super().__init__(cloud)
         cloud.iot.register_on_connect(self.async_publish_cloudhooks)
 
-    @property
-    def hostname(self) -> str:
-        """Get the hostname."""
-        if TYPE_CHECKING:
-            assert self._cloud.servicehandlers_server is not None
-        return self._cloud.servicehandlers_server
-
     async def async_publish_cloudhooks(self) -> None:
         """Inform the Relayer of the cloudhooks that we support."""
         if not self._cloud.is_connected:

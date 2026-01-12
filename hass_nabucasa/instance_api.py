@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 from aiohttp import hdrs
 
@@ -61,13 +61,6 @@ class InstanceSnitunTokenDetails(TypedDict):
 
 class InstanceApi(ApiBase):
     """Class to help communicate with the instance API."""
-
-    @property
-    def hostname(self) -> str:
-        """Get the hostname."""
-        if TYPE_CHECKING:
-            assert self._cloud.servicehandlers_server is not None
-        return self._cloud.servicehandlers_server
 
     @api_exception_handler(InstanceApiError)
     async def connection(
