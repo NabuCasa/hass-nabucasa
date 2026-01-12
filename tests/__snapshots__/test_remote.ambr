@@ -1,6 +1,7 @@
 # serializer version: 1
 # name: test_acme_client_create_client_jws_errors[json_error0-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -14,6 +15,7 @@
 # ---
 # name: test_acme_client_create_client_jws_errors[json_error1-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -27,6 +29,7 @@
 # ---
 # name: test_acme_client_create_client_jws_errors[json_error2-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -40,6 +43,7 @@
 # ---
 # name: test_acme_client_create_client_jws_errors[json_error3-False]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -54,6 +58,7 @@
 # ---
 # name: test_acme_client_create_client_jws_errors[json_error4-False]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -68,6 +73,7 @@
 # ---
 # name: test_acme_client_new_order_errors[json_error0-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -81,6 +87,7 @@
 # ---
 # name: test_acme_client_new_order_errors[json_error1-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -94,6 +101,7 @@
 # ---
 # name: test_acme_client_new_order_errors[json_error2-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -107,6 +115,7 @@
 # ---
 # name: test_acme_client_new_order_errors[json_error3-False]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -121,6 +130,7 @@
 # ---
 # name: test_acme_client_new_order_errors[json_error4-False]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -135,6 +145,7 @@
 # ---
 # name: test_context_error_handling[Boom-False]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -147,6 +158,7 @@
 # ---
 # name: test_context_error_handling[KEY_VALUES_MISMATCH-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -159,6 +171,7 @@
 # ---
 # name: test_load_connect_forbidden
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -170,6 +183,7 @@
   [DEBUG] hass_nabucasa.remote: Starting SniTun
   [DEBUG] hass_nabucasa.remote: Connecting remote backend: True
   [DEBUG] hass_nabucasa.remote: Refresh snitun token
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_snitun_token: https://servicehandlers.example.com/instance/snitun_token
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/snitun_token
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/snitun_token (403) lorem_ipsum
   [ERROR] hass_nabucasa.remote: Remote connection is not allowed lorem_ipsum
@@ -177,6 +191,7 @@
 # ---
 # name: test_load_connect_insecure
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/register (200) 
   [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
@@ -188,6 +203,7 @@
   [DEBUG] hass_nabucasa.remote: Starting SniTun
   [DEBUG] hass_nabucasa.remote: Connecting remote backend: True
   [DEBUG] hass_nabucasa.remote: Refresh snitun token
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_snitun_token: https://servicehandlers.example.com/instance/snitun_token
   [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/instance/snitun_token
   [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/instance/snitun_token (409) 
   '''

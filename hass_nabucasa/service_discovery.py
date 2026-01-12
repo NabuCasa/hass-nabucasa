@@ -27,12 +27,18 @@ TIME_DELTA_FOR_INITIAL_LOAD_RETRY = TWELVE_HOURS_IN_SECONDS
 
 ServiceDiscoveryAction = Literal[
     "acme_directory",
+    "instance_connection",
     "llm_connection_details",
     "relayer_connect",
+    "remote_access_dns_challenge_remove",
+    "remote_access_dns_challenge_set",
+    "remote_access_register",
     "remote_access_resolve_dns_cname",
+    "remote_access_snitun_token",
     "subscription_info",
     "subscription_migrate_paypal",
     "voice_connection_details",
+    "webhook_generate",
 ]
 
 VALID_ACTION_NAMES = frozenset(get_args(ServiceDiscoveryAction))
@@ -141,12 +147,18 @@ class ServiceDiscovery(ApiBase):
 
         self._fallback_actions: dict[ServiceDiscoveryAction, str] = {
             "acme_directory": f"https://{self._cloud.acme_server}/directory",
+            "instance_connection": f"https://{self._cloud.servicehandlers_server}/instance/connection",
             "llm_connection_details": f"https://{self._cloud.api_server}/llm/connection_details",
             "relayer_connect": f"wss://{self._cloud.relayer_server}/websocket",
+            "remote_access_dns_challenge_remove": f"https://{self._cloud.servicehandlers_server}/instance/dns_challenge_cleanup",
+            "remote_access_dns_challenge_set": f"https://{self._cloud.servicehandlers_server}/instance/dns_challenge_txt",
+            "remote_access_register": f"https://{self._cloud.servicehandlers_server}/instance/register",
             "remote_access_resolve_dns_cname": f"https://{self._cloud.api_server}/account/instance/resolve_dns_cname",
+            "remote_access_snitun_token": f"https://{self._cloud.servicehandlers_server}/instance/snitun_token",
             "subscription_info": f"https://{self._cloud.api_server}/account/payments/subscription_info",
             "subscription_migrate_paypal": f"https://{self._cloud.api_server}/account/payments/migrate_paypal_agreement",
             "voice_connection_details": f"https://{self._cloud.servicehandlers_server}/voice/connection_details",
+            "webhook_generate": f"https://{self._cloud.servicehandlers_server}/instance/webhook",
         }
 
     @property
