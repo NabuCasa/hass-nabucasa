@@ -98,6 +98,6 @@ class Cloudhooks(ApiBase):
     async def generate(self) -> GeneratedCloudhookDetails:
         """Get generated cloudhook details."""
         details: GeneratedCloudhookDetails = await self._call_cloud_api(
-            path="/instance/webhook",
+            action="webhook_generate",
         )
         return details

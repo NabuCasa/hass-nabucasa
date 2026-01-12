@@ -79,7 +79,7 @@ class InstanceApi(ApiBase):
         """Get the connection details."""
         _LOGGER.debug("Getting instance connection details")
         details: InstanceConnection = await self._call_cloud_api(
-            path="/instance/connection",
+            action="instance_connection",
             headers={
                 hdrs.AUTHORIZATION: access_token or self._cloud.access_token,
             },
@@ -92,7 +92,7 @@ class InstanceApi(ApiBase):
         """Remove DNS challenge."""
         await self._call_cloud_api(
             method="POST",
-            path="/instance/dns_challenge_cleanup",
+            action="remote_access_dns_challenge_remove",
             jsondata={"txt": value},
         )
 
@@ -101,7 +101,7 @@ class InstanceApi(ApiBase):
         """Set DNS challenge."""
         await self._call_cloud_api(
             method="POST",
-            path="/instance/dns_challenge_txt",
+            action="remote_access_dns_challenge_set",
             jsondata={"txt": value},
         )
 
@@ -110,7 +110,7 @@ class InstanceApi(ApiBase):
         """Register the instance."""
         details: InstanceRegistrationDetails = await self._call_cloud_api(
             method="POST",
-            path="/instance/register",
+            action="remote_access_register",
         )
         return details
 
@@ -124,7 +124,7 @@ class InstanceApi(ApiBase):
         """Create a remote snitun token."""
         details: InstanceSnitunTokenDetails = await self._call_cloud_api(
             method="POST",
-            path="/instance/snitun_token",
+            action="remote_access_snitun_token",
             jsondata={"aes_key": aes_key.hex(), "aes_iv": aes_iv.hex()},
         )
         return details
