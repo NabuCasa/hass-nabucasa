@@ -1,0 +1,47 @@
+# serializer version: 1
+# name: test_getting_access_token[response0]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token: https://servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/alexa/access_token (200) 
+  '''
+# ---
+# name: test_problems_getting_access_token[AlexaApiError-getmockargs0-Failed to fetch: (500) ]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token: https://servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/alexa/access_token (500) 
+  '''
+# ---
+# name: test_problems_getting_access_token[AlexaApiError-getmockargs1-Failed to fetch: (429) ]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token: https://servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/alexa/access_token (429) 
+  '''
+# ---
+# name: test_problems_getting_access_token[AlexaApiError-getmockargs3-Timeout reached while calling API]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token: https://servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  '''
+# ---
+# name: test_problems_getting_access_token[AlexaApiError-getmockargs4-Failed to fetch: boom!]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token: https://servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  '''
+# ---
+# name: test_problems_getting_access_token[AlexaApiError-getmockargs5-Unexpected error while calling API: boom!]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token: https://servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  '''
+# ---
+# name: test_problems_getting_access_token[AlexaApiNeedsRelinkError-getmockargs2-RefreshTokenNotFound]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for alexa_access_token: https://servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Sending POST request to servicehandlers.example.com/alexa/access_token
+  [DEBUG] hass_nabucasa.api: Response for post from servicehandlers.example.com/alexa/access_token (400) RefreshTokenNotFound
+  '''
+# ---

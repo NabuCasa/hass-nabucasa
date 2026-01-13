@@ -95,7 +95,16 @@ from .service_discovery import (
     ServiceDiscoveryMissingActionError,
     ServiceDiscoveryMissingParameterError,
 )
-from .utils import UTC, gather_callbacks, parse_date, seconds_as_dhms, utcnow
+from .utils import (
+    UTC,
+    CheckLatencyError,
+    CheckLatencyHostResult,
+    async_check_latency,
+    gather_callbacks,
+    parse_date,
+    seconds_as_dhms,
+    utcnow,
+)
 from .voice import Voice
 from .voice_api import VoiceApi, VoiceApiError
 
@@ -110,6 +119,8 @@ __all__ = [
     "AlexaApiNoTokenError",
     "AlreadyConnectedError",
     "CertificateStatus",
+    "CheckLatencyError",
+    "CheckLatencyHostResult",
     "Cloud",
     "CloudApiClientError",
     "CloudApiCodedError",
@@ -161,6 +172,7 @@ __all__ = [
     "UserNotConfirmed",
     "UserNotFound",
     "VoiceApiError",
+    "async_check_latency",
     "calculate_b64md5",
 ]
 
@@ -192,7 +204,6 @@ class Cloud(Generic[_ClientT]):
         region: str | None = None,
         user_pool_id: str | None = None,
         account_link_server: str | None = None,
-        accounts_server: str | None = None,
         acme_server: str | None = None,
         relayer_server: str | None = None,
         remotestate_server: str | None = None,
@@ -228,7 +239,6 @@ class Cloud(Generic[_ClientT]):
         self.user_pool_id = _values.get("user_pool_id", user_pool_id)
 
         self.account_link_server = _servers.get("account_link", account_link_server)
-        self.accounts_server = _servers.get("accounts", accounts_server)
         self.acme_server = _servers.get("acme", acme_server)
         self.api_server = _servers.get("api", api_server)
         self.relayer_server = _servers.get("relayer", relayer_server)
