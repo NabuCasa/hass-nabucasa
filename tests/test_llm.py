@@ -161,6 +161,7 @@ async def test_async_generate_data_maps_http_errors(
     aioclient_mock: AiohttpClientMocker,
 ) -> None:
     """async_generate_data should translate HTTP errors to LLM errors."""
+    await cloud.llm.async_ensure_token()
     aioclient_mock.post("https://api.example/responses", status=status, text="err")
 
     with pytest.raises(expected):
@@ -205,6 +206,7 @@ async def test_async_generate_image_maps_http_errors(
     aioclient_mock: AiohttpClientMocker,
 ) -> None:
     """async_generate_image should translate HTTP failures."""
+    await cloud.llm.async_ensure_token()
     aioclient_mock.post("https://api.example/images/generations", status=status)
 
     with pytest.raises(expected):
@@ -316,6 +318,7 @@ async def test_async_process_conversation_maps_http_errors(
     aioclient_mock: AiohttpClientMocker,
 ) -> None:
     """async_process_conversation should translate HTTP errors."""
+    await cloud.llm.async_ensure_token()
     aioclient_mock.post("https://api.example/responses", status=status)
 
     with pytest.raises(expected):

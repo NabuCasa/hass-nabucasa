@@ -124,6 +124,7 @@ class ResponsesAPIStreamEvent(SimpleNamespace):
 
 
 def _namespace_to_primitive(value: Any) -> Any:
+    """Convert a namespace to a primitive value."""
     if isinstance(value, ResponsesAPIStreamEvent):
         return value.to_dict()
     if isinstance(value, list):
@@ -208,9 +209,7 @@ class LLMHandler(ApiBase):
         super().__init__(cloud)
         self._token: str | None = None
         self._base_url: str | None = None
-        self._generate_data_model: str | None = None
-        self._generate_image_model: str | None = None
-        self._conversation_model: str | None = None
+        self._models: dict[str, str | None] = {}
         self._valid_until: datetime | None = None
         self._lock = asyncio.Lock()
 
@@ -246,9 +245,11 @@ class LLMHandler(ApiBase):
         self._token = details["token"]
         self._valid_until = utc_from_timestamp(float(details["valid_until"]))
         self._base_url = details["base_url"]
-        self._generate_data_model = details["generate_data_model"]
-        self._generate_image_model = details["generate_image_model"]
-        self._conversation_model = details["conversation_model"]
+        self._models = {
+            "generate_data": details["generate_data_model"],
+            "generate_image": details["generate_image_model"],
+            "conversation": details["conversation_model"],
+        }
 
     async def async_ensure_token(self) -> None:
         """Ensure the LLM token is valid and available."""
@@ -292,23 +293,22 @@ class LLMHandler(ApiBase):
         if "/images" in endpoint:
             timeout = IMAGE_API_TIMEOUT
 
-        async with asyncio.timeout(timeout):
-            response = await self._call_raw_api(
-                method=method,
-                url=url,
-                headers=headers,
-                jsondata=payload,
-                data=data,
-                client_timeout=ClientTimeout(total=timeout),
-                include_path_in_log=include_path_in_log,
-            )
+        response = await self._call_raw_api(
+            method=method,
+            url=url,
+            headers=headers,
+            jsondata=payload,
+            data=data,
+            client_timeout=ClientTimeout(total=timeout),
+            include_path_in_log=include_path_in_log,
+        )
 
-            if response.status >= 400:
-                error_body = await response.text()
-                self._do_log_response(response, error_body, include_path_in_log)
-                response.raise_for_status()
+        if response.status >= 400:
+            error_body = await response.text()
+            self._do_log_response(response, error_body, include_path_in_log)
+            response.raise_for_status()
 
-            return response
+        return response
 
     async def _get_response(
         self,
@@ -419,10 +419,10 @@ class LLMHandler(ApiBase):
     ) -> ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]:
         """Generate structured or free-form LLM data."""
         if TYPE_CHECKING:
-            assert self._generate_data_model is not None
+            assert self._models["generate_data"] is not None
 
         payload = self._build_responses_payload(
-            model=self._generate_data_model,
+            model=self._models["generate_data"],
             messages=messages,
             conversation_id=conversation_id,
             response_format=response_format,
@@ -443,11 +443,11 @@ class LLMHandler(ApiBase):
     ) -> LLMGeneratedImage:
         """Generate an image via Cloud LLM."""
         if TYPE_CHECKING:
-            assert self._generate_image_model is not None
+            assert self._models["generate_image"] is not None
 
         payload = {
             "prompt": prompt,
-            "model": self._generate_image_model,
+            "model": self._models["generate_image"],
         }
 
         response = await self._call_llm_api(
@@ -466,7 +466,7 @@ class LLMHandler(ApiBase):
     ) -> LLMGeneratedImage:
         """Edit an image via Cloud LLM."""
         if TYPE_CHECKING:
-            assert self._generate_image_model is not None
+            assert self._models["generate_image"] is not None
 
         file_buffers: list[tuple[io.BytesIO, str | None]] = []
         for idx, attachment in enumerate(attachments):
@@ -482,12 +482,13 @@ class LLMHandler(ApiBase):
         if len(file_buffers) == 1:
             image_buffers = file_buffers
         else:
+            # HA doesn't support masks, so we can ignore it here at file_buffers[1]
             image_buffers = [file_buffers[0], *file_buffers[2:]]
 
         form = FormData()
         for key, value in {
             "prompt": prompt,
-            "model": self._generate_image_model,
+            "model": self._models["generate_image"],
         }.items():
             form.add_field(key, str(value))
 
@@ -521,9 +522,9 @@ class LLMHandler(ApiBase):
     ) -> ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]:
         """Generate a response for a conversation."""
         if TYPE_CHECKING:
-            assert self._conversation_model is not None
+            assert self._models["conversation"] is not None
         payload = self._build_responses_payload(
-            model=self._conversation_model,
+            model=self._models["conversation"],
             messages=messages,
             conversation_id=conversation_id,
             response_format=response_format,
