@@ -8,7 +8,7 @@ import contextlib
 from enum import StrEnum
 import hashlib
 import logging
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import Any, TypedDict
 
 from aiohttp import (
     ClientResponseError,
@@ -88,13 +88,6 @@ class Files(ApiBase):
     """Class to help manage files."""
 
     @property
-    def hostname(self) -> str:
-        """Get the hostname."""
-        if TYPE_CHECKING:
-            assert self._cloud.servicehandlers_server is not None
-        return self._cloud.servicehandlers_server
-
-    @property
     def non_retryable_error_codes(self) -> set[str]:
         """Get the non-retryable error codes."""
         return {"NC-SH-FH-03"}
@@ -113,7 +106,7 @@ class Files(ApiBase):
         _LOGGER.debug("Uploading %s file with name %s", storage_type, filename)
         try:
             details: FilesHandlerUploadDetails = await self._call_cloud_api(
-                path="/files/upload_details",
+                action="storage_files_upload",
                 jsondata={
                     "storage_type": storage_type,
                     "filename": filename,
@@ -173,7 +166,11 @@ class Files(ApiBase):
         _LOGGER.debug("Downloading %s file with name %s", storage_type, filename)
         try:
             details: FilesHandlerDownloadDetails = await self._call_cloud_api(
-                path=f"/files/download_details/{storage_type}/{filename}",
+                action="storage_files_download",
+                action_values={
+                    "storage_type": storage_type,
+                    "filename": filename,
+                },
             )
         except CloudApiNonRetryableError:
             raise
@@ -213,9 +210,11 @@ class Files(ApiBase):
     ) -> list[StoredFile]:
         """List files."""
         files: list[StoredFile] = await self._call_cloud_api(
-            path=f"/files/{storage_type}",
+            action="storage_files_list",
+            action_values={
+                "storage_type": storage_type,
+            },
             params={"clearCache": str(clear_cache).lower()},
-            api_version=2,
         )
         return files
 
@@ -228,7 +227,7 @@ class Files(ApiBase):
         """Delete a file."""
         _LOGGER.debug("Deleting %s file with name %s", storage_type, filename)
         await self._call_cloud_api(
-            path="/files",
+            action="storage_files_delete",
             method="DELETE",
             jsondata={
                 "storage_type": storage_type,
