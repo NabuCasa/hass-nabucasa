@@ -64,16 +64,11 @@ class GoogleReportState(iot_base.BaseIoT, ApiBase):
         return __name__
 
     @property
-    def hostname(self) -> str:
-        """Get the hostname for API calls."""
-        if TYPE_CHECKING:
-            assert self._cloud.remotestate_server is not None
-        return self._cloud.remotestate_server
-
-    @property
     def ws_server_url(self) -> str:
         """Server to connect to."""
-        return f"wss://{self.hostname}/v1"
+        if TYPE_CHECKING:
+            assert self._cloud.remotestate_server is not None
+        return f"wss://{self._cloud.remotestate_server}/v1"
 
     async def async_send_message(self, msg: Any) -> None:
         """Send a message."""
@@ -141,7 +136,7 @@ class GoogleReportState(iot_base.BaseIoT, ApiBase):
         """Request a Google Actions sync request."""
         resp: CloudApiRawResponse = await self._call_cloud_api(
             method="POST",
-            path="/request_sync",
+            action="google_request_sync",
             raw_response=True,
             client_timeout=ClientTimeout(total=300),
         )
