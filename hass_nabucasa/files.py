@@ -106,7 +106,7 @@ class Files(ApiBase):
         _LOGGER.debug("Uploading %s file with name %s", storage_type, filename)
         try:
             details: FilesHandlerUploadDetails = await self._call_cloud_api(
-                action="storage_file_upload",
+                action="storage_files_upload",
                 jsondata={
                     "storage_type": storage_type,
                     "filename": filename,
@@ -166,7 +166,7 @@ class Files(ApiBase):
         _LOGGER.debug("Downloading %s file with name %s", storage_type, filename)
         try:
             details: FilesHandlerDownloadDetails = await self._call_cloud_api(
-                action="storage_file_download",
+                action="storage_files_download",
                 action_values={
                     "storage_type": storage_type,
                     "filename": filename,
@@ -210,7 +210,7 @@ class Files(ApiBase):
     ) -> list[StoredFile]:
         """List files."""
         files: list[StoredFile] = await self._call_cloud_api(
-            action="storage_files",
+            action="storage_files_list",
             action_values={
                 "storage_type": storage_type,
             },
@@ -227,7 +227,7 @@ class Files(ApiBase):
         """Delete a file."""
         _LOGGER.debug("Deleting %s file with name %s", storage_type, filename)
         await self._call_cloud_api(
-            action="storage_file_delete",
+            action="storage_files_delete",
             method="DELETE",
             jsondata={
                 "storage_type": storage_type,

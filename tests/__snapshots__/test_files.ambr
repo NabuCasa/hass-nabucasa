@@ -2,7 +2,7 @@
 # name: test_delete
   '''
   [DEBUG] hass_nabucasa.files: Deleting test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_delete: https://servicehandlers.example.com/files
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_delete: https://servicehandlers.example.com/files
   [DEBUG] hass_nabucasa.api: Sending DELETE request to servicehandlers.example.com/files
   [DEBUG] hass_nabucasa.api: Response for delete from servicehandlers.example.com/files (200) 
   '''
@@ -10,7 +10,7 @@
 # name: test_download
   '''
   [DEBUG] hass_nabucasa.files: Downloading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/download_details/test/lorem.ipsum
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/download_details/test/lorem.ipsum (200) 
   [DEBUG] hass_nabucasa.api: Sending GET request to files.api.fakeurl
@@ -20,7 +20,7 @@
 # name: test_exceptions_while_deleting[Failed to fetch: (400) -deletemockargs0]
   '''
   [DEBUG] hass_nabucasa.files: Deleting test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_delete: https://servicehandlers.example.com/files
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_delete: https://servicehandlers.example.com/files
   [DEBUG] hass_nabucasa.api: Sending DELETE request to servicehandlers.example.com/files
   [DEBUG] hass_nabucasa.api: Response for delete from servicehandlers.example.com/files (400) NC-CE-01
   '''
@@ -28,21 +28,21 @@
 # name: test_exceptions_while_deleting[Failed to fetch: (500) -deletemockargs1]
   '''
   [DEBUG] hass_nabucasa.files: Deleting test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_delete: https://servicehandlers.example.com/files
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_delete: https://servicehandlers.example.com/files
   [DEBUG] hass_nabucasa.api: Sending DELETE request to servicehandlers.example.com/files
   [DEBUG] hass_nabucasa.api: Response for delete from servicehandlers.example.com/files (500) 
   '''
 # ---
 # name: test_list
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files: https://servicehandlers.example.com/v2/files/{storage_type}
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_list: https://servicehandlers.example.com/v2/files/{storage_type}
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/v2/files/test
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/v2/files/test (200) 
   '''
 # ---
 # name: test_list_with_clear_cache
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files: https://servicehandlers.example.com/v2/files/{storage_type}
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_list: https://servicehandlers.example.com/v2/files/{storage_type}
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/v2/files/test
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/v2/files/test?clearCache=true (200) 
   '''
@@ -50,12 +50,12 @@
 # name: test_upload
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
   [DEBUG] hass_nabucasa.api: Response for put from files.api.fakeurl?X-Amz-Algorithm=*** (200) 
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files: https://servicehandlers.example.com/v2/files/{storage_type}
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_list: https://servicehandlers.example.com/v2/files/{storage_type}
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/v2/files/test
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/v2/files/test (200) 
   '''
@@ -63,7 +63,7 @@
 # name: test_upload_bad_status_while_downloading[FilesError-getmockargs0]
   '''
   [DEBUG] hass_nabucasa.files: Downloading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/download_details/test/lorem.ipsum
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/download_details/test/lorem.ipsum (200) 
   [DEBUG] hass_nabucasa.api: Sending GET request to files.api.fakeurl
@@ -73,7 +73,7 @@
 # name: test_upload_bad_status_while_downloading[FilesError-getmockargs1]
   '''
   [DEBUG] hass_nabucasa.files: Downloading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/download_details/test/lorem.ipsum
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/download_details/test/lorem.ipsum (200) 
   [DEBUG] hass_nabucasa.api: Sending GET request to files.api.fakeurl
@@ -83,7 +83,7 @@
 # name: test_upload_bad_status_while_getting_download_details[CloudApiNonRetryableError-getmockargs0]
   '''
   [DEBUG] hass_nabucasa.files: Downloading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/download_details/test/lorem.ipsum
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/download_details/test/lorem.ipsum (400) NC-SH-FH-03 (abc-123)
   '''
@@ -91,7 +91,7 @@
 # name: test_upload_bad_status_while_getting_download_details[CloudApiNonRetryableError-getmockargs1]
   '''
   [DEBUG] hass_nabucasa.files: Downloading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/download_details/test/lorem.ipsum
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/download_details/test/lorem.ipsum (400) NC-CE-03
   '''
@@ -99,7 +99,7 @@
 # name: test_upload_bad_status_while_getting_download_details[FilesError-getmockargs2]
   '''
   [DEBUG] hass_nabucasa.files: Downloading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/download_details/test/lorem.ipsum
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/download_details/test/lorem.ipsum (400) NC-CE-01
   '''
@@ -107,7 +107,7 @@
 # name: test_upload_bad_status_while_getting_download_details[FilesError-getmockargs3]
   '''
   [DEBUG] hass_nabucasa.files: Downloading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_download: https://servicehandlers.example.com/files/download_details/{storage_type}/{filename}
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/download_details/test/lorem.ipsum
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/download_details/test/lorem.ipsum (500) 
   '''
@@ -115,7 +115,7 @@
 # name: test_upload_bad_status_while_getting_upload_details[CloudApiNonRetryableError-getmockargs1]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (400) NC-CE-03
   '''
@@ -123,7 +123,7 @@
 # name: test_upload_bad_status_while_getting_upload_details[FilesError-getmockargs0]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (400) NC-CE-01
   '''
@@ -131,7 +131,7 @@
 # name: test_upload_bad_status_while_getting_upload_details[FilesError-getmockargs2]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (500) 
   '''
@@ -139,7 +139,7 @@
 # name: test_upload_bad_status_while_uploading[FilesError-putmockargs0]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
@@ -149,7 +149,7 @@
 # name: test_upload_bad_status_while_uploading[FilesError-putmockargs1]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
@@ -159,7 +159,7 @@
 # name: test_upload_exceptions_while_uploading[putmockargs0-Timeout reached while calling API: total allowed time is 43200.0 seconds]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
@@ -168,7 +168,7 @@
 # name: test_upload_exceptions_while_uploading[putmockargs1-Failed to fetch: Boom!]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
@@ -177,7 +177,7 @@
 # name: test_upload_exceptions_while_uploading[putmockargs2-Unexpected error while calling API: Boom!]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
@@ -186,7 +186,7 @@
 # name: test_upload_exceptions_while_uploading[putmockargs3-Failed to upload: (400) ]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
@@ -196,7 +196,7 @@
 # name: test_upload_exceptions_while_uploading[putmockargs4-Failed to upload: (400) Unknown error structure]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
@@ -206,7 +206,7 @@
 # name: test_upload_exceptions_while_uploading[putmockargs5-Failed to upload: (400) Pretty error With a linebreak]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
@@ -216,7 +216,7 @@
 # name: test_upload_exceptions_while_uploading[putmockargs6-Failed to upload: (400) <Message>What is this?]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
@@ -226,7 +226,7 @@
 # name: test_upload_exceptions_while_uploading[putmockargs7-Failed to upload: (400) aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
@@ -236,7 +236,7 @@
 # name: test_upload_exceptions_while_uploading[putmockargs8-Failed to upload: (403) Pretty error With a linebreak]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
@@ -246,7 +246,7 @@
 # name: test_upload_exceptions_while_uploading[putmockargs9-Failed to upload: (500) ]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (200) 
   [DEBUG] hass_nabucasa.api: Sending PUT request to files.api.fakeurl
@@ -256,7 +256,7 @@
 # name: test_upload_returning_403_and_expired_subscription
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_file_upload: https://servicehandlers.example.com/files/upload_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/files/upload_details
   [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/files/upload_details (403) Forbidden
   '''
