@@ -26,6 +26,7 @@ MIN_REFRESH_INTERVAL = 60
 TIME_DELTA_FOR_INITIAL_LOAD_RETRY = TWELVE_HOURS_IN_SECONDS
 
 ServiceDiscoveryAction = Literal[
+    "account_services",
     "acme_directory",
     "alexa_access_token",
     "instance_connection",
@@ -147,6 +148,7 @@ class ServiceDiscovery(ApiBase):
             assert self._cloud.servicehandlers_server is not None
 
         self._fallback_actions: dict[ServiceDiscoveryAction, str] = {
+            "account_services": f"https://{self._cloud.servicehandlers_server}/account/services",
             "acme_directory": f"https://{self._cloud.acme_server}/directory",
             "alexa_access_token": f"https://{self._cloud.servicehandlers_server}/alexa/access_token",
             "instance_connection": f"https://{self._cloud.servicehandlers_server}/instance/connection",
