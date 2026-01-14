@@ -282,9 +282,10 @@ async def ws_server(aiohttp_client):
 
 @pytest.fixture
 def cloud_with_expired_subscription(cloud: hass_nabucasa.Cloud):
-    """Return a cloud instance with expired subscription."""
-    with patch(
-        "hass_nabucasa.Cloud.subscription_expired",
+    """Return cloud instance with subscription_expired patched to True."""
+    with patch.object(
+        type[hass_nabucasa.Cloud](cloud),
+        "subscription_expired",
         new_callable=PropertyMock,
         return_value=True,
     ):
