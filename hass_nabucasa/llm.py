@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import base64
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
+from contextlib import suppress
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import wraps
 import io
@@ -123,6 +125,16 @@ class ResponsesAPIStreamEvent(SimpleNamespace):
         }
 
 
+@dataclass
+class _ServerSentEvent:
+    """Minimal Server-Sent Event container."""
+
+    event: str | None = None
+    data: str = ""
+    id: str | None = None
+    retry: int | None = None
+
+
 def _namespace_to_primitive(value: Any) -> Any:
     """Convert a namespace to a primitive value."""
     if isinstance(value, ResponsesAPIStreamEvent):
@@ -145,6 +157,69 @@ def _build_stream_event(payload: Any) -> Any:
 
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+class _SSEDecoder:
+    """Decode Server-Sent Events (SSE) lines into events.
+
+    Based on the WHATWG SSE spec.
+    """
+
+    def __init__(self) -> None:
+        self._event: str | None = None
+        self._data: list[str] = []
+        self._last_event_id: str | None = None
+        self._retry: int | None = None
+
+    def decode(self, line: str) -> _ServerSentEvent | None:
+        """Feed a single decoded line (without trailing newline).
+
+        Returns an event when a blank line indicates the end of an SSE event.
+        See: https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
+        """
+        # Blank line terminates the current event
+        if not line:
+            if (
+                not self._event
+                and not self._data
+                and not self._last_event_id
+                and self._retry is None
+            ):
+                return None
+
+            sse = _ServerSentEvent(
+                event=self._event,
+                data="\n".join(self._data),
+                id=self._last_event_id,
+                retry=self._retry,
+            )
+
+            # NOTE: as per the SSE spec, do not reset last_event_id.
+            self._event = None
+            self._data = []
+            self._retry = None
+            return sse
+
+        # Comment line
+        if line.startswith(":"):
+            return None
+
+        fieldname, _, value = line.partition(":")
+        if value.startswith(" "):
+            value = value.removeprefix(" ")
+
+        if fieldname == "event":
+            self._event = value
+        elif fieldname == "data":
+            self._data.append(value)
+        elif fieldname == "id":
+            if "\0" not in value:
+                self._last_event_id = value
+        elif fieldname == "retry":
+            with suppress(TypeError, ValueError):
+                self._retry = int(value)
+
+        return None
 
 
 def llm_http_exception_handler(
@@ -178,24 +253,35 @@ async def stream_llm_response_events(
 ) -> AsyncIterator[Any]:
     """Yield response events from the Cloud LLM stream."""
     try:
+        decoder = _SSEDecoder()
         while True:
             line_bytes = await response.content.readline()
             if not line_bytes:
                 break
-            line = line_bytes.decode("utf-8").strip()
-            if not line or not line.startswith("data:"):
+            line = line_bytes.decode("utf-8").rstrip("\r\n")
+            sse = decoder.decode(line)
+            if sse is None:
                 continue
-            chunk = line[len("data:") :].strip()
-            if chunk == "[DONE]":
+
+            data = sse.data
+            if not data:
+                # Allow keepalive/empty events
+                continue
+
+            if data.startswith("[DONE]"):
                 break
+
             try:
-                payload = json.loads(chunk)
+                payload = json.loads(data)
             except json.JSONDecodeError as err:
                 _LOGGER.error(
-                    "Failed to decode Cloud LLM stream: %s",
+                    "Failed to decode Cloud LLM stream event: %s; data=%r",
                     err,
+                    data,
                 )
-                continue
+                raise LLMResponseError(
+                    "There was an error processing the Cloud LLM response"
+                ) from err
             yield _build_stream_event(payload)
     finally:
         response.release()

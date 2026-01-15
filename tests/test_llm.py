@@ -16,6 +16,7 @@ from hass_nabucasa.llm import (
     LLMImageAttachment,
     LLMRateLimitError,
     LLMRequestError,
+    LLMResponseError,
     LLMServiceError,
     ResponsesAPIStreamEvent,
     ToolChoice,
@@ -88,7 +89,8 @@ async def test_async_generate_data_returns_response(cloud: Cloud) -> None:
     """async_generate_data should call the Responses API with expected payload."""
     await cloud.llm.async_ensure_token()
     messages = [{"role": "user", "content": "Hello"}]
-    expected = {"output": [{"content": [{"type": "output_text", "text": "Hi"}]}]}
+    expected = {"output": [
+        {"content": [{"type": "output_text", "text": "Hi"}]}]}
     fake_response = SimpleNamespace()
     mock_call = AsyncMock(return_value=fake_response)
     mock_get_response = AsyncMock(return_value=expected)
@@ -162,7 +164,8 @@ async def test_async_generate_data_maps_http_errors(
 ) -> None:
     """async_generate_data should translate HTTP errors to LLM errors."""
     await cloud.llm.async_ensure_token()
-    aioclient_mock.post("https://api.example/responses", status=status, text="err")
+    aioclient_mock.post("https://api.example/responses",
+                        status=status, text="err")
 
     with pytest.raises(expected):
         await cloud.llm.async_generate_data(messages=[], conversation_id="conv")
@@ -207,7 +210,8 @@ async def test_async_generate_image_maps_http_errors(
 ) -> None:
     """async_generate_image should translate HTTP failures."""
     await cloud.llm.async_ensure_token()
-    aioclient_mock.post("https://api.example/images/generations", status=status)
+    aioclient_mock.post(
+        "https://api.example/images/generations", status=status)
 
     with pytest.raises(expected):
         await cloud.llm.async_generate_image(prompt="draw anything")
@@ -326,13 +330,15 @@ async def test_async_process_conversation_maps_http_errors(
 
 
 async def test_stream_llm_response_events_parses_lines() -> None:
-    """stream_llm_response_events should emit valid events and skip invalid chunks."""
+    """stream_llm_response_events should emit valid events."""
     fake_response = _FakeResponse(
         [
-            'data: {"foo": 1}',
-            "data: not-json",
-            'data: {"bar": 2}',
-            "data: [DONE]",
+            'data: {"foo": 1}\n',
+            "\n",
+            'data: {"bar": 2}\n',
+            "\n",
+            "data: [DONE]\n",
+            "\n",
         ]
     )
 
@@ -345,4 +351,57 @@ async def test_stream_llm_response_events_parses_lines() -> None:
     ]
 
     assert events == [{"foo": 1}, {"bar": 2}]
+    assert fake_response.released
+
+
+async def test_stream_llm_response_events_ignores_empty_events() -> None:
+    """stream_llm_response_events should ignore empty (keepalive) SSE events."""
+    fake_response = _FakeResponse(
+        [
+            "data:\n",
+            "\n",
+            'data: {"ok": true}\n',
+            "\n",
+            "data: [DONE]\n",
+            "\n",
+        ]
+    )
+
+    events = [
+        event.to_dict()
+        async for event in cast(
+            "AsyncIterator[ResponsesAPIStreamEvent]",
+            stream_llm_response_events(fake_response),
+        )
+    ]
+
+    assert events == [{"ok": True}]
+    assert fake_response.released
+
+
+async def test_stream_llm_response_events_raises_on_invalid_json() -> None:
+    """stream_llm_response_events should raise on invalid JSON.
+
+    This avoids returning silently truncated output.
+    """
+    fake_response = _FakeResponse(
+        [
+            'data: {"foo": 1}\n',
+            "\n",
+            "data: not-json\n",
+            "\n",
+        ]
+    )
+
+    iterator = cast(
+        "AsyncIterator[ResponsesAPIStreamEvent]",
+        stream_llm_response_events(fake_response),
+    )
+
+    first_event = await anext(iterator)
+    assert first_event.to_dict() == {"foo": 1}
+    with pytest.raises(
+        LLMResponseError, match="There was an error processing the Cloud LLM response"
+    ):
+        await anext(iterator)
     assert fake_response.released
