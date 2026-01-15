@@ -120,8 +120,10 @@ async def test_async_generate_data_streams_when_requested(cloud: Cloud) -> None:
     await cloud.llm.async_ensure_token()
     fake_response = _FakeResponse(
         lines=[
-            'data: {"delta":"hello"}',
-            "data: [DONE]",
+            'data: {"delta":"hello"}\n',
+            "\n",
+            "data: [DONE]\n",
+            "\n",
         ]
     )
     mock_call = AsyncMock(return_value=fake_response)
