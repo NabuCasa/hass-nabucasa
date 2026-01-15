@@ -66,9 +66,7 @@ class GoogleReportState(iot_base.BaseIoT, ApiBase):
     @property
     def ws_server_url(self) -> str:
         """Server to connect to."""
-        if TYPE_CHECKING:
-            assert self._cloud.remotestate_server is not None
-        return f"wss://{self._cloud.remotestate_server}/v1"
+        return self.cloud.service_discovery.action_url("google_websocket")
 
     async def async_send_message(self, msg: Any) -> None:
         """Send a message."""
