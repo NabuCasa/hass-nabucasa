@@ -55,21 +55,13 @@ class IceServers(ApiBase):
         self._ice_servers_listener: Callable[[], Awaitable[None]] | None = None
         self._ice_servers_listener_unregister: Callable[[], None] | None = None
 
-    @property
-    def hostname(self) -> str:
-        """Get the hostname."""
-        if TYPE_CHECKING:
-            assert self._cloud.servicehandlers_server is not None
-        return self._cloud.servicehandlers_server
-
     @api_exception_handler(IceServersApiError)
     async def _async_fetch_ice_servers(self) -> list[NabucasaIceServer]:
         """Fetch ICE servers."""
         if self._cloud.subscription_expired:
             return []
         response: list[dict] = await self._call_cloud_api(
-            path="/webrtc/ice_servers",
-            api_version=2,
+            action="webrtc_ice_servers",
         )
         return [NabucasaIceServer(item) for item in response]
 
