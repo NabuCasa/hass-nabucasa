@@ -66,7 +66,7 @@ class GoogleReportState(iot_base.BaseIoT, ApiBase):
     @property
     def ws_server_url(self) -> str:
         """Server to connect to."""
-        return self.cloud.service_discovery.action_url("google_websocket")
+        return self.cloud.service_discovery.action_url("google_report_state_websocket")
 
     async def async_send_message(self, msg: Any) -> None:
         """Send a message."""
@@ -134,7 +134,7 @@ class GoogleReportState(iot_base.BaseIoT, ApiBase):
         """Request a Google Actions sync request."""
         resp: CloudApiRawResponse = await self._call_cloud_api(
             method="POST",
-            action="google_request_sync",
+            action="google_report_state_request_sync",
             raw_response=True,
             client_timeout=ClientTimeout(total=300),
         )

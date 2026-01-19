@@ -33,7 +33,9 @@ async def test_ws_server_url():
     )
     grs = GoogleReportState(mock_cloud)
     assert grs.ws_server_url == "wss://example.com/v1"
-    mock_cloud.service_discovery.action_url.assert_called_once_with("google_websocket")
+    mock_cloud.service_discovery.action_url.assert_called_once_with(
+        "google_report_state_websocket"
+    )
 
 
 async def test_send_messages(ws_server):
