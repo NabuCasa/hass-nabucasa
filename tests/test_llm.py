@@ -153,7 +153,6 @@ async def test_async_generate_data_streams_when_requested(cloud: Cloud) -> None:
     [
         (401, LLMAuthenticationError),
         (429, LLMRateLimitError),
-        (503, LLMRateLimitError),
         (500, LLMServiceError),
     ],
 )
@@ -198,7 +197,6 @@ async def test_async_generate_image_posts_payload(cloud: Cloud) -> None:
     [
         (401, LLMAuthenticationError),
         (429, LLMRateLimitError),
-        (503, LLMRateLimitError),
         (500, LLMServiceError),
     ],
 )
@@ -310,7 +308,6 @@ async def test_async_process_conversation_returns_response(cloud: Cloud) -> None
     [
         (401, LLMAuthenticationError),
         (429, LLMRateLimitError),
-        (503, LLMRateLimitError),
         (500, LLMServiceError),
     ],
 )

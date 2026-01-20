@@ -236,13 +236,12 @@ def llm_http_exception_handler(
         except ClientResponseError as err:
             if err.status == 401:
                 raise LLMAuthenticationError("Cloud LLM authentication failed") from err
-            if err.status in (429, 503):
+            if err.status == 429:
                 raise LLMRateLimitError("Cloud LLM is rate limited") from err
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except CloudApiError as err:
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
-            _LOGGER.debug("Unexpected error during LLM API call: %s", err)
             raise LLMServiceError("Error talking to Cloud LLM") from err
 
     return wrapper
@@ -259,12 +258,10 @@ async def stream_llm_response_events(
             if not line_bytes:
                 break
             line = line_bytes.decode("utf-8").rstrip("\r\n")
-            sse = decoder.decode(line)
-            if sse is None:
+            if (sse := decoder.decode(line)) is None:
                 continue
 
-            data = sse.data
-            if not data:
+            if not (data := sse.data):
                 # Allow keepalive/empty events
                 continue
 
@@ -375,9 +372,7 @@ class LLMHandler(ApiBase):
         if content_type:
             headers["Content-Type"] = content_type
 
-        timeout = RESPONSES_API_TIMEOUT
-        if "/images" in endpoint:
-            timeout = IMAGE_API_TIMEOUT
+        timeout = IMAGE_API_TIMEOUT if "/images" in endpoint else RESPONSES_API_TIMEOUT
 
         response = await self._call_raw_api(
             method=method,
@@ -465,15 +460,12 @@ class LLMHandler(ApiBase):
         response: dict[str, Any],
     ) -> LLMGeneratedImage:
         data = response.get("data")
-        if not data or not isinstance(data, list) or len(data) == 0:
+        if not (data and isinstance(data, list) and len(data) > 0):
             raise LLMResponseError("Unexpected response from Cloud LLM")
 
         item = data[0]
 
-        url = item.get("url")
-        b64 = item.get("b64_json")
-
-        if not b64 and url:
+        if not (b64 := item.get("b64_json")) and (url := item.get("url")) is not None:
             image_bytes = await self._async_fetch_image_from_url(url)
             b64 = base64.b64encode(image_bytes).decode("utf-8")
 
@@ -482,12 +474,10 @@ class LLMHandler(ApiBase):
                 "Image generation response contains neither url nor b64_json"
             )
 
-        decoded_image = base64.b64decode(b64)
-
         return LLMGeneratedImage(
             mime_type=IMAGE_MIME_TYPE,
             model=response.get("model"),
-            image_data=decoded_image,
+            image_data=base64.b64decode(b64),
             width=item.get("width"),
             height=item.get("height"),
             revised_prompt=item.get("revised_prompt"),
@@ -563,13 +553,11 @@ class LLMHandler(ApiBase):
         if not file_buffers:
             raise LLMRequestError("No attachments provided for LLM image editing")
 
-        image_buffers: list[tuple[io.BytesIO, str | None]]
-
-        if len(file_buffers) == 1:
-            image_buffers = file_buffers
-        else:
-            # HA doesn't support masks, so we can ignore it here at file_buffers[1]
-            image_buffers = [file_buffers[0], *file_buffers[2:]]
+        image_buffers = (
+            file_buffers
+            if len(file_buffers) == 1
+            else [file_buffers[0], *file_buffers[2:]]
+        )
 
         form = FormData()
         for key, value in {
