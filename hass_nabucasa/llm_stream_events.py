@@ -205,7 +205,8 @@ class ResponseUnhandledEvent:
     raw: dict[str, Any]
 
 
-type ResponsesAPIStreamEvent = (
+# Pylint expects type aliases to use snake_case; we keep this name for API clarity.
+type ResponsesAPIStreamEvent = (  # pylint: disable=invalid-name
     ResponseOutputItemAddedEvent
     | ResponseOutputItemDoneEvent
     | ResponseOutputTextDeltaEvent
@@ -226,6 +227,7 @@ def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesAPIStreamEv
 
     Raises TypeError if the payload does not match a supported event type/shape.
     """
+
     def _parse_output_item(item: dict[str, Any]) -> ResponseOutputItem:
         item_type = item.get("type")
         item_id = item.get("id")
@@ -242,8 +244,7 @@ def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesAPIStreamEv
                 call_id = item.get("call_id")
                 name = item.get("name")
                 if not isinstance(call_id, str):
-                    raise TypeError(
-                        "Missing or invalid function call 'call_id'")
+                    raise TypeError("Missing or invalid function call 'call_id'")
                 if not isinstance(name, str):
                     raise TypeError("Missing or invalid function call 'name'")
                 arguments = item.get("arguments", "")
