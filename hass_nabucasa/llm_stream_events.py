@@ -222,186 +222,218 @@ type ResponsesAPIStreamEvent = (  # pylint: disable=invalid-name
 )
 
 
-def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesAPIStreamEvent:  # noqa: C901, PLR0911, PLR0915
+def _parse_output_item(item: dict[str, Any]) -> ResponseOutputItem:
+    """Parse a response output item dict into a typed output item."""
+    item_type = item.get("type")
+    item_id = item.get("id")
+    if not isinstance(item_type, str):
+        raise TypeError("Missing or invalid output item 'type'")
+    if not isinstance(item_id, str):
+        return ResponseUnknownOutputItem(type=item_type, id="", raw=item)
+
+    match item_type:
+        case ResponseOutputItemType.FUNCTION_CALL:
+            call_id = item.get("call_id")
+            name = item.get("name")
+            if not isinstance(call_id, str):
+                raise TypeError("Missing or invalid function call 'call_id'")
+            if not isinstance(name, str):
+                raise TypeError("Missing or invalid function call 'name'")
+            arguments = item.get("arguments", "")
+            if not isinstance(arguments, str):
+                raise TypeError("Invalid function call 'arguments'")
+            status = item.get("status")
+            if status is not None and not isinstance(status, str):
+                raise TypeError("Invalid function call 'status'")
+            return ResponseFunctionCallOutputItem(
+                type=ResponseOutputItemType.FUNCTION_CALL,
+                id=item_id,
+                call_id=call_id,
+                name=name,
+                arguments=arguments,
+                status=status,
+            )
+        case ResponseOutputItemType.MESSAGE:
+            return ResponseMessageOutputItem(
+                type=ResponseOutputItemType.MESSAGE,
+                id=item_id,
+            )
+        case ResponseOutputItemType.REASONING:
+            encrypted_content = item.get("encrypted_content")
+            if encrypted_content is not None and not isinstance(encrypted_content, str):
+                raise TypeError("Invalid reasoning 'encrypted_content'")
+            summary = item.get("summary", []) or []
+            if not isinstance(summary, list):
+                raise TypeError("Invalid reasoning 'summary'")
+            return ResponseReasoningOutputItem(
+                type=ResponseOutputItemType.REASONING,
+                id=item_id,
+                encrypted_content=encrypted_content,
+                summary=summary,
+            )
+        case ResponseOutputItemType.WEB_SEARCH_CALL:
+            action = item.get("action", {})
+            if not isinstance(action, dict):
+                raise TypeError("Invalid web search call 'action'")
+            status = item.get("status")
+            if status is not None and not isinstance(status, str):
+                raise TypeError("Invalid web search call 'status'")
+            return ResponseWebSearchCallOutputItem(
+                type=ResponseOutputItemType.WEB_SEARCH_CALL,
+                id=item_id,
+                action=action,
+                status=status,
+            )
+        case ResponseOutputItemType.IMAGE:
+            return ResponseImageOutputItem(
+                type=ResponseOutputItemType.IMAGE,
+                id=item_id,
+                raw=item,
+            )
+        case _:
+            # Preserve unknown item types so consumers can ignore them.
+            return ResponseUnknownOutputItem(type=item_type, id=item_id, raw=item)
+
+
+def _parse_item_event(
+    payload: dict[str, Any],
+    *,
+    event_type: ResponsesAPIStreamEventType,
+) -> ResponseOutputItemAddedEvent | ResponseOutputItemDoneEvent:
+    item = payload.get("item")
+    if not isinstance(item, dict):
+        raise TypeError("Missing or invalid 'item'")
+    parsed_item = _parse_output_item(item)
+
+    if event_type is ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED:
+        return ResponseOutputItemAddedEvent(type=event_type, item=parsed_item)
+    return ResponseOutputItemDoneEvent(type=event_type, item=parsed_item)
+
+
+def _parse_delta_event(
+    payload: dict[str, Any],
+    *,
+    event_type: ResponsesAPIStreamEventType,
+) -> (
+    ResponseOutputTextDeltaEvent
+    | ResponseReasoningSummaryTextDeltaEvent
+    | ResponseFunctionCallArgumentsDeltaEvent
+):
+    delta = payload.get("delta")
+    if not isinstance(delta, str):
+        raise TypeError("Missing or invalid 'delta'")
+
+    if event_type is ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA:
+        return ResponseOutputTextDeltaEvent(type=event_type, delta=delta)
+
+    if event_type is ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DELTA:
+        return ResponseFunctionCallArgumentsDeltaEvent(type=event_type, delta=delta)
+
+    summary_index = payload.get("summary_index")
+    if not isinstance(summary_index, int):
+        raise TypeError("Missing or invalid 'summary_index'")
+    return ResponseReasoningSummaryTextDeltaEvent(
+        type=event_type,
+        delta=delta,
+        summary_index=summary_index,
+    )
+
+
+def _parse_function_call_arguments_done_event(
+    payload: dict[str, Any],
+) -> ResponseFunctionCallArgumentsDoneEvent:
+    arguments = payload.get("arguments")
+    name = payload.get("name")
+    item_id = payload.get("item_id")
+    if not isinstance(arguments, str):
+        raise TypeError("Missing or invalid 'arguments'")
+    if name is not None and not isinstance(name, str):
+        raise TypeError("Invalid 'name'")
+    if not isinstance(item_id, str):
+        raise TypeError("Missing or invalid 'item_id'")
+    return ResponseFunctionCallArgumentsDoneEvent(
+        type=ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE,
+        arguments=arguments,
+        name=name if isinstance(name, str) else None,
+        item_id=item_id,
+    )
+
+
+def _parse_web_search_call_searching_event(
+    payload: dict[str, Any],
+) -> ResponseWebSearchCallSearchingEvent:
+    item_id = payload.get("item_id")
+    if not isinstance(item_id, str):
+        raise TypeError("Missing or invalid 'item_id'")
+    return ResponseWebSearchCallSearchingEvent(
+        type=ResponsesAPIStreamEventType.WEB_SEARCH_CALL_SEARCHING,
+        item_id=item_id,
+    )
+
+
+def _parse_completion_event(
+    payload: dict[str, Any],
+    *,
+    event_type: ResponsesAPIStreamEventType,
+) -> ResponseCompletedEvent | ResponseIncompleteEvent | ResponseFailedEvent:
+    response = payload.get("response")
+    if not isinstance(response, dict):
+        raise TypeError("Missing or invalid 'response'")
+
+    if event_type is ResponsesAPIStreamEventType.RESPONSE_COMPLETED:
+        return ResponseCompletedEvent(type=event_type, response=response)
+    if event_type is ResponsesAPIStreamEventType.RESPONSE_INCOMPLETE:
+        return ResponseIncompleteEvent(type=event_type, response=response)
+    return ResponseFailedEvent(type=event_type, response=response)
+
+
+def _parse_error_event(payload: dict[str, Any]) -> ResponseErrorEvent:
+    message = payload.get("message")
+    if not isinstance(message, str):
+        raise TypeError("Missing or invalid 'message'")
+    return ResponseErrorEvent(type=ResponsesAPIStreamEventType.ERROR, message=message)
+
+
+def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesAPIStreamEvent:
     """Parse a SSE JSON payload into a typed stream event.
 
     Raises TypeError if the payload does not match a supported event type/shape.
     """
+    event_type = payload.get("type")
+    if not isinstance(event_type, str):
+        raise TypeError("Missing or invalid 'type'")
 
-    def _parse_output_item(item: dict[str, Any]) -> ResponseOutputItem:
-        item_type = item.get("type")
-        item_id = item.get("id")
-        if not isinstance(item_type, str):
-            raise TypeError("Missing or invalid output item 'type'")
-        # Some upstream item types may not include an `id` in early/partial events.
-        # If we can't validate a usable ID, preserve the raw item and let the
-        # consumer ignore it.
-        if not isinstance(item_id, str):
-            return ResponseUnknownOutputItem(type=item_type, id="", raw=item)
+    if event_type == ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED.value:
+        result: ResponsesAPIStreamEvent = _parse_item_event(
+            payload,
+            event_type=ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED,
+        )
+    elif event_type == ResponsesAPIStreamEventType.OUTPUT_ITEM_DONE.value:
+        result = _parse_item_event(
+            payload,
+            event_type=ResponsesAPIStreamEventType.OUTPUT_ITEM_DONE,
+        )
+    elif event_type in {
+        ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA.value,
+        ResponsesAPIStreamEventType.REASONING_SUMMARY_TEXT_DELTA.value,
+        ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DELTA.value,
+    }:
+        event_enum = ResponsesAPIStreamEventType(event_type)
+        result = _parse_delta_event(payload, event_type=event_enum)
+    elif event_type == ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE.value:
+        result = _parse_function_call_arguments_done_event(payload)
+    elif event_type == ResponsesAPIStreamEventType.WEB_SEARCH_CALL_SEARCHING.value:
+        result = _parse_web_search_call_searching_event(payload)
+    elif event_type in {
+        ResponsesAPIStreamEventType.RESPONSE_COMPLETED.value,
+        ResponsesAPIStreamEventType.RESPONSE_INCOMPLETE.value,
+        ResponsesAPIStreamEventType.RESPONSE_FAILED.value,
+    }:
+        event_enum = ResponsesAPIStreamEventType(event_type)
+        result = _parse_completion_event(payload, event_type=event_enum)
+    elif event_type == ResponsesAPIStreamEventType.ERROR.value:
+        result = _parse_error_event(payload)
+    else:
+        result = ResponseUnhandledEvent(type=event_type, raw=payload)
 
-        match item_type:
-            case ResponseOutputItemType.FUNCTION_CALL:
-                call_id = item.get("call_id")
-                name = item.get("name")
-                if not isinstance(call_id, str):
-                    raise TypeError("Missing or invalid function call 'call_id'")
-                if not isinstance(name, str):
-                    raise TypeError("Missing or invalid function call 'name'")
-                arguments = item.get("arguments", "")
-                if not isinstance(arguments, str):
-                    raise TypeError("Invalid function call 'arguments'")
-                status = item.get("status")
-                if status is not None and not isinstance(status, str):
-                    raise TypeError("Invalid function call 'status'")
-                return ResponseFunctionCallOutputItem(
-                    type=ResponseOutputItemType.FUNCTION_CALL,
-                    id=item_id,
-                    call_id=call_id,
-                    name=name,
-                    arguments=arguments,
-                    status=status,
-                )
-            case ResponseOutputItemType.MESSAGE:
-                return ResponseMessageOutputItem(
-                    type=ResponseOutputItemType.MESSAGE,
-                    id=item_id,
-                )
-            case ResponseOutputItemType.REASONING:
-                encrypted_content = item.get("encrypted_content")
-                if encrypted_content is not None and not isinstance(
-                    encrypted_content, str
-                ):
-                    raise TypeError("Invalid reasoning 'encrypted_content'")
-                summary = item.get("summary", []) or []
-                if not isinstance(summary, list):
-                    raise TypeError("Invalid reasoning 'summary'")
-                return ResponseReasoningOutputItem(
-                    type=ResponseOutputItemType.REASONING,
-                    id=item_id,
-                    encrypted_content=encrypted_content,
-                    summary=summary,
-                )
-            case ResponseOutputItemType.WEB_SEARCH_CALL:
-                action = item.get("action", {})
-                if not isinstance(action, dict):
-                    raise TypeError("Invalid web search call 'action'")
-                status = item.get("status")
-                if status is not None and not isinstance(status, str):
-                    raise TypeError("Invalid web search call 'status'")
-                return ResponseWebSearchCallOutputItem(
-                    type=ResponseOutputItemType.WEB_SEARCH_CALL,
-                    id=item_id,
-                    action=action,
-                    status=status,
-                )
-            case ResponseOutputItemType.IMAGE:
-                return ResponseImageOutputItem(
-                    type=ResponseOutputItemType.IMAGE,
-                    id=item_id,
-                    raw=item,
-                )
-            case _:
-                # Preserve unknown item types so consumers can ignore them.
-                return ResponseUnknownOutputItem(type=item_type, id=item_id, raw=item)
-
-    match payload.get("type"):
-        case ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED:
-            item = payload.get("item")
-            if not isinstance(item, dict):
-                raise TypeError("Missing or invalid 'item'")
-            return ResponseOutputItemAddedEvent(
-                type=ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED,
-                item=_parse_output_item(item),
-            )
-        case ResponsesAPIStreamEventType.OUTPUT_ITEM_DONE:
-            item = payload.get("item")
-            if not isinstance(item, dict):
-                raise TypeError("Missing or invalid 'item'")
-            return ResponseOutputItemDoneEvent(
-                type=ResponsesAPIStreamEventType.OUTPUT_ITEM_DONE,
-                item=_parse_output_item(item),
-            )
-        case ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA:
-            delta = payload.get("delta")
-            if not isinstance(delta, str):
-                raise TypeError("Missing or invalid 'delta'")
-            return ResponseOutputTextDeltaEvent(
-                type=ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA, delta=delta
-            )
-        case ResponsesAPIStreamEventType.REASONING_SUMMARY_TEXT_DELTA:
-            delta = payload.get("delta")
-            summary_index = payload.get("summary_index")
-            if not isinstance(delta, str):
-                raise TypeError("Missing or invalid 'delta'")
-            if not isinstance(summary_index, int):
-                raise TypeError("Missing or invalid 'summary_index'")
-            return ResponseReasoningSummaryTextDeltaEvent(
-                type=ResponsesAPIStreamEventType.REASONING_SUMMARY_TEXT_DELTA,
-                delta=delta,
-                summary_index=summary_index,
-            )
-        case ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DELTA:
-            delta = payload.get("delta")
-            if not isinstance(delta, str):
-                raise TypeError("Missing or invalid 'delta'")
-            return ResponseFunctionCallArgumentsDeltaEvent(
-                type=ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DELTA,
-                delta=delta,
-            )
-        case ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE:
-            arguments = payload.get("arguments")
-            name = payload.get("name")
-            item_id = payload.get("item_id")
-            if not isinstance(arguments, str):
-                raise TypeError("Missing or invalid 'arguments'")
-            if name is not None and not isinstance(name, str):
-                raise TypeError("Invalid 'name'")
-            if not isinstance(item_id, str):
-                raise TypeError("Missing or invalid 'item_id'")
-            return ResponseFunctionCallArgumentsDoneEvent(
-                type=ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE,
-                arguments=arguments,
-                name=name if isinstance(name, str) else None,
-                item_id=item_id,
-            )
-        case ResponsesAPIStreamEventType.WEB_SEARCH_CALL_SEARCHING:
-            item_id = payload.get("item_id")
-            if not isinstance(item_id, str):
-                raise TypeError("Missing or invalid 'item_id'")
-            return ResponseWebSearchCallSearchingEvent(
-                type=ResponsesAPIStreamEventType.WEB_SEARCH_CALL_SEARCHING,
-                item_id=item_id,
-            )
-        case ResponsesAPIStreamEventType.RESPONSE_COMPLETED:
-            response = payload.get("response")
-            if not isinstance(response, dict):
-                raise TypeError("Missing or invalid 'response'")
-            return ResponseCompletedEvent(
-                type=ResponsesAPIStreamEventType.RESPONSE_COMPLETED, response=response
-            )
-        case ResponsesAPIStreamEventType.RESPONSE_INCOMPLETE:
-            response = payload.get("response")
-            if not isinstance(response, dict):
-                raise TypeError("Missing or invalid 'response'")
-            return ResponseIncompleteEvent(
-                type=ResponsesAPIStreamEventType.RESPONSE_INCOMPLETE, response=response
-            )
-        case ResponsesAPIStreamEventType.RESPONSE_FAILED:
-            response = payload.get("response")
-            if not isinstance(response, dict):
-                raise TypeError("Missing or invalid 'response'")
-            return ResponseFailedEvent(
-                type=ResponsesAPIStreamEventType.RESPONSE_FAILED, response=response
-            )
-        case ResponsesAPIStreamEventType.ERROR:
-            message = payload.get("message")
-            if not isinstance(message, str):
-                raise TypeError("Missing or invalid 'message'")
-            return ResponseErrorEvent(
-                type=ResponsesAPIStreamEventType.ERROR, message=message
-            )
-        case _:
-            event_type = payload.get("type")
-            if not isinstance(event_type, str):
-                raise TypeError("Missing or invalid 'type'")
-            return ResponseUnhandledEvent(type=event_type, raw=payload)
+    return result
