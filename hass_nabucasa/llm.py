@@ -224,17 +224,14 @@ def llm_http_exception_handler(
             raise
         except ClientResponseError as err:
             if err.status == 401:
-                raise LLMAuthenticationError(
-                    "Cloud LLM authentication failed") from err
+                raise LLMAuthenticationError("Cloud LLM authentication failed") from err
             if err.status == 429:
                 raise LLMRateLimitError("Cloud LLM is rate limited") from err
-            raise LLMServiceError(
-                "Couldn't process Cloud LLM response") from err
+            raise LLMServiceError("Couldn't process Cloud LLM response") from err
         except CloudApiError as err:
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
-            raise LLMServiceError(
-                "Unknown error talking to Cloud LLM") from err
+            raise LLMServiceError("Unknown error talking to Cloud LLM") from err
 
     return wrapper
 
@@ -382,8 +379,7 @@ class LLMHandler(ApiBase):
         try:
             data = cast("dict[str, Any]", await response.json())
         except (ContentTypeError, json.JSONDecodeError) as err:
-            raise LLMResponseError(
-                "Invalid JSON response from Cloud LLM") from err
+            raise LLMResponseError("Invalid JSON response from Cloud LLM") from err
 
         return data
 
@@ -536,8 +532,7 @@ class LLMHandler(ApiBase):
             file_buffers.append((buffer, attachment["mime_type"]))
 
         if not file_buffers:
-            raise LLMRequestError(
-                "No attachments provided for LLM image editing")
+            raise LLMRequestError("No attachments provided for LLM image editing")
 
         image_buffers = (
             file_buffers
