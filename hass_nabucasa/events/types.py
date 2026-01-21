@@ -50,12 +50,3 @@ class RelayerDisconnectedEvent(CloudEvent):
         default=CloudEventType.RELAYER_DISCONNECTED, init=False
     )
     reason: DisconnectReason | None = None
-
-
-@dataclass(kw_only=True, frozen=True)
-class ServiceDiscoveryUpdateEvent(CloudEvent):
-    """Service discovery update event."""
-
-    type: CloudEventType = field(
-        default=CloudEventType.SERVICE_DISCOVERY_UPDATE, init=False
-    )
