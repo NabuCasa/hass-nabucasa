@@ -1,0 +1,40 @@
+# serializer version: 1
+# name: test_problems_requesting_sync[client-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for google_report_state_request_sync: https://remotestate.example.com/request_sync
+  [DEBUG] hass_nabucasa.api: Sending POST request to remotestate.example.com/request_sync
+  '''
+# ---
+# name: test_problems_requesting_sync[timeout]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for google_report_state_request_sync: https://remotestate.example.com/request_sync
+  [DEBUG] hass_nabucasa.api: Sending POST request to remotestate.example.com/request_sync
+  '''
+# ---
+# name: test_problems_requesting_sync[unexpected-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for google_report_state_request_sync: https://remotestate.example.com/request_sync
+  [DEBUG] hass_nabucasa.api: Sending POST request to remotestate.example.com/request_sync
+  '''
+# ---
+# name: test_request_sync_error_status[429-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for google_report_state_request_sync: https://remotestate.example.com/request_sync
+  [DEBUG] hass_nabucasa.api: Sending POST request to remotestate.example.com/request_sync
+  [DEBUG] hass_nabucasa.api: Response for post from remotestate.example.com/request_sync (429) 
+  '''
+# ---
+# name: test_request_sync_error_status[500-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for google_report_state_request_sync: https://remotestate.example.com/request_sync
+  [DEBUG] hass_nabucasa.api: Sending POST request to remotestate.example.com/request_sync
+  [DEBUG] hass_nabucasa.api: Response for post from remotestate.example.com/request_sync (500) 
+  '''
+# ---
+# name: test_request_sync_success
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for google_report_state_request_sync: https://remotestate.example.com/request_sync
+  [DEBUG] hass_nabucasa.api: Sending POST request to remotestate.example.com/request_sync
+  [DEBUG] hass_nabucasa.api: Response for post from remotestate.example.com/request_sync (200) 
+  '''
+# ---

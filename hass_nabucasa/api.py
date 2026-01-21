@@ -259,7 +259,6 @@ class ApiBase:
         action: ServiceDiscoveryAction | None = None,
         action_values: dict[str, Any] | None = None,
         path: str | None = None,
-        api_version: int | None = None,
         method: str = "GET",
         client_timeout: ClientTimeout | None = None,
         jsondata: dict[str, Any] | None = None,
@@ -286,8 +285,7 @@ class ApiBase:
                 **(action_values or {}),
             )
         else:
-            url_path = f"{f'/v{api_version}' if api_version else ''}{path}"
-            final_url = f"https://{self.hostname}{url_path}"
+            final_url = f"https://{self.hostname}{path}"
 
         resp = await self._call_raw_api(
             method=method,
