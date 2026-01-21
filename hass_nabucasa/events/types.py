@@ -24,6 +24,7 @@ class CloudEventType(StrEnum):
     LOGOUT = "logout"
     RELAYER_CONNECTED = "relayer_connected"
     RELAYER_DISCONNECTED = "relayer_disconnected"
+    SERVICE_DISCOVERY_UPDATE = "service_discovery_update"
 
 
 @dataclass(kw_only=True, frozen=True)
