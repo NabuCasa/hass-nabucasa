@@ -34,6 +34,7 @@ from hass_nabucasa.exceptions import NabuCasaNotLoggedInError
 from hass_nabucasa.utils import utc_from_timestamp, utcnow
 
 from .api import ApiBase, CloudApiError, api_exception_handler
+from .llm_stream_events import ResponsesAPIStreamEvent, parse_response_stream_event
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -42,7 +43,6 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 ResponsesAPIResponse = dict[str, Any]
-ResponsesAPIStreamEvent = dict[str, Any]
 ResponseInputParam = dict[str, Any] | list[Any]
 ToolParam = dict[str, Any]
 ToolChoice = Literal["auto", "none"] | dict[str, Any]
@@ -126,19 +126,6 @@ class _ServerSentEvent:
 
 
 type JSONPrimitive = str | int | float | bool | None
-type JSONValue = JSONPrimitive | dict[str, JSONValue] | list[JSONValue]
-type StreamValue = JSONPrimitive | ResponsesAPIStreamEvent | list[StreamValue]
-
-
-def _build_stream_event(payload: JSONValue) -> StreamValue:
-    """Convert a JSON payload into a Responses API stream event object."""
-    if isinstance(payload, dict):
-        return ResponsesAPIStreamEvent(
-            **{key: _build_stream_event(value) for key, value in payload.items()}
-        )
-    if isinstance(payload, list):
-        return [_build_stream_event(item) for item in payload]
-    return payload
 
 
 P = ParamSpec("P")
@@ -220,21 +207,24 @@ def llm_http_exception_handler(
             raise
         except ClientResponseError as err:
             if err.status == 401:
-                raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+                raise LLMAuthenticationError(
+                    "Cloud LLM authentication failed") from err
             if err.status == 429:
                 raise LLMRateLimitError("Cloud LLM is rate limited") from err
-            raise LLMServiceError("Couldn't process Cloud LLM response") from err
+            raise LLMServiceError(
+                "Couldn't process Cloud LLM response") from err
         except CloudApiError as err:
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
-            raise LLMServiceError("Unknown error talking to Cloud LLM") from err
+            raise LLMServiceError(
+                "Unknown error talking to Cloud LLM") from err
 
     return wrapper
 
 
 async def stream_llm_response_events(
     response: ClientResponse,
-) -> AsyncIterator[Any]:
+) -> AsyncIterator[ResponsesAPIStreamEvent]:
     """Yield response events from the Cloud LLM stream."""
     try:
         decoder = _SSEDecoder()
@@ -259,7 +249,15 @@ async def stream_llm_response_events(
                 raise LLMResponseError(
                     "There was an error processing the Cloud LLM response"
                 ) from err
-            yield _build_stream_event(payload)
+            if not isinstance(payload, dict):
+                raise LLMResponseError(
+                    "Unexpected event from Cloud LLM stream")
+            try:
+                yield parse_response_stream_event(payload)
+            except TypeError as err:
+                raise LLMResponseError(
+                    "Unexpected event from Cloud LLM stream"
+                ) from err
     finally:
         response.release()
 
@@ -375,7 +373,8 @@ class LLMHandler(ApiBase):
         try:
             data = cast("dict[str, Any]", await response.json())
         except (ContentTypeError, json.JSONDecodeError) as err:
-            raise LLMResponseError("Invalid JSON response from Cloud LLM") from err
+            raise LLMResponseError(
+                "Invalid JSON response from Cloud LLM") from err
 
         return data
 
@@ -528,7 +527,8 @@ class LLMHandler(ApiBase):
             file_buffers.append((buffer, attachment["mime_type"]))
 
         if not file_buffers:
-            raise LLMRequestError("No attachments provided for LLM image editing")
+            raise LLMRequestError(
+                "No attachments provided for LLM image editing")
 
         image_buffers = (
             file_buffers
