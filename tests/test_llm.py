@@ -30,6 +30,15 @@ if TYPE_CHECKING:
     from .utils.aiohttp import AiohttpClientMocker
 
 
+def _to_primitive(value: object) -> object:
+    """Convert stream events (SimpleNamespace) into plain dict/list primitives."""
+    if isinstance(value, SimpleNamespace):
+        return {k: _to_primitive(v) for k, v in value.__dict__.items()}
+    if isinstance(value, list):
+        return [_to_primitive(v) for v in value]
+    return value
+
+
 class _FakeStream:
     """Simple async stream for simulating SSE responses."""
 
@@ -89,7 +98,8 @@ async def test_async_generate_data_returns_response(cloud: Cloud) -> None:
     """async_generate_data should call the Responses API with expected payload."""
     await cloud.llm.async_ensure_token()
     messages = [{"role": "user", "content": "Hello"}]
-    expected = {"output": [{"content": [{"type": "output_text", "text": "Hi"}]}]}
+    expected = {"output": [
+        {"content": [{"type": "output_text", "text": "Hi"}]}]}
     fake_response = SimpleNamespace()
     mock_call = AsyncMock(return_value=fake_response)
     mock_get_response = AsyncMock(return_value=expected)
@@ -136,7 +146,7 @@ async def test_async_generate_data_streams_when_requested(cloud: Cloud) -> None:
         )
 
         events = [
-            event.to_dict()
+            _to_primitive(event)
             async for event in cast("AsyncIterator[ResponsesAPIStreamEvent]", iterator)
         ]
 
@@ -164,7 +174,8 @@ async def test_async_generate_data_maps_http_errors(
 ) -> None:
     """async_generate_data should translate HTTP errors to LLM errors."""
     await cloud.llm.async_ensure_token()
-    aioclient_mock.post("https://api.example/responses", status=status, text="err")
+    aioclient_mock.post("https://api.example/responses",
+                        status=status, text="err")
 
     with pytest.raises(expected):
         await cloud.llm.async_generate_data(messages=[], conversation_id="conv")
@@ -208,7 +219,8 @@ async def test_async_generate_image_maps_http_errors(
 ) -> None:
     """async_generate_image should translate HTTP failures."""
     await cloud.llm.async_ensure_token()
-    aioclient_mock.post("https://api.example/images/generations", status=status)
+    aioclient_mock.post(
+        "https://api.example/images/generations", status=status)
 
     with pytest.raises(expected):
         await cloud.llm.async_generate_image(prompt="draw anything")
@@ -339,7 +351,7 @@ async def test_stream_llm_response_events_parses_lines() -> None:
     )
 
     events = [
-        event.to_dict()
+        _to_primitive(event)
         async for event in cast(
             "AsyncIterator[ResponsesAPIStreamEvent]",
             stream_llm_response_events(fake_response),
@@ -364,7 +376,7 @@ async def test_stream_llm_response_events_ignores_empty_events() -> None:
     )
 
     events = [
-        event.to_dict()
+        _to_primitive(event)
         async for event in cast(
             "AsyncIterator[ResponsesAPIStreamEvent]",
             stream_llm_response_events(fake_response),
@@ -395,7 +407,7 @@ async def test_stream_llm_response_events_raises_on_invalid_json() -> None:
     )
 
     first_event = await anext(iterator)
-    assert first_event.to_dict() == {"foo": 1}
+    assert _to_primitive(first_event) == {"foo": 1}
     with pytest.raises(
         LLMResponseError, match="There was an error processing the Cloud LLM response"
     ):

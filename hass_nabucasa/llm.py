@@ -112,17 +112,11 @@ class LLMResponseError(LLMRequestError):
 IMAGE_MIME_TYPE = "image/png"
 TOKEN_EXP_BUFFER_MINUTES = timedelta(minutes=5)
 RESPONSES_API_TIMEOUT = 30.0
-IMAGE_API_TIMEOUT = 60.0
+IMAGE_API_TIMEOUT = 120.0
 
 
 class ResponsesAPIStreamEvent(SimpleNamespace):
     """Simple namespace with helper to convert back to plain dicts."""
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert the namespace back to a plain dict recursively."""
-        return {
-            key: _namespace_to_primitive(value) for key, value in self.__dict__.items()
-        }
 
 
 @dataclass
@@ -135,16 +129,12 @@ class _ServerSentEvent:
     retry: int | None = None
 
 
-def _namespace_to_primitive(value: Any) -> Any:
-    """Convert a namespace to a primitive value."""
-    if isinstance(value, ResponsesAPIStreamEvent):
-        return value.to_dict()
-    if isinstance(value, list):
-        return [_namespace_to_primitive(item) for item in value]
-    return value
+type JSONPrimitive = str | int | float | bool | None
+type JSONValue = JSONPrimitive | dict[str, JSONValue] | list[JSONValue]
+type StreamValue = JSONPrimitive | ResponsesAPIStreamEvent | list[StreamValue]
 
 
-def _build_stream_event(payload: Any) -> Any:
+def _build_stream_event(payload: JSONValue) -> StreamValue:
     """Convert a JSON payload into a Responses API stream event object."""
     if isinstance(payload, dict):
         return ResponsesAPIStreamEvent(
@@ -205,8 +195,7 @@ class _SSEDecoder:
             return None
 
         fieldname, _, value = line.partition(":")
-        if value.startswith(" "):
-            value = value.removeprefix(" ")
+        value = value.removeprefix(" ")
 
         if fieldname == "event":
             self._event = value
@@ -235,14 +224,17 @@ def llm_http_exception_handler(
             raise
         except ClientResponseError as err:
             if err.status == 401:
-                raise LLMAuthenticationError("Cloud LLM authentication failed") from err
+                raise LLMAuthenticationError(
+                    "Cloud LLM authentication failed") from err
             if err.status == 429:
                 raise LLMRateLimitError("Cloud LLM is rate limited") from err
-            raise LLMServiceError("Error talking to Cloud LLM") from err
+            raise LLMServiceError(
+                "Couldn't process Cloud LLM response") from err
         except CloudApiError as err:
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
-            raise LLMServiceError("Error talking to Cloud LLM") from err
+            raise LLMServiceError(
+                "Unknown error talking to Cloud LLM") from err
 
     return wrapper
 
@@ -271,11 +263,6 @@ async def stream_llm_response_events(
             try:
                 payload = json.loads(data)
             except json.JSONDecodeError as err:
-                _LOGGER.error(
-                    "Failed to decode Cloud LLM stream event: %s; data=%r",
-                    err,
-                    data,
-                )
                 raise LLMResponseError(
                     "There was an error processing the Cloud LLM response"
                 ) from err
@@ -353,10 +340,11 @@ class LLMHandler(ApiBase):
         *,
         method: str = "POST",
         accept: str = "application/json",
-        content_type: str | None = "application/json",
+        content_type: str | None = None,
         payload: dict[str, Any] | None = None,
         data: Any | None = None,
         include_path_in_log: bool = False,
+        api_timeout: float = RESPONSES_API_TIMEOUT,
     ) -> ClientResponse:
         """Call the Cloud LLM API and ensure errors are handled uniformly."""
         if TYPE_CHECKING:
@@ -368,11 +356,8 @@ class LLMHandler(ApiBase):
         headers: dict[str, str] = {
             "Authorization": f"Bearer {self._token}",
             "Accept": accept,
+            **({"Content-Type": content_type} if content_type is not None else {}),
         }
-        if content_type:
-            headers["Content-Type"] = content_type
-
-        timeout = IMAGE_API_TIMEOUT if "/images" in endpoint else RESPONSES_API_TIMEOUT
 
         response = await self._call_raw_api(
             method=method,
@@ -380,13 +365,11 @@ class LLMHandler(ApiBase):
             headers=headers,
             jsondata=payload,
             data=data,
-            client_timeout=ClientTimeout(total=timeout),
+            client_timeout=ClientTimeout(total=api_timeout),
             include_path_in_log=include_path_in_log,
         )
 
         if response.status >= 400:
-            error_body = await response.text()
-            self._do_log_response(response, error_body, include_path_in_log)
             response.raise_for_status()
 
         return response
@@ -394,16 +377,14 @@ class LLMHandler(ApiBase):
     async def _get_response(
         self,
         response: ClientResponse,
-        *,
-        include_path_in_log: bool = False,
     ) -> dict[str, Any]:
         """Parse a JSON response from the Cloud LLM API."""
         try:
             data = cast("dict[str, Any]", await response.json())
         except (ContentTypeError, json.JSONDecodeError) as err:
-            raise LLMResponseError("Invalid JSON response from Cloud LLM") from err
+            raise LLMResponseError(
+                "Invalid JSON response from Cloud LLM") from err
 
-        self._do_log_response(response, data, include_path_in_log)
         return data
 
     def _build_responses_payload(
@@ -444,7 +425,9 @@ class LLMHandler(ApiBase):
         response = await self._call_llm_api(
             "responses",
             accept=accept,
+            content_type="application/json",
             payload=payload,
+            api_timeout=RESPONSES_API_TIMEOUT,
         )
 
         if not stream:
@@ -529,6 +512,8 @@ class LLMHandler(ApiBase):
         response = await self._call_llm_api(
             "images/generations",
             payload=payload,
+            content_type="application/json",
+            api_timeout=IMAGE_API_TIMEOUT,
         )
         data = await self._get_response(response)
 
@@ -551,11 +536,13 @@ class LLMHandler(ApiBase):
             file_buffers.append((buffer, attachment["mime_type"]))
 
         if not file_buffers:
-            raise LLMRequestError("No attachments provided for LLM image editing")
+            raise LLMRequestError(
+                "No attachments provided for LLM image editing")
 
         image_buffers = (
             file_buffers
             if len(file_buffers) == 1
+            # HA doesn't support masks, so we can ignore it here at file_buffers[1]
             else [file_buffers[0], *file_buffers[2:]]
         )
 
@@ -577,8 +564,8 @@ class LLMHandler(ApiBase):
 
         response = await self._call_llm_api(
             "images/edits",
-            content_type=None,
             data=form,
+            api_timeout=IMAGE_API_TIMEOUT,
         )
         result = await self._get_response(response)
 
