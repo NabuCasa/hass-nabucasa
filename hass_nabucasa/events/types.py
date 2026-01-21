@@ -24,6 +24,7 @@ class CloudEventType(StrEnum):
     LOGOUT = "logout"
     RELAYER_CONNECTED = "relayer_connected"
     RELAYER_DISCONNECTED = "relayer_disconnected"
+    SERVICE_DISCOVERY_UPDATE = "service_discovery_update"
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -49,3 +50,12 @@ class RelayerDisconnectedEvent(CloudEvent):
         default=CloudEventType.RELAYER_DISCONNECTED, init=False
     )
     reason: DisconnectReason | None = None
+
+
+@dataclass(kw_only=True, frozen=True)
+class ServiceDiscoveryUpdateEvent(CloudEvent):
+    """Service discovery update event."""
+
+    type: CloudEventType = field(
+        default=CloudEventType.SERVICE_DISCOVERY_UPDATE, init=False
+    )

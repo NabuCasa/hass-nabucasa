@@ -13,6 +13,7 @@ import pytest
 from syrupy import SnapshotAssertion
 
 from hass_nabucasa.const import FIVE_MINUTES_IN_SECONDS
+from hass_nabucasa.events.types import CloudEventType
 from hass_nabucasa.service_discovery import (
     MIN_REFRESH_INTERVAL,
     ServiceDiscovery,
@@ -1007,3 +1008,22 @@ async def test_service_discovery_fetch_without_token_check(
 
     assert result["version"] == "1.0"
     assert not cloud.auth.async_check_token.called
+
+
+async def test_service_discovery_update_event_published(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+):
+    """Test that service discovery update event is published when data is loaded."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json=BASE_EXPECTED_RESULT,
+    )
+
+    cloud.events.publish = AsyncMock()
+
+    await cloud.service_discovery._load_service_discovery_data()
+
+    assert cloud.events.publish.call_count == 1
+    event = cloud.events.publish.call_args[1]["event"]
+    assert event.type == CloudEventType.SERVICE_DISCOVERY_UPDATE

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict, get_args
 import voluptuous as vol
 
 from .api import ApiBase, CloudApiError, api_exception_handler
+from .events.types import ServiceDiscoveryUpdateEvent
 from .const import (
     FIVE_MINUTES_IN_SECONDS,
     ONE_HOUR_IN_SECONDS,
@@ -235,6 +236,8 @@ class ServiceDiscovery(ApiBase):
                 "Service discovery data cached, valid for %s",
                 seconds_as_dhms(discovery_data["valid_for"]),
             )
+
+            await self._cloud.events.publish(event=ServiceDiscoveryUpdateEvent())
 
             return cache_data
 
