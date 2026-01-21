@@ -1027,3 +1027,7 @@ async def test_service_discovery_update_event_published(
     assert cloud.events.publish.call_count == 1
     event = cloud.events.publish.call_args[1]["event"]
     assert event.type == CloudEventType.SERVICE_DISCOVERY_UPDATE
+
+    # Verify that the event is NOT published when cached data is returned
+    await cloud.service_discovery._load_service_discovery_data()
+    assert cloud.events.publish.call_count == 1
