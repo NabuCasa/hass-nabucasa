@@ -12,7 +12,6 @@ from functools import wraps
 import io
 import json
 import logging
-from types import SimpleNamespace
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -43,6 +42,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 ResponsesAPIResponse = dict[str, Any]
+ResponsesAPIStreamEvent = dict[str, Any]
 ResponseInputParam = dict[str, Any] | list[Any]
 ToolParam = dict[str, Any]
 ToolChoice = Literal["auto", "none"] | dict[str, Any]
@@ -113,10 +113,6 @@ IMAGE_MIME_TYPE = "image/png"
 TOKEN_EXP_BUFFER_MINUTES = timedelta(minutes=5)
 RESPONSES_API_TIMEOUT = 30.0
 IMAGE_API_TIMEOUT = 120.0
-
-
-class ResponsesAPIStreamEvent(SimpleNamespace):
-    """Simple namespace with helper to convert back to plain dicts."""
 
 
 @dataclass
