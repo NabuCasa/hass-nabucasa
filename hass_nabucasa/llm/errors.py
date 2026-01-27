@@ -1,8 +1,4 @@
-"""LLM error hierarchy.
-
-Kept in a separate module to avoid import cycles between the handler and stream
-event parsing modules.
-"""
+"""Custom LLM errors."""
 
 from __future__ import annotations
 

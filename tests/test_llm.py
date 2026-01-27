@@ -18,13 +18,11 @@ from hass_nabucasa.llm import (
     LLMRequestError,
     LLMResponseError,
     LLMServiceError,
-    ResponsesAPIStreamEvent,
-    ToolChoice,
-    ToolParam,
-    stream_llm_response_events,
 )
-from hass_nabucasa.llm_stream_events import (
+from hass_nabucasa.llm.handler import ToolChoice, ToolParam, stream_llm_response_events
+from hass_nabucasa.llm.stream_events import (
     ResponseOutputTextDeltaEvent,
+    ResponsesAPIStreamEvent,
     ResponsesAPIStreamEventType,
 )
 
@@ -239,7 +237,7 @@ async def test_async_edit_image_builds_file_payloads(cloud: Cloud) -> None:
     form_mock = MagicMock()
 
     with (
-        patch("hass_nabucasa.llm.FormData", return_value=form_mock),
+        patch("hass_nabucasa.llm.handler.FormData", return_value=form_mock),
         patch.object(cloud.llm, "_call_llm_api", mock_call),
         patch.object(cloud.llm, "_get_response", mock_get_response),
         patch.object(cloud.llm, "_extract_response_image_data", mock_extract),

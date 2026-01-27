@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from hass_nabucasa.llm_stream_events import (
+from hass_nabucasa.llm.stream_events import (
     LLMStreamEventParseError,
     ResponseFunctionCallOutputItem,
     ResponseOutputItemAddedEvent,
