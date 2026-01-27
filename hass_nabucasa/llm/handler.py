@@ -30,14 +30,26 @@ from aiohttp import (
     FormData,
 )
 
-from hass_nabucasa.exceptions import NabuCasaNotLoggedInError
-from hass_nabucasa.utils import utc_from_timestamp, utcnow
+from ..exceptions import NabuCasaNotLoggedInError
+from ..utils import utc_from_timestamp, utcnow
 
-from .api import ApiBase, CloudApiError, api_exception_handler
-from .llm_stream_events import ResponsesAPIStreamEvent, parse_response_stream_event
+from ..api import ApiBase, CloudApiError, api_exception_handler
+from .errors import (
+    LLMAuthenticationError,
+    LLMError,
+    LLMRateLimitError,
+    LLMRequestError,
+    LLMResponseError,
+    LLMServiceError,
+)
+from .stream_events import (
+    LLMStreamEventParseError,
+    ResponsesAPIStreamEvent,
+    parse_response_stream_event,
+)
 
 if TYPE_CHECKING:
-    from . import Cloud, _ClientT
+    from .. import Cloud, _ClientT
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,10 +58,6 @@ ResponsesAPIResponse = dict[str, Any]
 ResponseInputParam = dict[str, Any] | list[Any]
 ToolParam = dict[str, Any]
 ToolChoice = Literal["auto", "none"] | dict[str, Any]
-
-
-class LLMError(CloudApiError):
-    """Base exception for LLM-related errors."""
 
 
 class LLMConnectionDetails(TypedDict):
@@ -87,26 +95,6 @@ class LLMImageAttachment(TypedDict):
     filename: str | None
     mime_type: str | None
     data: bytes
-
-
-class LLMRequestError(LLMError):
-    """Base error for LLM generation failures."""
-
-
-class LLMAuthenticationError(LLMRequestError):
-    """Raised when LLM authentication fails."""
-
-
-class LLMRateLimitError(LLMRequestError):
-    """Raised when LLM requests are rate limited."""
-
-
-class LLMServiceError(LLMRequestError):
-    """Raised when LLM requests fail due to service issues."""
-
-
-class LLMResponseError(LLMRequestError):
-    """Raised when LLM responses are unexpected."""
 
 
 IMAGE_MIME_TYPE = "image/png"
@@ -250,10 +238,8 @@ async def stream_llm_response_events(
                 raise LLMResponseError("Unexpected event from Cloud LLM stream")
             try:
                 yield parse_response_stream_event(payload)
-            except TypeError as err:
-                raise LLMResponseError(
-                    "Unexpected event from Cloud LLM stream"
-                ) from err
+            except LLMStreamEventParseError as err:
+                raise LLMResponseError("Unexpected event from Cloud LLM stream") from err
     finally:
         response.release()
 
@@ -274,8 +260,7 @@ class LLMHandler(ApiBase):
         """Validate token outside of coroutine."""
         # Check subscription and token expiry with buffer
         return self._cloud.valid_subscription and bool(
-            self._valid_until
-            and utcnow() + TOKEN_EXP_BUFFER_MINUTES < self._valid_until
+            self._valid_until and utcnow() + TOKEN_EXP_BUFFER_MINUTES < self._valid_until
         )
 
     @api_exception_handler(LLMAuthenticationError)
@@ -583,3 +568,4 @@ class LLMHandler(ApiBase):
             payload,
             stream=stream,
         )
+

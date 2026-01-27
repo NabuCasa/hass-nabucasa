@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from hass_nabucasa.llm_stream_events import (
+    LLMStreamEventParseError,
     ResponseFunctionCallOutputItem,
     ResponseOutputItemAddedEvent,
     ResponseOutputItemType,
@@ -73,5 +74,5 @@ def test_parse_response_stream_event_invalid_payload_raises_typeerror(
     payload: dict[str, object],
 ) -> None:
     """Raise TypeError for invalid payload shapes."""
-    with pytest.raises(TypeError):
+    with pytest.raises(LLMStreamEventParseError):
         parse_response_stream_event(payload)  # type: ignore[arg-type]

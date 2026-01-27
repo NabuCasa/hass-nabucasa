@@ -1,8 +1,7 @@
 """Runtime stream event models for Cloud LLM Responses API.
 
-These classes model only the subset of stream events Home Assistant Cloud
-currently consumes. They enable `isinstance(...)` checks in Home Assistant while
-keeping the transport (SSE JSON) parsing centralized in `hass_nabucasa`.
+These classes model only a subset of stream events and not the full Responses API
+stream events.
 """
 
 from __future__ import annotations
@@ -12,30 +11,33 @@ from enum import StrEnum
 from typing import Any
 
 
+from .errors import LLMStreamEventError, LLMStreamEventParseError
+
+
 class ResponsesAPIStreamEventType(StrEnum):
     """Responses API stream event types used by Home Assistant."""
 
+    ERROR = "error"
+    FUNCTION_CALL_ARGUMENTS_DELTA = "response.function_call_arguments.delta"
+    FUNCTION_CALL_ARGUMENTS_DONE = "response.function_call_arguments.done"
     OUTPUT_ITEM_ADDED = "response.output_item.added"
     OUTPUT_ITEM_DONE = "response.output_item.done"
     OUTPUT_TEXT_DELTA = "response.output_text.delta"
     REASONING_SUMMARY_TEXT_DELTA = "response.reasoning_summary_text.delta"
-    FUNCTION_CALL_ARGUMENTS_DELTA = "response.function_call_arguments.delta"
-    FUNCTION_CALL_ARGUMENTS_DONE = "response.function_call_arguments.done"
-    WEB_SEARCH_CALL_SEARCHING = "response.web_search_call.searching"
     RESPONSE_COMPLETED = "response.completed"
-    RESPONSE_INCOMPLETE = "response.incomplete"
     RESPONSE_FAILED = "response.failed"
-    ERROR = "error"
+    RESPONSE_INCOMPLETE = "response.incomplete"
+    WEB_SEARCH_CALL_SEARCHING = "response.web_search_call.searching"
 
 
 class ResponseOutputItemType(StrEnum):
     """Response output item types used by Home Assistant."""
 
     FUNCTION_CALL = "function_call"
+    IMAGE = "image"
     MESSAGE = "message"
     REASONING = "reasoning"
     WEB_SEARCH_CALL = "web_search_call"
-    IMAGE = "image"
 
 
 @dataclass(slots=True, frozen=True)
@@ -47,6 +49,9 @@ class ResponseUnknownOutputItem:
     raw: dict[str, Any]
 
 
+# The Responses API sends function calls in different events (DELTA and DONE). Not
+# freezing this class allows the caller to aggregate the delta and done events into a
+# single dataclass.
 @dataclass(slots=True)
 class ResponseFunctionCallOutputItem:
     """Function call output item."""
@@ -227,7 +232,7 @@ def _parse_output_item(item: dict[str, Any]) -> ResponseOutputItem:
     item_type = item.get("type")
     item_id = item.get("id")
     if not isinstance(item_type, str):
-        raise TypeError("Missing or invalid output item 'type'")
+        raise LLMStreamEventParseError("Missing or invalid output item 'type'")
     if not isinstance(item_id, str):
         return ResponseUnknownOutputItem(type=item_type, id="", raw=item)
 
@@ -236,15 +241,15 @@ def _parse_output_item(item: dict[str, Any]) -> ResponseOutputItem:
             call_id = item.get("call_id")
             name = item.get("name")
             if not isinstance(call_id, str):
-                raise TypeError("Missing or invalid function call 'call_id'")
+                raise LLMStreamEventParseError("Missing or invalid function call 'call_id'")
             if not isinstance(name, str):
-                raise TypeError("Missing or invalid function call 'name'")
+                raise LLMStreamEventParseError("Missing or invalid function call 'name'")
             arguments = item.get("arguments", "")
             if not isinstance(arguments, str):
-                raise TypeError("Invalid function call 'arguments'")
+                raise LLMStreamEventParseError("Invalid function call 'arguments'")
             status = item.get("status")
             if status is not None and not isinstance(status, str):
-                raise TypeError("Invalid function call 'status'")
+                raise LLMStreamEventParseError("Invalid function call 'status'")
             return ResponseFunctionCallOutputItem(
                 type=ResponseOutputItemType.FUNCTION_CALL,
                 id=item_id,
@@ -261,10 +266,10 @@ def _parse_output_item(item: dict[str, Any]) -> ResponseOutputItem:
         case ResponseOutputItemType.REASONING:
             encrypted_content = item.get("encrypted_content")
             if encrypted_content is not None and not isinstance(encrypted_content, str):
-                raise TypeError("Invalid reasoning 'encrypted_content'")
-            summary = item.get("summary", []) or []
+                raise LLMStreamEventParseError("Invalid reasoning 'encrypted_content'")
+            summary = summary = item.get("summary", [])
             if not isinstance(summary, list):
-                raise TypeError("Invalid reasoning 'summary'")
+                raise LLMStreamEventParseError("Invalid reasoning 'summary'")
             return ResponseReasoningOutputItem(
                 type=ResponseOutputItemType.REASONING,
                 id=item_id,
@@ -274,10 +279,9 @@ def _parse_output_item(item: dict[str, Any]) -> ResponseOutputItem:
         case ResponseOutputItemType.WEB_SEARCH_CALL:
             action = item.get("action", {})
             if not isinstance(action, dict):
-                raise TypeError("Invalid web search call 'action'")
-            status = item.get("status")
-            if status is not None and not isinstance(status, str):
-                raise TypeError("Invalid web search call 'status'")
+                raise LLMStreamEventParseError("Invalid web search call 'action'")
+            if (status := item.get("status")) is not None and not isinstance(status, str):
+                raise LLMStreamEventParseError("Invalid web search call 'status'")
             return ResponseWebSearchCallOutputItem(
                 type=ResponseOutputItemType.WEB_SEARCH_CALL,
                 id=item_id,
@@ -302,7 +306,7 @@ def _parse_item_event(
 ) -> ResponseOutputItemAddedEvent | ResponseOutputItemDoneEvent:
     item = payload.get("item")
     if not isinstance(item, dict):
-        raise TypeError("Missing or invalid 'item'")
+        raise LLMStreamEventParseError("Missing or invalid 'item'")
     parsed_item = _parse_output_item(item)
 
     if event_type is ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED:
@@ -321,7 +325,7 @@ def _parse_delta_event(
 ):
     delta = payload.get("delta")
     if not isinstance(delta, str):
-        raise TypeError("Missing or invalid 'delta'")
+        raise LLMStreamEventParseError("Missing or invalid 'delta'")
 
     if event_type is ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA:
         return ResponseOutputTextDeltaEvent(type=event_type, delta=delta)
@@ -331,7 +335,7 @@ def _parse_delta_event(
 
     summary_index = payload.get("summary_index")
     if not isinstance(summary_index, int):
-        raise TypeError("Missing or invalid 'summary_index'")
+        raise LLMStreamEventParseError("Missing or invalid 'summary_index'")
     return ResponseReasoningSummaryTextDeltaEvent(
         type=event_type,
         delta=delta,
@@ -346,11 +350,11 @@ def _parse_function_call_arguments_done_event(
     name = payload.get("name")
     item_id = payload.get("item_id")
     if not isinstance(arguments, str):
-        raise TypeError("Missing or invalid 'arguments'")
+        raise LLMStreamEventParseError("Missing or invalid 'arguments'")
     if name is not None and not isinstance(name, str):
-        raise TypeError("Invalid 'name'")
+        raise LLMStreamEventParseError("Invalid 'name'")
     if not isinstance(item_id, str):
-        raise TypeError("Missing or invalid 'item_id'")
+        raise LLMStreamEventParseError("Missing or invalid 'item_id'")
     return ResponseFunctionCallArgumentsDoneEvent(
         type=ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE,
         arguments=arguments,
@@ -364,7 +368,7 @@ def _parse_web_search_call_searching_event(
 ) -> ResponseWebSearchCallSearchingEvent:
     item_id = payload.get("item_id")
     if not isinstance(item_id, str):
-        raise TypeError("Missing or invalid 'item_id'")
+        raise LLMStreamEventParseError("Missing or invalid 'item_id'")
     return ResponseWebSearchCallSearchingEvent(
         type=ResponsesAPIStreamEventType.WEB_SEARCH_CALL_SEARCHING,
         item_id=item_id,
@@ -378,7 +382,7 @@ def _parse_completion_event(
 ) -> ResponseCompletedEvent | ResponseIncompleteEvent | ResponseFailedEvent:
     response = payload.get("response")
     if not isinstance(response, dict):
-        raise TypeError("Missing or invalid 'response'")
+        raise LLMStreamEventParseError("Missing or invalid 'response'")
 
     if event_type is ResponsesAPIStreamEventType.RESPONSE_COMPLETED:
         return ResponseCompletedEvent(type=event_type, response=response)
@@ -390,18 +394,19 @@ def _parse_completion_event(
 def _parse_error_event(payload: dict[str, Any]) -> ResponseErrorEvent:
     message = payload.get("message")
     if not isinstance(message, str):
-        raise TypeError("Missing or invalid 'message'")
+        raise LLMStreamEventParseError("Missing or invalid 'message'")
     return ResponseErrorEvent(type=ResponsesAPIStreamEventType.ERROR, message=message)
 
 
 def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesAPIStreamEvent:
     """Parse a SSE JSON payload into a typed stream event.
 
-    Raises TypeError if the payload does not match a supported event type/shape.
+    Raises LLMStreamEventParseError if the payload does not match a supported
+    event type/shape.
     """
     event_type = payload.get("type")
     if not isinstance(event_type, str):
-        raise TypeError("Missing or invalid 'type'")
+        raise LLMStreamEventParseError("Missing or invalid 'type'")
 
     if event_type == ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED.value:
         result: ResponsesAPIStreamEvent = _parse_item_event(
@@ -418,7 +423,10 @@ def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesAPIStreamEv
         ResponsesAPIStreamEventType.REASONING_SUMMARY_TEXT_DELTA.value,
         ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DELTA.value,
     }:
-        event_enum = ResponsesAPIStreamEventType(event_type)
+        try:
+            event_enum = ResponsesAPIStreamEventType(event_type)
+        except ValueError as err:
+            raise LLMStreamEventParseError("Unsupported event 'type'") from err
         result = _parse_delta_event(payload, event_type=event_enum)
     elif event_type == ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE.value:
         result = _parse_function_call_arguments_done_event(payload)
@@ -429,7 +437,10 @@ def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesAPIStreamEv
         ResponsesAPIStreamEventType.RESPONSE_INCOMPLETE.value,
         ResponsesAPIStreamEventType.RESPONSE_FAILED.value,
     }:
-        event_enum = ResponsesAPIStreamEventType(event_type)
+        try:
+            event_enum = ResponsesAPIStreamEventType(event_type)
+        except ValueError as err:
+            raise LLMStreamEventParseError("Unsupported event 'type'") from err
         result = _parse_completion_event(payload, event_type=event_enum)
     elif event_type == ResponsesAPIStreamEventType.ERROR.value:
         result = _parse_error_event(payload)
@@ -437,3 +448,33 @@ def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesAPIStreamEv
         result = ResponseUnhandledEvent(type=event_type, raw=payload)
 
     return result
+
+
+__all__ = [
+    "LLMStreamEventError",
+    "LLMStreamEventParseError",
+    "ResponsesAPIStreamEvent",
+    "ResponsesAPIStreamEventType",
+    "ResponseCompletedEvent",
+    "ResponseErrorEvent",
+    "ResponseFailedEvent",
+    "ResponseFunctionCallArgumentsDeltaEvent",
+    "ResponseFunctionCallArgumentsDoneEvent",
+    "ResponseOutputItemType",
+    "ResponseOutputItem",
+    "ResponseUnknownOutputItem",
+    "ResponseFunctionCallOutputItem",
+    "ResponseImageOutputItem",
+    "ResponseMessageOutputItem",
+    "ResponseReasoningSummaryTextDeltaEvent",
+    "ResponseReasoningOutputItem",
+    "ResponseWebSearchCallSearchingEvent",
+    "ResponseWebSearchCallOutputItem",
+    "ResponseOutputItemAddedEvent",
+    "ResponseOutputItemDoneEvent",
+    "ResponseOutputTextDeltaEvent",
+    "ResponseIncompleteEvent",
+    "ResponseUnhandledEvent",
+    "parse_response_stream_event",
+]
+
