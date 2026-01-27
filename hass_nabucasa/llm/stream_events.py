@@ -10,7 +10,6 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-
 from .errors import LLMStreamEventError, LLMStreamEventParseError
 
 
@@ -241,9 +240,13 @@ def _parse_output_item(item: dict[str, Any]) -> ResponseOutputItem:
             call_id = item.get("call_id")
             name = item.get("name")
             if not isinstance(call_id, str):
-                raise LLMStreamEventParseError("Missing or invalid function call 'call_id'")
+                raise LLMStreamEventParseError(
+                    "Missing or invalid function call 'call_id'"
+                )
             if not isinstance(name, str):
-                raise LLMStreamEventParseError("Missing or invalid function call 'name'")
+                raise LLMStreamEventParseError(
+                    "Missing or invalid function call 'name'"
+                )
             arguments = item.get("arguments", "")
             if not isinstance(arguments, str):
                 raise LLMStreamEventParseError("Invalid function call 'arguments'")
@@ -267,7 +270,7 @@ def _parse_output_item(item: dict[str, Any]) -> ResponseOutputItem:
             encrypted_content = item.get("encrypted_content")
             if encrypted_content is not None and not isinstance(encrypted_content, str):
                 raise LLMStreamEventParseError("Invalid reasoning 'encrypted_content'")
-            summary = summary = item.get("summary", [])
+            summary = item.get("summary", [])
             if not isinstance(summary, list):
                 raise LLMStreamEventParseError("Invalid reasoning 'summary'")
             return ResponseReasoningOutputItem(
@@ -280,7 +283,9 @@ def _parse_output_item(item: dict[str, Any]) -> ResponseOutputItem:
             action = item.get("action", {})
             if not isinstance(action, dict):
                 raise LLMStreamEventParseError("Invalid web search call 'action'")
-            if (status := item.get("status")) is not None and not isinstance(status, str):
+            if (status := item.get("status")) is not None and not isinstance(
+                status, str
+            ):
                 raise LLMStreamEventParseError("Invalid web search call 'status'")
             return ResponseWebSearchCallOutputItem(
                 type=ResponseOutputItemType.WEB_SEARCH_CALL,
@@ -453,28 +458,27 @@ def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesAPIStreamEv
 __all__ = [
     "LLMStreamEventError",
     "LLMStreamEventParseError",
-    "ResponsesAPIStreamEvent",
-    "ResponsesAPIStreamEventType",
     "ResponseCompletedEvent",
     "ResponseErrorEvent",
     "ResponseFailedEvent",
     "ResponseFunctionCallArgumentsDeltaEvent",
     "ResponseFunctionCallArgumentsDoneEvent",
-    "ResponseOutputItemType",
-    "ResponseOutputItem",
-    "ResponseUnknownOutputItem",
     "ResponseFunctionCallOutputItem",
     "ResponseImageOutputItem",
+    "ResponseIncompleteEvent",
     "ResponseMessageOutputItem",
-    "ResponseReasoningSummaryTextDeltaEvent",
-    "ResponseReasoningOutputItem",
-    "ResponseWebSearchCallSearchingEvent",
-    "ResponseWebSearchCallOutputItem",
+    "ResponseOutputItem",
     "ResponseOutputItemAddedEvent",
     "ResponseOutputItemDoneEvent",
+    "ResponseOutputItemType",
     "ResponseOutputTextDeltaEvent",
-    "ResponseIncompleteEvent",
+    "ResponseReasoningOutputItem",
+    "ResponseReasoningSummaryTextDeltaEvent",
     "ResponseUnhandledEvent",
+    "ResponseUnknownOutputItem",
+    "ResponseWebSearchCallOutputItem",
+    "ResponseWebSearchCallSearchingEvent",
+    "ResponsesAPIStreamEvent",
+    "ResponsesAPIStreamEventType",
     "parse_response_stream_event",
 ]
-

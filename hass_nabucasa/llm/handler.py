@@ -30,10 +30,9 @@ from aiohttp import (
     FormData,
 )
 
+from ..api import ApiBase, CloudApiError, api_exception_handler
 from ..exceptions import NabuCasaNotLoggedInError
 from ..utils import utc_from_timestamp, utcnow
-
-from ..api import ApiBase, CloudApiError, api_exception_handler
 from .errors import (
     LLMAuthenticationError,
     LLMError,
@@ -239,7 +238,9 @@ async def stream_llm_response_events(
             try:
                 yield parse_response_stream_event(payload)
             except LLMStreamEventParseError as err:
-                raise LLMResponseError("Unexpected event from Cloud LLM stream") from err
+                raise LLMResponseError(
+                    "Unexpected event from Cloud LLM stream"
+                ) from err
     finally:
         response.release()
 
@@ -260,7 +261,8 @@ class LLMHandler(ApiBase):
         """Validate token outside of coroutine."""
         # Check subscription and token expiry with buffer
         return self._cloud.valid_subscription and bool(
-            self._valid_until and utcnow() + TOKEN_EXP_BUFFER_MINUTES < self._valid_until
+            self._valid_until
+            and utcnow() + TOKEN_EXP_BUFFER_MINUTES < self._valid_until
         )
 
     @api_exception_handler(LLMAuthenticationError)
@@ -568,4 +570,3 @@ class LLMHandler(ApiBase):
             payload,
             stream=stream,
         )
-
