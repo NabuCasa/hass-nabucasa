@@ -21,7 +21,7 @@ from hass_nabucasa.llm import (
 )
 from hass_nabucasa.llm.handler import ToolChoice, ToolParam, stream_llm_response_events
 from hass_nabucasa.llm.stream_events import (
-    ResponseOutputTextDeltaEvent,
+    LLMResponseOutputTextDeltaEvent,
     ResponsesAPIStreamEvent,
     ResponsesAPIStreamEventType,
 )
@@ -146,7 +146,7 @@ async def test_async_generate_data_streams_when_requested(cloud: Cloud) -> None:
         ]
 
     assert len(events) == 1
-    assert isinstance(events[0], ResponseOutputTextDeltaEvent)
+    assert isinstance(events[0], LLMResponseOutputTextDeltaEvent)
     assert events[0].type == ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA
     assert events[0].delta == "hello"
     assert fake_response.released
@@ -355,10 +355,10 @@ async def test_stream_llm_response_events_parses_lines() -> None:
     ]
 
     assert len(events) == 2
-    assert isinstance(events[0], ResponseOutputTextDeltaEvent)
+    assert isinstance(events[0], LLMResponseOutputTextDeltaEvent)
     assert events[0].type == ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA
     assert events[0].delta == "foo"
-    assert isinstance(events[1], ResponseOutputTextDeltaEvent)
+    assert isinstance(events[1], LLMResponseOutputTextDeltaEvent)
     assert events[1].type == ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA
     assert events[1].delta == "bar"
     assert fake_response.released
@@ -386,7 +386,7 @@ async def test_stream_llm_response_events_ignores_empty_events() -> None:
     ]
 
     assert len(events) == 1
-    assert isinstance(events[0], ResponseOutputTextDeltaEvent)
+    assert isinstance(events[0], LLMResponseOutputTextDeltaEvent)
     assert events[0].type == ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA
     assert events[0].delta == "ok"
     assert fake_response.released
@@ -412,7 +412,7 @@ async def test_stream_llm_response_events_raises_on_invalid_json() -> None:
     )
 
     first_event = await anext(iterator)
-    assert isinstance(first_event, ResponseOutputTextDeltaEvent)
+    assert isinstance(first_event, LLMResponseOutputTextDeltaEvent)
     assert first_event.type == ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA
     assert first_event.delta == "hello"
     with pytest.raises(
