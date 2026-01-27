@@ -15,6 +15,7 @@ from .const import (
     ONE_HOUR_IN_SECONDS,
     TWELVE_HOURS_IN_SECONDS,
 )
+from .events.types import CloudEvent, CloudEventType
 from .utils import jitter, seconds_as_dhms, utcnow
 
 if TYPE_CHECKING:
@@ -234,6 +235,10 @@ class ServiceDiscovery(ApiBase):
             _LOGGER.debug(
                 "Service discovery data cached, valid for %s",
                 seconds_as_dhms(discovery_data["valid_for"]),
+            )
+
+            await self._cloud.events.publish(
+                event=CloudEvent(type=CloudEventType.SERVICE_DISCOVERY_UPDATE)
             )
 
             return cache_data
