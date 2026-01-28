@@ -18,25 +18,18 @@ from hass_nabucasa.llm import (
     LLMRequestError,
     LLMResponseError,
     LLMServiceError,
-    ResponsesAPIStreamEvent,
-    ToolChoice,
-    ToolParam,
-    stream_llm_response_events,
+)
+from hass_nabucasa.llm.handler import ToolChoice, ToolParam, stream_llm_response_events
+from hass_nabucasa.llm.stream_events import (
+    LLMResponseOutputTextDeltaEvent,
+    ResponsesApiStreamEvent,
+    ResponsesApiStreamEventType,
 )
 
 if TYPE_CHECKING:
     from hass_nabucasa import Cloud
 
     from .utils.aiohttp import AiohttpClientMocker
-
-
-def _to_primitive(value: object) -> object:
-    """Convert stream events (SimpleNamespace) into plain dict/list primitives."""
-    if isinstance(value, SimpleNamespace):
-        return {k: _to_primitive(v) for k, v in value.__dict__.items()}
-    if isinstance(value, list):
-        return [_to_primitive(v) for v in value]
-    return value
 
 
 class _FakeStream:
@@ -129,7 +122,7 @@ async def test_async_generate_data_streams_when_requested(cloud: Cloud) -> None:
     await cloud.llm.async_ensure_token()
     fake_response = _FakeResponse(
         lines=[
-            'data: {"delta":"hello"}\n',
+            'data: {"type":"response.output_text.delta","delta":"hello"}\n',
             "\n",
             "data: [DONE]\n",
             "\n",
@@ -145,11 +138,17 @@ async def test_async_generate_data_streams_when_requested(cloud: Cloud) -> None:
         )
 
         events = [
-            _to_primitive(event)
-            async for event in cast("AsyncIterator[ResponsesAPIStreamEvent]", iterator)
+            event
+            async for event in cast(
+                "AsyncIterator[ResponsesApiStreamEvent]",
+                iterator,
+            )
         ]
 
-    assert events == [{"delta": "hello"}]
+    assert len(events) == 1
+    assert isinstance(events[0], LLMResponseOutputTextDeltaEvent)
+    assert events[0].type == ResponsesApiStreamEventType.OUTPUT_TEXT_DELTA
+    assert events[0].delta == "hello"
     assert fake_response.released
     assert mock_call.await_args is not None
     payload = mock_call.await_args.kwargs["payload"]
@@ -238,7 +237,7 @@ async def test_async_edit_image_builds_file_payloads(cloud: Cloud) -> None:
     form_mock = MagicMock()
 
     with (
-        patch("hass_nabucasa.llm.FormData", return_value=form_mock),
+        patch("hass_nabucasa.llm.handler.FormData", return_value=form_mock),
         patch.object(cloud.llm, "_call_llm_api", mock_call),
         patch.object(cloud.llm, "_get_response", mock_get_response),
         patch.object(cloud.llm, "_extract_response_image_data", mock_extract),
@@ -338,9 +337,9 @@ async def test_stream_llm_response_events_parses_lines() -> None:
     """stream_llm_response_events should emit valid events."""
     fake_response = _FakeResponse(
         [
-            'data: {"foo": 1}\n',
+            'data: {"type":"response.output_text.delta","delta":"foo"}\n',
             "\n",
-            'data: {"bar": 2}\n',
+            'data: {"type":"response.output_text.delta","delta":"bar"}\n',
             "\n",
             "data: [DONE]\n",
             "\n",
@@ -348,14 +347,20 @@ async def test_stream_llm_response_events_parses_lines() -> None:
     )
 
     events = [
-        _to_primitive(event)
+        event
         async for event in cast(
-            "AsyncIterator[ResponsesAPIStreamEvent]",
+            "AsyncIterator[ResponsesApiStreamEvent]",
             stream_llm_response_events(fake_response),
         )
     ]
 
-    assert events == [{"foo": 1}, {"bar": 2}]
+    assert len(events) == 2
+    assert isinstance(events[0], LLMResponseOutputTextDeltaEvent)
+    assert events[0].type == ResponsesApiStreamEventType.OUTPUT_TEXT_DELTA
+    assert events[0].delta == "foo"
+    assert isinstance(events[1], LLMResponseOutputTextDeltaEvent)
+    assert events[1].type == ResponsesApiStreamEventType.OUTPUT_TEXT_DELTA
+    assert events[1].delta == "bar"
     assert fake_response.released
 
 
@@ -365,7 +370,7 @@ async def test_stream_llm_response_events_ignores_empty_events() -> None:
         [
             "data:\n",
             "\n",
-            'data: {"ok": true}\n',
+            'data: {"type":"response.output_text.delta","delta":"ok"}\n',
             "\n",
             "data: [DONE]\n",
             "\n",
@@ -373,14 +378,17 @@ async def test_stream_llm_response_events_ignores_empty_events() -> None:
     )
 
     events = [
-        _to_primitive(event)
+        event
         async for event in cast(
-            "AsyncIterator[ResponsesAPIStreamEvent]",
+            "AsyncIterator[ResponsesApiStreamEvent]",
             stream_llm_response_events(fake_response),
         )
     ]
 
-    assert events == [{"ok": True}]
+    assert len(events) == 1
+    assert isinstance(events[0], LLMResponseOutputTextDeltaEvent)
+    assert events[0].type == ResponsesApiStreamEventType.OUTPUT_TEXT_DELTA
+    assert events[0].delta == "ok"
     assert fake_response.released
 
 
@@ -391,7 +399,7 @@ async def test_stream_llm_response_events_raises_on_invalid_json() -> None:
     """
     fake_response = _FakeResponse(
         [
-            'data: {"foo": 1}\n',
+            'data: {"type":"response.output_text.delta","delta":"hello"}\n',
             "\n",
             "data: not-json\n",
             "\n",
@@ -399,12 +407,14 @@ async def test_stream_llm_response_events_raises_on_invalid_json() -> None:
     )
 
     iterator = cast(
-        "AsyncIterator[ResponsesAPIStreamEvent]",
+        "AsyncIterator[ResponsesApiStreamEvent]",
         stream_llm_response_events(fake_response),
     )
 
     first_event = await anext(iterator)
-    assert _to_primitive(first_event) == {"foo": 1}
+    assert isinstance(first_event, LLMResponseOutputTextDeltaEvent)
+    assert first_event.type == ResponsesApiStreamEventType.OUTPUT_TEXT_DELTA
+    assert first_event.delta == "hello"
     with pytest.raises(
         LLMResponseError, match="There was an error processing the Cloud LLM response"
     ):

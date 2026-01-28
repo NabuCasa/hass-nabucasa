@@ -70,15 +70,7 @@ from .ice_servers import IceServers, IceServersApiError
 from .instance_api import InstanceApi, InstanceApiError, InstanceConnectionDetails
 from .iot import CloudIoT
 from .llm import (
-    LLMAuthenticationError,
-    LLMError,
-    LLMGeneratedImage,
     LLMHandler,
-    LLMImageAttachment,
-    LLMRateLimitError,
-    LLMRequestError,
-    LLMResponseError,
-    LLMServiceError,
 )
 from .payments_api import (
     MigratePaypalAgreementInfo,
@@ -139,15 +131,6 @@ __all__ = [
     "InstanceApiError",
     "InstanceConnectionDetails",
     "InvalidTotpCode",
-    "LLMAuthenticationError",
-    "LLMError",
-    "LLMGeneratedImage",
-    "LLMHandler",
-    "LLMImageAttachment",
-    "LLMRateLimitError",
-    "LLMRequestError",
-    "LLMResponseError",
-    "LLMServiceError",
     "MFARequired",
     "MigratePaypalAgreementInfo",
     "NabuCasaAuthenticationError",

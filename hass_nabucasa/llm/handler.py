@@ -30,26 +30,33 @@ from aiohttp import (
     FormData,
 )
 
-from hass_nabucasa.exceptions import NabuCasaNotLoggedInError
-from hass_nabucasa.utils import utc_from_timestamp, utcnow
-
-from .api import ApiBase, CloudApiError, api_exception_handler
+from ..api import ApiBase, CloudApiError, api_exception_handler
+from ..exceptions import NabuCasaNotLoggedInError
+from ..utils import utc_from_timestamp, utcnow
+from .errors import (
+    LLMAuthenticationError,
+    LLMError,
+    LLMRateLimitError,
+    LLMRequestError,
+    LLMResponseError,
+    LLMServiceError,
+)
+from .stream_events import (
+    LLMStreamEventParseError,
+    ResponsesApiStreamEvent,
+    parse_response_stream_event,
+)
 
 if TYPE_CHECKING:
-    from . import Cloud, _ClientT
+    from .. import Cloud, _ClientT
 
 
 _LOGGER = logging.getLogger(__name__)
 
 ResponsesAPIResponse = dict[str, Any]
-ResponsesAPIStreamEvent = dict[str, Any]
 ResponseInputParam = dict[str, Any] | list[Any]
 ToolParam = dict[str, Any]
 ToolChoice = Literal["auto", "none"] | dict[str, Any]
-
-
-class LLMError(CloudApiError):
-    """Base exception for LLM-related errors."""
 
 
 class LLMConnectionDetails(TypedDict):
@@ -89,26 +96,6 @@ class LLMImageAttachment(TypedDict):
     data: bytes
 
 
-class LLMRequestError(LLMError):
-    """Base error for LLM generation failures."""
-
-
-class LLMAuthenticationError(LLMRequestError):
-    """Raised when LLM authentication fails."""
-
-
-class LLMRateLimitError(LLMRequestError):
-    """Raised when LLM requests are rate limited."""
-
-
-class LLMServiceError(LLMRequestError):
-    """Raised when LLM requests fail due to service issues."""
-
-
-class LLMResponseError(LLMRequestError):
-    """Raised when LLM responses are unexpected."""
-
-
 IMAGE_MIME_TYPE = "image/png"
 TOKEN_EXP_BUFFER_MINUTES = timedelta(minutes=5)
 RESPONSES_API_TIMEOUT = 30.0
@@ -126,19 +113,6 @@ class _ServerSentEvent:
 
 
 type JSONPrimitive = str | int | float | bool | None
-type JSONValue = JSONPrimitive | dict[str, JSONValue] | list[JSONValue]
-type StreamValue = JSONPrimitive | ResponsesAPIStreamEvent | list[StreamValue]
-
-
-def _build_stream_event(payload: JSONValue) -> StreamValue:
-    """Convert a JSON payload into a Responses API stream event object."""
-    if isinstance(payload, dict):
-        return ResponsesAPIStreamEvent(
-            **{key: _build_stream_event(value) for key, value in payload.items()}
-        )
-    if isinstance(payload, list):
-        return [_build_stream_event(item) for item in payload]
-    return payload
 
 
 P = ParamSpec("P")
@@ -234,7 +208,7 @@ def llm_http_exception_handler(
 
 async def stream_llm_response_events(
     response: ClientResponse,
-) -> AsyncIterator[Any]:
+) -> AsyncIterator[ResponsesApiStreamEvent]:
     """Yield response events from the Cloud LLM stream."""
     try:
         decoder = _SSEDecoder()
@@ -259,7 +233,14 @@ async def stream_llm_response_events(
                 raise LLMResponseError(
                     "There was an error processing the Cloud LLM response"
                 ) from err
-            yield _build_stream_event(payload)
+            if not isinstance(payload, dict):
+                raise LLMResponseError("Unexpected event from Cloud LLM stream")
+            try:
+                yield parse_response_stream_event(payload)
+            except LLMStreamEventParseError as err:
+                raise LLMResponseError(
+                    "Unexpected event from Cloud LLM stream"
+                ) from err
     finally:
         response.release()
 
@@ -411,7 +392,7 @@ class LLMHandler(ApiBase):
         payload: dict[str, Any],
         *,
         stream: bool,
-    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]:
+    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesApiStreamEvent]:
         """Call the Responses API via HTTP."""
         accept = "text/event-stream" if stream else "application/json"
         response = await self._call_llm_api(
@@ -426,7 +407,7 @@ class LLMHandler(ApiBase):
             return await self._get_response(response)
 
         return cast(
-            "ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]",
+            "ResponsesAPIResponse | AsyncIterator[ResponsesApiStreamEvent]",
             stream_llm_response_events(response),
         )
 
@@ -467,7 +448,7 @@ class LLMHandler(ApiBase):
         stream: bool = False,
         tools: Iterable[ToolParam] | None = None,
         tool_choice: ToolChoice | None = None,
-    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]:
+    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesApiStreamEvent]:
         """Generate structured or free-form LLM data."""
         if TYPE_CHECKING:
             assert self._models["generate_data"] is not None
@@ -571,7 +552,7 @@ class LLMHandler(ApiBase):
         stream: bool = False,
         tools: Iterable[ToolParam] | None = None,
         tool_choice: ToolChoice | None = None,
-    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]:
+    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesApiStreamEvent]:
         """Generate a response for a conversation."""
         if TYPE_CHECKING:
             assert self._models["conversation"] is not None
