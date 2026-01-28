@@ -43,7 +43,7 @@ from .errors import (
 )
 from .stream_events import (
     LLMStreamEventParseError,
-    ResponsesAPIStreamEvent,
+    ResponsesApiStreamEvent,
     parse_response_stream_event,
 )
 
@@ -208,7 +208,7 @@ def llm_http_exception_handler(
 
 async def stream_llm_response_events(
     response: ClientResponse,
-) -> AsyncIterator[ResponsesAPIStreamEvent]:
+) -> AsyncIterator[ResponsesApiStreamEvent]:
     """Yield response events from the Cloud LLM stream."""
     try:
         decoder = _SSEDecoder()
@@ -392,7 +392,7 @@ class LLMHandler(ApiBase):
         payload: dict[str, Any],
         *,
         stream: bool,
-    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]:
+    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesApiStreamEvent]:
         """Call the Responses API via HTTP."""
         accept = "text/event-stream" if stream else "application/json"
         response = await self._call_llm_api(
@@ -407,7 +407,7 @@ class LLMHandler(ApiBase):
             return await self._get_response(response)
 
         return cast(
-            "ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]",
+            "ResponsesAPIResponse | AsyncIterator[ResponsesApiStreamEvent]",
             stream_llm_response_events(response),
         )
 
@@ -448,7 +448,7 @@ class LLMHandler(ApiBase):
         stream: bool = False,
         tools: Iterable[ToolParam] | None = None,
         tool_choice: ToolChoice | None = None,
-    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]:
+    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesApiStreamEvent]:
         """Generate structured or free-form LLM data."""
         if TYPE_CHECKING:
             assert self._models["generate_data"] is not None
@@ -552,7 +552,7 @@ class LLMHandler(ApiBase):
         stream: bool = False,
         tools: Iterable[ToolParam] | None = None,
         tool_choice: ToolChoice | None = None,
-    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesAPIStreamEvent]:
+    ) -> ResponsesAPIResponse | AsyncIterator[ResponsesApiStreamEvent]:
         """Generate a response for a conversation."""
         if TYPE_CHECKING:
             assert self._models["conversation"] is not None

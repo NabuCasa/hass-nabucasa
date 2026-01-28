@@ -209,8 +209,7 @@ class LLMResponseUnhandledEvent:
     raw: dict[str, Any]
 
 
-# Pylint expects type aliases to use snake_case; we keep this name for API clarity.
-type ResponsesAPIStreamEvent = (  # pylint: disable=invalid-name
+type ResponsesApiStreamEvent = (
     LLMResponseOutputItemAddedEvent
     | LLMResponseOutputItemDoneEvent
     | LLMResponseOutputTextDeltaEvent
@@ -229,20 +228,20 @@ type ResponsesAPIStreamEvent = (  # pylint: disable=invalid-name
 def _parse_output_item(item: dict[str, Any]) -> ResponseOutputItem:
     """Parse a response output item dict into a typed output item."""
     item_type = item.get("type")
-    item_id = item.get("id")
     if not isinstance(item_type, str):
         raise LLMStreamEventParseError("Missing or invalid output item 'type'")
+    item_id = item.get("id")
     if not isinstance(item_id, str):
         return LLMResponseUnknownOutputItem(type=item_type, id="", raw=item)
 
     match item_type:
         case ResponseOutputItemType.FUNCTION_CALL:
             call_id = item.get("call_id")
-            name = item.get("name")
             if not isinstance(call_id, str):
                 raise LLMStreamEventParseError(
                     "Missing or invalid function call 'call_id'"
                 )
+            name = item.get("name")
             if not isinstance(name, str):
                 raise LLMStreamEventParseError(
                     "Missing or invalid function call 'name'"
@@ -406,7 +405,7 @@ def _parse_error_event(payload: dict[str, Any]) -> LLMResponseErrorEvent:
     )
 
 
-def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesAPIStreamEvent:
+def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesApiStreamEvent:
     """Parse a SSE JSON payload into a typed stream event.
 
     Raises LLMStreamEventParseError if the payload does not match a supported
@@ -417,7 +416,7 @@ def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesAPIStreamEv
         raise LLMStreamEventParseError("Missing or invalid 'type'")
 
     if event_type == ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED.value:
-        result: ResponsesAPIStreamEvent = _parse_item_event(
+        result: ResponsesApiStreamEvent = _parse_item_event(
             payload,
             event_type=ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED,
         )
