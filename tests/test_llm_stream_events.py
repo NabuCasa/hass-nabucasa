@@ -11,7 +11,7 @@ from hass_nabucasa.llm.stream_events import (
     LLMResponseUnhandledEvent,
     LLMStreamEventParseError,
     ResponseOutputItemType,
-    ResponsesAPIStreamEventType,
+    ResponsesApiStreamEventType,
     parse_response_stream_event,
 )
 
@@ -22,7 +22,7 @@ def test_parse_response_stream_event_output_text_delta() -> None:
         {"type": "response.output_text.delta", "delta": "hello"}
     )
     assert isinstance(event, LLMResponseOutputTextDeltaEvent)
-    assert event.type == ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA
+    assert event.type == ResponsesApiStreamEventType.OUTPUT_TEXT_DELTA
     assert event.delta == "hello"
 
 
@@ -42,7 +42,7 @@ def test_parse_response_stream_event_output_item_added_function_call() -> None:
         }
     )
     assert isinstance(event, LLMResponseOutputItemAddedEvent)
-    assert event.type == ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED
+    assert event.type == ResponsesApiStreamEventType.OUTPUT_ITEM_ADDED
     assert isinstance(event.item, LLMResponseFunctionCallOutputItem)
     assert event.item.type == ResponseOutputItemType.FUNCTION_CALL
     assert event.item.id == "item-1"

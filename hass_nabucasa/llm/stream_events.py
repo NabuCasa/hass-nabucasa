@@ -13,7 +13,7 @@ from typing import Any
 from .errors import LLMStreamEventParseError
 
 
-class ResponsesAPIStreamEventType(StrEnum):
+class ResponsesApiStreamEventType(StrEnum):
     """Responses API stream event types used by Home Assistant."""
 
     ERROR = "error"
@@ -114,7 +114,7 @@ type ResponseOutputItem = (
 class LLMResponseOutputItemAddedEvent:
     """Event emitted when an output item is added to the response."""
 
-    type: ResponsesAPIStreamEventType
+    type: ResponsesApiStreamEventType
     item: ResponseOutputItem
 
 
@@ -122,7 +122,7 @@ class LLMResponseOutputItemAddedEvent:
 class LLMResponseOutputItemDoneEvent:
     """Event emitted when an output item is marked done."""
 
-    type: ResponsesAPIStreamEventType
+    type: ResponsesApiStreamEventType
     item: ResponseOutputItem
 
 
@@ -130,7 +130,7 @@ class LLMResponseOutputItemDoneEvent:
 class LLMResponseOutputTextDeltaEvent:
     """Event carrying a delta chunk of assistant output text."""
 
-    type: ResponsesAPIStreamEventType
+    type: ResponsesApiStreamEventType
     delta: str
 
 
@@ -138,7 +138,7 @@ class LLMResponseOutputTextDeltaEvent:
 class LLMResponseReasoningSummaryTextDeltaEvent:
     """Event carrying a delta chunk of reasoning summary text."""
 
-    type: ResponsesAPIStreamEventType
+    type: ResponsesApiStreamEventType
     delta: str
     summary_index: int
 
@@ -147,7 +147,7 @@ class LLMResponseReasoningSummaryTextDeltaEvent:
 class LLMResponseFunctionCallArgumentsDeltaEvent:
     """Event carrying a delta chunk of function call arguments."""
 
-    type: ResponsesAPIStreamEventType
+    type: ResponsesApiStreamEventType
     delta: str
 
 
@@ -155,7 +155,7 @@ class LLMResponseFunctionCallArgumentsDeltaEvent:
 class LLMResponseFunctionCallArgumentsDoneEvent:
     """Event emitted when function call arguments are complete."""
 
-    type: ResponsesAPIStreamEventType
+    type: ResponsesApiStreamEventType
     arguments: str
     name: str | None
     item_id: str
@@ -165,7 +165,7 @@ class LLMResponseFunctionCallArgumentsDoneEvent:
 class LLMResponseWebSearchCallSearchingEvent:
     """Event emitted when a web search call starts searching."""
 
-    type: ResponsesAPIStreamEventType
+    type: ResponsesApiStreamEventType
     item_id: str
 
 
@@ -173,7 +173,7 @@ class LLMResponseWebSearchCallSearchingEvent:
 class LLMResponseCompletedEvent:
     """Event emitted when the overall response is completed."""
 
-    type: ResponsesAPIStreamEventType
+    type: ResponsesApiStreamEventType
     response: dict[str, Any]
 
 
@@ -181,7 +181,7 @@ class LLMResponseCompletedEvent:
 class LLMResponseIncompleteEvent:
     """Event emitted when the response is incomplete."""
 
-    type: ResponsesAPIStreamEventType
+    type: ResponsesApiStreamEventType
     response: dict[str, Any]
 
 
@@ -189,7 +189,7 @@ class LLMResponseIncompleteEvent:
 class LLMResponseFailedEvent:
     """Event emitted when the response has failed."""
 
-    type: ResponsesAPIStreamEventType
+    type: ResponsesApiStreamEventType
     response: dict[str, Any]
 
 
@@ -197,7 +197,7 @@ class LLMResponseFailedEvent:
 class LLMResponseErrorEvent:
     """Error event emitted by the streaming API."""
 
-    type: ResponsesAPIStreamEventType
+    type: ResponsesApiStreamEventType
     message: str
 
 
@@ -306,14 +306,14 @@ def _parse_output_item(item: dict[str, Any]) -> ResponseOutputItem:
 def _parse_item_event(
     payload: dict[str, Any],
     *,
-    event_type: ResponsesAPIStreamEventType,
+    event_type: ResponsesApiStreamEventType,
 ) -> LLMResponseOutputItemAddedEvent | LLMResponseOutputItemDoneEvent:
     item = payload.get("item")
     if not isinstance(item, dict):
         raise LLMStreamEventParseError("Missing or invalid 'item'")
     parsed_item = _parse_output_item(item)
 
-    if event_type is ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED:
+    if event_type is ResponsesApiStreamEventType.OUTPUT_ITEM_ADDED:
         return LLMResponseOutputItemAddedEvent(type=event_type, item=parsed_item)
     return LLMResponseOutputItemDoneEvent(type=event_type, item=parsed_item)
 
@@ -321,7 +321,7 @@ def _parse_item_event(
 def _parse_delta_event(
     payload: dict[str, Any],
     *,
-    event_type: ResponsesAPIStreamEventType,
+    event_type: ResponsesApiStreamEventType,
 ) -> (
     LLMResponseOutputTextDeltaEvent
     | LLMResponseReasoningSummaryTextDeltaEvent
@@ -331,10 +331,10 @@ def _parse_delta_event(
     if not isinstance(delta, str):
         raise LLMStreamEventParseError("Missing or invalid 'delta'")
 
-    if event_type is ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA:
+    if event_type is ResponsesApiStreamEventType.OUTPUT_TEXT_DELTA:
         return LLMResponseOutputTextDeltaEvent(type=event_type, delta=delta)
 
-    if event_type is ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DELTA:
+    if event_type is ResponsesApiStreamEventType.FUNCTION_CALL_ARGUMENTS_DELTA:
         return LLMResponseFunctionCallArgumentsDeltaEvent(type=event_type, delta=delta)
 
     summary_index = payload.get("summary_index")
@@ -360,7 +360,7 @@ def _parse_function_call_arguments_done_event(
     if not isinstance(item_id, str):
         raise LLMStreamEventParseError("Missing or invalid 'item_id'")
     return LLMResponseFunctionCallArgumentsDoneEvent(
-        type=ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE,
+        type=ResponsesApiStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE,
         arguments=arguments,
         name=name if isinstance(name, str) else None,
         item_id=item_id,
@@ -374,7 +374,7 @@ def _parse_web_search_call_searching_event(
     if not isinstance(item_id, str):
         raise LLMStreamEventParseError("Missing or invalid 'item_id'")
     return LLMResponseWebSearchCallSearchingEvent(
-        type=ResponsesAPIStreamEventType.WEB_SEARCH_CALL_SEARCHING,
+        type=ResponsesApiStreamEventType.WEB_SEARCH_CALL_SEARCHING,
         item_id=item_id,
     )
 
@@ -382,15 +382,15 @@ def _parse_web_search_call_searching_event(
 def _parse_completion_event(
     payload: dict[str, Any],
     *,
-    event_type: ResponsesAPIStreamEventType,
+    event_type: ResponsesApiStreamEventType,
 ) -> LLMResponseCompletedEvent | LLMResponseIncompleteEvent | LLMResponseFailedEvent:
     response = payload.get("response")
     if not isinstance(response, dict):
         raise LLMStreamEventParseError("Missing or invalid 'response'")
 
-    if event_type is ResponsesAPIStreamEventType.RESPONSE_COMPLETED:
+    if event_type is ResponsesApiStreamEventType.RESPONSE_COMPLETED:
         return LLMResponseCompletedEvent(type=event_type, response=response)
-    if event_type is ResponsesAPIStreamEventType.RESPONSE_INCOMPLETE:
+    if event_type is ResponsesApiStreamEventType.RESPONSE_INCOMPLETE:
         return LLMResponseIncompleteEvent(type=event_type, response=response)
     return LLMResponseFailedEvent(type=event_type, response=response)
 
@@ -400,7 +400,7 @@ def _parse_error_event(payload: dict[str, Any]) -> LLMResponseErrorEvent:
     if not isinstance(message, str):
         raise LLMStreamEventParseError("Missing or invalid 'message'")
     return LLMResponseErrorEvent(
-        type=ResponsesAPIStreamEventType.ERROR,
+        type=ResponsesApiStreamEventType.ERROR,
         message=message,
     )
 
@@ -415,41 +415,41 @@ def parse_response_stream_event(payload: dict[str, Any]) -> ResponsesApiStreamEv
     if not isinstance(event_type, str):
         raise LLMStreamEventParseError("Missing or invalid 'type'")
 
-    if event_type == ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED.value:
+    if event_type == ResponsesApiStreamEventType.OUTPUT_ITEM_ADDED.value:
         result: ResponsesApiStreamEvent = _parse_item_event(
             payload,
-            event_type=ResponsesAPIStreamEventType.OUTPUT_ITEM_ADDED,
+            event_type=ResponsesApiStreamEventType.OUTPUT_ITEM_ADDED,
         )
-    elif event_type == ResponsesAPIStreamEventType.OUTPUT_ITEM_DONE.value:
+    elif event_type == ResponsesApiStreamEventType.OUTPUT_ITEM_DONE.value:
         result = _parse_item_event(
             payload,
-            event_type=ResponsesAPIStreamEventType.OUTPUT_ITEM_DONE,
+            event_type=ResponsesApiStreamEventType.OUTPUT_ITEM_DONE,
         )
     elif event_type in {
-        ResponsesAPIStreamEventType.OUTPUT_TEXT_DELTA.value,
-        ResponsesAPIStreamEventType.REASONING_SUMMARY_TEXT_DELTA.value,
-        ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DELTA.value,
+        ResponsesApiStreamEventType.OUTPUT_TEXT_DELTA.value,
+        ResponsesApiStreamEventType.REASONING_SUMMARY_TEXT_DELTA.value,
+        ResponsesApiStreamEventType.FUNCTION_CALL_ARGUMENTS_DELTA.value,
     }:
         try:
-            event_enum = ResponsesAPIStreamEventType(event_type)
+            event_enum = ResponsesApiStreamEventType(event_type)
         except ValueError as err:
             raise LLMStreamEventParseError("Unsupported event 'type'") from err
         result = _parse_delta_event(payload, event_type=event_enum)
-    elif event_type == ResponsesAPIStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE.value:
+    elif event_type == ResponsesApiStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE.value:
         result = _parse_function_call_arguments_done_event(payload)
-    elif event_type == ResponsesAPIStreamEventType.WEB_SEARCH_CALL_SEARCHING.value:
+    elif event_type == ResponsesApiStreamEventType.WEB_SEARCH_CALL_SEARCHING.value:
         result = _parse_web_search_call_searching_event(payload)
     elif event_type in {
-        ResponsesAPIStreamEventType.RESPONSE_COMPLETED.value,
-        ResponsesAPIStreamEventType.RESPONSE_INCOMPLETE.value,
-        ResponsesAPIStreamEventType.RESPONSE_FAILED.value,
+        ResponsesApiStreamEventType.RESPONSE_COMPLETED.value,
+        ResponsesApiStreamEventType.RESPONSE_INCOMPLETE.value,
+        ResponsesApiStreamEventType.RESPONSE_FAILED.value,
     }:
         try:
-            event_enum = ResponsesAPIStreamEventType(event_type)
+            event_enum = ResponsesApiStreamEventType(event_type)
         except ValueError as err:
             raise LLMStreamEventParseError("Unsupported event 'type'") from err
         result = _parse_completion_event(payload, event_type=event_enum)
-    elif event_type == ResponsesAPIStreamEventType.ERROR.value:
+    elif event_type == ResponsesApiStreamEventType.ERROR.value:
         result = _parse_error_event(payload)
     else:
         result = LLMResponseUnhandledEvent(type=event_type, raw=payload)
