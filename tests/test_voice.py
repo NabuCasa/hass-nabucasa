@@ -14,10 +14,10 @@ from hass_nabucasa.auth import Unauthenticated
 
 
 @pytest.fixture(autouse=True)
-def mock_voice_connection_details(aioclient_mock):
+def mock_voice_connection_details(aioclient_mock, cloud: Cloud):
     """Mock voice connection details."""
     aioclient_mock.get(
-        "https://servicehandlers.example.com/voice/connection_details",
+        f"https://{cloud.api_server}/voice/connection_details",
         json={
             "authorized_key": "test-key",
             "endpoint_stt": "stt-url",

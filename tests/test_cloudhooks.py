@@ -19,7 +19,7 @@ async def test_enable(
 ):
     """Test enabling cloudhooks."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/instance/webhook",
+        f"https://{cloud.api_server}/instance/webhook",
         json={
             "cloudhook_id": "mock-cloud-id",
             "url": "https://hooks.nabu.casa/ZXCZCXZ",

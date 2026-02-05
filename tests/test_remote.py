@@ -98,7 +98,7 @@ async def test_load_backend_exists_cert(
     valid = utcnow() + timedelta(days=1)
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -106,7 +106,7 @@ async def test_load_backend_exists_cert(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -184,7 +184,7 @@ async def test_load_backend_not_exists_cert(
     valid = utcnow() + timedelta(days=1)
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -192,7 +192,7 @@ async def test_load_backend_not_exists_cert(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -244,7 +244,7 @@ async def test_load_and_unload_backend(
     valid = utcnow() + timedelta(days=1)
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -252,7 +252,7 @@ async def test_load_and_unload_backend(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -305,7 +305,7 @@ async def test_load_backend_exists_wrong_cert(
     valid = utcnow() + timedelta(days=1)
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -314,7 +314,7 @@ async def test_load_backend_exists_wrong_cert(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -372,7 +372,7 @@ async def test_call_disconnect(
     valid = utcnow() + timedelta(days=1)
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -380,7 +380,7 @@ async def test_call_disconnect(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -412,7 +412,7 @@ async def test_load_backend_no_autostart(
     valid = utcnow() + timedelta(days=1)
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -420,7 +420,7 @@ async def test_load_backend_no_autostart(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -466,7 +466,7 @@ async def test_get_certificate_details(
     assert cloud.remote.certificate is None
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -474,7 +474,7 @@ async def test_get_certificate_details(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -511,7 +511,7 @@ async def test_certificate_task_no_backend(
     valid = utcnow() + timedelta(days=1)
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -519,7 +519,7 @@ async def test_certificate_task_no_backend(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -558,7 +558,7 @@ async def test_certificate_task_renew_cert(
     valid = utcnow() + timedelta(days=1)
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -566,7 +566,7 @@ async def test_certificate_task_renew_cert(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -623,7 +623,7 @@ async def test_load_connect_insecure(
     # Mock the error response via aioclient_mock instead
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -631,7 +631,7 @@ async def test_load_connect_insecure(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -671,7 +671,7 @@ async def test_load_connect_forbidden(
     # Mock the error response via aioclient_mock instead
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -679,7 +679,7 @@ async def test_load_connect_forbidden(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "message": "lorem_ipsum",
         },
@@ -711,7 +711,7 @@ async def test_call_disconnect_clean_token(
     valid = utcnow() + timedelta(days=1)
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -719,7 +719,7 @@ async def test_call_disconnect_clean_token(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -754,7 +754,7 @@ async def test_recreating_old_certificate_with_bad_dns_config(
     valid = utcnow() + timedelta(days=1)
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -763,7 +763,7 @@ async def test_recreating_old_certificate_with_bad_dns_config(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -833,7 +833,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
     valid = utcnow() + timedelta(days=1)
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -842,7 +842,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -894,7 +894,7 @@ async def test_regeneration_without_warning_for_good_dns_config(
     valid = utcnow() + timedelta(days=1)
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -903,7 +903,7 @@ async def test_regeneration_without_warning_for_good_dns_config(
         },
     )
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/snitun_token",
+        f"https://{cloud.api_server}/instance/snitun_token",
         json={
             "token": "test-token",
             "server": "rest-remote.nabu.casa",
@@ -1028,7 +1028,7 @@ async def test_acme_client_new_order_errors(
             self.call_reset = True
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -1135,7 +1135,7 @@ async def test_acme_client_create_client_jws_errors(
             self.call_reset = True
 
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -1185,7 +1185,7 @@ async def test_context_error_handling(
 ) -> None:
     """Test that we reset if we hit an error reason that require resetting."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",
@@ -1300,7 +1300,7 @@ async def test_recreate_acme_integration_during_load_backend(
 ) -> None:
     """Test _recreate_acme integration during load_backend with domain changes."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/register",
+        f"https://{cloud.api_server}/instance/register",
         json={
             "domain": "test.dui.nabu.casa",
             "email": "test@nabucasa.inc",

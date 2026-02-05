@@ -152,32 +152,32 @@ class ServiceDiscovery(ApiBase):
         self._action_overrides = action_overrides or {}
 
         if TYPE_CHECKING:
+            assert self._cloud.api_server is not None
             assert self._cloud.relayer_server is not None
-            assert self._cloud.servicehandlers_server is not None
 
         self._fallback_actions: dict[ServiceDiscoveryAction, str] = {
-            "account_services": f"https://{self._cloud.servicehandlers_server}/account/services",
+            "account_services": f"https://{self._cloud.api_server}/account/services",
             "acme_directory": f"https://{self._cloud.acme_server}/directory",
-            "alexa_access_token": f"https://{self._cloud.servicehandlers_server}/alexa/access_token",
+            "alexa_access_token": f"https://{self._cloud.api_server}/alexa/access_token",
             "google_report_state_request_sync": f"https://{self._cloud.remotestate_server}/request_sync",
             "google_report_state_websocket": f"wss://{self._cloud.remotestate_server}/v1",
-            "instance_connection": f"https://{self._cloud.servicehandlers_server}/instance/connection",
+            "instance_connection": f"https://{self._cloud.api_server}/instance/connection",
             "llm_connection_details": f"https://{self._cloud.api_server}/llm/connection_details",
             "relayer_connect": f"wss://{self._cloud.relayer_server}/websocket",
-            "remote_access_dns_challenge_remove": f"https://{self._cloud.servicehandlers_server}/instance/dns_challenge_cleanup",
-            "remote_access_dns_challenge_set": f"https://{self._cloud.servicehandlers_server}/instance/dns_challenge_txt",
-            "remote_access_register": f"https://{self._cloud.servicehandlers_server}/instance/register",
+            "remote_access_dns_challenge_remove": f"https://{self._cloud.api_server}/instance/dns_challenge_cleanup",
+            "remote_access_dns_challenge_set": f"https://{self._cloud.api_server}/instance/dns_challenge_txt",
+            "remote_access_register": f"https://{self._cloud.api_server}/instance/register",
             "remote_access_resolve_dns_cname": f"https://{self._cloud.api_server}/account/instance/resolve_dns_cname",
-            "remote_access_snitun_token": f"https://{self._cloud.servicehandlers_server}/instance/snitun_token",
-            "storage_files_delete": f"https://{self._cloud.servicehandlers_server}/files",
-            "storage_files_download": f"https://{self._cloud.servicehandlers_server}/files/download_details/{{storage_type}}/{{filename}}",
-            "storage_files_list": f"https://{self._cloud.servicehandlers_server}/v2/files/{{storage_type}}",
-            "storage_files_upload": f"https://{self._cloud.servicehandlers_server}/files/upload_details",
+            "remote_access_snitun_token": f"https://{self._cloud.api_server}/instance/snitun_token",
+            "storage_files_delete": f"https://{self._cloud.api_server}/files",
+            "storage_files_download": f"https://{self._cloud.api_server}/files/download_details/{{storage_type}}/{{filename}}",
+            "storage_files_list": f"https://{self._cloud.api_server}/v2/files/{{storage_type}}",
+            "storage_files_upload": f"https://{self._cloud.api_server}/files/upload_details",
             "subscription_info": f"https://{self._cloud.api_server}/account/payments/subscription_info",
             "subscription_migrate_paypal": f"https://{self._cloud.api_server}/account/payments/migrate_paypal_agreement",
-            "voice_connection_details": f"https://{self._cloud.servicehandlers_server}/voice/connection_details",
-            "webhook_generate": f"https://{self._cloud.servicehandlers_server}/instance/webhook",
-            "webrtc_ice_servers": f"https://{self._cloud.servicehandlers_server}/v2/webrtc/ice_servers",
+            "voice_connection_details": f"https://{self._cloud.api_server}/voice/connection_details",
+            "webhook_generate": f"https://{self._cloud.api_server}/instance/webhook",
+            "webrtc_ice_servers": f"https://{self._cloud.api_server}/v2/webrtc/ice_servers",
         }
 
     @property

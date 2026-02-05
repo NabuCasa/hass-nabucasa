@@ -190,7 +190,6 @@ class Cloud(Generic[_ClientT]):
         acme_server: str | None = None,
         relayer_server: str | None = None,
         remotestate_server: str | None = None,
-        servicehandlers_server: str | None = None,
         discovery_service_actions: dict[ServiceDiscoveryAction, str] | None = None,
         **kwargs: Any,  # noqa: ARG002
     ) -> None:
@@ -226,10 +225,6 @@ class Cloud(Generic[_ClientT]):
         self.api_server = _servers.get("api", api_server)
         self.relayer_server = _servers.get("relayer", relayer_server)
         self.remotestate_server = _servers.get("remotestate", remotestate_server)
-        self.servicehandlers_server = _servers.get(
-            "servicehandlers",
-            servicehandlers_server,
-        )
 
         # Setup event bus before other components
         self.events = CloudEventBus()

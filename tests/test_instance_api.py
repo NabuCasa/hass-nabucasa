@@ -59,7 +59,7 @@ async def test_connection_endpoint_problems(
 ):
     """Test problems with connection endpoint."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/instance/connection",
+        f"https://{cloud.api_server}/instance/connection",
         **mockargs,
     )
 
@@ -111,7 +111,7 @@ async def test_cleanup_dns_challenge_record_endpoint_problems(
 ):
     """Test problems with cleanup_dns_challenge_record endpoint."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/dns_challenge_cleanup",
+        f"https://{cloud.api_server}/instance/dns_challenge_cleanup",
         **mockargs,
     )
 
@@ -163,7 +163,7 @@ async def test_create_dns_challenge_record_endpoint_problems(
 ):
     """Test problems with create_dns_challenge_record endpoint."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/dns_challenge_txt",
+        f"https://{cloud.api_server}/instance/dns_challenge_txt",
         **mockargs,
     )
 
@@ -183,7 +183,7 @@ async def test_connection_endpoint_success(
     expected_result = {"connected": True, "details": {}}
 
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/instance/connection",
+        f"https://{cloud.api_server}/instance/connection",
         json=expected_result,
     )
 
@@ -201,7 +201,7 @@ async def test_cleanup_dns_challenge_record_endpoint_success(
 ):
     """Test successful cleanup_dns_challenge_record endpoint."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/dns_challenge_cleanup",
+        f"https://{cloud.api_server}/instance/dns_challenge_cleanup",
         json={},
     )
 
@@ -219,7 +219,7 @@ async def test_create_dns_challenge_record_endpoint_success(
 ):
     """Test successful create_dns_challenge_record endpoint."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/instance/dns_challenge_txt",
+        f"https://{cloud.api_server}/instance/dns_challenge_txt",
         json={},
     )
 
