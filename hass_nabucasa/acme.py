@@ -8,6 +8,7 @@ import contextlib
 from datetime import datetime, timedelta
 import logging
 from pathlib import Path
+from socket import gaierror
 from typing import TYPE_CHECKING
 import urllib
 
@@ -22,6 +23,7 @@ from cryptography.x509.extensions import SubjectAlternativeName
 from cryptography.x509.oid import NameOID
 import josepy as jose
 import OpenSSL
+from requests.exceptions import RequestException
 
 from .const import CertificateStatus
 from .utils import seconds_as_dhms, utcnow
@@ -36,6 +38,16 @@ PRIVATE_KEY_SIZE = 2048
 USER_AGENT = "home-assistant-cloud"
 
 _LOGGER = logging.getLogger(__name__)
+
+
+_ACME_CLIENT_EXCEPTIONS = (
+    messages.Error,
+    errors.Error,
+    gaierror,
+    # https://github.com/certbot/certbot/blob/9ba139a9ef5f5a9921d2fe8151f9f05e2dfb339f/acme/src/acme/client.py#L727
+    # The client raises requests.exceptions.RequestException in case of any issue
+    RequestException,
+)
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -262,10 +274,8 @@ class AcmeHandler:
                     net=network,
                 )
                 self._acme_client = client.ClientV2(directory=directory, net=network)
-            except (messages.Error, errors.Error, ValueError) as err:
+            except _ACME_CLIENT_EXCEPTIONS as err:
                 _raise_if_jws_verification_failed(err)
-                # https://github.com/certbot/certbot/blob/63fb97d8dea73ba63964f69fac0b15acfed02b3e/acme/acme/client.py#L670
-                # The client raises ValueError for RequestException
                 raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
             return
 
@@ -277,7 +287,7 @@ class AcmeHandler:
                 net=network,
             )
             self._acme_client = client.ClientV2(directory=directory, net=network)
-        except (messages.Error, errors.Error, ValueError) as err:
+        except _ACME_CLIENT_EXCEPTIONS as err:
             _raise_if_jws_verification_failed(err)
             raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
 
@@ -292,7 +302,7 @@ class AcmeHandler:
                     terms_of_service_agreed=True,
                 ),
             )
-        except (messages.Error, errors.Error) as err:
+        except _ACME_CLIENT_EXCEPTIONS as err:
             _raise_if_jws_verification_failed(err)
             raise AcmeClientError(f"Can't register to ACME server: {err}") from err
 
@@ -309,11 +319,11 @@ class AcmeHandler:
         assert self._acme_client is not None
         try:
             return self._acme_client.new_order(csr_pem)
-        except (messages.Error, errors.Error) as err:
+        except _ACME_CLIENT_EXCEPTIONS as err:
             _raise_if_jws_verification_failed(err)
             raise AcmeChallengeError(
                 f"Can't order a new ACME challenge: {err}",
-            ) from None
+            ) from err
 
     def _start_challenge(self, order: messages.OrderResource) -> list[ChallengeHandler]:
         """Initialize domain challenge and return token."""
@@ -338,10 +348,10 @@ class AcmeHandler:
                 response, validation = dns_challenge.response_and_validation(
                     self._account_jwk,
                 )
-            except errors.Error as err:
+            except _ACME_CLIENT_EXCEPTIONS as err:
                 raise AcmeChallengeError(
                     f"Can't validate the new ACME challenge: {err}",
-                ) from None
+                ) from err
             handlers.append(
                 ChallengeHandler(dns_challenge, order, response, validation),
             )
@@ -355,7 +365,7 @@ class AcmeHandler:
             assert self._acme_client is not None
         try:
             self._acme_client.answer_challenge(handler.challenge, handler.response)
-        except errors.Error as err:
+        except _ACME_CLIENT_EXCEPTIONS as err:
             raise AcmeChallengeError(f"Can't accept ACME challenge: {err}") from err
 
     def _finish_challenge(self, order: messages.OrderResource) -> None:
@@ -371,7 +381,7 @@ class AcmeHandler:
                 deadline,
                 fetch_alternative_chains=True,
             )
-        except errors.Error as err:
+        except _ACME_CLIENT_EXCEPTIONS as err:
             raise AcmeChallengeError(f"Wait of ACME challenge fails: {err}") from err
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception while finalizing order")
@@ -434,7 +444,7 @@ class AcmeHandler:
             self._acme_client.revoke(fullchain, 4)
         except errors.ConflictError:
             pass
-        except errors.Error as err:
+        except _ACME_CLIENT_EXCEPTIONS as err:
             # Ignore errors where certificate did not exist
             if "No such certificate" in str(err):  # noqa: SIM114
                 pass
@@ -459,7 +469,7 @@ class AcmeHandler:
 
         try:
             self._acme_client.deactivate_registration(regr)
-        except errors.Error as err:
+        except _ACME_CLIENT_EXCEPTIONS as err:
             raise AcmeClientError(f"Can't deactivate account: {err}") from err
 
     def _have_any_file(self) -> bool:
