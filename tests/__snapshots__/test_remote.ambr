@@ -143,6 +143,38 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
+# name: test_certificate_network_error_handling[RequestException-Connection timeout]
+  '''
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
+  [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
+  [DEBUG] hass_nabucasa.remote: Certificate status: loading
+  [DEBUG] hass_nabucasa.remote: Certificate status: validating
+  [DEBUG] hass_nabucasa.remote: Certificate status: no_certificate
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
+  [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
+  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't order a new ACME challenge: Connection timeout
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
+  '''
+# ---
+# name: test_certificate_network_error_handling[gaierror-DNS resolution failed]
+  '''
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
+  [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
+  [DEBUG] hass_nabucasa.remote: Certificate status: loading
+  [DEBUG] hass_nabucasa.remote: Certificate status: validating
+  [DEBUG] hass_nabucasa.remote: Certificate status: no_certificate
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
+  [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
+  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't order a new ACME challenge: DNS resolution failed
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
+  '''
+# ---
 # name: test_context_error_handling[Boom-False]
   '''
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register

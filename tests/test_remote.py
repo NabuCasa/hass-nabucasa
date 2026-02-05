@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import AsyncGenerator, Generator
 from datetime import timedelta
+from socket import gaierror
 from ssl import SSLError
 from typing import Any
 from unittest.mock import Mock, patch
@@ -10,6 +11,7 @@ from unittest.mock import Mock, patch
 from acme import client, messages
 import aiohttp
 import pytest
+from requests.exceptions import RequestException
 from syrupy import SnapshotAssertion
 
 from hass_nabucasa import Cloud, utils
@@ -1330,3 +1332,78 @@ async def test_recreate_acme_integration_during_load_backend(
         expected_domains,
         "test@nabucasa.inc",
     )
+
+
+@pytest.mark.parametrize(
+    ("exception_type", "exception_message"),
+    [
+        (gaierror, "DNS resolution failed"),
+        (RequestException, "Connection timeout"),
+    ],
+)
+async def test_certificate_network_error_handling(
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+    exception_type: type[Exception],
+    exception_message: str,
+) -> None:
+    """Test network errors are handled properly during certificate issuance."""
+
+    class _MockAcmeClient(client.ClientV2):
+        def __init__(self) -> None:
+            pass
+
+        def new_order(self, _: Any) -> None:
+            raise exception_type(exception_message)
+
+    class _MockAcme(AcmeHandler):
+        @property
+        def certificate_available(self) -> bool:
+            return False
+
+        @property
+        def alternative_names(self) -> list[str]:
+            return ["test.dui.nabu.casa"]
+
+        def _generate_csr(self) -> bytes:
+            return b""
+
+        def _create_client(self) -> None:
+            self._acme_client = _MockAcmeClient()
+
+    valid = utcnow() + timedelta(days=1)
+
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+            "throttling": 400,
+        },
+    )
+
+    with patch(
+        "hass_nabucasa.remote.AcmeHandler",
+        return_value=_MockAcme(cloud, [], "test@nabucasa.inc", Mock()),
+    ):
+        cloud.client.prop_remote_autostart = True
+        await cloud.remote.start()
+        await asyncio.sleep(0.1)
+
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
+    assert cloud.remote.certificate_status == CertificateStatus.INITIAL_CERT_ERROR
+
+    # Verify the log messages with snapshot
+    assert snapshot == extract_log_messages(caplog)
