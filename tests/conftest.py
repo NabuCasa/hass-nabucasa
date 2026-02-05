@@ -148,7 +148,6 @@ async def cloud(
             acme_server="acme.example.com",
             relayer_server="relayer.example.com",
             remotestate_server="remotestate.example.com",
-            servicehandlers_server="servicehandlers.example.com",
         )
 
         fake_secret = "fake-test-secret"

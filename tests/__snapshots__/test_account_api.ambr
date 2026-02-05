@@ -1,40 +1,40 @@
 # serializer version: 1
 # name: test_getting_services[services_response0]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for account_services: https://servicehandlers.example.com/account/services
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/account/services
-  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/account/services (200) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for account_services: https://api.example.com/account/services
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/services
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/account/services (200) 
   '''
 # ---
 # name: test_problems_getting_services[429-error]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for account_services: https://servicehandlers.example.com/account/services
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/account/services
-  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/account/services (429) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for account_services: https://api.example.com/account/services
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/services
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/account/services (429) 
   '''
 # ---
 # name: test_problems_getting_services[500-error]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for account_services: https://servicehandlers.example.com/account/services
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/account/services
-  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/account/services (500) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for account_services: https://api.example.com/account/services
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/services
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/account/services (500) 
   '''
 # ---
 # name: test_problems_getting_services[client-error]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for account_services: https://servicehandlers.example.com/account/services
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/account/services
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for account_services: https://api.example.com/account/services
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/services
   '''
 # ---
 # name: test_problems_getting_services[timeout]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for account_services: https://servicehandlers.example.com/account/services
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/account/services
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for account_services: https://api.example.com/account/services
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/services
   '''
 # ---
 # name: test_problems_getting_services[unexpected-error]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for account_services: https://servicehandlers.example.com/account/services
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/account/services
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for account_services: https://api.example.com/account/services
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/services
   '''
 # ---

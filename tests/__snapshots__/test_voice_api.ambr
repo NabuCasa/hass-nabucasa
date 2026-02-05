@@ -1,40 +1,40 @@
 # serializer version: 1
 # name: test_getting_connection_details[response0]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details: https://servicehandlers.example.com/voice/connection_details
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details
-  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/voice/connection_details (200) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details: https://api.example.com/voice/connection_details
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/voice/connection_details
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/voice/connection_details (200) 
   '''
 # ---
 # name: test_problems_getting_connection_details[VoiceApiError-getmockargs0-Failed to parse API response]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details: https://servicehandlers.example.com/voice/connection_details
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details
-  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/voice/connection_details (500) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details: https://api.example.com/voice/connection_details
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/voice/connection_details
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/voice/connection_details (500) 
   '''
 # ---
 # name: test_problems_getting_connection_details[VoiceApiError-getmockargs1-Failed to parse API response]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details: https://servicehandlers.example.com/voice/connection_details
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details
-  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/voice/connection_details (429) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details: https://api.example.com/voice/connection_details
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/voice/connection_details
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/voice/connection_details (429) 
   '''
 # ---
 # name: test_problems_getting_connection_details[VoiceApiError-getmockargs2-Timeout reached while calling API]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details: https://servicehandlers.example.com/voice/connection_details
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details: https://api.example.com/voice/connection_details
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/voice/connection_details
   '''
 # ---
 # name: test_problems_getting_connection_details[VoiceApiError-getmockargs3-Failed to fetch: boom!]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details: https://servicehandlers.example.com/voice/connection_details
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details: https://api.example.com/voice/connection_details
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/voice/connection_details
   '''
 # ---
 # name: test_problems_getting_connection_details[VoiceApiError-getmockargs4-Unexpected error while calling API: boom!]
   '''
-  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details: https://servicehandlers.example.com/voice/connection_details
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/voice/connection_details
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for voice_connection_details: https://api.example.com/voice/connection_details
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/voice/connection_details
   '''
 # ---

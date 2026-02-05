@@ -58,7 +58,7 @@ async def test_problems_getting_services(
 ):
     """Test problems getting account services."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/account/services",
+        f"https://{cloud.api_server}/account/services",
         **mockargs,
     )
 
@@ -81,7 +81,7 @@ async def test_getting_services(
 ):
     """Test getting account services."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/account/services",
+        f"https://{cloud.api_server}/account/services",
         json=services_response,
     )
 

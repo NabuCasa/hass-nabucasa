@@ -42,7 +42,7 @@ async def test_upload_exceptions_while_getting_details(
 ):
     """Test handling exceptions when fetching upload details."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/files/upload_details",
+        f"https://{cloud.api_server}/files/upload_details",
         exc=exception("Boom!"),
     )
 
@@ -118,7 +118,7 @@ async def test_upload_exceptions_while_uploading(
 ):
     """Test handling exceptions during file upload."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/files/upload_details",
+        f"https://{cloud.api_server}/files/upload_details",
         json={"url": FILES_API_URL, "headers": {}},
     )
 
@@ -163,7 +163,7 @@ async def test_upload_bad_status_while_getting_upload_details(
 ):
     """Test handling bad status codes when fetching upload details."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/files/upload_details",
+        f"https://{cloud.api_server}/files/upload_details",
         **getmockargs,
     )
 
@@ -190,7 +190,7 @@ async def test_upload_returning_403_and_expired_subscription(
     cloud = cloud_with_expired_subscription
 
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/files/upload_details",
+        f"https://{cloud.api_server}/files/upload_details",
         status=403,
         json={"message": "Forbidden"},
     )
@@ -231,7 +231,7 @@ async def test_upload_bad_status_while_uploading(
 ):
     """Test handling bad status codes during file upload."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/files/upload_details",
+        f"https://{cloud.api_server}/files/upload_details",
         json={"url": FILES_API_URL, "headers": {}},
     )
 
@@ -258,11 +258,11 @@ async def test_upload(
 ):
     """Test successful file upload."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/files/upload_details",
+        f"https://{cloud.api_server}/files/upload_details",
         json={"url": FILES_API_URL, "headers": {}},
     )
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/v2/files/test",
+        f"https://{cloud.api_server}/v2/files/test",
         json=[STORED_BACKUP],
     )
 
@@ -296,7 +296,7 @@ async def test_download_exceptions_while_getting_details(
 ):
     """Test handling exceptions when fetching download details."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/files/download_details/test/lorem.ipsum",
+        f"https://{cloud.api_server}/files/download_details/test/lorem.ipsum",
         exc=exception("Boom!"),
     )
 
@@ -323,7 +323,7 @@ async def test_upload_exceptions_while_downloading(
 ):
     """Test handling exceptions during file download."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/files/download_details/test/lorem.ipsum",
+        f"https://{cloud.api_server}/files/download_details/test/lorem.ipsum",
         json={"url": FILES_API_URL},
     )
 
@@ -367,7 +367,7 @@ async def test_upload_bad_status_while_getting_download_details(
 ):
     """Test handling bad status codes when fetching download details."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/files/download_details/test/lorem.ipsum",
+        f"https://{cloud.api_server}/files/download_details/test/lorem.ipsum",
         **getmockargs,
     )
 
@@ -403,7 +403,7 @@ async def test_upload_bad_status_while_downloading(
 ):
     """Test handling bad status codes during file download."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/files/download_details/test/lorem.ipsum",
+        f"https://{cloud.api_server}/files/download_details/test/lorem.ipsum",
         json={"url": FILES_API_URL},
     )
 
@@ -426,7 +426,7 @@ async def test_download(
 ):
     """Test successful file download."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/files/download_details/test/lorem.ipsum",
+        f"https://{cloud.api_server}/files/download_details/test/lorem.ipsum",
         json={"url": FILES_API_URL},
     )
 
@@ -449,7 +449,7 @@ async def test_list(
 ):
     """Test listing files."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/v2/files/test",
+        f"https://{cloud.api_server}/v2/files/test",
         json=[STORED_BACKUP],
     )
 
@@ -468,7 +468,7 @@ async def test_list_with_clear_cache(
 ):
     """Test listing files."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/v2/files/test?clearCache=true",
+        f"https://{cloud.api_server}/v2/files/test?clearCache=true",
         json=[STORED_BACKUP],
     )
 
@@ -495,7 +495,7 @@ async def test_exceptions_while_listing(
 ):
     """Test handling exceptions during file download."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/v2/files/test", exc=exception("Boom!")
+        f"https://{cloud.api_server}/v2/files/test", exc=exception("Boom!")
     )
 
     with pytest.raises(FilesError, match=msg):
@@ -511,7 +511,7 @@ async def test_delete(
     snapshot: SnapshotAssertion,
 ):
     """Test listing files."""
-    aioclient_mock.delete(f"https://{cloud.servicehandlers_server}/files")
+    aioclient_mock.delete(f"https://{cloud.api_server}/files")
 
     await cloud.files.delete(storage_type="test", filename="lorem.ipsum")
 
@@ -545,9 +545,7 @@ async def test_exceptions_while_deleting(
     snapshot: SnapshotAssertion,
 ):
     """Test handling exceptions during file download."""
-    aioclient_mock.delete(
-        f"https://{cloud.servicehandlers_server}/files", **deletemockargs
-    )
+    aioclient_mock.delete(f"https://{cloud.api_server}/files", **deletemockargs)
 
     with pytest.raises(FilesError, match=re.escape(exception_msg)):
         await cloud.files.delete(storage_type="test", filename="lorem.ipsum")

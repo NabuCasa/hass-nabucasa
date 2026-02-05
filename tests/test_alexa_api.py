@@ -69,7 +69,7 @@ async def test_problems_getting_access_token(
 ):
     """Test problems getting access token."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/alexa/access_token",
+        f"https://{cloud.api_server}/alexa/access_token",
         **getmockargs,
     )
 
@@ -98,7 +98,7 @@ async def test_getting_access_token(
 ):
     """Test getting access token."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/alexa/access_token",
+        f"https://{cloud.api_server}/alexa/access_token",
         json=response,
     )
 
@@ -114,7 +114,7 @@ async def test_access_token_needs_relink_error(
 ):
     """Test that 400 with RefreshTokenNotFound raises AlexaApiNeedsRelinkError."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/alexa/access_token",
+        f"https://{cloud.api_server}/alexa/access_token",
         status=400,
         json={"reason": "RefreshTokenNotFound"},
     )
@@ -129,7 +129,7 @@ async def test_access_token_needs_relink_error_unknown_region(
 ):
     """Test that 400 with UnknownRegion raises AlexaApiNeedsRelinkError."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/alexa/access_token",
+        f"https://{cloud.api_server}/alexa/access_token",
         status=400,
         json={"reason": "UnknownRegion"},
     )
@@ -144,7 +144,7 @@ async def test_access_token_no_token_error(
 ):
     """Test that 400 with other reasons raises AlexaApiNoTokenError."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/alexa/access_token",
+        f"https://{cloud.api_server}/alexa/access_token",
         status=400,
         json={"reason": "SomeOtherReason"},
     )
@@ -159,7 +159,7 @@ async def test_access_token_no_token_error_no_reason(
 ):
     """Test that 400 without reason raises AlexaApiNoTokenError."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/alexa/access_token",
+        f"https://{cloud.api_server}/alexa/access_token",
         status=400,
         json={"error": "Bad Request"},
     )
@@ -174,7 +174,7 @@ async def test_access_token_raw_response_error_handling(
 ):
     """Test that non-400 errors are handled correctly with raw_response=True."""
     aioclient_mock.post(
-        f"https://{cloud.servicehandlers_server}/alexa/access_token",
+        f"https://{cloud.api_server}/alexa/access_token",
         status=500,
         text="Internal Server Error",
     )

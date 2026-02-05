@@ -34,7 +34,6 @@ DEFAULT_SERVERS: dict[str, dict[str, str]] = {
         "api": "api.nabucasa.com",
         "relayer": "cloud.nabucasa.com",
         "remotestate": "remotestate.nabucasa.com",
-        "servicehandlers": "servicehandlers.nabucasa.com",
     },
     "development": {},
 }

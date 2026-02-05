@@ -17,7 +17,7 @@ from tests.utils.aiohttp import AiohttpClientMocker
 def mock_ice_servers(aioclient_mock: AiohttpClientMocker, cloud: Cloud):
     """Mock ICE servers."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/v2/webrtc/ice_servers",
+        f"https://{cloud.api_server}/v2/webrtc/ice_servers",
         json=[
             {
                 "urls": "stun:example.com:80",
@@ -158,7 +158,7 @@ async def test_ice_server_refresh_sets_ice_server_list_empty_on_401_403_client_e
 ):
     """Test that ICE server list is empty when server returns 401 or 403 errors."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/v2/webrtc/ice_servers",
+        f"https://{cloud.api_server}/v2/webrtc/ice_servers",
         status=403,
         json={"message": "Boom!"},
     )
@@ -216,7 +216,7 @@ async def test_ice_server_refresh_keeps_ice_server_list_on_other_client_errors(
 ):
     """Test that ICE server list is not set to empty when server returns an error."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/v2/webrtc/ice_servers",
+        f"https://{cloud.api_server}/v2/webrtc/ice_servers",
         status=500,
         json={"message": "Boom!"},
     )
