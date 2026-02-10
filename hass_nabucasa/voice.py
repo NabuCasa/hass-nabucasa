@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator, AsyncIterable
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 import io
 import logging
 from typing import TYPE_CHECKING
@@ -39,14 +39,14 @@ class VoiceReturnError(VoiceError):
     """Backend error for voice."""
 
 
-class Gender(str, Enum):
+class Gender(StrEnum):
     """Gender Type for voices."""
 
     MALE = "male"
     FEMALE = "female"
 
 
-class AudioOutput(str, Enum):
+class AudioOutput(StrEnum):
     """Gender Type for voices."""
 
     MP3 = "mp3"
