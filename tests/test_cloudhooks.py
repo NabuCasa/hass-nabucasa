@@ -100,9 +100,7 @@ async def test_create_publishes_cloudhook_created_event(
     )
 
     cloud.iot.state = STATE_CONNECTED
-    with patch(
-        "hass_nabucasa.iot.CloudIoT.async_send_message", new_callable=AsyncMock
-    ):
+    with patch("hass_nabucasa.iot.CloudIoT.async_send_message", new_callable=AsyncMock):
         await cloud.cloudhooks.async_create("mock-webhook-id", False)
 
     assert len(subscriber.call_args_list) == 1
@@ -137,9 +135,7 @@ async def test_delete_publishes_cloudhook_deleted_event(
     )
 
     cloud.iot.state = STATE_CONNECTED
-    with patch(
-        "hass_nabucasa.iot.CloudIoT.async_send_message", new_callable=AsyncMock
-    ):
+    with patch("hass_nabucasa.iot.CloudIoT.async_send_message", new_callable=AsyncMock):
         await cloud.cloudhooks.async_delete("mock-webhook-id")
 
     assert len(subscriber.call_args_list) == 1
