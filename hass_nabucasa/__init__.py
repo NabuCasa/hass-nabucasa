@@ -45,7 +45,7 @@ from .auth import (
     UserNotFound,
 )
 from .client import CloudClient
-from .cloudhooks import Cloudhooks
+from .cloudhooks import CloudhookDetails, Cloudhooks
 from .const import (
     ACCOUNT_URL,
     CONFIG_DIR,
@@ -56,7 +56,13 @@ from .const import (
     CertificateStatus,
     SubscriptionReconnectionReason,
 )
-from .events import CloudEvent, CloudEventBus, CloudEventType
+from .events import (
+    CloudEvent,
+    CloudEventBus,
+    CloudEventType,
+    CloudhookCreatedEvent,
+    CloudhookDeletedEvent,
+)
 from .exceptions import (
     CloudError,
     NabuCasaAuthenticationError,
@@ -125,6 +131,9 @@ __all__ = [
     "CloudEvent",
     "CloudEventBus",
     "CloudEventType",
+    "CloudhookCreatedEvent",
+    "CloudhookDeletedEvent",
+    "CloudhookDetails",
     "FilesError",
     "GoogleReportStateError",
     "IceServersApiError",

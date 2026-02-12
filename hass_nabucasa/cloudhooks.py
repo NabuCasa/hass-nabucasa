@@ -7,9 +7,19 @@ from typing import TYPE_CHECKING, Any, TypedDict
 import async_timeout
 
 from .api import ApiBase, CloudApiError, api_exception_handler
+from .events.types import CloudhookCreatedEvent, CloudhookDeletedEvent
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
+
+
+class CloudhookDetails(TypedDict):
+    """Details of a cloudhook."""
+
+    webhook_id: str
+    cloudhook_id: str
+    cloudhook_url: str
+    managed: bool
 
 
 class GeneratedCloudhookDetails(TypedDict):
@@ -43,7 +53,7 @@ class Cloudhooks(ApiBase):
             expect_answer=False,
         )
 
-    async def async_create(self, webhook_id: str, managed: bool) -> dict[str, Any]:
+    async def async_create(self, webhook_id: str, managed: bool) -> CloudhookDetails:
         """Create a cloud webhook."""
         cloudhooks = self._cloud.client.cloudhooks
 
@@ -61,17 +71,19 @@ class Cloudhooks(ApiBase):
         cloudhook_url = data["url"]
 
         # Store hook
-        cloudhooks = dict(cloudhooks)
-        hook = cloudhooks[webhook_id] = {
+        cloudhooks_updated: dict[str, Any] = dict(cloudhooks)
+        cloudhook: CloudhookDetails = {
             "webhook_id": webhook_id,
             "cloudhook_id": cloudhook_id,
             "cloudhook_url": cloudhook_url,
             "managed": managed,
         }
-        await self._cloud.client.async_cloudhooks_update(cloudhooks)
+        cloudhooks_updated[webhook_id] = cloudhook
+        await self._cloud.client.async_cloudhooks_update(cloudhooks_updated)
 
         await self.async_publish_cloudhooks()
-        return hook
+        await self._cloud.events.publish(CloudhookCreatedEvent(cloudhook=cloudhook))
+        return cloudhook
 
     async def async_delete(self, webhook_id: str) -> None:
         """Delete a cloud webhook."""
@@ -81,10 +93,11 @@ class Cloudhooks(ApiBase):
             raise ValueError("Hook is not enabled for the cloud.")
 
         # Remove hook
-        cloudhooks = dict(cloudhooks)
-        cloudhooks.pop(webhook_id)
-        await self._cloud.client.async_cloudhooks_update(cloudhooks)
+        cloudhooks_updated: dict[str, Any] = dict(cloudhooks)
+        cloudhook: CloudhookDetails = cloudhooks_updated.pop(webhook_id)
+        await self._cloud.client.async_cloudhooks_update(cloudhooks_updated)
 
+        await self._cloud.events.publish(CloudhookDeletedEvent(cloudhook=cloudhook))
         await self.async_publish_cloudhooks()
 
     @api_exception_handler(CloudhookApiError)
