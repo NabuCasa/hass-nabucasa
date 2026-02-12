@@ -60,7 +60,7 @@ async def test_problems_getting_connection_details(
 ):
     """Test problems getting connection details."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/voice/connection_details",
+        f"https://{cloud.api_server}/voice/connection_details",
         **getmockargs,
     )
 
@@ -90,7 +90,7 @@ async def test_getting_connection_details(
 ):
     """Test getting connection details."""
     aioclient_mock.get(
-        f"https://{cloud.servicehandlers_server}/voice/connection_details",
+        f"https://{cloud.api_server}/voice/connection_details",
         json=response,
     )
 

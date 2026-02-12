@@ -7,8 +7,9 @@
 # ---
 # name: test_enable
   '''
-  [DEBUG] hass_nabucasa.api: Sending GET request to servicehandlers.example.com/instance/webhook
-  [DEBUG] hass_nabucasa.api: Response for get from servicehandlers.example.com/instance/webhook (200) 
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for webhook_generate: https://api.example.com/instance/webhook
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/webhook
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/webhook (200) 
   [DEBUG] hass_nabucasa.events.bus: No subscribers for event cloudhook_created
   '''
 # ---

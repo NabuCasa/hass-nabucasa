@@ -1,0 +1,43 @@
+# serializer version: 1
+# name: test_async_check_latency_multiple_addresses
+  list([
+    dict({
+      'address': '8.8.8.8',
+      'avg_rtt': 10.0,
+      'is_alive': True,
+    }),
+    dict({
+      'address': '9.9.9.9',
+      'avg_rtt': 15.0,
+      'is_alive': True,
+    }),
+    dict({
+      'address': '1.1.1.1',
+      'avg_rtt': 20.0,
+      'is_alive': True,
+    }),
+  ])
+# ---
+# name: test_async_check_latency_partial_unreachable
+  list([
+    dict({
+      'address': '9.9.9.9',
+      'avg_rtt': 15.0,
+      'is_alive': True,
+    }),
+    dict({
+      'address': '1.1.1.1',
+      'avg_rtt': 20.0,
+      'is_alive': True,
+    }),
+  ])
+# ---
+# name: test_async_check_latency_with_ip
+  list([
+    dict({
+      'address': '8.8.8.8',
+      'avg_rtt': 10.5,
+      'is_alive': True,
+    }),
+  ])
+# ---

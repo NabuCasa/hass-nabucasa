@@ -15,6 +15,7 @@ from .const import (
     ONE_HOUR_IN_SECONDS,
     TWELVE_HOURS_IN_SECONDS,
 )
+from .events.types import CloudEvent, CloudEventType
 from .utils import jitter, seconds_as_dhms, utcnow
 
 if TYPE_CHECKING:
@@ -26,13 +27,28 @@ MIN_REFRESH_INTERVAL = 60
 TIME_DELTA_FOR_INITIAL_LOAD_RETRY = TWELVE_HOURS_IN_SECONDS
 
 ServiceDiscoveryAction = Literal[
+    "account_services",
     "acme_directory",
+    "alexa_access_token",
+    "google_report_state_request_sync",
+    "google_report_state_websocket",
+    "instance_connection",
     "llm_connection_details",
     "relayer_connect",
+    "remote_access_dns_challenge_remove",
+    "remote_access_dns_challenge_set",
+    "remote_access_register",
     "remote_access_resolve_dns_cname",
+    "remote_access_snitun_token",
+    "storage_files_delete",
+    "storage_files_download",
+    "storage_files_list",
+    "storage_files_upload",
     "subscription_info",
     "subscription_migrate_paypal",
     "voice_connection_details",
+    "webhook_generate",
+    "webrtc_ice_servers",
 ]
 
 VALID_ACTION_NAMES = frozenset(get_args(ServiceDiscoveryAction))
@@ -136,18 +152,32 @@ class ServiceDiscovery(ApiBase):
         self._action_overrides = action_overrides or {}
 
         if TYPE_CHECKING:
-            assert self._cloud.accounts_server is not None
+            assert self._cloud.api_server is not None
             assert self._cloud.relayer_server is not None
-            assert self._cloud.servicehandlers_server is not None
 
         self._fallback_actions: dict[ServiceDiscoveryAction, str] = {
+            "account_services": f"https://{self._cloud.api_server}/account/services",
             "acme_directory": f"https://{self._cloud.acme_server}/directory",
+            "alexa_access_token": f"https://{self._cloud.api_server}/alexa/access_token",
+            "google_report_state_request_sync": f"https://{self._cloud.remotestate_server}/request_sync",
+            "google_report_state_websocket": f"wss://{self._cloud.remotestate_server}/v1",
+            "instance_connection": f"https://{self._cloud.api_server}/instance/connection",
             "llm_connection_details": f"https://{self._cloud.api_server}/llm/connection_details",
             "relayer_connect": f"wss://{self._cloud.relayer_server}/websocket",
-            "remote_access_resolve_dns_cname": f"https://{self._cloud.accounts_server}/instance/resolve_dns_cname",
-            "subscription_info": f"https://{self._cloud.accounts_server}/payments/subscription_info",
-            "subscription_migrate_paypal": f"https://{self._cloud.accounts_server}/payments/migrate_paypal_agreement",
-            "voice_connection_details": f"https://{self._cloud.servicehandlers_server}/voice/connection_details",
+            "remote_access_dns_challenge_remove": f"https://{self._cloud.api_server}/instance/dns_challenge_cleanup",
+            "remote_access_dns_challenge_set": f"https://{self._cloud.api_server}/instance/dns_challenge_txt",
+            "remote_access_register": f"https://{self._cloud.api_server}/instance/register",
+            "remote_access_resolve_dns_cname": f"https://{self._cloud.api_server}/account/instance/resolve_dns_cname",
+            "remote_access_snitun_token": f"https://{self._cloud.api_server}/instance/snitun_token",
+            "storage_files_delete": f"https://{self._cloud.api_server}/files",
+            "storage_files_download": f"https://{self._cloud.api_server}/files/download_details/{{storage_type}}/{{filename}}",
+            "storage_files_list": f"https://{self._cloud.api_server}/v2/files/{{storage_type}}",
+            "storage_files_upload": f"https://{self._cloud.api_server}/files/upload_details",
+            "subscription_info": f"https://{self._cloud.api_server}/account/payments/subscription_info",
+            "subscription_migrate_paypal": f"https://{self._cloud.api_server}/account/payments/migrate_paypal_agreement",
+            "voice_connection_details": f"https://{self._cloud.api_server}/voice/connection_details",
+            "webhook_generate": f"https://{self._cloud.api_server}/instance/webhook",
+            "webrtc_ice_servers": f"https://{self._cloud.api_server}/v2/webrtc/ice_servers",
         }
 
     @property
@@ -205,6 +235,10 @@ class ServiceDiscovery(ApiBase):
             _LOGGER.debug(
                 "Service discovery data cached, valid for %s",
                 seconds_as_dhms(discovery_data["valid_for"]),
+            )
+
+            await self._cloud.events.publish(
+                event=CloudEvent(type=CloudEventType.SERVICE_DISCOVERY_UPDATE)
             )
 
             return cache_data

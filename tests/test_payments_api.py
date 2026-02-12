@@ -64,7 +64,7 @@ async def test_problems_getting_connection_details(
 ):
     """Test problems getting connection details."""
     aioclient_mock.get(
-        f"https://{cloud.accounts_server}/payments/subscription_info",
+        f"https://{cloud.api_server}/account/payments/subscription_info",
         **getmockargs,
     )
 
@@ -91,7 +91,7 @@ async def test_getting_connection_details(
 ):
     """Test getting connection details."""
     aioclient_mock.get(
-        f"https://{cloud.accounts_server}/payments/subscription_info",
+        f"https://{cloud.api_server}/account/payments/subscription_info",
         json=response,
     )
 
@@ -109,7 +109,7 @@ async def test_trigger_async_renew_access_token(
 ):
     """Test getting connection details."""
     aioclient_mock.get(
-        f"https://{cloud.accounts_server}/payments/subscription_info",
+        f"https://{cloud.api_server}/account/payments/subscription_info",
         json={"provider": "legacy"},
     )
 
@@ -165,7 +165,7 @@ async def test_problems_migrating_paypal_agreement(
 ):
     """Test problems migrating PayPal agreement."""
     aioclient_mock.post(
-        f"https://{cloud.accounts_server}/payments/migrate_paypal_agreement",
+        f"https://{cloud.api_server}/account/payments/migrate_paypal_agreement",
         **postmockargs,
     )
 
@@ -195,7 +195,7 @@ async def test_migrate_paypal_agreement_success(
 ):
     """Test successful PayPal agreement migration."""
     aioclient_mock.post(
-        f"https://{cloud.accounts_server}/payments/migrate_paypal_agreement",
+        f"https://{cloud.api_server}/account/payments/migrate_paypal_agreement",
         json=response,
     )
 
@@ -213,7 +213,7 @@ async def test_no_token_refresh_when_cloud_started(
 ):
     """Test that token refresh is not triggered when cloud is already started."""
     aioclient_mock.get(
-        f"https://{cloud.accounts_server}/payments/subscription_info",
+        f"https://{cloud.api_server}/account/payments/subscription_info",
         json={"provider": "legacy"},
     )
 
@@ -235,7 +235,7 @@ async def test_no_token_refresh_when_no_provider(
 ):
     """Test that token refresh is not triggered when no provider is present."""
     aioclient_mock.get(
-        f"https://{cloud.accounts_server}/payments/subscription_info",
+        f"https://{cloud.api_server}/account/payments/subscription_info",
         json={"provider": None},
     )
     cloud.started = False
@@ -255,7 +255,7 @@ async def test_no_token_refresh_when_skip_renew(
 ):
     """Test that token refresh is not triggered when skip_renew is True."""
     aioclient_mock.get(
-        f"https://{cloud.accounts_server}/payments/subscription_info",
+        f"https://{cloud.api_server}/account/payments/subscription_info",
         json={"provider": "legacy"},
     )
 
@@ -276,7 +276,7 @@ async def test_token_refresh_debug_log(
 ):
     """Test that debug log is written when token refresh is triggered."""
     aioclient_mock.get(
-        f"https://{cloud.accounts_server}/payments/subscription_info",
+        f"https://{cloud.api_server}/account/payments/subscription_info",
         json={"provider": "legacy"},
     )
 

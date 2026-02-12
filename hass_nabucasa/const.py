@@ -30,12 +30,10 @@ DISPATCH_REMOTE_BACKEND_DOWN = "remote_backend_down"
 DEFAULT_SERVERS: dict[str, dict[str, str]] = {
     "production": {
         "account_link": "account-link.nabucasa.com",
-        "accounts": "accounts.nabucasa.com",
         "acme": "acme-v02.api.letsencrypt.org",
         "api": "api.nabucasa.com",
         "relayer": "cloud.nabucasa.com",
         "remotestate": "remotestate.nabucasa.com",
-        "servicehandlers": "servicehandlers.nabucasa.com",
     },
     "development": {},
 }

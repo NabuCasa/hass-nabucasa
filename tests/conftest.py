@@ -145,11 +145,9 @@ async def cloud(
             region="xx-earth-616",
             api_server="api.example.com",
             account_link_server="account-link.example.com",
-            accounts_server="accounts.example.com",
             acme_server="acme.example.com",
             relayer_server="relayer.example.com",
             remotestate_server="remotestate.example.com",
-            servicehandlers_server="servicehandlers.example.com",
         )
 
         fake_secret = "fake-test-secret"
@@ -279,3 +277,14 @@ async def ws_server(aiohttp_client):
         return await client.ws_connect("/ws")
 
     return create_client_to_server
+
+
+@pytest.fixture
+def cloud_with_expired_subscription(cloud: hass_nabucasa.Cloud):
+    """Return a cloud instance with expired subscription."""
+    with patch(
+        "hass_nabucasa.Cloud.subscription_expired",
+        new_callable=PropertyMock,
+        return_value=True,
+    ):
+        yield cloud
