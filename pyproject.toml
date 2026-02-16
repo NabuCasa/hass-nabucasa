@@ -56,7 +56,7 @@ test = [
     "pytest-socket==0.7.0",
     "pytest-timeout==2.4.0",
     "pytest==9.0.2",
-    "ruff==0.15.0",
+    "ruff==0.15.1",
     "types_atomicwrites==1.4.5.1",
     "types_pyOpenSSL==24.1.0.20240722",
     "types-requests==2.32.4.20260107",
