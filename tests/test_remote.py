@@ -90,6 +90,18 @@ async def snitun_mock() -> AsyncGenerator[MockSnitun]:
         yield snitun
 
 
+@pytest.fixture(autouse=True)
+def mock_ping_targets(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Mock ping targets endpoint to return no targets by default."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        json={"targets": [], "timeout": 5000, "count": 1},
+    )
+
+
 async def test_load_backend_exists_cert(
     cloud: Cloud,
     valid_acme_mock: MockAcme,
@@ -1407,3 +1419,280 @@ async def test_certificate_network_error_handling(
 
     # Verify the log messages with snapshot
     assert snapshot == extract_log_messages(caplog)
+
+
+async def test_load_backend_with_ping_targets(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test load_backend fetches ping targets and sends results with register."""
+    valid = utcnow() + timedelta(days=1)
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        json={"targets": ["1.2.3.4", "5.6.7.8"], "timeout": 3000, "count": 2},
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+            "throttling": 400,
+        },
+    )
+
+    with patch(
+        "hass_nabucasa.remote.utils.async_check_latency",
+        return_value=[
+            {"address": "1.2.3.4", "is_alive": True, "avg_rtt": 10.5},
+            {"address": "5.6.7.8", "is_alive": True, "avg_rtt": 20.3},
+        ],
+    ) as mock_latency:
+        await cloud.remote.load_backend()
+        await asyncio.sleep(0.1)
+
+        mock_latency.assert_called_once_with(
+            ["1.2.3.4", "5.6.7.8"],
+            count=2,
+            ping_timeout=3,
+            privileged=False,
+        )
+
+    # Verify register was called with ping_result
+    register_calls = [
+        call for call in aioclient_mock.mock_calls if "register" in str(call[1])
+    ]
+    assert len(register_calls) == 1
+    assert register_calls[0][2] == {
+        "ping_result": [
+            {"ip": "1.2.3.4", "avg": 10.5},
+            {"ip": "5.6.7.8", "avg": 20.3},
+        ],
+    }
+
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
+    await cloud.remote.stop()
+    await asyncio.sleep(0.1)
+
+
+async def test_load_backend_ping_targets_empty(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test load_backend skips ping when no targets returned."""
+    valid = utcnow() + timedelta(days=1)
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        json={"targets": [], "timeout": 5000, "count": 1},
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+            "throttling": 400,
+        },
+    )
+
+    with patch(
+        "hass_nabucasa.remote.utils.async_check_latency",
+    ) as mock_latency:
+        await cloud.remote.load_backend()
+        await asyncio.sleep(0.1)
+
+        mock_latency.assert_not_called()
+
+    # Verify register was called without ping_result (no jsondata)
+    register_calls = [
+        call for call in aioclient_mock.mock_calls if "register" in str(call[1])
+    ]
+    assert len(register_calls) == 1
+    assert register_calls[0][2] is None
+
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
+    await cloud.remote.stop()
+    await asyncio.sleep(0.1)
+
+
+async def test_load_backend_ping_targets_api_error(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test load_backend still works when ping targets API fails."""
+    valid = utcnow() + timedelta(days=1)
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        status=500,
+        json={"message": "Internal Server Error"},
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+            "throttling": 400,
+        },
+    )
+
+    await cloud.remote.load_backend()
+    await asyncio.sleep(0.1)
+
+    # Register should still succeed without ping_result
+    register_calls = [
+        call for call in aioclient_mock.mock_calls if "register" in str(call[1])
+    ]
+    assert len(register_calls) == 1
+    assert register_calls[0][2] is None
+
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
+    await cloud.remote.stop()
+    await asyncio.sleep(0.1)
+
+
+async def test_load_backend_ping_latency_check_fails(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test load_backend still works when latency check fails."""
+    valid = utcnow() + timedelta(days=1)
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        json={"targets": ["1.2.3.4"], "timeout": 5000, "count": 1},
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+            "throttling": 400,
+        },
+    )
+
+    with patch(
+        "hass_nabucasa.remote.utils.async_check_latency",
+        side_effect=utils.CheckLatencyError("All hosts are unreachable"),
+    ):
+        await cloud.remote.load_backend()
+        await asyncio.sleep(0.1)
+
+    # Register should still succeed without ping_result
+    register_calls = [
+        call for call in aioclient_mock.mock_calls if "register" in str(call[1])
+    ]
+    assert len(register_calls) == 1
+    assert register_calls[0][2] is None
+
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
+    await cloud.remote.stop()
+    await asyncio.sleep(0.1)
+
+
+async def test_load_backend_ping_privileged_passed(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test that privileged_ping is passed through to async_check_latency."""
+    valid = utcnow() + timedelta(days=1)
+
+    cloud.privileged_ping = True
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        json={"targets": ["1.2.3.4"], "timeout": 5000, "count": 1},
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+            "throttling": 400,
+        },
+    )
+
+    with patch(
+        "hass_nabucasa.remote.utils.async_check_latency",
+        return_value=[
+            {"address": "1.2.3.4", "is_alive": True, "avg_rtt": 15.0},
+        ],
+    ) as mock_latency:
+        await cloud.remote.load_backend()
+        await asyncio.sleep(0.1)
+
+        mock_latency.assert_called_once_with(
+            ["1.2.3.4"],
+            count=1,
+            ping_timeout=5,
+            privileged=True,
+        )
+
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
+    await cloud.remote.stop()
+    await asyncio.sleep(0.1)

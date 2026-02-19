@@ -122,3 +122,29 @@
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/dns_challenge_txt (200) 
   '''
 # ---
+# name: test_ping_targets_endpoint_problems[500-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (500) 
+  '''
+# ---
+# name: test_ping_targets_endpoint_problems[client-error]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  '''
+# ---
+# name: test_ping_targets_endpoint_problems[timeout]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  '''
+# ---
+# name: test_ping_targets_endpoint_success
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  '''
+# ---

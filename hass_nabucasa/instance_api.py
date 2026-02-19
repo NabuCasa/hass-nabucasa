@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from aiohttp import hdrs
 
@@ -59,6 +59,21 @@ class InstanceSnitunTokenDetails(TypedDict):
     throttling: int
 
 
+class PingResult(TypedDict):
+    """Ping result for a single target."""
+
+    ip: str
+    avg: float
+
+
+class PingTargetsResponse(TypedDict):
+    """Response from ping targets API."""
+
+    targets: list[str]
+    timeout: int
+    count: int
+
+
 class InstanceApi(ApiBase):
     """Class to help communicate with the instance API."""
 
@@ -99,11 +114,27 @@ class InstanceApi(ApiBase):
         )
 
     @api_exception_handler(InstanceApiError)
-    async def register(self) -> InstanceRegistrationDetails:
+    async def ping_targets(self) -> PingTargetsResponse:
+        """Get ping targets for latency measurement."""
+        details: PingTargetsResponse = await self._call_cloud_api(
+            action="remote_access_ping_targets",
+        )
+        return details
+
+    @api_exception_handler(InstanceApiError)
+    async def register(
+        self,
+        *,
+        ping_result: list[PingResult] | None = None,
+    ) -> InstanceRegistrationDetails:
         """Register the instance."""
+        jsondata: dict[str, Any] | None = None
+        if ping_result is not None:
+            jsondata = {"ping_result": ping_result}
         details: InstanceRegistrationDetails = await self._call_cloud_api(
             method="POST",
             action="remote_access_register",
+            jsondata=jsondata,
         )
         return details
 
