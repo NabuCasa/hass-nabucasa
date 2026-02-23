@@ -235,15 +235,13 @@ class RemoteUI:
             _LOGGER.debug("No ping targets returned, skipping ping")
             return None
 
-        timeout_ms = ping_data.get("timeout", 5000)
-        count = ping_data.get("count", 1)
-        timeout_s = max(1, timeout_ms // 1000)
-
+        # The API returns timeout in milliseconds, but we need seconds.
+        timeout_seconds = ping_data["timeout"] / 1000
         try:
             latency_results = await utils.async_check_latency(
                 targets,
-                count=count,
-                ping_timeout=timeout_s,
+                count=ping_data["count"],
+                ping_timeout=timeout_seconds,
                 privileged=self.cloud.privileged_ping,
             )
         except utils.CheckLatencyError as err:

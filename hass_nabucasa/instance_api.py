@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Literal, NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 from aiohttp import hdrs
 
@@ -128,13 +128,10 @@ class InstanceApi(ApiBase):
         ping_result: list[PingResult] | None = None,
     ) -> InstanceRegistrationDetails:
         """Register the instance."""
-        jsondata: dict[str, Any] | None = None
-        if ping_result is not None:
-            jsondata = {"ping_result": ping_result}
         details: InstanceRegistrationDetails = await self._call_cloud_api(
             method="POST",
             action="remote_access_register",
-            jsondata=jsondata,
+            jsondata={"ping_result": ping_result} if ping_result is not None else None,
         )
         return details
 
