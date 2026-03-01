@@ -379,7 +379,7 @@ class AcmeHandler:
             order = self._acme_client.finalize_order(
                 order,
                 deadline,
-                fetch_alternative_chains=True,
+                fetch_alternative_chains=False,
             )
         except _ACME_CLIENT_EXCEPTIONS as err:
             raise AcmeChallengeError(f"Wait of ACME challenge fails: {err}") from err
