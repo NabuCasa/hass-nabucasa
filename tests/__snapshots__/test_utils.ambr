@@ -5,30 +5,47 @@
       'address': '8.8.8.8',
       'avg_rtt': 10.0,
       'is_alive': True,
+      'max_rtt': 15.0,
+      'min_rtt': 5.0,
     }),
     dict({
       'address': '9.9.9.9',
       'avg_rtt': 15.0,
       'is_alive': True,
+      'max_rtt': 20.0,
+      'min_rtt': 10.0,
     }),
     dict({
       'address': '1.1.1.1',
       'avg_rtt': 20.0,
       'is_alive': True,
+      'max_rtt': 25.0,
+      'min_rtt': 15.0,
     }),
   ])
 # ---
 # name: test_async_check_latency_partial_unreachable
   list([
     dict({
+      'address': '8.8.8.8',
+      'avg_rtt': 0.0,
+      'is_alive': False,
+      'max_rtt': 0.0,
+      'min_rtt': 0.0,
+    }),
+    dict({
       'address': '9.9.9.9',
       'avg_rtt': 15.0,
       'is_alive': True,
+      'max_rtt': 20.0,
+      'min_rtt': 10.0,
     }),
     dict({
       'address': '1.1.1.1',
       'avg_rtt': 20.0,
       'is_alive': True,
+      'max_rtt': 25.0,
+      'min_rtt': 15.0,
     }),
   ])
 # ---
@@ -38,6 +55,8 @@
       'address': '8.8.8.8',
       'avg_rtt': 10.5,
       'is_alive': True,
+      'max_rtt': 15.0,
+      'min_rtt': 5.0,
     }),
   ])
 # ---

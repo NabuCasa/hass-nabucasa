@@ -11,7 +11,7 @@ import ssl
 from typing import Any, TypedDict, TypeVar
 
 import ciso8601
-from icmplib import Host, ICMPLibError, async_multiping
+from icmplib import Host, ICMPLibError, SocketPermissionError, async_multiping
 import jwt
 
 from .exceptions import NabuCasaBaseError
@@ -24,12 +24,18 @@ class CheckLatencyError(NabuCasaBaseError):
     """Error to indicate a ping failure."""
 
 
+class CheckLatencyInsufficientPrivileges(CheckLatencyError):
+    """Error to indicate insufficient privileges for pinging."""
+
+
 class CheckLatencyHostResult(TypedDict):
     """Result of a latency check for a single host."""
 
     address: str
-    is_alive: bool
     avg_rtt: float
+    is_alive: bool
+    max_rtt: float
+    min_rtt: float
 
 
 def utcnow() -> dt.datetime:
@@ -155,11 +161,14 @@ async def async_check_latency(
             timeout=ping_timeout,
             privileged=privileged,
         )
-    except ICMPLibError:
-        raise CheckLatencyError("ICMP ping failed") from None
+    except SocketPermissionError as err:
+        raise CheckLatencyInsufficientPrivileges(
+            "Insufficient privileges to perform ICMP ping."
+        ) from err
+    except ICMPLibError as err:
+        raise CheckLatencyError("ICMP ping failed") from err
 
-    # Filter to only alive hosts and sort by latency
-    sorted_hosts = sorted([h for h in hosts if h.is_alive], key=lambda h: h.avg_rtt)
+    sorted_hosts = sorted(hosts, key=lambda h: h.avg_rtt)
 
     if not sorted_hosts:
         raise CheckLatencyError("All hosts are unreachable")
@@ -169,6 +178,8 @@ async def async_check_latency(
             address=host.address,
             is_alive=host.is_alive,
             avg_rtt=host.avg_rtt,
+            max_rtt=host.max_rtt,
+            min_rtt=host.min_rtt,
         )
         for host in sorted_hosts
     ]
