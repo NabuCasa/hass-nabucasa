@@ -200,11 +200,13 @@ class Cloud(Generic[_ClientT]):
         relayer_server: str | None = None,
         remotestate_server: str | None = None,
         discovery_service_actions: dict[ServiceDiscoveryAction, str] | None = None,
+        privileged_ping: bool = True,
         **kwargs: Any,  # noqa: ARG002
     ) -> None:
         """Create an instance of Cloud."""
         self.client = client
         self.mode = mode
+        self.privileged_ping = privileged_ping
 
         self._on_initialized: list[Callable[[], Awaitable[None]]] = []
         self._on_start: list[Callable[[], Awaitable[None]]] = []

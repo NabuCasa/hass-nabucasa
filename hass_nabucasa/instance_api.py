@@ -59,6 +59,30 @@ class InstanceSnitunTokenDetails(TypedDict):
     throttling: int
 
 
+class PingResult(TypedDict):
+    """Ping result for a single target."""
+
+    ip: str
+    avg: float
+    max: float
+    min: float
+
+
+class PingHost(TypedDict):
+    """Host that can be pinged for latency measurement."""
+
+    ip: str
+    location: str
+
+
+class PingTargetsResponse(TypedDict):
+    """Response from ping targets API."""
+
+    targets: list[PingHost]
+    timeout: int
+    count: int
+
+
 class InstanceApi(ApiBase):
     """Class to help communicate with the instance API."""
 
@@ -99,11 +123,24 @@ class InstanceApi(ApiBase):
         )
 
     @api_exception_handler(InstanceApiError)
-    async def register(self) -> InstanceRegistrationDetails:
+    async def ping_targets(self) -> PingTargetsResponse:
+        """Get ping targets for latency measurement."""
+        details: PingTargetsResponse = await self._call_cloud_api(
+            action="remote_access_ping_targets",
+        )
+        return details
+
+    @api_exception_handler(InstanceApiError)
+    async def register(
+        self,
+        *,
+        ping_result: list[PingResult] | None = None,
+    ) -> InstanceRegistrationDetails:
         """Register the instance."""
         details: InstanceRegistrationDetails = await self._call_cloud_api(
             method="POST",
             action="remote_access_register",
+            jsondata={"ping_result": ping_result} if ping_result is not None else None,
         )
         return details
 

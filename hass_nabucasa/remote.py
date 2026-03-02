@@ -25,7 +25,7 @@ from .const import (
     CertificateStatus,
     SubscriptionReconnectionReason,
 )
-from .instance_api import InstanceApiError
+from .instance_api import InstanceApiError, PingResult
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -218,11 +218,54 @@ class RemoteUI:
             await self._acme.reset_acme()
         self._acme = self._generate_acme_handler(domains=domains, email=email)
 
+    async def _fetch_ping_results(self) -> list[PingResult] | None:
+        """Fetch ping targets and measure latency.
+
+        Returns ping results or None if ping should be skipped or fails.
+        """
+        try:
+            async with asyncio.timeout(30):
+                ping_data = await self.cloud.instance.ping_targets()
+        except (TimeoutError, InstanceApiError) as err:
+            _LOGGER.warning("Unable to fetch ping targets: %s", err)
+            return None
+
+        if not (targets := ping_data.get("targets")):
+            _LOGGER.debug("No ping targets returned, skipping ping")
+            return None
+
+        # The API returns timeout in milliseconds, but we need seconds.
+        timeout_seconds = ping_data["timeout"] / 1000
+        try:
+            latency_results = await utils.async_check_latency(
+                [target["ip"] for target in targets],
+                count=ping_data["count"],
+                ping_timeout=timeout_seconds,
+                privileged=self.cloud.privileged_ping,
+            )
+        except utils.CheckLatencyError as err:
+            _LOGGER.warning("Ping latency check failed: %s", err)
+            return None
+
+        _LOGGER.debug("Ping results: %s", latency_results)
+
+        return [
+            PingResult(
+                ip=result["address"],
+                avg=result["avg_rtt"],
+                max=result["max_rtt"],
+                min=result["min_rtt"],
+            )
+            for result in latency_results
+        ]
+
     async def load_backend(self) -> bool:
         """Load backend details."""
+        ping_result = await self._fetch_ping_results()
+
         try:
             async with async_timeout.timeout(30):
-                data = await self.cloud.instance.register()
+                data = await self.cloud.instance.register(ping_result=ping_result)
         except (TimeoutError, InstanceApiError) as err:
             msg = "Can't update remote details from Home Assistant cloud"
             if isinstance(err, TimeoutError):

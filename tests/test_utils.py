@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from icmplib import ICMPLibError
+from icmplib import Host, ICMPLibError
 import jwt
 import pytest
 from syrupy import SnapshotAssertion
@@ -132,7 +132,14 @@ async def test_async_check_latency_no_addresses():
 
 async def test_async_check_latency_with_ip(snapshot: SnapshotAssertion):
     """Test async_check_latency with an IP address."""
-    mock_host = MagicMock(address="8.8.8.8", is_alive=True, avg_rtt=10.5)
+    mock_host = MagicMock(
+        address="8.8.8.8",
+        is_alive=True,
+        avg_rtt=10.5,
+        max_rtt=15.0,
+        min_rtt=5.0,
+        spec=Host,
+    )
 
     with patch(
         "hass_nabucasa.utils.async_multiping",
@@ -145,9 +152,30 @@ async def test_async_check_latency_with_ip(snapshot: SnapshotAssertion):
 
 async def test_async_check_latency_multiple_addresses(snapshot: SnapshotAssertion):
     """Test async_check_latency with multiple addresses sorted by latency."""
-    mock_host1 = MagicMock(address="1.1.1.1", is_alive=True, avg_rtt=20.0)
-    mock_host2 = MagicMock(address="8.8.8.8", is_alive=True, avg_rtt=10.0)
-    mock_host3 = MagicMock(address="9.9.9.9", is_alive=True, avg_rtt=15.0)
+    mock_host1 = MagicMock(
+        address="1.1.1.1",
+        is_alive=True,
+        avg_rtt=20.0,
+        max_rtt=25.0,
+        min_rtt=15.0,
+        spec=Host,
+    )
+    mock_host2 = MagicMock(
+        address="8.8.8.8",
+        is_alive=True,
+        avg_rtt=10.0,
+        max_rtt=15.0,
+        min_rtt=5.0,
+        spec=Host,
+    )
+    mock_host3 = MagicMock(
+        address="9.9.9.9",
+        is_alive=True,
+        avg_rtt=15.0,
+        max_rtt=20.0,
+        min_rtt=10.0,
+        spec=Host,
+    )
 
     with patch(
         "hass_nabucasa.utils.async_multiping",
@@ -161,9 +189,30 @@ async def test_async_check_latency_multiple_addresses(snapshot: SnapshotAssertio
 
 async def test_async_check_latency_partial_unreachable(snapshot: SnapshotAssertion):
     """Test async_check_latency when some hosts are unreachable."""
-    mock_host1 = MagicMock(address="1.1.1.1", is_alive=True, avg_rtt=20.0)
-    mock_host2 = MagicMock(address="8.8.8.8", is_alive=False, avg_rtt=0.0)
-    mock_host3 = MagicMock(address="9.9.9.9", is_alive=True, avg_rtt=15.0)
+    mock_host1 = MagicMock(
+        address="1.1.1.1",
+        is_alive=True,
+        avg_rtt=20.0,
+        max_rtt=25.0,
+        min_rtt=15.0,
+        spec=Host,
+    )
+    mock_host2 = MagicMock(
+        address="8.8.8.8",
+        is_alive=False,
+        avg_rtt=0.0,
+        max_rtt=0.0,
+        min_rtt=0.0,
+        spec=Host,
+    )
+    mock_host3 = MagicMock(
+        address="9.9.9.9",
+        is_alive=True,
+        avg_rtt=15.0,
+        max_rtt=20.0,
+        min_rtt=10.0,
+        spec=Host,
+    )
 
     with patch(
         "hass_nabucasa.utils.async_multiping",
@@ -188,15 +237,33 @@ async def test_async_check_latency_icmp_error():
 
 
 async def test_async_check_latency_all_unreachable():
-    """Test async_check_latency when all hosts are unreachable raises."""
-    mock_host1 = MagicMock(address="1.1.1.1", is_alive=False, avg_rtt=0.0)
-    mock_host2 = MagicMock(address="8.8.8.8", is_alive=False, avg_rtt=0.0)
+    """Test async_check_latency when all hosts are unreachable."""
+    mocked_results = [
+        MagicMock(
+            address="8.8.8.8",
+            is_alive=False,
+            avg_rtt=0.0,
+            max_rtt=0.0,
+            min_rtt=0.0,
+            spec=Host,
+        ),
+        MagicMock(
+            address="1.1.1.1",
+            is_alive=False,
+            avg_rtt=0.0,
+            max_rtt=0.0,
+            min_rtt=0.0,
+            spec=Host,
+        ),
+    ]
 
     with (
         patch(
             "hass_nabucasa.utils.async_multiping",
-            return_value=[mock_host1, mock_host2],
+            return_value=mocked_results,
         ),
-        pytest.raises(utils.CheckLatencyError, match="All hosts are unreachable"),
     ):
-        await utils.async_check_latency(["1.1.1.1", "8.8.8.8"])
+        result = await utils.async_check_latency(["1.1.1.1", "8.8.8.8"])
+
+    assert len(result) == 2
+    assert not any(host["is_alive"] for host in result)

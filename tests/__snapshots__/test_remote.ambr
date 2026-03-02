@@ -1,6 +1,10 @@
 # serializer version: 1
 # name: test_acme_client_create_client_jws_errors[json_error0-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -15,6 +19,10 @@
 # ---
 # name: test_acme_client_create_client_jws_errors[json_error1-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -29,6 +37,10 @@
 # ---
 # name: test_acme_client_create_client_jws_errors[json_error2-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -43,6 +55,10 @@
 # ---
 # name: test_acme_client_create_client_jws_errors[json_error3-False]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -58,6 +74,10 @@
 # ---
 # name: test_acme_client_create_client_jws_errors[json_error4-False]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -73,6 +93,10 @@
 # ---
 # name: test_acme_client_new_order_errors[json_error0-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -87,6 +111,10 @@
 # ---
 # name: test_acme_client_new_order_errors[json_error1-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -101,6 +129,10 @@
 # ---
 # name: test_acme_client_new_order_errors[json_error2-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -115,6 +147,10 @@
 # ---
 # name: test_acme_client_new_order_errors[json_error3-False]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -130,6 +166,10 @@
 # ---
 # name: test_acme_client_new_order_errors[json_error4-False]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -146,6 +186,10 @@
 # name: test_certificate_network_error_handling[RequestException-Connection timeout]
   '''
   [DEBUG] hass_nabucasa.remote: Initializing backend
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -162,6 +206,10 @@
 # name: test_certificate_network_error_handling[gaierror-DNS resolution failed]
   '''
   [DEBUG] hass_nabucasa.remote: Initializing backend
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -177,6 +225,10 @@
 # ---
 # name: test_context_error_handling[Boom-False]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -190,6 +242,10 @@
 # ---
 # name: test_context_error_handling[KEY_VALUES_MISMATCH-True]
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -203,6 +259,10 @@
 # ---
 # name: test_load_connect_forbidden
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
@@ -223,6 +283,10 @@
 # ---
 # name: test_load_connect_insecure
   '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 

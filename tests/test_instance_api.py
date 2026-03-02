@@ -227,3 +227,123 @@ async def test_create_dns_challenge_record_endpoint_success(
 
     assert result is None
     assert snapshot == extract_log_messages(caplog)
+
+
+async def test_ping_targets_endpoint_success(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+):
+    """Test successful ping_targets endpoint."""
+    expected_result = {"targets": ["1.2.3.4", "5.6.7.8"], "timeout": 3000, "count": 2}
+
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        json=expected_result,
+    )
+
+    result = await cloud.instance.ping_targets()
+
+    assert result == expected_result
+    assert snapshot == extract_log_messages(caplog)
+
+
+@pytest.mark.parametrize(
+    "exception,mockargs,exception_msg",
+    [
+        [
+            InstanceApiError,
+            {"status": 500, "text": "Internal Server Error"},
+            "Failed to parse API response",
+        ],
+        [
+            InstanceApiError,
+            {"exc": TimeoutError()},
+            "Timeout reached while calling API",
+        ],
+        [
+            InstanceApiError,
+            {"exc": ClientError("boom!")},
+            "Failed to fetch: boom!",
+        ],
+    ],
+    ids=["500-error", "timeout", "client-error"],
+)
+async def test_ping_targets_endpoint_problems(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    exception: Exception,
+    mockargs: dict[str, Any],
+    snapshot: SnapshotAssertion,
+    exception_msg: str,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test problems with ping_targets endpoint."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        **mockargs,
+    )
+
+    with pytest.raises(exception, match=re.escape(exception_msg)):
+        await cloud.instance.ping_targets()
+
+    assert snapshot == extract_log_messages(caplog)
+
+
+async def test_register_with_ping_result(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+):
+    """Test register endpoint with ping_result."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+
+    ping_result = [
+        {"ip": "1.2.3.4", "avg": 10.5},
+        {"ip": "5.6.7.8", "avg": 20.3},
+    ]
+
+    result = await cloud.instance.register(ping_result=ping_result)
+
+    assert result["domain"] == "test.dui.nabu.casa"
+    assert result["server"] == "rest-remote.nabu.casa"
+
+    # Verify the request body contained ping_result
+    register_calls = [
+        call for call in aioclient_mock.mock_calls if "register" in str(call[1])
+    ]
+    assert len(register_calls) == 1
+    assert register_calls[0][2] == {"ping_result": ping_result}
+
+
+async def test_register_without_ping_result(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+):
+    """Test register endpoint without ping_result (backward compatible)."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+
+    result = await cloud.instance.register()
+
+    assert result["domain"] == "test.dui.nabu.casa"
+
+    # Verify no jsondata was sent
+    register_calls = [
+        call for call in aioclient_mock.mock_calls if "register" in str(call[1])
+    ]
+    assert len(register_calls) == 1
+    assert register_calls[0][2] is None
