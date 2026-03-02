@@ -1434,7 +1434,14 @@ async def test_load_backend_with_ping_targets(
     aioclient_mock.clear_requests()
     aioclient_mock.get(
         f"https://{cloud.api_server}/instance/remote_ping_targets",
-        json={"targets": ["1.2.3.4", "5.6.7.8"], "timeout": 3000, "count": 2},
+        json={
+            "targets": [
+                {"ip": "1.2.3.4", "location": "us-east"},
+                {"ip": "5.6.7.8", "location": "eu-west"},
+            ],
+            "timeout": 3000,
+            "count": 2,
+        },
     )
     aioclient_mock.post(
         f"https://{cloud.api_server}/instance/register",
@@ -1457,8 +1464,20 @@ async def test_load_backend_with_ping_targets(
     with patch(
         "hass_nabucasa.remote.utils.async_check_latency",
         return_value=[
-            {"address": "1.2.3.4", "is_alive": True, "avg_rtt": 10.5},
-            {"address": "5.6.7.8", "is_alive": True, "avg_rtt": 20.3},
+            {
+                "address": "1.2.3.4",
+                "is_alive": True,
+                "avg_rtt": 10.5,
+                "max_rtt": 15.0,
+                "min_rtt": 8.0,
+            },
+            {
+                "address": "5.6.7.8",
+                "is_alive": True,
+                "avg_rtt": 20.3,
+                "max_rtt": 25.0,
+                "min_rtt": 18.0,
+            },
         ],
     ) as mock_latency:
         await cloud.remote.load_backend()
@@ -1468,7 +1487,7 @@ async def test_load_backend_with_ping_targets(
             ["1.2.3.4", "5.6.7.8"],
             count=2,
             ping_timeout=3,
-            privileged=False,
+            privileged=True,
         )
 
     # Verify register was called with ping_result
@@ -1478,8 +1497,8 @@ async def test_load_backend_with_ping_targets(
     assert len(register_calls) == 1
     assert register_calls[0][2] == {
         "ping_result": [
-            {"ip": "1.2.3.4", "avg": 10.5},
-            {"ip": "5.6.7.8", "avg": 20.3},
+            {"ip": "1.2.3.4", "avg": 10.5, "max": 15.0, "min": 8.0},
+            {"ip": "5.6.7.8", "avg": 20.3, "max": 25.0, "min": 18.0},
         ],
     }
 
@@ -1603,7 +1622,11 @@ async def test_load_backend_ping_latency_check_fails(
     aioclient_mock.clear_requests()
     aioclient_mock.get(
         f"https://{cloud.api_server}/instance/remote_ping_targets",
-        json={"targets": ["1.2.3.4"], "timeout": 5000, "count": 1},
+        json={
+            "targets": [{"ip": "1.2.3.4", "location": "us-east"}],
+            "timeout": 5000,
+            "count": 1,
+        },
     )
     aioclient_mock.post(
         f"https://{cloud.api_server}/instance/register",
@@ -1657,7 +1680,11 @@ async def test_load_backend_ping_privileged_passed(
     aioclient_mock.clear_requests()
     aioclient_mock.get(
         f"https://{cloud.api_server}/instance/remote_ping_targets",
-        json={"targets": ["1.2.3.4"], "timeout": 5000, "count": 1},
+        json={
+            "targets": [{"ip": "1.2.3.4", "location": "us-east"}],
+            "timeout": 5000,
+            "count": 1,
+        },
     )
     aioclient_mock.post(
         f"https://{cloud.api_server}/instance/register",
@@ -1680,7 +1707,13 @@ async def test_load_backend_ping_privileged_passed(
     with patch(
         "hass_nabucasa.remote.utils.async_check_latency",
         return_value=[
-            {"address": "1.2.3.4", "is_alive": True, "avg_rtt": 15.0},
+            {
+                "address": "1.2.3.4",
+                "is_alive": True,
+                "avg_rtt": 15.0,
+                "max_rtt": 20.0,
+                "min_rtt": 10.0,
+            },
         ],
     ) as mock_latency:
         await cloud.remote.load_backend()

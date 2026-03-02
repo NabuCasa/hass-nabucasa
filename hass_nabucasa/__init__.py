@@ -200,7 +200,7 @@ class Cloud(Generic[_ClientT]):
         relayer_server: str | None = None,
         remotestate_server: str | None = None,
         discovery_service_actions: dict[ServiceDiscoveryAction, str] | None = None,
-        privileged_ping: bool = False,
+        privileged_ping: bool = True,
         **kwargs: Any,  # noqa: ARG002
     ) -> None:
         """Create an instance of Cloud."""

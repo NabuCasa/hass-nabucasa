@@ -64,12 +64,21 @@ class PingResult(TypedDict):
 
     ip: str
     avg: float
+    max: float
+    min: float
+
+
+class PingHost(TypedDict):
+    """Host that can be pinged for latency measurement."""
+
+    ip: str
+    location: str
 
 
 class PingTargetsResponse(TypedDict):
     """Response from ping targets API."""
 
-    targets: list[str]
+    targets: list[PingHost]
     timeout: int
     count: int
 

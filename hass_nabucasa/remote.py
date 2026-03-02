@@ -224,14 +224,13 @@ class RemoteUI:
         Returns ping results or None if ping should be skipped or fails.
         """
         try:
-            async with async_timeout.timeout(30):
+            async with asyncio.timeout(30):
                 ping_data = await self.cloud.instance.ping_targets()
         except (TimeoutError, InstanceApiError) as err:
             _LOGGER.warning("Unable to fetch ping targets: %s", err)
             return None
 
-        targets = ping_data.get("targets", [])
-        if not targets:
+        if not (targets := ping_data.get("targets")):
             _LOGGER.debug("No ping targets returned, skipping ping")
             return None
 
@@ -239,7 +238,7 @@ class RemoteUI:
         timeout_seconds = ping_data["timeout"] / 1000
         try:
             latency_results = await utils.async_check_latency(
-                targets,
+                [target["ip"] for target in targets],
                 count=ping_data["count"],
                 ping_timeout=timeout_seconds,
                 privileged=self.cloud.privileged_ping,
@@ -248,8 +247,15 @@ class RemoteUI:
             _LOGGER.warning("Ping latency check failed: %s", err)
             return None
 
+        _LOGGER.debug("Ping results: %s", latency_results)
+
         return [
-            PingResult(ip=result["address"], avg=result["avg_rtt"])
+            PingResult(
+                ip=result["address"],
+                avg=result["avg_rtt"],
+                max=result["max_rtt"],
+                min=result["min_rtt"],
+            )
             for result in latency_results
         ]
 

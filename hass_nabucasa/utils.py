@@ -136,7 +136,7 @@ async def async_check_latency(
     *,
     count: int = 1,
     ping_timeout: float = 5,
-    privileged: bool = False,
+    privileged: bool = True,
 ) -> list[CheckLatencyHostResult]:
     """Check latency to a list of IP addresses and return them sorted by avg_rtt.
 
