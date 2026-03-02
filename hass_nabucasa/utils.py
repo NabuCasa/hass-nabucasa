@@ -168,11 +168,6 @@ async def async_check_latency(
     except ICMPLibError as err:
         raise CheckLatencyError("ICMP ping failed") from err
 
-    sorted_hosts = sorted(hosts, key=lambda h: h.avg_rtt)
-
-    if not sorted_hosts:
-        raise CheckLatencyError("All hosts are unreachable")
-
     return [
         CheckLatencyHostResult(
             address=host.address,
@@ -181,7 +176,7 @@ async def async_check_latency(
             max_rtt=host.max_rtt,
             min_rtt=host.min_rtt,
         )
-        for host in sorted_hosts
+        for host in hosts
     ]
 
 
