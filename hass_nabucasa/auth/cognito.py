@@ -8,7 +8,6 @@ import logging
 import random
 from typing import TYPE_CHECKING, Any
 
-import async_timeout
 import boto3
 import botocore
 from botocore.exceptions import BotoCoreError, ClientError, EndpointConnectionError
@@ -217,7 +216,7 @@ class CognitoAuth:
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with async_timeout.timeout(30):
+                async with asyncio.timeout(30):
                     await self.cloud.run_executor(
                         partial(cognito.authenticate, password=password),
                     )
@@ -267,7 +266,7 @@ class CognitoAuth:
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with async_timeout.timeout(30):
+                async with asyncio.timeout(30):
                     await self.cloud.run_executor(
                         partial(
                             cognito.respond_to_software_token_mfa_challenge,
