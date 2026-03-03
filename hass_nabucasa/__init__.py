@@ -84,7 +84,7 @@ from .payments_api import (
     PaymentsApiError,
     SubscriptionInfo,
 )
-from .remote import RemoteUI
+from .remote import RemoteLatencyLocationResult, RemoteUI
 from .service_discovery import (
     ServiceDiscovery,
     ServiceDiscoveryAction,
@@ -148,6 +148,7 @@ __all__ = [
     "NabuCasaNotLoggedInError",
     "PasswordChangeRequired",
     "PaymentsApiError",
+    "RemoteLatencyLocationResult",
     "ServiceDiscovery",
     "ServiceDiscoveryAction",
     "ServiceDiscoveryError",

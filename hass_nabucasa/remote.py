@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import logging
 import random
 from ssl import SSLContext, SSLError
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 import aiohttp
 import async_timeout
@@ -63,6 +63,12 @@ class SubscriptionExpired(RemoteError):
     """Raise if we cannot connect because subscription expired."""
 
 
+class RemoteLatencyLocationResult(TypedDict):
+    """Latency results for a location."""
+
+    avg: float
+
+
 @attr.s
 class SniTunToken:
     """Handle snitun token."""
@@ -100,6 +106,8 @@ class RemoteUI:
         self._token: SniTunToken | None = None
         self._certificate_status: CertificateStatus | None = None
 
+        self._results_by_location: dict[str, RemoteLatencyLocationResult] = {}
+
         self._info_loaded = asyncio.Event()
 
         # Register start/stop
@@ -133,6 +141,11 @@ class RemoteUI:
     def certificate_status(self) -> CertificateStatus | None:
         """Return the certificate status."""
         return self._certificate_status
+
+    @property
+    def latency_by_location(self) -> dict[str, RemoteLatencyLocationResult]:
+        """Return latency results by location."""
+        return self._results_by_location
 
     def _update_certificate_status(
         self,
@@ -233,12 +246,13 @@ class RemoteUI:
         if not (targets := ping_data.get("targets")):
             _LOGGER.debug("No ping targets returned, skipping ping")
             return None
+        _target_by_ip = {target["ip"]: target for target in targets}
 
         # The API returns timeout in milliseconds, but we need seconds.
         timeout_seconds = ping_data["timeout"] / 1000
         try:
             latency_results = await utils.async_check_latency(
-                [target["ip"] for target in targets],
+                list(_target_by_ip),
                 count=ping_data["count"],
                 ping_timeout=timeout_seconds,
                 privileged=self.cloud.privileged_ping,
@@ -247,7 +261,13 @@ class RemoteUI:
             _LOGGER.warning("Ping latency check failed: %s", err)
             return None
 
-        _LOGGER.debug("Ping results: %s", latency_results)
+        self._results_by_location = _results_by_location = {
+            _target_by_ip[result["address"]]["location"]: RemoteLatencyLocationResult(
+                avg=result["avg_rtt"]
+            )
+            for result in latency_results
+        }
+        _LOGGER.debug("Latency results by location: %s", _results_by_location)
 
         return [
             PingResult(
