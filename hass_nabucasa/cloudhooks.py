@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any, TypedDict
-
-import async_timeout
 
 from .api import ApiBase, CloudApiError, api_exception_handler
 from .events.types import CloudhookCreatedEvent, CloudhookDeletedEvent
@@ -64,7 +63,7 @@ class Cloudhooks(ApiBase):
             raise ValueError("Cloud is not connected")
 
         # Create cloud hook
-        async with async_timeout.timeout(10):
+        async with asyncio.timeout(10):
             data = await self.generate()
 
         cloudhook_id = data["cloudhook_id"]

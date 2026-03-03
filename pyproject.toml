@@ -20,7 +20,6 @@ classifiers = [
 dependencies = [
     "acme==5.3.1",
     "aiohttp>=3.6.1",
-    "async_timeout>=4",
     "atomicwrites-homeassistant==1.4.1",
     "attrs>=19.3",
     "ciso8601>=2.3.0",
