@@ -11,7 +11,6 @@ from ssl import SSLContext, SSLError
 from typing import TYPE_CHECKING, TypedDict
 
 import aiohttp
-import async_timeout
 import attr
 from snitun.exceptions import SniTunConnectionError
 from snitun.utils.aes import generate_aes_keyset
@@ -285,7 +284,7 @@ class RemoteUI:
         ping_result = await self._fetch_ping_results()
 
         try:
-            async with async_timeout.timeout(30):
+            async with asyncio.timeout(30):
                 data = await self.cloud.instance.register(ping_result=ping_result)
         except (TimeoutError, InstanceApiError) as err:
             msg = "Can't update remote details from Home Assistant cloud"
@@ -460,7 +459,7 @@ class RemoteUI:
         # Generate session token
         aes_key, aes_iv = generate_aes_keyset()
         try:
-            async with async_timeout.timeout(30):
+            async with asyncio.timeout(30):
                 data = await self.cloud.instance.snitun_token(
                     aes_key=aes_key, aes_iv=aes_iv
                 )
@@ -493,14 +492,14 @@ class RemoteUI:
         forbidden = False
         try:
             _LOGGER.debug("Refresh snitun token")
-            async with async_timeout.timeout(30):
+            async with asyncio.timeout(30):
                 await self._refresh_snitun_token()
 
             # We can not get here without this being set, but mypy does not know that.
             assert self._token is not None
 
             _LOGGER.debug("Attempting connection to %s", self._snitun_server)
-            async with async_timeout.timeout(30):
+            async with asyncio.timeout(30):
                 await self._snitun.connect(
                     self._token.fernet,
                     self._token.aes_key,
