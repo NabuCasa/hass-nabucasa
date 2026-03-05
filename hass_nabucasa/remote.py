@@ -248,12 +248,12 @@ class RemoteUI:
         _target_by_ip = {target["ip"]: target for target in targets}
 
         # The API returns timeout in milliseconds, but we need seconds.
-        timeout_seconds = ping_data["timeout"] / 1000
+        _timeout_seconds = ping_data["timeout"] / 1000
         try:
             latency_results = await utils.async_check_latency(
                 list(_target_by_ip),
                 count=ping_data["count"],
-                ping_timeout=timeout_seconds,
+                ping_timeout=_timeout_seconds,
                 privileged=self.cloud.privileged_ping,
             )
         except utils.CheckLatencyError as err:

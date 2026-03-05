@@ -141,7 +141,7 @@ async def async_check_latency(
     ping_timeout: float = 5,
     privileged: bool = True,
 ) -> list[CheckLatencyHostResult]:
-    """Check latency to a list of IP addresses and return them sorted by avg_rtt.
+    """Check latency to a list of IP addresses and return them.
 
     Args:
         addresses: List of IP addresses to ping.
@@ -150,7 +150,7 @@ async def async_check_latency(
         privileged: Whether to use privileged (raw socket) mode.
 
     Returns:
-        List of CheckLatencyHostResult dicts sorted by avg_rtt (fastest first).
+        List of CheckLatencyHostResult dicts.
 
     """
     if not addresses:
