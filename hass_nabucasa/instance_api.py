@@ -66,6 +66,7 @@ class PingResult(TypedDict):
     avg: float
     max: float
     min: float
+    reachable: bool
 
 
 class PingHost(TypedDict):

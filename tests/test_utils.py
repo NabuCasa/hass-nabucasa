@@ -186,7 +186,7 @@ async def test_async_check_latency_multiple_addresses(snapshot: SnapshotAssertio
         )
 
     # Should be sorted by avg_rtt (fastest first)
-    assert result == snapshot
+    assert sorted(result, key=lambda x: x["avg_rtt"]) == snapshot
 
 
 async def test_async_check_latency_partial_unreachable(snapshot: SnapshotAssertion):

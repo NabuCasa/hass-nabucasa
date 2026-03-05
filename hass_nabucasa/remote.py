@@ -66,7 +66,7 @@ class SubscriptionExpired(RemoteError):
 class RemoteLatencyLocationResult(TypedDict):
     """Latency results for a location."""
 
-    avg: float
+    avg: float | None
 
 
 @attr.s
@@ -263,7 +263,7 @@ class RemoteUI:
 
         self._results_by_location = _results_by_location = {
             _target_by_ip[result["address"]]["location"]: RemoteLatencyLocationResult(
-                avg=result["avg_rtt"]
+                avg=result["avg_rtt"] if result["is_alive"] else None
             )
             for result in latency_results
         }
@@ -275,6 +275,7 @@ class RemoteUI:
                 avg=result["avg_rtt"],
                 max=result["max_rtt"],
                 min=result["min_rtt"],
+                reachable=result["is_alive"],
             )
             for result in latency_results
         ]
