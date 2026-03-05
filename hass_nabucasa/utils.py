@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
 import datetime as dt
+import logging
 from logging import Logger
 import random
 import ssl
@@ -18,6 +19,8 @@ from .exceptions import NabuCasaBaseError
 
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 UTC = dt.UTC
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class CheckLatencyError(NabuCasaBaseError):
@@ -166,6 +169,10 @@ async def async_check_latency(
             raise CheckLatencyInsufficientPrivileges(
                 "Insufficient privileges to perform ICMP ping."
             ) from err
+        _LOGGER.warning(
+            "Ping failed due to insufficient privileges, "
+            "retrying without privileged mode"
+        )
         return await async_check_latency(
             addresses,
             count=count,
