@@ -224,7 +224,7 @@ async def test_async_check_latency_partial_unreachable(snapshot: SnapshotAsserti
             ["1.1.1.1", "999.999.999.999", "9.9.9.9"]
         )
 
-    # Unreachable hosts should be filtered out
+    # Result should match the snapshot when some hosts are unreachable
     assert result == snapshot
 
 
