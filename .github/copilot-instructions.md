@@ -30,7 +30,7 @@ Important: All tests must pass. Partial success isn’t acceptable.
 - `mypy hass_nabucasa` — Run type checking.
 
 ### Environment
-- Python: >= 3.13 (see `pyproject.toml`). Ruff target: `py313`.
+- Python: >= 3.14 (see `pyproject.toml`). Ruff target: `py314`.
 - Before pushing, run `scripts/lint` and `scripts/test` locally.
 
 ### Voice data updates

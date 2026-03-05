@@ -15,7 +15,7 @@ classifiers = [
     "Topic :: Internet :: Proxy Servers",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Development Status :: 5 - Production/Stable",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "acme==5.3.1",
@@ -40,7 +40,7 @@ description = "Home Assistant cloud integration by Nabu Casa, Inc."
 license = "GPL-3.0-only"
 name = "hass-nabucasa"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 version = "0.0.0"
 
 [project.optional-dependencies]
@@ -142,7 +142,7 @@ timeout = 5
 fix = true
 line-length = 88
 show-fixes = true
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 ignore = [
