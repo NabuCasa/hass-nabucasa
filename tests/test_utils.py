@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from icmplib import Host, ICMPLibError
+from icmplib import Host, ICMPLibError, SocketPermissionError
 import jwt
 import pytest
 from syrupy import SnapshotAssertion
@@ -133,7 +133,7 @@ async def test_async_check_latency_no_addresses():
 async def test_async_check_latency_with_ip(snapshot: SnapshotAssertion):
     """Test async_check_latency with an IP address."""
     mock_host = MagicMock(
-        address="8.8.8.8",
+        address="999.999.999.999",
         is_alive=True,
         avg_rtt=10.5,
         max_rtt=15.0,
@@ -145,7 +145,7 @@ async def test_async_check_latency_with_ip(snapshot: SnapshotAssertion):
         "hass_nabucasa.utils.async_multiping",
         return_value=[mock_host],
     ):
-        result = await utils.async_check_latency(["8.8.8.8"])
+        result = await utils.async_check_latency(["999.999.999.999"])
 
     assert result == snapshot
 
@@ -161,7 +161,7 @@ async def test_async_check_latency_multiple_addresses(snapshot: SnapshotAssertio
         spec=Host,
     )
     mock_host2 = MagicMock(
-        address="8.8.8.8",
+        address="999.999.999.999",
         is_alive=True,
         avg_rtt=10.0,
         max_rtt=15.0,
@@ -181,7 +181,9 @@ async def test_async_check_latency_multiple_addresses(snapshot: SnapshotAssertio
         "hass_nabucasa.utils.async_multiping",
         return_value=[mock_host1, mock_host2, mock_host3],
     ):
-        result = await utils.async_check_latency(["1.1.1.1", "8.8.8.8", "9.9.9.9"])
+        result = await utils.async_check_latency(
+            ["1.1.1.1", "999.999.999.999", "9.9.9.9"]
+        )
 
     # Should be sorted by avg_rtt (fastest first)
     assert result == snapshot
@@ -198,7 +200,7 @@ async def test_async_check_latency_partial_unreachable(snapshot: SnapshotAsserti
         spec=Host,
     )
     mock_host2 = MagicMock(
-        address="8.8.8.8",
+        address="999.999.999.999",
         is_alive=False,
         avg_rtt=0.0,
         max_rtt=0.0,
@@ -218,10 +220,69 @@ async def test_async_check_latency_partial_unreachable(snapshot: SnapshotAsserti
         "hass_nabucasa.utils.async_multiping",
         return_value=[mock_host1, mock_host2, mock_host3],
     ):
-        result = await utils.async_check_latency(["1.1.1.1", "8.8.8.8", "9.9.9.9"])
+        result = await utils.async_check_latency(
+            ["1.1.1.1", "999.999.999.999", "9.9.9.9"]
+        )
 
     # Unreachable hosts should be filtered out
     assert result == snapshot
+
+
+async def test_async_check_latency_socket_permission_error_retries():
+    """Test async_check_latency.
+
+    retries with privileged=False on SocketPermissionError.
+    """
+    mock_host = MagicMock(
+        address="999.999.999.999",
+        is_alive=True,
+        avg_rtt=10.5,
+        max_rtt=15.0,
+        min_rtt=5.0,
+        spec=Host,
+    )
+
+    with patch(
+        "hass_nabucasa.utils.async_multiping",
+        side_effect=[SocketPermissionError(privileged=True), [mock_host]],
+    ) as mock_multiping:
+        result = await utils.async_check_latency(["999.999.999.999"])
+
+    assert mock_multiping.call_count == 2
+    assert mock_multiping.call_args_list[0][1]["privileged"] is True
+    assert mock_multiping.call_args_list[1][1]["privileged"] is False
+    assert len(result) == 1
+    assert result[0]["address"] == "999.999.999.999"
+
+
+async def test_async_check_latency_socket_permission_error_unprivileged():
+    """Test async_check_latency.
+
+    raises CheckLatencyInsufficientPrivileges when privileged=False.
+    """
+    with (
+        patch(
+            "hass_nabucasa.utils.async_multiping",
+            side_effect=SocketPermissionError(privileged=True),
+        ),
+        pytest.raises(utils.CheckLatencyInsufficientPrivileges),
+    ):
+        await utils.async_check_latency(["999.999.999.999"], privileged=False)
+
+
+async def test_async_check_latency_socket_permission_error_retry_also_fails():
+    """Test async_check_latency.
+
+    raises CheckLatencyInsufficientPrivileges when retry also fails.
+    """
+    with (
+        patch(
+            "hass_nabucasa.utils.async_multiping",
+            side_effect=SocketPermissionError(privileged=True),
+        ),
+        pytest.raises(utils.CheckLatencyInsufficientPrivileges),
+    ):
+        await utils.async_check_latency(["999.999.999.999"])
 
 
 async def test_async_check_latency_icmp_error():
@@ -233,14 +294,14 @@ async def test_async_check_latency_icmp_error():
         ),
         pytest.raises(utils.CheckLatencyError, match="ICMP ping failed"),
     ):
-        await utils.async_check_latency(["8.8.8.8"])
+        await utils.async_check_latency(["999.999.999.999"])
 
 
 async def test_async_check_latency_all_unreachable():
     """Test async_check_latency when all hosts are unreachable."""
     mocked_results = [
         MagicMock(
-            address="8.8.8.8",
+            address="999.999.999.999",
             is_alive=False,
             avg_rtt=0.0,
             max_rtt=0.0,
@@ -263,7 +324,7 @@ async def test_async_check_latency_all_unreachable():
             return_value=mocked_results,
         ),
     ):
-        result = await utils.async_check_latency(["1.1.1.1", "8.8.8.8"])
+        result = await utils.async_check_latency(["1.1.1.1", "999.999.999.999"])
 
     assert len(result) == 2
     assert not any(host["is_alive"] for host in result)

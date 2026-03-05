@@ -162,9 +162,16 @@ async def async_check_latency(
             privileged=privileged,
         )
     except SocketPermissionError as err:
-        raise CheckLatencyInsufficientPrivileges(
-            "Insufficient privileges to perform ICMP ping."
-        ) from err
+        if not privileged:
+            raise CheckLatencyInsufficientPrivileges(
+                "Insufficient privileges to perform ICMP ping."
+            ) from err
+        return await async_check_latency(
+            addresses,
+            count=count,
+            ping_timeout=ping_timeout,
+            privileged=False,
+        )
     except ICMPLibError as err:
         raise CheckLatencyError("ICMP ping failed") from err
 

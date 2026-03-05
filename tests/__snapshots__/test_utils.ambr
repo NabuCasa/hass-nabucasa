@@ -9,7 +9,7 @@
       'min_rtt': 15.0,
     }),
     dict({
-      'address': '8.8.8.8',
+      'address': '999.999.999.999',
       'avg_rtt': 10.0,
       'is_alive': True,
       'max_rtt': 15.0,
@@ -34,7 +34,7 @@
       'min_rtt': 15.0,
     }),
     dict({
-      'address': '8.8.8.8',
+      'address': '999.999.999.999',
       'avg_rtt': 0.0,
       'is_alive': False,
       'max_rtt': 0.0,
@@ -52,7 +52,7 @@
 # name: test_async_check_latency_with_ip
   list([
     dict({
-      'address': '8.8.8.8',
+      'address': '999.999.999.999',
       'avg_rtt': 10.5,
       'is_alive': True,
       'max_rtt': 15.0,
