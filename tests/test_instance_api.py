@@ -236,7 +236,14 @@ async def test_ping_targets_endpoint_success(
     snapshot: SnapshotAssertion,
 ):
     """Test successful ping_targets endpoint."""
-    expected_result = {"targets": ["1.2.3.4", "5.6.7.8"], "timeout": 3000, "count": 2}
+    expected_result = {
+        "targets": [
+            {"ip": "1.2.3.4", "location": "us-east"},
+            {"ip": "5.6.7.8", "location": "eu-west"},
+        ],
+        "timeout": 3000,
+        "count": 2,
+    }
 
     aioclient_mock.get(
         f"https://{cloud.api_server}/instance/remote_ping_targets",
