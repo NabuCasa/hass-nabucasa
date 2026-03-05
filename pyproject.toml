@@ -142,7 +142,7 @@ timeout = 5
 fix = true
 line-length = 88
 show-fixes = true
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 ignore = [
