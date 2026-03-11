@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import logging
 import random
 from ssl import SSLContext, SSLError
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 import aiohttp
 import attr
@@ -24,7 +24,7 @@ from .const import (
     CertificateStatus,
     SubscriptionReconnectionReason,
 )
-from .instance_api import InstanceApiError
+from .instance_api import InstanceApiError, PingResult
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -60,6 +60,12 @@ class RemoteNotConnected(RemoteError):
 
 class SubscriptionExpired(RemoteError):
     """Raise if we cannot connect because subscription expired."""
+
+
+class RemoteLatencyLocationResult(TypedDict):
+    """Latency results for a location."""
+
+    avg: float | None
 
 
 @attr.s
@@ -99,6 +105,8 @@ class RemoteUI:
         self._token: SniTunToken | None = None
         self._certificate_status: CertificateStatus | None = None
 
+        self._results_by_location: dict[str, RemoteLatencyLocationResult] = {}
+
         self._info_loaded = asyncio.Event()
 
         # Register start/stop
@@ -132,6 +140,11 @@ class RemoteUI:
     def certificate_status(self) -> CertificateStatus | None:
         """Return the certificate status."""
         return self._certificate_status
+
+    @property
+    def latency_by_location(self) -> dict[str, RemoteLatencyLocationResult]:
+        """Return latency results by location."""
+        return self._results_by_location
 
     def _update_certificate_status(
         self,
@@ -217,11 +230,62 @@ class RemoteUI:
             await self._acme.reset_acme()
         self._acme = self._generate_acme_handler(domains=domains, email=email)
 
-    async def load_backend(self) -> bool:
-        """Load backend details."""
+    async def _fetch_ping_results(self) -> list[PingResult] | None:
+        """Fetch ping targets and measure latency.
+
+        Returns ping results or None if ping should be skipped or fails.
+        """
         try:
             async with asyncio.timeout(30):
-                data = await self.cloud.instance.register()
+                ping_data = await self.cloud.instance.ping_targets()
+        except (TimeoutError, InstanceApiError) as err:
+            _LOGGER.warning("Unable to fetch ping targets: %s", err)
+            return None
+
+        if not (targets := ping_data.get("targets")):
+            _LOGGER.debug("No ping targets returned, skipping ping")
+            return None
+        target_by_ip = {target["ip"]: target for target in targets}
+
+        # The API returns timeout in milliseconds, but we need seconds.
+        timeout_seconds = ping_data["timeout"] / 1000
+        try:
+            latency_results = await utils.async_check_latency(
+                list(target_by_ip),
+                count=ping_data["count"],
+                ping_timeout=timeout_seconds,
+                privileged=self.cloud.privileged_ping,
+            )
+        except utils.CheckLatencyError as err:
+            _LOGGER.warning("Ping latency check failed: %s", err)
+            return None
+
+        self._results_by_location = {
+            target_by_ip[result["address"]]["location"]: RemoteLatencyLocationResult(
+                avg=result["avg_rtt"] if result["is_alive"] else None
+            )
+            for result in latency_results
+        }
+        _LOGGER.debug("Latency results by location: %s", self._results_by_location)
+
+        return [
+            PingResult(
+                ip=result["address"],
+                avg=result["avg_rtt"],
+                max=result["max_rtt"],
+                min=result["min_rtt"],
+                reachable=result["is_alive"],
+            )
+            for result in latency_results
+        ]
+
+    async def load_backend(self) -> bool:
+        """Load backend details."""
+        ping_result = await self._fetch_ping_results()
+
+        try:
+            async with asyncio.timeout(30):
+                data = await self.cloud.instance.register(ping_result=ping_result)
         except (TimeoutError, InstanceApiError) as err:
             msg = "Can't update remote details from Home Assistant cloud"
             if isinstance(err, TimeoutError):

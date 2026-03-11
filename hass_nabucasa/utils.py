@@ -5,13 +5,14 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
 import datetime as dt
+import logging
 from logging import Logger
 import random
 import ssl
 from typing import Any, TypedDict, TypeVar
 
 import ciso8601
-from icmplib import Host, ICMPLibError, async_multiping
+from icmplib import Host, ICMPLibError, SocketPermissionError, async_multiping
 import jwt
 
 from .exceptions import NabuCasaBaseError
@@ -19,17 +20,25 @@ from .exceptions import NabuCasaBaseError
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 UTC = dt.UTC
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class CheckLatencyError(NabuCasaBaseError):
     """Error to indicate a ping failure."""
+
+
+class CheckLatencyInsufficientPrivileges(CheckLatencyError):
+    """Error to indicate insufficient privileges for pinging."""
 
 
 class CheckLatencyHostResult(TypedDict):
     """Result of a latency check for a single host."""
 
     address: str
-    is_alive: bool
     avg_rtt: float
+    is_alive: bool
+    max_rtt: float
+    min_rtt: float
 
 
 def utcnow() -> dt.datetime:
@@ -129,10 +138,10 @@ async def async_check_latency(
     addresses: list[str],
     *,
     count: int = 1,
-    ping_timeout: int = 5,
-    privileged: bool = False,
+    ping_timeout: float = 5,
+    privileged: bool = True,
 ) -> list[CheckLatencyHostResult]:
-    """Check latency to a list of IP addresses and return them sorted by avg_rtt.
+    """Check latency to a list of IP addresses and return them.
 
     Args:
         addresses: List of IP addresses to ping.
@@ -141,7 +150,7 @@ async def async_check_latency(
         privileged: Whether to use privileged (raw socket) mode.
 
     Returns:
-        List of CheckLatencyHostResult dicts sorted by avg_rtt (fastest first).
+        List of CheckLatencyHostResult dicts.
 
     """
     if not addresses:
@@ -155,22 +164,33 @@ async def async_check_latency(
             timeout=ping_timeout,
             privileged=privileged,
         )
-    except ICMPLibError:
-        raise CheckLatencyError("ICMP ping failed") from None
-
-    # Filter to only alive hosts and sort by latency
-    sorted_hosts = sorted([h for h in hosts if h.is_alive], key=lambda h: h.avg_rtt)
-
-    if not sorted_hosts:
-        raise CheckLatencyError("All hosts are unreachable")
+    except SocketPermissionError as err:
+        if not privileged:
+            raise CheckLatencyInsufficientPrivileges(
+                "Insufficient privileges to perform ICMP ping."
+            ) from err
+        _LOGGER.warning(
+            "Ping failed due to insufficient privileges, "
+            "retrying without privileged mode"
+        )
+        return await async_check_latency(
+            addresses,
+            count=count,
+            ping_timeout=ping_timeout,
+            privileged=False,
+        )
+    except ICMPLibError as err:
+        raise CheckLatencyError("ICMP ping failed") from err
 
     return [
         CheckLatencyHostResult(
             address=host.address,
             is_alive=host.is_alive,
             avg_rtt=host.avg_rtt,
+            max_rtt=host.max_rtt,
+            min_rtt=host.min_rtt,
         )
-        for host in sorted_hosts
+        for host in hosts
     ]
 
 
