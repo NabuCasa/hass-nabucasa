@@ -648,7 +648,7 @@ class RemoteUI:
             return await self.cloud.accounts.instance_resolve_dns_cname(
                 hostname=hostname
             )
-        except (TimeoutError, aiohttp.ClientError, AccountsApiError):
+        except TimeoutError, aiohttp.ClientError, AccountsApiError:
             _LOGGER.error("Can't resolve CNAME for %s", hostname)
         return []
 

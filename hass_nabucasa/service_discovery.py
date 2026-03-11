@@ -119,7 +119,7 @@ def _is_cache_valid(cache: ServiceDiscoveryCacheData) -> bool:
     """Check if cache is still valid."""
     try:
         return cache["valid_until"] > utcnow().timestamp()
-    except (KeyError, TypeError):
+    except KeyError, TypeError:
         return False
 
 

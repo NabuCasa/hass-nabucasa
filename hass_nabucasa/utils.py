@@ -88,7 +88,7 @@ def expiration_from_token(token: str | None) -> int | None:
             options={"verify_signature": False},
         )
         return int(decoded_token["exp"])
-    except (jwt.DecodeError, KeyError):
+    except jwt.DecodeError, KeyError:
         return None
 
 
