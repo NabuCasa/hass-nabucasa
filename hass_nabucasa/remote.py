@@ -245,28 +245,28 @@ class RemoteUI:
         if not (targets := ping_data.get("targets")):
             _LOGGER.debug("No ping targets returned, skipping ping")
             return None
-        _target_by_ip = {target["ip"]: target for target in targets}
+        target_by_ip = {target["ip"]: target for target in targets}
 
         # The API returns timeout in milliseconds, but we need seconds.
-        _timeout_seconds = ping_data["timeout"] / 1000
+        timeout_seconds = ping_data["timeout"] / 1000
         try:
             latency_results = await utils.async_check_latency(
-                list(_target_by_ip),
+                list(target_by_ip),
                 count=ping_data["count"],
-                ping_timeout=_timeout_seconds,
+                ping_timeout=timeout_seconds,
                 privileged=self.cloud.privileged_ping,
             )
         except utils.CheckLatencyError as err:
             _LOGGER.warning("Ping latency check failed: %s", err)
             return None
 
-        self._results_by_location = _results_by_location = {
-            _target_by_ip[result["address"]]["location"]: RemoteLatencyLocationResult(
+        self._results_by_location = {
+            target_by_ip[result["address"]]["location"]: RemoteLatencyLocationResult(
                 avg=result["avg_rtt"] if result["is_alive"] else None
             )
             for result in latency_results
         }
-        _LOGGER.debug("Latency results by location: %s", _results_by_location)
+        _LOGGER.debug("Latency results by location: %s", self._results_by_location)
 
         return [
             PingResult(
