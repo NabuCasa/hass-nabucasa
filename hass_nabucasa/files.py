@@ -145,7 +145,7 @@ class Files(ApiBase):
             response = await self._call_raw_api(
                 method="PUT",
                 url=details["url"],
-                data=_progress_tracker(stream) if on_progress else stream,
+                data=_progress_tracker(stream) if on_progress is not None else stream,
                 headers=details["headers"] | {"content-length": str(size)},
                 client_timeout=ClientTimeout(
                     connect=10.0,
