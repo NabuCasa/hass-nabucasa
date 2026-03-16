@@ -169,7 +169,7 @@ async def async_check_latency(
             raise CheckLatencyInsufficientPrivileges(
                 "Insufficient privileges to perform ICMP ping."
             ) from err
-        _LOGGER.warning(
+        _LOGGER.info(
             "Ping failed due to insufficient privileges, "
             "retrying without privileged mode"
         )
