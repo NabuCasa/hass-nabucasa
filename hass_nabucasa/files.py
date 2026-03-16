@@ -136,9 +136,9 @@ class Files(ApiBase):
             assert on_progress is not None
             bytes_uploaded = 0
             async for chunk in stream:
-                yield chunk
                 bytes_uploaded += len(chunk)
                 on_progress(bytes_uploaded=bytes_uploaded)
+                yield chunk
 
         try:
             stream = await open_stream()
