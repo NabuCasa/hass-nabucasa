@@ -583,8 +583,15 @@ async def test_upload_calls_on_progress(
 
     async def consuming_request(method, url, **kwargs):
         if method.upper() == "PUT" and hasattr(data := kwargs.get("data"), "__aiter__"):
-            async for _ in data:
-                pass
+            chunks: list[bytes] = []
+            async for chunk in data:
+                chunks.append(chunk)
+
+            async def replay() -> AsyncIterator[bytes]:
+                for chunk in chunks:
+                    yield chunk
+
+            kwargs["data"] = replay()
         return await original_request(method, url, **kwargs)
 
     with patch.object(cloud.websession, "request", consuming_request):
