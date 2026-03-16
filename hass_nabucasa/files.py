@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import base64
-from collections.abc import AsyncIterator, Callable, Coroutine
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Coroutine
 import contextlib
 from enum import StrEnum
 import hashlib
@@ -101,6 +101,7 @@ class Files(ApiBase):
         base64md5hash: str,
         size: int,
         metadata: dict[str, Any] | None = None,
+        on_progress: Callable[..., None] | None = None,
     ) -> list[StoredFile]:
         """Upload a file."""
         _LOGGER.debug("Uploading %s file with name %s", storage_type, filename)
@@ -120,11 +121,24 @@ class Files(ApiBase):
         except CloudApiError as err:
             raise FilesError(err, orig_exc=err) from err
 
+        async def _progress_tracker(
+            stream: AsyncIterator[bytes],
+        ) -> AsyncGenerator[bytes]:
+            """Generate data for upload, while tracking progress."""
+            # We should not call this if on_progress is None.
+            assert on_progress is not None
+            bytes_uploaded = 0
+            async for chunk in stream:
+                yield chunk
+                bytes_uploaded += len(chunk)
+                on_progress(bytes_uploaded=bytes_uploaded)
+
         try:
+            stream = await open_stream()
             response = await self._call_raw_api(
                 method="PUT",
                 url=details["url"],
-                data=await open_stream(),
+                data=_progress_tracker(stream) if on_progress else stream,
                 headers=details["headers"] | {"content-length": str(size)},
                 client_timeout=ClientTimeout(
                     connect=10.0,
