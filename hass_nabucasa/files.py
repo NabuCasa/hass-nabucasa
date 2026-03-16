@@ -8,7 +8,7 @@ import contextlib
 from enum import StrEnum
 import hashlib
 import logging
-from typing import Any, TypedDict
+from typing import Any, Protocol, TypedDict
 
 from aiohttp import (
     ClientResponseError,
@@ -63,6 +63,13 @@ class StoredFile(TypedDict):
     Metadata: dict[str, Any]
 
 
+class UploadProgressCallback(Protocol):
+    """Protocol for upload progress callbacks."""
+
+    def __call__(self, *, bytes_uploaded: int) -> None:
+        """Handle upload progress updates."""
+
+
 async def calculate_b64md5(
     open_stream: Callable[[], Coroutine[Any, Any, AsyncIterator[bytes]]],
     size: int,
@@ -101,7 +108,7 @@ class Files(ApiBase):
         base64md5hash: str,
         size: int,
         metadata: dict[str, Any] | None = None,
-        on_progress: Callable[..., None] | None = None,
+        on_progress: UploadProgressCallback | None = None,
     ) -> list[StoredFile]:
         """Upload a file."""
         _LOGGER.debug("Uploading %s file with name %s", storage_type, filename)
