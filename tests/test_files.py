@@ -581,7 +581,7 @@ async def test_upload_calls_on_progress(
 
     original_request = cloud.websession.request
 
-    async def consuming_request(method, url, **kwargs):
+    async def consuming_request(method: str, url: str, **kwargs: Any) -> Any:
         if method.upper() == "PUT" and hasattr(data := kwargs.get("data"), "__aiter__"):
             chunks = [chunk async for chunk in data]
 
