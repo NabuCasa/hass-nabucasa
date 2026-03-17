@@ -583,9 +583,7 @@ async def test_upload_calls_on_progress(
 
     async def consuming_request(method, url, **kwargs):
         if method.upper() == "PUT" and hasattr(data := kwargs.get("data"), "__aiter__"):
-            chunks: list[bytes] = []
-            async for chunk in data:
-                chunks.append(chunk)
+            chunks = [chunk async for chunk in data]
 
             async def replay() -> AsyncIterator[bytes]:
                 for chunk in chunks:
