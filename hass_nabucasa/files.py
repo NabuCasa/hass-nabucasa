@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import base64
-from collections.abc import AsyncIterator, Callable, Coroutine
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Coroutine
 import contextlib
 from enum import StrEnum
 import hashlib
 import logging
-from typing import Any, TypedDict
+from typing import Any, Protocol, TypedDict
 
 from aiohttp import (
     ClientResponseError,
@@ -63,6 +63,13 @@ class StoredFile(TypedDict):
     Metadata: dict[str, Any]
 
 
+class UploadProgressCallback(Protocol):
+    """Protocol for upload progress callbacks."""
+
+    def __call__(self, *, bytes_uploaded: int) -> None:
+        """Handle upload progress updates."""
+
+
 async def calculate_b64md5(
     open_stream: Callable[[], Coroutine[Any, Any, AsyncIterator[bytes]]],
     size: int,
@@ -101,6 +108,7 @@ class Files(ApiBase):
         base64md5hash: str,
         size: int,
         metadata: dict[str, Any] | None = None,
+        on_progress: UploadProgressCallback | None = None,
     ) -> list[StoredFile]:
         """Upload a file."""
         _LOGGER.debug("Uploading %s file with name %s", storage_type, filename)
@@ -120,11 +128,24 @@ class Files(ApiBase):
         except CloudApiError as err:
             raise FilesError(err, orig_exc=err) from err
 
+        async def _progress_tracker(
+            stream: AsyncIterator[bytes],
+        ) -> AsyncGenerator[bytes]:
+            """Generate data for upload, while tracking progress."""
+            # We should not call this if on_progress is None.
+            assert on_progress is not None
+            bytes_uploaded = 0
+            async for chunk in stream:
+                bytes_uploaded += len(chunk)
+                on_progress(bytes_uploaded=bytes_uploaded)
+                yield chunk
+
         try:
+            stream = await open_stream()
             response = await self._call_raw_api(
                 method="PUT",
                 url=details["url"],
-                data=await open_stream(),
+                data=_progress_tracker(stream) if on_progress is not None else stream,
                 headers=details["headers"] | {"content-length": str(size)},
                 client_timeout=ClientTimeout(
                     connect=10.0,
