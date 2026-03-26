@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices"],
+  "minimumReleaseAge": "2 days",
+  "osvVulnerabilityAlerts": true,
+  "dependencyDashboardOSVVulnerabilitySummary": "all",
+  "timezone": "Europe/Amsterdam",
+  "labels": [
+    "dependencies"
+  ],
+  "schedule": ["before 6am on friday"],
+  "prConcurrentLimit": 10
+}
