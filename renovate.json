@@ -8,6 +8,5 @@
   "labels": [
     "dependencies"
   ],
-  "schedule": ["before 6am on friday"],
   "prConcurrentLimit": 10
 }
