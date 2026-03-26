@@ -30,7 +30,7 @@ dependencies = [
     "pycognito==2024.5.1",
     "PyJWT>=2.8.0",
     "requests>=2.0,<3",
-    "snitun==0.45.1",
+    "snitun==0.45.2",
     "voluptuous>=0.15",
     "webrtc-models<1.0.0",
     "yarl>=1.20,<2",
