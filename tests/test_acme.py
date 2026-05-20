@@ -265,12 +265,7 @@ def test_acme_handler_deactivate_account_network_errors(
 
 
 def test_finish_challenge_clears_x509_after_unlink(cloud: Cloud) -> None:
-    """Test that _finish_challenge drops in-memory _x509 once the old file is unlinked.
-
-    Covers the regression that PR #1071 unmasked: previously, if atomic_write
-    failed after the unlink, _x509 would remain set, leading to a stale
-    in-memory cert and a FileNotFoundError on the next _create_context.
-    """
+    """Test that _finish_challenge drops in-memory _x509 once the old file is unlinked."""
     handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
     handler._x509 = Mock()
     handler._acme_client = Mock()

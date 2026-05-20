@@ -380,12 +380,10 @@ class RemoteUI:
 
         try:
             context = await self._create_context()
-        except (SSLError, OSError) as err:
-            # SSLError is a subclass of OSError, so check it first.
-            if isinstance(err, SSLError):
-                should_reset = err.reason == "KEY_VALUES_MISMATCH"
-            else:
-                should_reset = True
+        except (SSLError, FileNotFoundError, IsADirectoryError) as err:
+            should_reset = not isinstance(err, SSLError) or (
+                err.reason == "KEY_VALUES_MISMATCH"
+            )
             if should_reset:
                 self.cloud.client.user_message(
                     "cloud_remote_acme",
