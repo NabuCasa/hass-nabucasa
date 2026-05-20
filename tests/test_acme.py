@@ -294,12 +294,3 @@ def test_finish_challenge_clears_x509_after_unlink(cloud: Cloud) -> None:
     assert handler._x509 is None
 
 
-async def test_load_certificate_resyncs_with_disk(cloud: Cloud) -> None:
-    """Test that load_certificate drops stale _x509 if the backing file is gone."""
-    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
-    handler._x509 = Mock()
-
-    with patch("pathlib.Path.exists", return_value=False):
-        await handler.load_certificate()
-
-    assert handler._x509 is None

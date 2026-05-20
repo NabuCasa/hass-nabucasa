@@ -402,6 +402,10 @@ class AcmeHandler:
 
     async def load_certificate(self) -> None:
         """Get x509 Cert-Object."""
+        if self._x509:
+            # The certificate is already loaded
+            return
+
         self._update_status(CertificateStatus.LOADING)
 
         def _load_cert() -> x509.Certificate | None:
