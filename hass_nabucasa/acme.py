@@ -152,12 +152,8 @@ class AcmeHandler:
 
     @property
     def certificate_available(self) -> bool:
-        """Return True if a certificate is loaded and both files are on disk."""
-        return (
-            self._x509 is not None
-            and self.path_fullchain.exists()
-            and self.path_private_key.exists()
-        )
+        """Return True if a certificate is loaded."""
+        return self._x509 is not None
 
     @property
     def is_valid_certificate(self) -> bool:
@@ -406,11 +402,6 @@ class AcmeHandler:
 
     async def load_certificate(self) -> None:
         """Get x509 Cert-Object."""
-        if self._x509 is not None and self.path_fullchain.exists():
-            # The certificate is already loaded and still present on disk
-            return
-
-        self._x509 = None
         self._update_status(CertificateStatus.LOADING)
 
         def _load_cert() -> x509.Certificate | None:

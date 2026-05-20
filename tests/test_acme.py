@@ -1,6 +1,5 @@
 """Test ACME handler functionality."""
 
-from pathlib import Path
 from socket import gaierror
 from unittest.mock import Mock, patch
 
@@ -298,44 +297,9 @@ def test_finish_challenge_clears_x509_after_unlink(cloud: Cloud) -> None:
 async def test_load_certificate_resyncs_with_disk(cloud: Cloud) -> None:
     """Test that load_certificate drops stale _x509 if the backing file is gone."""
     handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
-    stale_cert = Mock()
-    handler._x509 = stale_cert
+    handler._x509 = Mock()
 
     with patch("pathlib.Path.exists", return_value=False):
         await handler.load_certificate()
 
     assert handler._x509 is None
-
-
-@pytest.mark.parametrize(
-    ("has_x509", "fullchain_exists", "key_exists", "expected"),
-    [
-        (True, True, True, True),
-        (True, True, False, False),
-        (True, False, True, False),
-        (False, True, True, False),
-    ],
-)
-def test_certificate_available_requires_both_files(
-    cloud: Cloud,
-    has_x509: bool,
-    fullchain_exists: bool,
-    key_exists: bool,
-    expected: bool,
-) -> None:
-    """Test that certificate_available is True only if x509 + both files present."""
-    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
-    handler._x509 = Mock() if has_x509 else None
-
-    fullchain = handler.path_fullchain
-    private_key = handler.path_private_key
-
-    def fake_exists(self: Path) -> bool:
-        if self == fullchain:
-            return fullchain_exists
-        if self == private_key:
-            return key_exists
-        return False
-
-    with patch("pathlib.Path.exists", fake_exists):
-        assert handler.certificate_available is expected
