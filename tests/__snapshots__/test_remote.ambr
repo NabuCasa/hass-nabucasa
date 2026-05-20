@@ -223,7 +223,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
-# name: test_context_error_handling[Boom-False]
+# name: test_context_error_handling[file_not_found]
   '''
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
   [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
@@ -240,7 +240,24 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: ssl_context_error
   '''
 # ---
-# name: test_context_error_handling[KEY_VALUES_MISMATCH-True]
+# name: test_context_error_handling[ssl_key_values_mismatch]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
+  [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
+  [DEBUG] hass_nabucasa.remote: Certificate status: loading
+  [DEBUG] hass_nabucasa.remote: Certificate status: validating
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_loaded
+  [DEBUG] hass_nabucasa.remote: Certificate status: ready
+  [DEBUG] hass_nabucasa.remote: Certificate status: ssl_context_error
+  '''
+# ---
+# name: test_context_error_handling[ssl_other]
   '''
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
   [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
