@@ -1173,31 +1173,33 @@ async def test_acme_client_create_client_jws_errors(
     await cloud.remote.stop()
 
 
+def _ssl_error(reason: str) -> SSLError:
+    err = SSLError()
+    err.reason = reason
+    return err
+
+
 @pytest.mark.parametrize(
-    ("reason", "should_reset"),
+    ("error", "should_reset"),
     (
-        (
-            "KEY_VALUES_MISMATCH",
-            True,
-        ),
-        (
-            "Boom",
-            False,
-        ),
+        (_ssl_error("KEY_VALUES_MISMATCH"), True),
+        (_ssl_error("Boom"), False),
+        (FileNotFoundError(2, "No such file or directory"), True),
     ),
+    ids=("ssl_key_values_mismatch", "ssl_other", "file_not_found"),
 )
 async def test_context_error_handling(
     cloud: Cloud,
     valid_acme_mock: MockAcme,
     aioclient_mock: AiohttpClientMocker,
     snitun_mock: MockSnitun,
-    reason: str,
+    error: Exception,
     should_reset: bool,
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
     mock_timing: None,
 ) -> None:
-    """Test that we reset if we hit an error reason that require resetting."""
+    """Test that we reset if we hit an error that requires resetting."""
     aioclient_mock.post(
         f"https://{cloud.api_server}/instance/register",
         json={
@@ -1207,11 +1209,8 @@ async def test_context_error_handling(
         },
     )
 
-    ssl_error = SSLError()
-    ssl_error.reason = reason
-
-    # Patch _create_context to raise SSL error directly
-    with patch.object(cloud.remote, "_create_context", side_effect=ssl_error):
+    # Patch _create_context to raise the error directly
+    with patch.object(cloud.remote, "_create_context", side_effect=error):
         assert cloud.remote._certificate_status is None
         await cloud.remote.load_backend()
 

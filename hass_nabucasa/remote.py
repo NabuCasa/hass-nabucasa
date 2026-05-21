@@ -380,8 +380,11 @@ class RemoteUI:
 
         try:
             context = await self._create_context()
-        except SSLError as err:
-            if err.reason == "KEY_VALUES_MISMATCH":
+        except (SSLError, FileNotFoundError) as err:
+            should_reset = not isinstance(err, SSLError) or (
+                err.reason == "KEY_VALUES_MISMATCH"
+            )
+            if should_reset:
                 self.cloud.client.user_message(
                     "cloud_remote_acme",
                     "Home Assistant Cloud",
