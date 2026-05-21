@@ -392,7 +392,6 @@ class AcmeHandler:
         if self.path_fullchain.exists():
             _LOGGER.info("Renew old certificate: %s", self.path_fullchain)
             self.path_fullchain.unlink()
-            self._x509 = None
         else:
             _LOGGER.info("Create new certificate: %s", self.path_fullchain)
 

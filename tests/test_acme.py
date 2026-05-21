@@ -262,28 +262,3 @@ def test_acme_handler_deactivate_account_network_errors(
 
         with pytest.raises(AcmeClientError, match="Can't deactivate account"):
             handler._deactivate_account()
-
-
-def test_finish_challenge_clears_x509_after_unlink(cloud: Cloud) -> None:
-    """Test that _finish_challenge drops in-memory _x509 once the file is unlinked."""
-    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
-    handler._x509 = Mock()
-    handler._acme_client = Mock()
-
-    order = Mock()
-    order.fullchain_pem = "fake-cert"
-
-    with (
-        patch("pathlib.Path.exists", return_value=True),
-        patch("pathlib.Path.unlink") as mock_unlink,
-        patch(
-            "hass_nabucasa.acme.atomic_write",
-            side_effect=OSError("disk full"),
-        ),
-    ):
-        with pytest.raises(OSError, match="disk full"):
-            handler._finish_challenge(order)
-
-        mock_unlink.assert_called_once()
-
-    assert handler._x509 is None
