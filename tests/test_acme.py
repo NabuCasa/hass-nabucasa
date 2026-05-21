@@ -287,5 +287,3 @@ def test_finish_challenge_clears_x509_after_unlink(cloud: Cloud) -> None:
         mock_unlink.assert_called_once()
 
     assert handler._x509 is None
-
-
