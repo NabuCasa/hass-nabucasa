@@ -60,7 +60,7 @@ test = [
     "types_pyOpenSSL==24.1.0.20240722",
     "types-requests==2.33.0.20260518",
     "xmltodict==1.0.4",
-    "syrupy==5.1.0",
+    "syrupy==5.2.0",
     "tomli==2.4.1",
 ]
 
