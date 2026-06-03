@@ -1,5 +1,6 @@
 """Test the cloud.iot_base module."""
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 from aiohttp import WSMessage, WSMsgType, client_exceptions
@@ -236,3 +237,112 @@ async def test_send_message_not_connected(cloud_mock_iot):
 
     with pytest.raises(iot_base.NotConnected):
         await cloud_iot.async_send_json_message({"msg": "yo"})
+
+
+@pytest.mark.parametrize(
+    "tries,expected_level",
+    [
+        (0, logging.INFO),
+        (1, logging.INFO),
+        (9, logging.INFO),
+        (10, logging.ERROR),
+        (15, logging.ERROR),
+    ],
+)
+async def test_too_many_connections_log_level(
+    mock_iot_client,
+    caplog,
+    cloud_mock_iot,
+    tries,
+    expected_level,
+):
+    """Test 4003 close logs INFO below threshold and ERROR at/above."""
+    conn = MockIoT(cloud_mock_iot)
+    conn.mark_connected_after_first_message = True
+    conn.tries = tries
+    mock_iot_client.receive = AsyncMock(
+        side_effect=[
+            WSMessage(
+                type=WSMsgType.CLOSING,
+                data=4003,
+                extra="Too many connections, retry later",
+            ),
+        ],
+    )
+
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        await conn._handle_connection()
+
+    matching = [
+        r
+        for r in caplog.records
+        if "Too many connections, retry later (4003)" in r.message
+    ]
+    assert len(matching) == 1
+    assert matching[0].levelno == expected_level
+
+
+async def test_too_many_connections_other_close_code_still_warning(
+    mock_iot_client,
+    caplog,
+    cloud_mock_iot,
+):
+    """Test that close codes other than 4003 still log at WARNING."""
+    conn = MockIoT(cloud_mock_iot)
+    conn.mark_connected_after_first_message = True
+    conn.tries = 50
+    mock_iot_client.receive = AsyncMock(
+        side_effect=[
+            WSMessage(
+                type=WSMsgType.CLOSING,
+                data=4002,
+                extra="Another instance connected",
+            ),
+        ],
+    )
+
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        await conn._handle_connection()
+
+    matching = [
+        r
+        for r in caplog.records
+        if "Another instance connected (4002)" in r.message
+    ]
+    assert len(matching) == 1
+    assert matching[0].levelno == logging.WARNING
+
+
+async def test_too_many_connections_clean_disconnect_stays_info(
+    mock_iot_client,
+    caplog,
+    cloud_mock_iot,
+):
+    """Test that a 4003 close after a healthy session logs at INFO regardless of tries."""
+    conn = MockIoT(cloud_mock_iot)
+    # Default mark_connected_after_first_message=False so _connected() runs
+    # immediately on ws_connect, resetting tries and marking state CONNECTED.
+    conn.tries = 50
+    mock_iot_client.receive = AsyncMock(
+        side_effect=[
+            WSMessage(
+                type=WSMsgType.CLOSING,
+                data=4003,
+                extra="Too many connections, retry later",
+            ),
+        ],
+    )
+
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        await conn._handle_connection()
+
+    matching = [
+        r
+        for r in caplog.records
+        if "Too many connections, retry later (4003)" in r.message
+    ]
+    assert len(matching) == 1
+    assert matching[0].levelno == logging.INFO

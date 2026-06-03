@@ -35,6 +35,10 @@ if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
 
+CLOSE_CODE_TOO_MANY_CONNECTIONS = 4003
+TOO_MANY_CONNECTIONS_ERROR_THRESHOLD = 10
+
+
 @dataclasses.dataclass
 class DisconnectReason:
     """Disconnect reason."""
@@ -212,6 +216,7 @@ class BaseIoT:
             | gaierror
             | None
         ) = None
+        close_code: int | None = None
         try:
             self.client = await self.cloud.websession.ws_connect(
                 self.ws_server_url,
@@ -240,7 +245,8 @@ class BaseIoT:
 
                 if msg.type in (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING):
                     disconnect_clean = self.state == STATE_CONNECTED
-                    disconnect_reason = f"Closed by server. {msg.extra} ({msg.data})"
+                    close_code = msg.data
+                    disconnect_reason = f"Closed by server. {msg.extra} ({close_code})"
                     break
 
                 # Do this inside the loop because if 2 clients are connected,
@@ -310,6 +316,11 @@ class BaseIoT:
 
             if self.close_requested or disconnect_clean:
                 self._logger.info(msg)
+            elif close_code == CLOSE_CODE_TOO_MANY_CONNECTIONS:
+                if self.tries < TOO_MANY_CONNECTIONS_ERROR_THRESHOLD:
+                    self._logger.info(msg)
+                else:
+                    self._logger.error(msg)
             else:
                 self._logger.warning(msg)
 
