@@ -21,14 +21,14 @@
   [DEBUG] hass_nabucasa.api: Response for post from api.example.com/account/payments/migrate_paypal_agreement (200) 
   '''
 # ---
-# name: test_problems_getting_connection_details[PaymentsApiError-getmockargs0-Failed to parse API response]
+# name: test_problems_getting_connection_details[PaymentsApiError-getmockargs0-Failed to parse API response (status: 500)]
   '''
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://api.example.com/account/payments/subscription_info
   [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/payments/subscription_info
   [DEBUG] hass_nabucasa.api: Response for get from api.example.com/account/payments/subscription_info (500) 
   '''
 # ---
-# name: test_problems_getting_connection_details[PaymentsApiError-getmockargs1-Failed to parse API response]
+# name: test_problems_getting_connection_details[PaymentsApiError-getmockargs1-Failed to parse API response (status: 429)]
   '''
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for subscription_info: https://api.example.com/account/payments/subscription_info
   [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/account/payments/subscription_info
