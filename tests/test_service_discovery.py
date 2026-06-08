@@ -72,12 +72,12 @@ def add_test_api_action_to_service_discovery():
         [
             ServiceDiscoveryError,
             {"status": 500, "text": "Internal Server Error"},
-            "Failed to parse API response",
+            "Failed to parse API response (status: 500)",
         ],
         [
             ServiceDiscoveryError,
             {"status": 429, "text": "Too fast"},
-            "Failed to parse API response",
+            "Failed to parse API response (status: 429)",
         ],
         [
             ServiceDiscoveryError,
@@ -233,7 +233,8 @@ async def test_load_service_discovery_data_raises_when_no_cache_and_failure(
     )
 
     with pytest.raises(
-        ServiceDiscoveryError, match=re.escape("Failed to parse API response")
+        ServiceDiscoveryError,
+        match=re.escape("Failed to parse API response (status: 500)"),
     ):
         await cloud.service_discovery._load_service_discovery_data()
 
