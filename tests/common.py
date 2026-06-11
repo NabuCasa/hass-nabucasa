@@ -266,7 +266,7 @@ class MockSnitun:
         self.init_kwarg = None
         self.wait_task = asyncio.Event()
 
-        self.start_whitelist = None
+        self.start_access_list = None
         self.start_endpoint_connection_error_callback = None
 
     @property
@@ -280,11 +280,11 @@ class MockSnitun:
 
     async def start(
         self,
-        whitelist: bool = False,
+        access_list: Any | None = None,
         endpoint_connection_error_callback: Coroutine[Any, Any, None] | None = None,
     ):
         """Start snitun."""
-        self.start_whitelist = whitelist
+        self.start_access_list = access_list
         self.start_endpoint_connection_error_callback = (
             endpoint_connection_error_callback
         )

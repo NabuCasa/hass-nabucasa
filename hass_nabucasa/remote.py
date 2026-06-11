@@ -405,7 +405,7 @@ class RemoteUI:
 
         _LOGGER.debug("Starting SniTun")
         is_cloud_request.set(True)
-        await self._snitun.start(False, self._recreate_backend)
+        await self._snitun.start()
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_UP)
 
         _LOGGER.debug(
