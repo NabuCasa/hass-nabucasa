@@ -263,6 +263,7 @@ class MockSnitun:
         self.call_disconnect = False
         self.init_args = None
         self.connect_args = None
+        self.connect_kwargs = None
         self.init_kwarg = None
         self.wait_task = asyncio.Event()
 
@@ -300,10 +301,15 @@ class MockSnitun:
         aes_key: bytes,
         aes_iv: bytes,
         throttling=None,
+        protocol_version=0,
     ):
         """Connect snitun."""
         self.call_connect = True
         self.connect_args = [token, aes_key, aes_iv, throttling]
+        self.connect_kwargs = {
+            "throttling": throttling,
+            "protocol_version": protocol_version,
+        }
 
     async def disconnect(self):
         """Disconnect snitun."""
