@@ -23,12 +23,12 @@ API_HOSTNAME = "example.com"
         [
             InstanceApiError,
             {"status": 500, "text": "Internal Server Error"},
-            "Failed to parse API response",
+            "Failed to parse API response (status: 500)",
         ],
         [
             InstanceApiError,
             {"status": 429, "text": "Too fast"},
-            "Failed to parse API response",
+            "Failed to parse API response (status: 429)",
         ],
         [
             InstanceApiError,
@@ -262,7 +262,7 @@ async def test_ping_targets_endpoint_success(
         [
             InstanceApiError,
             {"status": 500, "text": "Internal Server Error"},
-            "Failed to parse API response",
+            "Failed to parse API response (status: 500)",
         ],
         [
             InstanceApiError,

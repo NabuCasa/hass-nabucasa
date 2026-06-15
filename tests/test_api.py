@@ -119,7 +119,9 @@ async def test_empty_response_handling_disallowed_methods(
         status=200,
     )
 
-    with pytest.raises(CloudApiError, match="Failed to parse API response"):
+    with pytest.raises(
+        CloudApiError, match=r"Failed to parse API response \(status: 200\)"
+    ):
         await test_api._call_cloud_api(
             path="/test",
             method=method,

@@ -64,7 +64,7 @@
     'log': '''
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (500) 
-      [DEBUG] hass_nabucasa.service_discovery: Failed to load initial service discovery data: Failed to parse API response
+      [DEBUG] hass_nabucasa.service_discovery: Failed to load initial service discovery data: Failed to parse API response (status: 500)
       [DEBUG] hass_nabucasa.service_discovery: Scheduling service discovery refresh in 12h:1m:51s
       [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/.well-known/service-discovery
       [DEBUG] hass_nabucasa.api: Response for get from api.example.com/.well-known/service-discovery (200) 
