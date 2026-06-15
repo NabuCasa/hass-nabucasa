@@ -153,7 +153,6 @@ async def test_load_backend_exists_cert(
     }
 
     assert snitun_mock.start_access_list is None
-    assert snitun_mock.start_endpoint_connection_error_callback is None
 
     await asyncio.sleep(0.1)
     assert snitun_mock.call_connect

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine
 import json
 from pathlib import Path
 import threading
@@ -16,6 +15,7 @@ from freezegun.api import (
     TickingDateTimeFactory,
 )
 import pytest
+from snitun.client.access_list import AccessList
 
 from hass_nabucasa.client import CloudClient
 
@@ -268,7 +268,6 @@ class MockSnitun:
         self.wait_task = asyncio.Event()
 
         self.start_access_list = None
-        self.start_endpoint_connection_error_callback = None
 
     @property
     def is_connected(self):
@@ -281,14 +280,10 @@ class MockSnitun:
 
     async def start(
         self,
-        access_list=None,
-        endpoint_connection_error_callback: Coroutine[Any, Any, None] | None = None,
-    ):
+        access_list: AccessList | None = None,
+    ) -> None:
         """Start snitun."""
         self.start_access_list = access_list
-        self.start_endpoint_connection_error_callback = (
-            endpoint_connection_error_callback
-        )
         self.call_start = True
 
     async def stop(self):
@@ -300,9 +295,9 @@ class MockSnitun:
         token: bytes,
         aes_key: bytes,
         aes_iv: bytes,
-        throttling=None,
-        protocol_version=0,
-    ):
+        throttling: int | None = None,
+        protocol_version: int = 0,
+    ) -> None:
         """Connect snitun."""
         self.call_connect = True
         self.connect_args = [token, aes_key, aes_iv, throttling]
