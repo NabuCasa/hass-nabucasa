@@ -617,7 +617,7 @@ class Cloud(Generic[_ClientT]):
             _LOGGER.debug(err, exc_info=err)
 
         if billing_plan_type is None or billing_plan_type == "no_subscription":
-            _LOGGER.info("No subscription found")
+            _LOGGER.info("No active subscription found")
             self.async_initialize_subscription_reconnection_handler(
                 SubscriptionReconnectionReason.NO_SUBSCRIPTION
             )

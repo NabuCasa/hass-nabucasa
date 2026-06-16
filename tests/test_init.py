@@ -471,7 +471,7 @@ async def test_subscription_reconnect_for_no_subscription(
         await cl.initialize()
         await start_done_event.wait()
 
-    assert "No subscription found" in caplog.text
+    assert "No active subscription found" in caplog.text
     assert "Stopping subscription reconnection handler" in caplog.text
 
 
