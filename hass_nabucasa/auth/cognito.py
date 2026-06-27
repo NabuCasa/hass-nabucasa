@@ -15,7 +15,11 @@ import pycognito
 from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
 from ..const import MESSAGE_AUTH_FAIL
-from ..exceptions import CloudError
+from ..exceptions import (
+    CloudError,
+    NabuCasaAuthenticationError,
+    NabuCasaConnectionError,
+)
 from ..utils import expiration_from_token, seconds_as_dhms, utcnow
 from .const import DEFAULT_AUTH_TIMEOUT
 
@@ -65,7 +69,7 @@ class CloudConnectionError(CloudError):
     """Raised when unable to connect to the cloud."""
 
 
-class AuthTimeoutError(CloudError):
+class AuthTimeoutError(NabuCasaConnectionError, NabuCasaAuthenticationError):
     """Raised when an authentication request times out."""
 
 
@@ -130,7 +134,7 @@ class CognitoAuth:
                 )
                 await asyncio.sleep(sleep_time)
                 await self.async_renew_access_token()
-            except CloudError as err:
+            except (CloudError, AuthTimeoutError) as err:
                 _LOGGER.error("Can't refresh cloud token: %s", err)
             except asyncio.CancelledError:
                 # Task is canceled, stop it.
