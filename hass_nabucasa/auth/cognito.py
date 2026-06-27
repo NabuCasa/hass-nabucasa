@@ -18,6 +18,7 @@ from ..const import MESSAGE_AUTH_FAIL
 from ..exceptions import (
     CloudError,
     NabuCasaAuthenticationError,
+    NabuCasaBaseError,
     NabuCasaConnectionError,
 )
 from ..utils import expiration_from_token, seconds_as_dhms, utcnow
@@ -134,7 +135,7 @@ class CognitoAuth:
                 )
                 await asyncio.sleep(sleep_time)
                 await self.async_renew_access_token()
-            except (CloudError, AuthTimeoutError) as err:
+            except NabuCasaBaseError as err:
                 _LOGGER.error("Can't refresh cloud token: %s", err)
             except asyncio.CancelledError:
                 # Task is canceled, stop it.
