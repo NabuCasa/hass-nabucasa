@@ -34,6 +34,7 @@ from .api import (
     CloudApiTimeoutError,
 )
 from .auth import (
+    AuthTimeoutError,
     CognitoAuth,
     InvalidTotpCode,
     MFARequired,
@@ -116,6 +117,7 @@ __all__ = [
     "AlexaApiNeedsRelinkError",
     "AlexaApiNoTokenError",
     "AlreadyConnectedError",
+    "AuthTimeoutError",
     "CertificateStatus",
     "CheckLatencyError",
     "CheckLatencyHostResult",

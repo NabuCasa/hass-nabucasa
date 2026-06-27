@@ -1,6 +1,7 @@
 """Tests for the tools to communicate with the cloud."""
 
 import asyncio
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from botocore.exceptions import ClientError, EndpointConnectionError
@@ -254,6 +255,21 @@ async def test_check_token_raises(mock_cognito, cloud_mock):
     assert len(mock_cognito.check_token.mock_calls) == 2
     assert cloud_mock.id_token != mock_cognito.id_token
     assert cloud_mock.access_token != mock_cognito.access_token
+    assert len(cloud_mock.update_token.mock_calls) == 0
+
+
+async def test_check_token_renew_times_out(mock_cognito, cloud_mock):
+    """Test a stalled token renewal raises AuthTimeoutError."""
+    mock_cognito.check_token.return_value = True
+    mock_cognito.renew_access_token.side_effect = lambda: time.sleep(1)
+    auth = auth_api.CognitoAuth(cloud_mock)
+
+    with (
+        patch("hass_nabucasa.auth.cognito.DEFAULT_AUTH_TIMEOUT", 0.01),
+        pytest.raises(auth_api.AuthTimeoutError),
+    ):
+        await auth.async_check_token()
+
     assert len(cloud_mock.update_token.mock_calls) == 0
 
 
