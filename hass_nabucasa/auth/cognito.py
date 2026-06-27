@@ -70,8 +70,7 @@ class CloudConnectionError(CloudError):
     """Raised when unable to connect to the cloud."""
 
 
-class AuthTimeoutError(NabuCasaConnectionError, NabuCasaAuthenticationError):
-    """Raised when an authentication request times out."""
+class AuthTimeoutError(CloudError, NabuCasaConnectionError, NabuCasaAuthenticationError):
 
 
 class PasswordChangeRequired(CloudError):
