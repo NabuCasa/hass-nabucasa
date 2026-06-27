@@ -261,7 +261,7 @@ async def test_check_token_raises(mock_cognito, cloud_mock):
 async def test_check_token_renew_times_out(mock_cognito, cloud_mock):
     """Test a stalled token renewal raises AuthTimeoutError."""
     mock_cognito.check_token.return_value = True
-    mock_cognito.renew_access_token.side_effect = lambda: time.sleep(1)
+    mock_cognito.renew_access_token.side_effect = lambda: time.sleep(0.1)
     auth = auth_api.CognitoAuth(cloud_mock)
 
     with (
