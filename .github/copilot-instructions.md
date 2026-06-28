@@ -117,6 +117,7 @@ All API components extend `ApiBase` and provide specific cloud service integrati
 - Docstrings follow PEP 257 conventions.
 - Pre-commit hooks enforce code quality.
 - Import organization: Keep all imports at the top level of modules (never inside functions or methods).
+- Python 3.14 syntax (project requires Python >= 3.14): `except`/`except*` clauses may omit parentheses around multiple exception types when there is no `as` binding — e.g. `except ValueError, TypeError:` is valid (PEP 758), equivalent to `except (ValueError, TypeError):`. Do not treat this form as a syntax error.
 - Comments policy: Don’t add unnecessary inline comments — prefer clear names and structure.
 - Async I/O: Use `cloud.run_executor` for blocking file I/O or CPU‑heavy work.
 
