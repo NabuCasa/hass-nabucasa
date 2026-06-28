@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, TypedDict
 
-from .api import ApiBase, CloudApiError, api_exception_handler
+from .api import ApiBase, NabuCasaApiError, api_exception_handler
 from .events.types import CloudhookCreatedEvent, CloudhookDeletedEvent
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class GeneratedCloudhookDetails(TypedDict):
     cloudhook_id: str
 
 
-class CloudhookApiError(CloudApiError):
+class CloudhookApiError(NabuCasaApiError):
     """Error raised when a cloudhook API call fails."""
 
 

@@ -15,7 +15,11 @@ import pycognito
 from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
 from ..const import MESSAGE_AUTH_FAIL
-from ..exceptions import CloudError
+from ..exceptions import (
+    NabuCasaAuthenticationError,
+    NabuCasaBaseError,
+    NabuCasaConnectionError,
+)
 from ..utils import expiration_from_token, seconds_as_dhms, utcnow
 
 if TYPE_CHECKING:
@@ -24,11 +28,11 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-class Unauthenticated(CloudError):
+class Unauthenticated(NabuCasaAuthenticationError):
     """Raised when authentication failed."""
 
 
-class MFARequired(CloudError):
+class MFARequired(NabuCasaAuthenticationError):
     """Raised when MFA is required."""
 
     _mfa_tokens: dict[str, Any]
@@ -44,27 +48,23 @@ class MFARequired(CloudError):
         return self._mfa_tokens
 
 
-class InvalidTotpCode(CloudError):
+class InvalidTotpCode(NabuCasaAuthenticationError):
     """Raised when the TOTP code is invalid."""
 
 
-class UserNotFound(CloudError):
+class UserNotFound(NabuCasaAuthenticationError):
     """Raised when a user is not found."""
 
 
-class UserExists(CloudError):
+class UserExists(NabuCasaAuthenticationError):
     """Raised when a username already exists."""
 
 
-class UserNotConfirmed(CloudError):
+class UserNotConfirmed(NabuCasaAuthenticationError):
     """Raised when a user has not confirmed email yet."""
 
 
-class CloudConnectionError(CloudError):
-    """Raised when unable to connect to the cloud."""
-
-
-class PasswordChangeRequired(CloudError):
+class PasswordChangeRequired(NabuCasaAuthenticationError):
     """Raised when a password change is required."""
 
     # https://github.com/PyCQA/pylint/issues/1085
@@ -74,18 +74,18 @@ class PasswordChangeRequired(CloudError):
         super().__init__(message)
 
 
-class UnknownError(CloudError):
+class UnknownError(NabuCasaAuthenticationError):
     """Raised when an unknown error occurs."""
 
 
-AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
+AWS_EXCEPTIONS: dict[str, type[NabuCasaBaseError]] = {
     "CodeMismatchException": InvalidTotpCode,
     "UserNotFoundException": UserNotFound,
     "UserNotConfirmedException": UserNotConfirmed,
     "UsernameExistsException": UserExists,
     "NotAuthorizedException": Unauthenticated,
     "PasswordResetRequiredException": PasswordChangeRequired,
-    "EndpointConnectionError": CloudConnectionError,
+    "EndpointConnectionError": NabuCasaConnectionError,
 }
 
 
@@ -125,7 +125,7 @@ class CognitoAuth:
                 )
                 await asyncio.sleep(sleep_time)
                 await self.async_renew_access_token()
-            except CloudError as err:
+            except NabuCasaBaseError as err:
                 _LOGGER.error("Can't refresh cloud token: %s", err)
             except asyncio.CancelledError:
                 # Task is canceled, stop it.
@@ -370,7 +370,7 @@ class CognitoAuth:
         )
 
 
-def _map_aws_exception(err: ClientError | BotoCoreError) -> CloudError:
+def _map_aws_exception(err: ClientError | BotoCoreError) -> NabuCasaBaseError:
     """Map AWS exception to our exceptions."""
     if isinstance(err, BotoCoreError):
         return AWS_EXCEPTIONS.get(err.__class__.__name__, UnknownError)(

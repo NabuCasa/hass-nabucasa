@@ -28,7 +28,7 @@ from .const import (
     STATE_DISCONNECTED,
     SubscriptionReconnectionReason,
 )
-from .exceptions import CloudError
+from .exceptions import NabuCasaAuthenticationError, NabuCasaConnectionError
 from .utils import gather_callbacks
 
 if TYPE_CHECKING:
@@ -186,7 +186,7 @@ class BaseIoT:
         """Connect to the IoT broker."""
         try:
             await self.cloud.auth.async_check_token()
-        except CloudError as err:
+        except (NabuCasaAuthenticationError, NabuCasaConnectionError) as err:
             self._logger.warning(
                 "Unable to connect due to token refresh failure: %s",
                 err,

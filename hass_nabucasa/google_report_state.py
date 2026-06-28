@@ -10,7 +10,7 @@ import uuid
 from aiohttp import ClientResponse, ClientTimeout
 
 from . import iot_base
-from .api import ApiBase, CloudApiError, CloudApiRawResponse, api_exception_handler
+from .api import ApiBase, CloudApiRawResponse, NabuCasaApiError, api_exception_handler
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -21,7 +21,7 @@ ERR_DISCARD_CODE = "message_discarded"
 ERR_DISCARD_MSG = "Message discarded because max messages reachced"
 
 
-class GoogleReportStateError(CloudApiError):
+class GoogleReportStateError(NabuCasaApiError):
     """Exception raised when handling Google Report State API calls."""
 
 

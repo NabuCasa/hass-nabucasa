@@ -7,12 +7,12 @@ from typing import Literal, NotRequired, TypedDict
 
 from aiohttp import hdrs
 
-from .api import ApiBase, CloudApiError, api_exception_handler
+from .api import ApiBase, NabuCasaApiError, api_exception_handler
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class InstanceApiError(CloudApiError):
+class InstanceApiError(NabuCasaApiError):
     """Exception raised when handling instance API."""
 
 

@@ -7,13 +7,13 @@ from collections.abc import Awaitable, Callable
 import contextlib
 import logging
 
-from ..exceptions import CloudError
+from ..exceptions import NabuCasaBaseError
 from .types import CloudEvent, CloudEventType
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class EventBusError(CloudError):
+class EventBusError(NabuCasaBaseError):
     """Exception raised for event bus errors."""
 
 

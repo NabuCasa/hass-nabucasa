@@ -7,7 +7,11 @@ from botocore.exceptions import ClientError, EndpointConnectionError
 from pycognito.exceptions import MFAChallengeException
 import pytest
 
-from hass_nabucasa import CloudError, auth as auth_api
+from hass_nabucasa import (
+    NabuCasaAuthenticationError,
+    NabuCasaConnectionError,
+    auth as auth_api,
+)
 from tests.common import FROZEN_NOW_AS_TIMESTAMP
 
 
@@ -58,7 +62,7 @@ async def test_login_user_not_confirmed(mock_cognito, mock_cloud):
 
 
 async def test_login_connection_error(mock_cognito, mock_cloud):
-    """Test login raises CloudConnectionError instead of UnknownError."""
+    """Test login raises NabuCasaConnectionError instead of UnknownError."""
     auth = auth_api.CognitoAuth(mock_cloud)
     mock_cognito.authenticate.side_effect = EndpointConnectionError(
         endpoint_url="https://cognito-idp.us-east-1.amazonaws.com/",
@@ -66,7 +70,7 @@ async def test_login_connection_error(mock_cognito, mock_cloud):
     )
 
     with pytest.raises(
-        auth_api.CloudConnectionError,
+        NabuCasaConnectionError,
         match="Connection refused",
     ):
         await auth.async_login("user", "pass")
@@ -181,7 +185,7 @@ async def test_register_fails(mock_cognito, cloud_mock):
     """Test registering an account."""
     mock_cognito.register.side_effect = aws_error("SomeError")
     auth = auth_api.CognitoAuth(cloud_mock)
-    with pytest.raises(CloudError):
+    with pytest.raises(NabuCasaAuthenticationError):
         await auth.async_register("email@home-assistant.io", "password")
 
 
@@ -196,7 +200,7 @@ async def test_resend_email_confirm_fails(mock_cognito, cloud_mock):
     """Test failure when starting forgot password flow."""
     auth = auth_api.CognitoAuth(cloud_mock)
     mock_cognito.client.resend_confirmation_code.side_effect = aws_error("SomeError")
-    with pytest.raises(CloudError):
+    with pytest.raises(NabuCasaAuthenticationError):
         await auth.async_resend_email_confirm("email@home-assistant.io")
 
 
@@ -211,7 +215,7 @@ async def test_forgot_password_fails(mock_cognito, cloud_mock):
     """Test failure when starting forgot password flow."""
     auth = auth_api.CognitoAuth(cloud_mock)
     mock_cognito.initiate_forgot_password.side_effect = aws_error("SomeError")
-    with pytest.raises(CloudError):
+    with pytest.raises(NabuCasaAuthenticationError):
         await auth.async_forgot_password("email@home-assistant.io")
 
 
@@ -248,7 +252,7 @@ async def test_check_token_raises(mock_cognito, cloud_mock):
     mock_cognito.renew_access_token.side_effect = aws_error("SomeError")
     auth = auth_api.CognitoAuth(cloud_mock)
 
-    with pytest.raises(CloudError):
+    with pytest.raises(NabuCasaAuthenticationError):
         await auth.async_check_token()
 
     assert len(mock_cognito.check_token.mock_calls) == 2

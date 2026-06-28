@@ -24,7 +24,7 @@ from voluptuous.humanize import humanize_error
 from yarl import URL
 
 from .auth import Unauthenticated, UnknownError
-from .exceptions import CloudError
+from .exceptions import NabuCasaBaseError
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -47,7 +47,7 @@ DEFAULT_API_TIMEOUT = ClientTimeout(total=60)
 
 
 def api_exception_handler(
-    exception: type[CloudApiError],
+    exception: type[NabuCasaApiError],
 ) -> Callable[
     [Callable[P, Awaitable[T]]],
     Callable[P, Coroutine[Any, Any, T]],
@@ -62,12 +62,12 @@ def api_exception_handler(
             try:
                 return await func(*args, **kwargs)
             except (
-                CloudApiNonRetryableError,
-                CloudApiCodedError,
+                NabuCasaApiNonRetryableError,
+                NabuCasaApiCodedError,
                 exception,
             ):
                 raise
-            except CloudApiError as err:
+            except NabuCasaApiError as err:
                 raise exception(
                     err,
                     orig_exc=err,
@@ -87,7 +87,7 @@ def api_exception_handler(
     return decorator
 
 
-class CloudApiError(CloudError):
+class NabuCasaApiError(NabuCasaBaseError):
     """Exception raised when handling cloud API."""
 
     def __init__(
@@ -105,7 +105,7 @@ class CloudApiError(CloudError):
         self.status = status
 
 
-class CloudApiCodedError(CloudApiError):
+class NabuCasaApiCodedError(NabuCasaApiError):
     """Exception raised when handling cloud API."""
 
     def __init__(self, context: str | Exception, *, code: str) -> None:
@@ -114,19 +114,19 @@ class CloudApiCodedError(CloudApiError):
         self.code = code
 
 
-class CloudApiTimeoutError(CloudApiError):
+class NabuCasaApiTimeoutError(NabuCasaApiError):
     """Exception raised when handling cloud API times out."""
 
 
-class CloudApiClientError(CloudApiError):
+class NabuCasaApiClientError(NabuCasaApiError):
     """Exception raised when handling cloud API client error."""
 
 
-class CloudApiNonRetryableError(CloudApiCodedError):
+class NabuCasaApiNonRetryableError(NabuCasaApiCodedError):
     """Exception raised when handling cloud API non-retryable error."""
 
 
-class CloudApiInvalidResponseError(CloudApiError):
+class NabuCasaApiInvalidResponseError(NabuCasaApiError):
     """Exception raised when API response fails schema validation."""
 
 
@@ -232,21 +232,23 @@ class ApiBase:
                 params=params,
             )
         except TimeoutError as err:
-            raise CloudApiTimeoutError(
+            raise NabuCasaApiTimeoutError(
                 f"Timeout reached while calling API: total allowed time is "
                 f"{client_timeout.total} seconds",
                 orig_exc=err,
             ) from err
         except ClientResponseError as err:
-            raise CloudApiClientError(
+            raise NabuCasaApiClientError(
                 f"Failed to fetch: ({err.status}) {err.message}",
                 orig_exc=err,
                 status=err.status,
             ) from err
         except ClientError as err:
-            raise CloudApiClientError(f"Failed to fetch: {err}", orig_exc=err) from err
+            raise NabuCasaApiClientError(
+                f"Failed to fetch: {err}", orig_exc=err
+            ) from err
         except Exception as err:
-            raise CloudApiError(
+            raise NabuCasaApiError(
                 f"Unexpected error while calling API: {err}",
                 orig_exc=err,
             ) from err
@@ -271,7 +273,9 @@ class ApiBase:
     ) -> Any:
         """Call cloud API."""
         if action is None and path is None:
-            raise CloudApiError("Either 'action' or 'path' parameter must be provided")
+            raise NabuCasaApiError(
+                "Either 'action' or 'path' parameter must be provided"
+            )
 
         data: dict[str, Any] | list[Any] | str | None = None
         if not skip_token_check:
@@ -310,7 +314,7 @@ class ApiBase:
         self._do_log_response(resp, data, include_path_in_log)
 
         if data is None and resp.method.upper() not in ALLOW_EMPTY_RESPONSE:
-            raise CloudApiError(
+            raise NabuCasaApiError(
                 f"Failed to parse API response (status: {resp.status})"
             ) from None
 
@@ -321,10 +325,10 @@ class ApiBase:
             and (code := message.split(" ")[0])
             and code in self._non_retryable_error_codes
         ):
-            raise CloudApiNonRetryableError(message, code=code) from None
+            raise NabuCasaApiNonRetryableError(message, code=code) from None
 
         if resp.status == 403 and self._cloud.subscription_expired:
-            raise CloudApiNonRetryableError(
+            raise NabuCasaApiNonRetryableError(
                 "Subscription has expired",
                 code="subscription_expired",
             ) from None
@@ -340,7 +344,7 @@ class ApiBase:
                 if isinstance(data, dict)
                 else None
             )
-            raise CloudApiError(
+            raise NabuCasaApiError(
                 f"Failed to fetch: ({err.status}) {err.message}",
                 orig_exc=err,
                 reason=reason,
@@ -351,7 +355,7 @@ class ApiBase:
             try:
                 data = schema(data)
             except vol.Invalid as err:
-                raise CloudApiInvalidResponseError(
+                raise NabuCasaApiInvalidResponseError(
                     f"Invalid response: {humanize_error(data, err)}",
                     orig_exc=err,
                 ) from err

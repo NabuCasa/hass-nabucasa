@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from ..api import CloudApiError
+from ..api import NabuCasaApiError
 
 
-class LLMError(CloudApiError):
+class LLMError(NabuCasaApiError):
     """Base exception for LLM-related errors."""
 
 

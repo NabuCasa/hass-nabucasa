@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict, get_args
 
 import voluptuous as vol
 
-from .api import ApiBase, CloudApiError, api_exception_handler
+from .api import ApiBase, NabuCasaApiError, api_exception_handler
 from .const import (
     FIVE_MINUTES_IN_SECONDS,
     ONE_HOUR_IN_SECONDS,
@@ -84,7 +84,7 @@ SERVICE_DISCOVERY_SCHEMA = vol.Schema(
 )
 
 
-class ServiceDiscoveryError(CloudApiError):
+class ServiceDiscoveryError(NabuCasaApiError):
     """Exception raised when handling service discovery API."""
 
 

@@ -18,8 +18,8 @@ from aiohttp import (
 
 from .api import (
     ApiBase,
-    CloudApiError,
-    CloudApiNonRetryableError,
+    NabuCasaApiError,
+    NabuCasaApiNonRetryableError,
     api_exception_handler,
 )
 
@@ -34,7 +34,7 @@ class StorageType(StrEnum):
     BACKUP = "backup"
 
 
-class FilesError(CloudApiError):
+class FilesError(NabuCasaApiError):
     """Exception raised when handling files."""
 
 
@@ -123,9 +123,9 @@ class Files(ApiBase):
                     "metadata": metadata,
                 },
             )
-        except CloudApiNonRetryableError:
+        except NabuCasaApiNonRetryableError:
             raise
-        except CloudApiError as err:
+        except NabuCasaApiError as err:
             raise FilesError(err, orig_exc=err) from err
 
         async def _progress_tracker(
@@ -167,7 +167,7 @@ class Files(ApiBase):
                     f"Failed to upload: ({status}) {error[:256].replace('\n', ' ')}"
                 )
             response.raise_for_status()
-        except CloudApiError as err:
+        except NabuCasaApiError as err:
             raise FilesError(err, orig_exc=err) from err
         except ClientResponseError as err:
             raise FilesError(
@@ -193,9 +193,9 @@ class Files(ApiBase):
                     "filename": filename,
                 },
             )
-        except CloudApiNonRetryableError:
+        except NabuCasaApiNonRetryableError:
             raise
-        except CloudApiError as err:
+        except NabuCasaApiError as err:
             raise FilesError(err, orig_exc=err) from err
 
         try:
@@ -212,7 +212,7 @@ class Files(ApiBase):
 
             self._do_log_response(response, include_path_in_log=False)
             response.raise_for_status()
-        except CloudApiError as err:
+        except NabuCasaApiError as err:
             raise FilesError(err, orig_exc=err) from err
         except ClientResponseError as err:
             raise FilesError(

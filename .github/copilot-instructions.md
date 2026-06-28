@@ -121,7 +121,7 @@ All API components extend `ApiBase` and provide specific cloud service integrati
 - Async I/O: Use `cloud.run_executor` for blocking file I/O or CPU‑heavy work.
 
 ### Error handling
-- Custom exception hierarchy extending `CloudError`.
+- Custom exception hierarchy extending `NabuCasaBaseError`.
 - Specific error types for different failure modes (auth, network, subscription).
 - Automatic retry logic for transient failures.
 

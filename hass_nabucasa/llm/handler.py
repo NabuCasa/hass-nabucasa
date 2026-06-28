@@ -30,7 +30,7 @@ from aiohttp import (
     FormData,
 )
 
-from ..api import ApiBase, CloudApiError, api_exception_handler
+from ..api import ApiBase, NabuCasaApiError, api_exception_handler
 from ..exceptions import NabuCasaNotLoggedInError
 from ..utils import utc_from_timestamp, utcnow
 from .errors import (
@@ -198,7 +198,7 @@ def llm_http_exception_handler(
             if err.status == 429:
                 raise LLMRateLimitError("Cloud LLM is rate limited") from err
             raise LLMServiceError("Couldn't process Cloud LLM response") from err
-        except CloudApiError as err:
+        except NabuCasaApiError as err:
             raise LLMServiceError("Error talking to Cloud LLM") from err
         except Exception as err:
             raise LLMServiceError("Unknown error talking to Cloud LLM") from err

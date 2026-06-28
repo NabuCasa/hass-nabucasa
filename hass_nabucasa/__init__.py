@@ -26,12 +26,12 @@ from .alexa_api import (
     AlexaApiNoTokenError,
 )
 from .api import (
-    CloudApiClientError,
-    CloudApiCodedError,
-    CloudApiError,
-    CloudApiInvalidResponseError,
-    CloudApiNonRetryableError,
-    CloudApiTimeoutError,
+    NabuCasaApiClientError,
+    NabuCasaApiCodedError,
+    NabuCasaApiError,
+    NabuCasaApiInvalidResponseError,
+    NabuCasaApiNonRetryableError,
+    NabuCasaApiTimeoutError,
 )
 from .auth import (
     CognitoAuth,
@@ -64,7 +64,6 @@ from .events import (
     CloudhookDeletedEvent,
 )
 from .exceptions import (
-    CloudError,
     NabuCasaAuthenticationError,
     NabuCasaBaseError,
     NabuCasaConnectionError,
@@ -120,14 +119,7 @@ __all__ = [
     "CheckLatencyError",
     "CheckLatencyHostResult",
     "Cloud",
-    "CloudApiClientError",
-    "CloudApiCodedError",
-    "CloudApiError",
-    "CloudApiInvalidResponseError",
-    "CloudApiNonRetryableError",
-    "CloudApiTimeoutError",
     "CloudClient",
-    "CloudError",
     "CloudEvent",
     "CloudEventBus",
     "CloudEventType",
@@ -142,6 +134,12 @@ __all__ = [
     "InvalidTotpCode",
     "MFARequired",
     "MigratePaypalAgreementInfo",
+    "NabuCasaApiClientError",
+    "NabuCasaApiCodedError",
+    "NabuCasaApiError",
+    "NabuCasaApiInvalidResponseError",
+    "NabuCasaApiNonRetryableError",
+    "NabuCasaApiTimeoutError",
     "NabuCasaAuthenticationError",
     "NabuCasaBaseError",
     "NabuCasaConnectionError",
@@ -175,7 +173,7 @@ _ClientT = TypeVar("_ClientT", bound=CloudClient)
 _LOGGER = logging.getLogger(__name__)
 
 
-class AlreadyConnectedError(CloudError):
+class AlreadyConnectedError(NabuCasaConnectionError):
     """Raised when a connection is already established."""
 
     def __init__(self, *, details: InstanceConnectionDetails) -> None:
@@ -332,7 +330,7 @@ class Cloud(Generic[_ClientT]):
                 skip_token_check=True,
                 access_token=access_token,
             )
-        except CloudError:
+        except NabuCasaApiError:
             return
 
         if connection["connected"]:
@@ -531,7 +529,7 @@ class Cloud(Generic[_ClientT]):
         """Finish initializing the cloud component (load auth and maybe start)."""
         try:
             await self.auth.async_check_token()
-        except CloudError:
+        except NabuCasaAuthenticationError, NabuCasaConnectionError:
             _LOGGER.debug("Failed to check cloud token", exc_info=True)
 
         try:
@@ -607,7 +605,7 @@ class Cloud(Generic[_ClientT]):
             async with asyncio.timeout(30):
                 subscription = await self.payments.subscription_info(skip_renew=True)
             billing_plan_type = subscription.get("billing_plan_type")
-        except (CloudApiError, TimeoutError) as err:
+        except (NabuCasaApiError, TimeoutError) as err:
             _LOGGER.debug("Subscription validation failed - %s", err)
             self.async_initialize_subscription_reconnection_handler(
                 SubscriptionReconnectionReason.CONNECTION_ERROR
@@ -687,7 +685,7 @@ class Cloud(Generic[_ClientT]):
 
             try:
                 await self.auth.async_renew_access_token()
-            except CloudError as err:
+            except NabuCasaBaseError as err:
                 _LOGGER.debug("Could not renew access token (%s)", err)
                 continue
 

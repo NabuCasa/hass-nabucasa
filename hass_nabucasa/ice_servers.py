@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 from aiohttp import ClientResponseError
 from webrtc_models import RTCIceServer
 
-from .api import ApiBase, CloudApiError, api_exception_handler
+from .api import ApiBase, NabuCasaApiError, api_exception_handler
 
 if TYPE_CHECKING:
     from . import Cloud, _ClientT
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-class IceServersApiError(CloudApiError):
+class IceServersApiError(NabuCasaApiError):
     """Exception raised when handling ICE servers API."""
 
 
@@ -93,7 +93,7 @@ class IceServers(ApiBase):
                 # We should not keep the existing ICE servers with old timestamps
                 # as that will retrigger a refresh almost immediately.
                 if (
-                    isinstance(err.orig_exc, CloudApiError)
+                    isinstance(err.orig_exc, NabuCasaApiError)
                     and isinstance(err.orig_exc.orig_exc, ClientResponseError)
                     and err.orig_exc.orig_exc.status in (401, 403)
                 ):

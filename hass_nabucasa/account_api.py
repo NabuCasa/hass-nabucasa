@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from .api import ApiBase, CloudApiError, api_exception_handler
+from .api import ApiBase, NabuCasaApiError, api_exception_handler
 
 
-class AccountApiError(CloudApiError):
+class AccountApiError(NabuCasaApiError):
     """Exception raised when handling account API."""
 
 

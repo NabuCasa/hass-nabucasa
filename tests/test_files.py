@@ -10,7 +10,7 @@ import pytest
 from syrupy import SnapshotAssertion
 
 from hass_nabucasa import Cloud
-from hass_nabucasa.api import CloudApiNonRetryableError
+from hass_nabucasa.api import NabuCasaApiNonRetryableError
 from hass_nabucasa.files import FilesError, calculate_b64md5
 from tests.common import extract_log_messages
 from tests.utils.aiohttp import AiohttpClientMocker
@@ -144,7 +144,7 @@ async def test_upload_exceptions_while_uploading(
             {"status": 400, "json": {"message": "NC-CE-01"}},
         ],
         [
-            CloudApiNonRetryableError,
+            NabuCasaApiNonRetryableError,
             {"status": 400, "json": {"message": "NC-CE-03"}},
         ],
         [
@@ -195,7 +195,7 @@ async def test_upload_returning_403_and_expired_subscription(
         json={"message": "Forbidden"},
     )
 
-    with pytest.raises(CloudApiNonRetryableError, match="Subscription has expired"):
+    with pytest.raises(NabuCasaApiNonRetryableError, match="Subscription has expired"):
         await cloud.files.upload(
             storage_type="test",
             open_stream=AsyncMock(),
@@ -340,11 +340,11 @@ async def test_upload_exceptions_while_downloading(
     "exception,getmockargs",
     [
         [
-            CloudApiNonRetryableError,
+            NabuCasaApiNonRetryableError,
             {"status": 400, "json": {"message": "NC-SH-FH-03 (abc-123)"}},
         ],
         [
-            CloudApiNonRetryableError,
+            NabuCasaApiNonRetryableError,
             {"status": 400, "json": {"message": "NC-CE-03"}},
         ],
         [

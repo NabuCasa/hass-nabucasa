@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from typing import TypedDict, cast
 
-from .api import ApiBase, CloudApiError, CloudApiRawResponse, api_exception_handler
+from .api import ApiBase, CloudApiRawResponse, NabuCasaApiError, api_exception_handler
 
 _ALEXA_RELINK_REASONS = frozenset({"RefreshTokenNotFound", "UnknownRegion"})
 
 
-class AlexaApiError(CloudApiError):
+class AlexaApiError(NabuCasaApiError):
     """Exception raised when handling Alexa API."""
 
 
@@ -65,7 +65,7 @@ class AlexaApi(ApiBase):
             ) from None
 
         if details.response.status >= 400:
-            raise CloudApiError(
+            raise NabuCasaApiError(
                 f"Failed to fetch: ({details.response.status}) ",
                 status=details.response.status,
                 reason=(

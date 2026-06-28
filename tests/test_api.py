@@ -12,10 +12,10 @@ import voluptuous as vol
 from hass_nabucasa.api import (
     ALLOW_EMPTY_RESPONSE,
     ApiBase,
-    CloudApiError,
-    CloudApiInvalidResponseError,
-    CloudApiNonRetryableError,
     CloudApiRawResponse,
+    NabuCasaApiError,
+    NabuCasaApiInvalidResponseError,
+    NabuCasaApiNonRetryableError,
     api_exception_handler,
 )
 
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from tests.utils.aiohttp import AiohttpClientMocker
 
 
-class CustomException(CloudApiError):
+class CustomException(NabuCasaApiError):
     """Custom exception for testing."""
 
 
@@ -47,8 +47,11 @@ def add_test_api_action_to_service_discovery():
 @pytest.mark.parametrize(
     "exception,expected",
     [
-        (CloudApiError("Oh no!"), CloudApiError),
-        (CloudApiNonRetryableError("Oh no!", code="616"), CloudApiNonRetryableError),
+        (NabuCasaApiError("Oh no!"), NabuCasaApiError),
+        (
+            NabuCasaApiNonRetryableError("Oh no!", code="616"),
+            NabuCasaApiNonRetryableError,
+        ),
         (CustomException("Oh no!"), CustomException),
         (KeyError("stt"), CustomException),
     ],
@@ -120,7 +123,7 @@ async def test_empty_response_handling_disallowed_methods(
     )
 
     with pytest.raises(
-        CloudApiError, match=r"Failed to parse API response \(status: 200\)"
+        NabuCasaApiError, match=r"Failed to parse API response \(status: 200\)"
     ):
         await test_api._call_cloud_api(
             path="/test",
@@ -449,7 +452,7 @@ async def test_call_cloud_api_requires_action_or_path(
     test_api = AwesomeApiClass(cloud)
 
     with pytest.raises(
-        CloudApiError, match="Either 'action' or 'path' parameter must be provided"
+        NabuCasaApiError, match="Either 'action' or 'path' parameter must be provided"
     ):
         await test_api._call_cloud_api(method="GET")
 
@@ -503,7 +506,7 @@ async def test_call_cloud_api_with_schema_validation_failure(
         status=200,
     )
 
-    with pytest.raises(CloudApiInvalidResponseError, match="Invalid response"):
+    with pytest.raises(NabuCasaApiInvalidResponseError, match="Invalid response"):
         await test_api._call_cloud_api(
             path="/test",
             method="GET",
@@ -531,7 +534,7 @@ async def test_call_cloud_api_with_schema_validation_missing_field(
         status=200,
     )
 
-    with pytest.raises(CloudApiInvalidResponseError, match="Invalid response"):
+    with pytest.raises(NabuCasaApiInvalidResponseError, match="Invalid response"):
         await test_api._call_cloud_api(
             path="/test",
             method="GET",

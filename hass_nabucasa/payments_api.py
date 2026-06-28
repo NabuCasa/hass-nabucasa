@@ -5,12 +5,12 @@ from __future__ import annotations
 import logging
 from typing import TypedDict
 
-from .api import ApiBase, CloudApiError, api_exception_handler
+from .api import ApiBase, NabuCasaApiError, api_exception_handler
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class PaymentsApiError(CloudApiError):
+class PaymentsApiError(NabuCasaApiError):
     """Exception raised when handling payments API."""
 
 
