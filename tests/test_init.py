@@ -514,10 +514,7 @@ async def test_subscription_reconnection_handler_connection_error(
 
 
 async def test_stop_cancels_subscription_reconnection_task(cl: cloud.Cloud) -> None:
-    """Test stop() cancels a running subscription reconnection task.
-
-    Otherwise it is orphaned on logout/reset and keeps running for hours.
-    """
+    """Test stop() cancels a running subscription reconnection task."""
     started = asyncio.Event()
 
     async def _parked() -> None:

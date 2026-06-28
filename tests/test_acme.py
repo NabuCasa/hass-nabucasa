@@ -290,13 +290,7 @@ def _prepare_issue_certificate_handler(cloud: Cloud) -> tuple[AcmeHandler, Mock]
 
 
 async def test_issue_certificate_cancelled_skips_dns_cleanup(cloud: Cloud) -> None:
-    """Test cancelling issue_certificate mid-flow skips the authenticated cleanup.
-
-    This mirrors a cloud reset/logout while a certificate is being issued: the
-    task is cancelled while parked in the DNS propagation sleep. We must unwind
-    cleanly without attempting the authenticated cleanup call (whose credentials
-    may already be gone) and without masking the CancelledError.
-    """
+    """Test cancelling issue_certificate skips the authenticated DNS cleanup."""
     handler, patches = _prepare_issue_certificate_handler(cloud)
 
     parked = asyncio.Event()
@@ -322,11 +316,7 @@ async def test_issue_certificate_cleanup_instance_error_is_logged(
     cloud: Cloud,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test a failing DNS cleanup is logged and does not propagate.
-
-    Best-effort cleanup must never escape issue_certificate(), otherwise it
-    masks the real result of the issuance flow.
-    """
+    """Test a failing DNS cleanup is logged and does not propagate."""
     handler, patches = _prepare_issue_certificate_handler(cloud)
     cloud.instance.cleanup_dns_challenge_record = AsyncMock(
         side_effect=InstanceApiError("No authentication found"),

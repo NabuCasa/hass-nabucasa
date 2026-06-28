@@ -1873,12 +1873,7 @@ async def test_load_backend_ping_unprivileged_passed(
 
 
 async def test_stop_joins_certificate_task(cloud: Cloud) -> None:
-    """Test stop() cancels and awaits the certificate handler task.
-
-    On a cloud reset/logout the certificate handler must be joined before
-    stop() returns, not merely cancelled and abandoned (which let it keep
-    running token-less and crash during teardown).
-    """
+    """Test stop() cancels and awaits the certificate handler task."""
     started = asyncio.Event()
 
     async def _parked() -> None:
