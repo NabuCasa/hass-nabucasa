@@ -1870,3 +1870,27 @@ async def test_load_backend_ping_unprivileged_passed(
     assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     await cloud.remote.stop()
     await asyncio.sleep(0.1)
+
+
+async def test_stop_joins_certificate_task(cloud: Cloud) -> None:
+    """Test stop() cancels and awaits the certificate handler task.
+
+    On a cloud reset/logout the certificate handler must be joined before
+    stop() returns, not merely cancelled and abandoned (which let it keep
+    running token-less and crash during teardown).
+    """
+    started = asyncio.Event()
+
+    async def _parked() -> None:
+        """Stand in for a certificate handler parked at an await point."""
+        started.set()
+        await asyncio.Event().wait()
+
+    task = cloud.remote._acme_task = asyncio.ensure_future(_parked())
+    await started.wait()
+
+    await cloud.remote.stop()
+
+    # stop() awaited the task: it is fully cancelled and the reference cleared.
+    assert task.cancelled()
+    assert cloud.remote._acme_task is None

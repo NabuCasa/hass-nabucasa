@@ -511,3 +511,25 @@ async def test_subscription_reconnection_handler_connection_error(
     assert "Stopping subscription reconnection handler" in caplog.text
     assert "Could not establish connection (attempt 1)" in caplog.text
     assert "waiting 3m:36s before retrying" in caplog.text
+
+
+async def test_stop_cancels_subscription_reconnection_task(cl: cloud.Cloud) -> None:
+    """Test stop() cancels a running subscription reconnection task.
+
+    Otherwise it is orphaned on logout/reset and keeps running for hours.
+    """
+    started = asyncio.Event()
+
+    async def _parked() -> None:
+        started.set()
+        await asyncio.Event().wait()
+
+    task = cl._subscription_reconnection_task = asyncio.ensure_future(_parked())
+    await started.wait()
+
+    await cl.stop()
+
+    assert cl._subscription_reconnection_task is None
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert task.cancelled()

@@ -25,6 +25,7 @@ import OpenSSL
 from requests.exceptions import RequestException
 
 from .const import CertificateStatus
+from .instance_api import InstanceApiError
 from .utils import seconds_as_dhms, utcnow
 
 FILE_ACCOUNT_KEY = "acme_account.pem"
@@ -485,6 +486,17 @@ class AcmeHandler:
         self.path_fullchain.unlink(missing_ok=True)
         self.path_private_key.unlink(missing_ok=True)
 
+    async def _cleanup_dns_challenge(self, value: str) -> None:
+        """Best-effort cleanup of a DNS challenge record."""
+        self._update_status(CertificateStatus.CHALLENGE_CLEANUP)
+        try:
+            async with asyncio.timeout(30):
+                await self.cloud.instance.cleanup_dns_challenge_record(value=value)
+        except TimeoutError:
+            _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
+        except InstanceApiError as err:
+            _LOGGER.error("Failed to clean up challenge from NabuCasa DNS: %s", err)
+
     async def issue_certificate(self) -> None:
         """Create/Update certificate."""
         self._update_status(CertificateStatus.ACME_ACCOUNT_CREATING)
@@ -507,6 +519,7 @@ class AcmeHandler:
             order,
         )
 
+        challenge_cancelled = False
         try:
             for challenge in dns_challenges:
                 # Update DNS
@@ -546,17 +559,15 @@ class AcmeHandler:
                     self._update_status(CertificateStatus.CHALLENGE_UNEXPECTED_ERROR)
                     # There is no point in continuing here
                     break
+        except asyncio.CancelledError:
+            # Cloud is being reset / logged out. Don't attempt the authenticated
+            # DNS cleanup below - credentials may already be gone - just unwind.
+            challenge_cancelled = True
+            raise
         finally:
-            # Cleanup DNS challenge records
-            self._update_status(CertificateStatus.CHALLENGE_CLEANUP)
-            try:
-                async with asyncio.timeout(30):
-                    # We only need to cleanup for the last entry
-                    await self.cloud.instance.cleanup_dns_challenge_record(
-                        value=dns_challenges[-1].validation,
-                    )
-            except TimeoutError:
-                _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
+            if not challenge_cancelled:
+                # We only need to cleanup for the last entry
+                await self._cleanup_dns_challenge(dns_challenges[-1].validation)
 
         # Finish validation
         self._update_status(CertificateStatus.CERTIFICATE_FINALIZING)

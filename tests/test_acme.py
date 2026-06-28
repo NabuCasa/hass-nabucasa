@@ -1,7 +1,8 @@
 """Test ACME handler functionality."""
 
+import asyncio
 from socket import gaierror
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from acme import messages
 import pytest
@@ -15,6 +16,7 @@ from hass_nabucasa.acme import (
     AcmeJWSVerificationError,
     _raise_if_jws_verification_failed,
 )
+from hass_nabucasa.instance_api import InstanceApiError
 
 
 @pytest.mark.parametrize(
@@ -262,3 +264,79 @@ def test_acme_handler_deactivate_account_network_errors(
 
         with pytest.raises(AcmeClientError, match="Can't deactivate account"):
             handler._deactivate_account()
+
+
+def _prepare_issue_certificate_handler(cloud: Cloud) -> tuple[AcmeHandler, Mock]:
+    """Return an AcmeHandler with the issue_certificate internals mocked out."""
+    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
+
+    challenge = Mock()
+    challenge.validation = "test-validation"
+
+    cloud.instance.create_dns_challenge_record = AsyncMock()
+    cloud.instance.cleanup_dns_challenge_record = AsyncMock()
+
+    patches = patch.multiple(
+        handler,
+        _create_client=Mock(),
+        _generate_csr=Mock(return_value=b"csr"),
+        _create_order=Mock(return_value=Mock()),
+        _start_challenge=Mock(return_value=[challenge]),
+        _answer_challenge=Mock(),
+        _finish_challenge=Mock(),
+        load_certificate=AsyncMock(),
+    )
+    return handler, patches
+
+
+async def test_issue_certificate_cancelled_skips_dns_cleanup(cloud: Cloud) -> None:
+    """Test cancelling issue_certificate mid-flow skips the authenticated cleanup.
+
+    This mirrors a cloud reset/logout while a certificate is being issued: the
+    task is cancelled while parked in the DNS propagation sleep. We must unwind
+    cleanly without attempting the authenticated cleanup call (whose credentials
+    may already be gone) and without masking the CancelledError.
+    """
+    handler, patches = _prepare_issue_certificate_handler(cloud)
+
+    parked = asyncio.Event()
+
+    async def _fake_sleep(_seconds: float) -> None:
+        """Park the task at a cancellable await point."""
+        parked.set()
+        await asyncio.Event().wait()
+
+    with patches, patch("hass_nabucasa.acme.asyncio.sleep", side_effect=_fake_sleep):
+        task = asyncio.ensure_future(handler.issue_certificate())
+        await parked.wait()
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    cloud.instance.create_dns_challenge_record.assert_awaited_once()
+    cloud.instance.cleanup_dns_challenge_record.assert_not_awaited()
+
+
+async def test_issue_certificate_cleanup_instance_error_is_logged(
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test a failing DNS cleanup is logged and does not propagate.
+
+    Best-effort cleanup must never escape issue_certificate(), otherwise it
+    masks the real result of the issuance flow.
+    """
+    handler, patches = _prepare_issue_certificate_handler(cloud)
+    cloud.instance.cleanup_dns_challenge_record = AsyncMock(
+        side_effect=InstanceApiError("No authentication found"),
+    )
+
+    with patches, patch("hass_nabucasa.acme.asyncio.sleep", AsyncMock()):
+        await handler.issue_certificate()
+
+        # Issuance continued past the failed cleanup instead of aborting.
+        handler.load_certificate.assert_awaited_once()
+
+    cloud.instance.cleanup_dns_challenge_record.assert_awaited_once()
+    assert "Failed to clean up challenge from NabuCasa DNS" in caplog.text

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from contextvars import ContextVar
 from datetime import datetime, timedelta
 import logging
@@ -129,6 +130,8 @@ class RemoteUI:
             return
 
         self._acme_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await self._acme_task
         self._acme_task = None
 
     @property
