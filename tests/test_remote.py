@@ -1889,3 +1889,30 @@ async def test_stop_joins_certificate_task(cloud: Cloud) -> None:
     # stop() awaited the task: it is fully cancelled and the reference cleared.
     assert task.cancelled()
     assert cloud.remote._acme_task is None
+
+
+async def test_stop_times_out_on_slow_task(
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test stop() does not wait forever for a slow-to-cancel task."""
+    started = asyncio.Event()
+
+    async def _slow_to_stop() -> None:
+        """Stand in for a handler whose cancellation cleanup is slow."""
+        started.set()
+        try:
+            await asyncio.sleep(3600)
+        except asyncio.CancelledError:
+            await asyncio.sleep(3600)
+            raise
+
+    task = cloud.remote._acme_task = asyncio.ensure_future(_slow_to_stop())
+    await started.wait()
+
+    with patch("hass_nabucasa.remote.ACME_TASK_STOP_TIMEOUT", 0.05):
+        await cloud.remote.stop()
+
+    assert cloud.remote._acme_task is None
+    assert task.cancelled()
+    assert "Timed out waiting for certificate handler to stop" in caplog.text

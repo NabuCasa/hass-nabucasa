@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 from contextvars import ContextVar
 from datetime import datetime, timedelta
 import logging
@@ -35,6 +34,7 @@ _LOGGER = logging.getLogger(__name__)
 
 RENEW_IF_EXPIRES_DAYS = 25
 WARN_RENEW_FAILED_DAYS = 18
+ACME_TASK_STOP_TIMEOUT = 30
 
 is_cloud_request = ContextVar("IS_CLOUD_REQUEST", default=False)
 
@@ -130,8 +130,13 @@ class RemoteUI:
             return
 
         self._acme_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await self._acme_task
+        try:
+            async with asyncio.timeout(ACME_TASK_STOP_TIMEOUT):
+                await self._acme_task
+        except TimeoutError:
+            _LOGGER.warning("Timed out waiting for certificate handler to stop")
+        except asyncio.CancelledError:
+            pass
         self._acme_task = None
 
     @property
