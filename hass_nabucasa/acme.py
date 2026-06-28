@@ -493,9 +493,9 @@ class AcmeHandler:
             async with asyncio.timeout(30):
                 await self.cloud.instance.cleanup_dns_challenge_record(value=value)
         except TimeoutError:
-            _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
+            _LOGGER.info("Timed out removing the DNS challenge record")
         except InstanceApiError as err:
-            _LOGGER.error("Failed to clean up challenge from NabuCasa DNS: %s", err)
+            _LOGGER.info("Could not remove the DNS challenge record: %s", err)
 
     async def issue_certificate(self) -> None:
         """Create/Update certificate."""

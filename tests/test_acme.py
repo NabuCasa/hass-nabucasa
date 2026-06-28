@@ -1,6 +1,7 @@
 """Test ACME handler functionality."""
 
 import asyncio
+import logging
 from socket import gaierror
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -317,6 +318,7 @@ async def test_issue_certificate_cleanup_instance_error_is_logged(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test a failing DNS cleanup is logged and does not propagate."""
+    caplog.set_level(logging.INFO)
     handler, patches = _prepare_issue_certificate_handler(cloud)
     cloud.instance.cleanup_dns_challenge_record = AsyncMock(
         side_effect=InstanceApiError("No authentication found"),
@@ -329,4 +331,4 @@ async def test_issue_certificate_cleanup_instance_error_is_logged(
         handler.load_certificate.assert_awaited_once()
 
     cloud.instance.cleanup_dns_challenge_record.assert_awaited_once()
-    assert "Failed to clean up challenge from NabuCasa DNS" in caplog.text
+    assert "Could not remove the DNS challenge record" in caplog.text
