@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, TypedDict
 import aiohttp
 import attr
 from snitun.exceptions import SniTunConnectionError
+from snitun.utils import DEFAULT_PROTOCOL_VERSION
 from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
@@ -77,6 +78,7 @@ class SniTunToken:
     aes_iv = attr.ib(type=bytes)
     valid = attr.ib(type=datetime)
     throttling = attr.ib(type=int)
+    protocol_version = attr.ib(type=int, default=DEFAULT_PROTOCOL_VERSION)
 
 
 @attr.s
@@ -405,7 +407,7 @@ class RemoteUI:
 
         _LOGGER.debug("Starting SniTun")
         is_cloud_request.set(True)
-        await self._snitun.start(False, self._recreate_backend)
+        await self._snitun.start()
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_UP)
 
         _LOGGER.debug(
@@ -480,6 +482,7 @@ class RemoteUI:
             aes_iv,
             utils.utc_from_timestamp(data["valid"]),
             data["throttling"],
+            data.get("protocol_version", DEFAULT_PROTOCOL_VERSION),
         )
 
     async def connect(self) -> None:
@@ -508,6 +511,7 @@ class RemoteUI:
                     self._token.aes_key,
                     self._token.aes_iv,
                     throttling=self._token.throttling,
+                    protocol_version=self._token.protocol_version,
                 )
             _LOGGER.debug("Connected")
 

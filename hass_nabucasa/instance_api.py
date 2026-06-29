@@ -57,6 +57,7 @@ class InstanceSnitunTokenDetails(TypedDict):
     server: str
     valid: int
     throttling: int
+    protocol_version: NotRequired[int]
 
 
 class PingResult(TypedDict):
