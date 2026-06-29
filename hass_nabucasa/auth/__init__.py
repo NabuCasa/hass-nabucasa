@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .cognito import (
+    AuthTimeoutError,
     CloudConnectionError,
     CloudError,
     CognitoAuth,
@@ -17,6 +18,7 @@ from .cognito import (
 )
 
 __all__ = [
+    "AuthTimeoutError",
     "CloudConnectionError",
     "CloudError",
     "CognitoAuth",
