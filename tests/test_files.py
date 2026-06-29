@@ -3,7 +3,7 @@
 from collections.abc import AsyncIterator, Iterable
 import re
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock, call, patch
 
 from aiohttp import ClientError
 import pytest
@@ -557,6 +557,55 @@ async def aiter_from_iter(iterable: Iterable) -> AsyncIterator:
     """Convert an iterable to an async iterator."""
     for i in iterable:
         yield i
+
+
+async def test_upload_calls_on_progress(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+):
+    """Test that on_progress is called with cumulative bytes_uploaded."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/files/upload_details",
+        json={"url": FILES_API_URL, "headers": {}},
+    )
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/v2/files/test",
+        json=[STORED_BACKUP],
+    )
+    aioclient_mock.put(FILES_API_URL, status=200)
+
+    async def open_stream() -> AsyncIterator[bytes]:
+        return aiter_from_iter((b"backup", b"data"))
+
+    on_progress = Mock()
+
+    original_request = cloud.websession.request
+
+    async def consuming_request(method: str, url: str, **kwargs: Any) -> Any:
+        if method.upper() == "PUT" and hasattr(data := kwargs.get("data"), "__aiter__"):
+            chunks = [chunk async for chunk in data]
+
+            async def replay() -> AsyncIterator[bytes]:
+                for chunk in chunks:
+                    yield chunk
+
+            kwargs["data"] = replay()
+        return await original_request(method, url, **kwargs)
+
+    with patch.object(cloud.websession, "request", consuming_request):
+        await cloud.files.upload(
+            storage_type="test",
+            open_stream=open_stream,
+            filename="lorem.ipsum",
+            base64md5hash="hash",
+            size=10,
+            on_progress=on_progress,
+        )
+
+    assert on_progress.call_args_list == [
+        call(bytes_uploaded=6),
+        call(bytes_uploaded=10),
+    ]
 
 
 async def test_calculate_b64md5():

@@ -2,6 +2,7 @@
   "actions": {
     "acme_directory": "https://acme-v02.api.letsencrypt.org/directory",
     "relayer_connect": "wss://relayer.example.com/websocket",
+    "remote_access_ping_targets": "https://api.example.com/instance/remote_ping_targets",
     "remote_access_resolve_dns_cname": "https://accounts.example.com/instance/resolve_dns_cname",
     "subscription_info": "https://accounts.example.com/payments/subscription_info",
     "subscription_migrate_paypal": "https://accounts.example.com/payments/migrate_paypal_agreement",

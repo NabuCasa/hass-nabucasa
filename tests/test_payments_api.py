@@ -29,12 +29,12 @@ if TYPE_CHECKING:
         [
             PaymentsApiError,
             {"status": 500, "text": "Internal Server Error"},
-            "Failed to parse API response",
+            "Failed to parse API response (status: 500)",
         ],
         [
             PaymentsApiError,
             {"status": 429, "text": "Too fast"},
-            "Failed to parse API response",
+            "Failed to parse API response (status: 429)",
         ],
         [
             PaymentsApiError,
@@ -68,7 +68,7 @@ async def test_problems_getting_connection_details(
         **getmockargs,
     )
 
-    with pytest.raises(exception, match=exception_msg):
+    with pytest.raises(exception, match=re.escape(exception_msg)):
         await cloud.payments.subscription_info()
 
     assert extract_log_messages(caplog) == snapshot

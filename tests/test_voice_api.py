@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 from aiohttp import ClientError
@@ -25,12 +26,12 @@ if TYPE_CHECKING:
         [
             VoiceApiError,
             {"status": 500, "text": "Internal Server Error"},
-            "Failed to parse API response",
+            "Failed to parse API response (status: 500)",
         ],
         [
             VoiceApiError,
             {"status": 429, "text": "Too fast"},
-            "Failed to parse API response",
+            "Failed to parse API response (status: 429)",
         ],
         [
             VoiceApiError,
@@ -64,7 +65,7 @@ async def test_problems_getting_connection_details(
         **getmockargs,
     )
 
-    with pytest.raises(exception, match=exception_msg):
+    with pytest.raises(exception, match=re.escape(exception_msg)):
         await cloud.voice_api.connection_details()
 
     assert extract_log_messages(caplog) == snapshot

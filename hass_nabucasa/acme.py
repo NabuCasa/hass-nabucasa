@@ -517,7 +517,7 @@ class AcmeHandler:
                             value=challenge.validation
                         )
                     self._update_status(CertificateStatus.CHALLENGE_DNS_UPDATED)
-                except (TimeoutError, AssertionError):
+                except TimeoutError, AssertionError:
                     self._update_status(CertificateStatus.CHALLENGE_DNS_FAILED)
                     raise AcmeNabuCasaError(
                         "Can't set challenge token to NabuCasa DNS!",

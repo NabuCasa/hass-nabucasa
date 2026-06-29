@@ -310,7 +310,9 @@ class ApiBase:
         self._do_log_response(resp, data, include_path_in_log)
 
         if data is None and resp.method.upper() not in ALLOW_EMPTY_RESPONSE:
-            raise CloudApiError("Failed to parse API response") from None
+            raise CloudApiError(
+                f"Failed to parse API response (status: {resp.status})"
+            ) from None
 
         if (
             resp.status == 400

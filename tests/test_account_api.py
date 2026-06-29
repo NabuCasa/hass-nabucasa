@@ -22,12 +22,12 @@ from tests.utils.aiohttp import AiohttpClientMocker
         [
             AccountApiError,
             {"status": 500, "text": "Internal Server Error"},
-            "Failed to parse API response",
+            "Failed to parse API response (status: 500)",
         ],
         [
             AccountApiError,
             {"status": 429, "text": "Too fast"},
-            "Failed to parse API response",
+            "Failed to parse API response (status: 429)",
         ],
         [
             AccountApiError,
