@@ -15,8 +15,14 @@ import pycognito
 from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
 from ..const import MESSAGE_AUTH_FAIL
-from ..exceptions import CloudError
+from ..exceptions import (
+    CloudError,
+    NabuCasaAuthenticationError,
+    NabuCasaBaseError,
+    NabuCasaConnectionError,
+)
 from ..utils import expiration_from_token, seconds_as_dhms, utcnow
+from .const import DEFAULT_AUTH_TIMEOUT
 
 if TYPE_CHECKING:
     from .. import Cloud, _ClientT
@@ -62,6 +68,14 @@ class UserNotConfirmed(CloudError):
 
 class CloudConnectionError(CloudError):
     """Raised when unable to connect to the cloud."""
+
+
+class AuthTimeoutError(
+    CloudError,
+    NabuCasaConnectionError,
+    NabuCasaAuthenticationError,
+):
+    """Raised when an authentication request times out."""
 
 
 class PasswordChangeRequired(CloudError):
@@ -125,7 +139,7 @@ class CognitoAuth:
                 )
                 await asyncio.sleep(sleep_time)
                 await self.async_renew_access_token()
-            except CloudError as err:
+            except NabuCasaBaseError as err:
                 _LOGGER.error("Can't refresh cloud token: %s", err)
             except asyncio.CancelledError:
                 # Task is canceled, stop it.
@@ -216,7 +230,7 @@ class CognitoAuth:
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with asyncio.timeout(30):
+                async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
                     await self.cloud.run_executor(
                         partial(cognito.authenticate, password=password),
                     )
@@ -240,6 +254,9 @@ class CognitoAuth:
 
         except ForceChangePasswordException as err:
             raise PasswordChangeRequired from err
+
+        except TimeoutError as err:
+            raise AuthTimeoutError("Timeout while logging in") from err
 
         except (ClientError, EndpointConnectionError) as err:
             raise _map_aws_exception(err) from err
@@ -266,7 +283,7 @@ class CognitoAuth:
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with asyncio.timeout(30):
+                async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
                     await self.cloud.run_executor(
                         partial(
                             cognito.respond_to_software_token_mfa_challenge,
@@ -288,6 +305,9 @@ class CognitoAuth:
 
             if task:
                 await task
+
+        except TimeoutError as err:
+            raise AuthTimeoutError("Timeout while verifying TOTP code") from err
 
         except (ClientError, EndpointConnectionError) as err:
             raise _map_aws_exception(err) from err
@@ -330,8 +350,12 @@ class CognitoAuth:
         cognito = await self._async_authenticated_cognito()
 
         try:
-            await self.cloud.run_executor(cognito.renew_access_token)
+            async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+                await self.cloud.run_executor(cognito.renew_access_token)
             await self.cloud.update_token(cognito.id_token, cognito.access_token)
+
+        except TimeoutError as err:
+            raise AuthTimeoutError("Timeout while renewing access token") from err
 
         except (ClientError, EndpointConnectionError) as err:
             raise _map_aws_exception(err) from err
