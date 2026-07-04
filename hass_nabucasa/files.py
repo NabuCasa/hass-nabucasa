@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import base64
-from collections.abc import AsyncGenerator, AsyncIterator, Callable, Coroutine
+from collections.abc import AsyncIterator, Callable, Coroutine
 import contextlib
 from enum import StrEnum
 import hashlib
@@ -13,8 +13,10 @@ from typing import Any, Protocol, TypedDict
 from aiohttp import (
     ClientResponseError,
     ClientTimeout,
+    Payload,
     StreamReader,
 )
+from aiohttp.abc import AbstractStreamWriter
 
 from .api import (
     ApiBase,
@@ -91,6 +93,61 @@ async def calculate_b64md5(
     return base64.b64encode(file_hash.digest()).decode()
 
 
+class _RewindableStreamPayload(Payload):
+    """A rewindable aiohttp payload backed by a stream factory.
+
+    aiohttp >= 3.14 may reuse a request body when a request is retried or
+    redirected. An async-iterable body cannot be replayed once consumed, which
+    results in an empty body being sent while the precomputed Content-MD5 header
+    stays unchanged. By re-opening the stream via the provided factory on every
+    write, this payload can be safely replayed.
+    """
+
+    _autoclose = True
+
+    def __init__(
+        self,
+        open_stream: Callable[[], Coroutine[Any, Any, AsyncIterator[bytes]]],
+        size: int,
+        *,
+        on_progress: UploadProgressCallback | None = None,
+    ) -> None:
+        """Initialize the payload."""
+        super().__init__(None)
+        self._open_stream = open_stream
+        self._on_progress = on_progress
+        self._size = size
+
+    def decode(self, encoding: str = "utf-8", errors: str = "strict") -> str:  # noqa: ARG002
+        """Return string representation of the value."""
+        raise TypeError("Payload is not decodable")
+
+    async def write(self, writer: AbstractStreamWriter) -> None:
+        """Write the entire payload to the writer stream."""
+        await self.write_with_length(writer, None)
+
+    async def write_with_length(
+        self,
+        writer: AbstractStreamWriter,
+        content_length: int | None,
+    ) -> None:
+        """Write the payload, re-opening the stream for each (re)write."""
+        stream = await self._open_stream()
+        bytes_written = 0
+        async for chunk in stream:
+            data = chunk
+            if content_length is not None:
+                remaining = content_length - bytes_written
+                if remaining <= 0:
+                    break
+                if len(data) > remaining:
+                    data = data[:remaining]
+            await writer.write(data)
+            bytes_written += len(data)
+            if self._on_progress is not None:
+                self._on_progress(bytes_uploaded=bytes_written)
+
+
 class Files(ApiBase):
     """Class to help manage files."""
 
@@ -128,24 +185,15 @@ class Files(ApiBase):
         except CloudApiError as err:
             raise FilesError(err, orig_exc=err) from err
 
-        async def _progress_tracker(
-            stream: AsyncIterator[bytes],
-        ) -> AsyncGenerator[bytes]:
-            """Generate data for upload, while tracking progress."""
-            # We should not call this if on_progress is None.
-            assert on_progress is not None
-            bytes_uploaded = 0
-            async for chunk in stream:
-                bytes_uploaded += len(chunk)
-                on_progress(bytes_uploaded=bytes_uploaded)
-                yield chunk
-
         try:
-            stream = await open_stream()
             response = await self._call_raw_api(
                 method="PUT",
                 url=details["url"],
-                data=_progress_tracker(stream) if on_progress is not None else stream,
+                data=_RewindableStreamPayload(
+                    open_stream,
+                    size,
+                    on_progress=on_progress,
+                ),
                 headers=details["headers"] | {"content-length": str(size)},
                 client_timeout=ClientTimeout(
                     connect=10.0,

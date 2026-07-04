@@ -1,9 +1,9 @@
 """Tests for Files."""
 
-from collections.abc import AsyncIterator, Iterable
+from collections.abc import AsyncIterator, Callable, Coroutine, Iterable
 import re
 from typing import Any
-from unittest.mock import AsyncMock, Mock, call, patch
+from unittest.mock import AsyncMock, Mock, call
 
 from aiohttp import ClientError
 import pytest
@@ -11,7 +11,11 @@ from syrupy import SnapshotAssertion
 
 from hass_nabucasa import Cloud
 from hass_nabucasa.api import CloudApiNonRetryableError
-from hass_nabucasa.files import FilesError, calculate_b64md5
+from hass_nabucasa.files import (
+    FilesError,
+    _RewindableStreamPayload,
+    calculate_b64md5,
+)
 from tests.common import extract_log_messages
 from tests.utils.aiohttp import AiohttpClientMocker
 
@@ -559,53 +563,96 @@ async def aiter_from_iter(iterable: Iterable) -> AsyncIterator:
         yield i
 
 
-async def test_upload_calls_on_progress(
-    aioclient_mock: AiohttpClientMocker,
-    cloud: Cloud,
-):
-    """Test that on_progress is called with cumulative bytes_uploaded."""
-    aioclient_mock.get(
-        f"https://{cloud.api_server}/files/upload_details",
-        json={"url": FILES_API_URL, "headers": {}},
-    )
-    aioclient_mock.get(
-        f"https://{cloud.api_server}/v2/files/test",
-        json=[STORED_BACKUP],
-    )
-    aioclient_mock.put(FILES_API_URL, status=200)
+class _FakeWriter:
+    """Minimal AbstractStreamWriter stub that records written chunks."""
+
+    def __init__(self) -> None:
+        """Initialize the fake writer."""
+        self.chunks: list[bytes] = []
+
+    async def write(self, chunk: bytes) -> None:
+        """Record a written chunk."""
+        self.chunks.append(bytes(chunk))
+
+
+def _open_backup_stream() -> Callable[[], Coroutine[Any, Any, AsyncIterator[bytes]]]:
+    """Return a stream factory yielding ``b"backup"`` and ``b"data"``."""
 
     async def open_stream() -> AsyncIterator[bytes]:
         return aiter_from_iter((b"backup", b"data"))
 
+    return open_stream
+
+
+async def test_payload_rewinds_on_repeated_write():
+    """Test that the payload re-opens the stream and can be replayed."""
+    payload = _RewindableStreamPayload(_open_backup_stream(), 10)
+
+    assert payload.size == 10
+
+    first = _FakeWriter()
+    await payload.write_with_length(first, None)
+    assert b"".join(first.chunks) == b"backupdata"
+    # The body must remain reusable for redirects/retries.
+    assert payload.consumed is False
+
+    second = _FakeWriter()
+    await payload.write_with_length(second, None)
+    assert b"".join(second.chunks) == b"backupdata"
+
+
+async def test_payload_reports_progress():
+    """Test that on_progress receives cumulative bytes_uploaded."""
     on_progress = Mock()
+    payload = _RewindableStreamPayload(
+        _open_backup_stream(),
+        10,
+        on_progress=on_progress,
+    )
 
-    original_request = cloud.websession.request
-
-    async def consuming_request(method: str, url: str, **kwargs: Any) -> Any:
-        if method.upper() == "PUT" and hasattr(data := kwargs.get("data"), "__aiter__"):
-            chunks = [chunk async for chunk in data]
-
-            async def replay() -> AsyncIterator[bytes]:
-                for chunk in chunks:
-                    yield chunk
-
-            kwargs["data"] = replay()
-        return await original_request(method, url, **kwargs)
-
-    with patch.object(cloud.websession, "request", consuming_request):
-        await cloud.files.upload(
-            storage_type="test",
-            open_stream=open_stream,
-            filename="lorem.ipsum",
-            base64md5hash="hash",
-            size=10,
-            on_progress=on_progress,
-        )
+    await payload.write_with_length(_FakeWriter(), None)
 
     assert on_progress.call_args_list == [
         call(bytes_uploaded=6),
         call(bytes_uploaded=10),
     ]
+
+
+async def test_payload_truncates_to_content_length():
+    """Test that writes honor the content length limit."""
+    on_progress = Mock()
+    payload = _RewindableStreamPayload(
+        _open_backup_stream(),
+        10,
+        on_progress=on_progress,
+    )
+
+    writer = _FakeWriter()
+    await payload.write_with_length(writer, 8)
+
+    assert writer.chunks == [b"backup", b"da"]
+    assert on_progress.call_args_list == [
+        call(bytes_uploaded=6),
+        call(bytes_uploaded=8),
+    ]
+
+
+async def test_payload_write_delegates():
+    """Test that write() sends the entire body."""
+    payload = _RewindableStreamPayload(_open_backup_stream(), 10)
+
+    writer = _FakeWriter()
+    await payload.write(writer)
+
+    assert b"".join(writer.chunks) == b"backupdata"
+
+
+async def test_payload_decode_raises():
+    """Test that the payload cannot be decoded."""
+    payload = _RewindableStreamPayload(_open_backup_stream(), 10)
+
+    with pytest.raises(TypeError):
+        payload.decode()
 
 
 async def test_calculate_b64md5():
