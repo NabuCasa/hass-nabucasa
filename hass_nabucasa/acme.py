@@ -21,7 +21,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.extensions import SubjectAlternativeName
 from cryptography.x509.oid import NameOID
 import josepy as jose
-import OpenSSL
 from requests.exceptions import RequestException
 
 from .const import CertificateStatus
@@ -204,9 +203,15 @@ class AcmeHandler:
             key_pem = self.path_private_key.read_bytes()
         else:
             _LOGGER.debug("create private keyfile: %s", self.path_private_key)
-            key = OpenSSL.crypto.PKey()
-            key.generate_key(OpenSSL.crypto.TYPE_RSA, PRIVATE_KEY_SIZE)
-            key_pem = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, key)
+            key = rsa.generate_private_key(
+                public_exponent=65537,
+                key_size=PRIVATE_KEY_SIZE,
+            )
+            key_pem = key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
 
             self.path_private_key.write_bytes(key_pem)
             self.path_private_key.chmod(0o600)
@@ -432,10 +437,9 @@ class AcmeHandler:
             _LOGGER.error("No acme client")
             return
 
-        fullchain = OpenSSL.crypto.load_certificate(
-            OpenSSL.crypto.FILETYPE_PEM,
+        fullchain = x509.load_pem_x509_certificate(
             self.path_fullchain.read_bytes(),
-        ).to_cryptography()
+        )
 
         _LOGGER.info("Revoke certificate")
         try:
