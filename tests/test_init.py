@@ -1,7 +1,7 @@
 """Test the cloud component."""
 
 import asyncio
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 import json
 from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
 
@@ -378,28 +378,31 @@ async def test_subscription_reconnection_handler_renews_and_starts(
 
 
 @pytest.mark.parametrize(
-    ("now", "expected_sleep_hours"),
+    ("since_expired_at", "expected_sleep_hours"),
     [
-        ("2018-09-17 00:00:01", 3),
-        ("2018-09-17 12:00:00", 3),
-        ("2018-09-17 23:59:59", 3),
-        ("2018-09-18 00:00:01", 12),
+        (timedelta(seconds=1), 3),
+        (timedelta(hours=12), 3),
+        (timedelta(days=1, seconds=-1), 3),
+        (timedelta(days=1), 12),
     ],
 )
 async def test_subscription_reconnection_handler_backoff_covers_full_day(
     cl: cloud.Cloud,
-    now: str,
+    since_expired_at: timedelta,
     expected_sleep_hours: int,
 ):
     """Test the shortest backoff covers the whole day the subscription expires on."""
+    sub_exp = "2018-09-10"
+    subscription_expired_at = datetime(2018, 9, 17, tzinfo=UTC)
+
     with (
         patch("hass_nabucasa.asyncio.sleep", AsyncMock()) as sleep_mock,
         patch(
             "hass_nabucasa.Cloud._decode_claims",
-            return_value={"custom:sub-exp": "2018-09-10"},
+            return_value={"custom:sub-exp": sub_exp},
         ),
         patch("hass_nabucasa.Cloud.is_logged_in", False),
-        freeze_time(now),
+        freeze_time(subscription_expired_at + since_expired_at),
     ):
         await cl._subscription_reconnection_handler(
             SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED
