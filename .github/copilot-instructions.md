@@ -119,7 +119,7 @@ All API components extend `ApiBase` and provide specific cloud service integrati
 - Import organization: Keep all imports at the top level of modules (never inside functions or methods).
 - Python 3.14 syntax (project requires Python >= 3.14): `except` clauses may omit parentheses around multiple exception types when there is no `as` binding (PEP 758) — e.g. `except ValueError, TypeError:` is equivalent to `except (ValueError, TypeError):`.
   Note: this is not the Python 2 `except E, e` binding form; use `except ... as err` when you need the exception instance.
-- Comments policy: Don’t add unnecessary inline comments — prefer clear names and structure.
+- Comments policy: Keep comments to a minimum — prefer clear names and structure. This covers docstrings too: keep them to a one-line summary unless there is something a reader genuinely can’t get from the code.
 - Async I/O: Use `cloud.run_executor` for blocking file I/O or CPU‑heavy work.
 
 ### Error handling
