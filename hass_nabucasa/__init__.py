@@ -54,6 +54,7 @@ from .const import (
     DEFAULT_VALUES,
     MODE_DEV,
     STATE_CONNECTED,
+    SUB_EXP_AT_DELTA_DEFAULT,
     CertificateStatus,
     SubscriptionReconnectionReason,
 )
@@ -284,7 +285,7 @@ class Cloud(Generic[_ClientT]):
     @property
     def subscription_expired(self) -> bool:
         """Return a boolean if the subscription has expired."""
-        return utcnow() > self.expiration_date + timedelta(days=7)
+        return utcnow() > self.expiration_date + SUB_EXP_AT_DELTA_DEFAULT
 
     @property
     def valid_subscription(self) -> bool:
@@ -634,7 +635,7 @@ class Cloud(Generic[_ClientT]):
         while True:
             now_as_utc = utcnow()
             sub_expired = self.expiration_date
-            subscription_expired_at = sub_expired + timedelta(days=7)
+            subscription_expired_at = sub_expired + SUB_EXP_AT_DELTA_DEFAULT
 
             if reason == SubscriptionReconnectionReason.CONNECTION_ERROR:
                 self._connection_retry_count += 1

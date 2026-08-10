@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from enum import StrEnum
 
 ACCOUNT_URL = "https://account.nabucasa.com/"
@@ -13,6 +14,8 @@ REQUEST_TIMEOUT = 10
 TWELVE_HOURS_IN_SECONDS = 12 * 60 * 60
 ONE_HOUR_IN_SECONDS = 60 * 60
 FIVE_MINUTES_IN_SECONDS = 5 * 60
+
+SUB_EXP_AT_DELTA_DEFAULT = timedelta(days=7)
 
 MODE_PROD = "production"
 MODE_DEV = "development"
