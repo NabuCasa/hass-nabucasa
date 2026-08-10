@@ -377,6 +377,41 @@ async def test_subscription_reconnection_handler_renews_and_starts(
     assert "Stopping subscription reconnection handler" in caplog.text
 
 
+@pytest.mark.parametrize(
+    ("now", "expected_sleep_hours"),
+    [
+        ("2018-09-17 00:00:01", 3),
+        ("2018-09-17 12:00:00", 3),
+        ("2018-09-17 23:59:59", 3),
+        ("2018-09-18 00:00:01", 12),
+    ],
+)
+async def test_subscription_reconnection_handler_backoff_covers_full_day(
+    cl: cloud.Cloud,
+    now: str,
+    expected_sleep_hours: int,
+):
+    """Test the shortest backoff covers the whole day the grace period ends on.
+
+    The subscription expires on 2018-09-10, so the grace period ends at midnight
+    on 2018-09-17 and the handler retries every 3 hours for all of that day.
+    """
+    with (
+        patch("hass_nabucasa.asyncio.sleep", AsyncMock()) as sleep_mock,
+        patch(
+            "hass_nabucasa.Cloud._decode_claims",
+            return_value={"custom:sub-exp": "2018-09-10"},
+        ),
+        patch("hass_nabucasa.Cloud.is_logged_in", False),
+        freeze_time(now),
+    ):
+        await cl._subscription_reconnection_handler(
+            SubscriptionReconnectionReason.SUBSCRIPTION_EXPIRED
+        )
+
+    sleep_mock.assert_called_once_with(expected_sleep_hours * 60 * 60)
+
+
 async def test_subscription_reconnection_handler_aborts(
     cl: cloud.Cloud,
     caplog: pytest.LogCaptureFixture,
