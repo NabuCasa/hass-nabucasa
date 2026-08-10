@@ -644,7 +644,7 @@ class RemoteUI:
 
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected error in Remote UI loop")
-                raise
+                await asyncio.sleep(10)
 
         _LOGGER.debug("Stopping Remote UI loop")
         await self.close_backend()

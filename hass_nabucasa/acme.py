@@ -25,6 +25,7 @@ import OpenSSL
 from requests.exceptions import RequestException
 
 from .const import CertificateStatus
+from .instance_api import InstanceApiError
 from .utils import seconds_as_dhms, utcnow
 
 FILE_ACCOUNT_KEY = "acme_account.pem"
@@ -517,7 +518,7 @@ class AcmeHandler:
                             value=challenge.validation
                         )
                     self._update_status(CertificateStatus.CHALLENGE_DNS_UPDATED)
-                except TimeoutError, AssertionError:
+                except TimeoutError, AssertionError, InstanceApiError:
                     self._update_status(CertificateStatus.CHALLENGE_DNS_FAILED)
                     raise AcmeNabuCasaError(
                         "Can't set challenge token to NabuCasa DNS!",
@@ -555,8 +556,11 @@ class AcmeHandler:
                     await self.cloud.instance.cleanup_dns_challenge_record(
                         value=dns_challenges[-1].validation,
                     )
-            except TimeoutError:
-                _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
+            except (TimeoutError, InstanceApiError) as err:
+                # Challenge already answered; leftover DNS record is not fatal
+                _LOGGER.warning(
+                    "Failed to clean up challenge from NabuCasa DNS: %s", err
+                )
 
         # Finish validation
         self._update_status(CertificateStatus.CERTIFICATE_FINALIZING)
