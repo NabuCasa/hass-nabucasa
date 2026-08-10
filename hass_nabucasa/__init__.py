@@ -634,6 +634,7 @@ class Cloud(Generic[_ClientT]):
         while True:
             now_as_utc = utcnow()
             sub_expired = self.expiration_date
+            grace_period_end = sub_expired + timedelta(days=7)
 
             if reason == SubscriptionReconnectionReason.CONNECTION_ERROR:
                 self._connection_retry_count += 1
@@ -641,13 +642,13 @@ class Cloud(Generic[_ClientT]):
                     self._connection_retry_count * random.uniform(0.01, 0.09)
                 )
                 wait_hours = min(base_wait, 1.0)
-            elif sub_expired > (now_as_utc - timedelta(days=1)):
+            elif grace_period_end > (now_as_utc - timedelta(days=1)):
                 wait_hours = 3
-            elif sub_expired > (now_as_utc - timedelta(days=7)):
+            elif grace_period_end > (now_as_utc - timedelta(days=7)):
                 wait_hours = 12
-            elif sub_expired > (now_as_utc - timedelta(days=180)):
+            elif grace_period_end > (now_as_utc - timedelta(days=180)):
                 wait_hours = 24
-            elif sub_expired > (now_as_utc - timedelta(days=400)):
+            elif grace_period_end > (now_as_utc - timedelta(days=400)):
                 wait_hours = 96
             else:
                 _LOGGER.info(

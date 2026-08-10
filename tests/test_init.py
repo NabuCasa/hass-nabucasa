@@ -327,10 +327,10 @@ async def test_claims_decoding(cl: cloud.Cloud):
     ("since_expired", "expected_sleep_hours"),
     [
         (timedelta(hours=1), 3),
-        (timedelta(days=1), 12),
-        (timedelta(days=8), 24),
-        (timedelta(days=31), 24),
-        (timedelta(days=180), 96),
+        (timedelta(days=7), 3),
+        (timedelta(days=8), 12),
+        (timedelta(days=20), 24),
+        (timedelta(days=200), 96),
     ],
 )
 async def test_subscription_reconnection_handler_renews_and_starts(
