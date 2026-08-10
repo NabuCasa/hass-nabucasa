@@ -391,10 +391,10 @@ async def test_subscription_reconnection_handler_backoff_covers_full_day(
     now: str,
     expected_sleep_hours: int,
 ):
-    """Test the shortest backoff covers the whole day the grace period ends on.
+    """Test the shortest backoff covers the whole day the subscription expires on.
 
-    The subscription expires on 2018-09-10, so the grace period ends at midnight
-    on 2018-09-17 and the handler retries every 3 hours for all of that day.
+    The claim names 2018-09-10, so the subscription is considered expired from
+    midnight on 2018-09-17 and the handler retries every 3 hours for all of that day.
     """
     with (
         patch("hass_nabucasa.asyncio.sleep", AsyncMock()) as sleep_mock,
