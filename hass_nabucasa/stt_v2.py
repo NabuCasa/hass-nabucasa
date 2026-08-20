@@ -11,7 +11,7 @@ import aiohttp
 from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
 
 from .const import STT_V2_AUTHORIZED_KEY, STT_V2_SERVER
-from .exceptions import CloudError
+from .exceptions import CloudError, NabuCasaBaseError
 from .voice import STTResponse
 
 if TYPE_CHECKING:
@@ -101,12 +101,16 @@ CLOSE_MESSAGE_TYPES = (
 LANGUAGE_ALIASES = {"fil": "tl", "nb": "no"}
 
 
-class SpeechToTextV2Error(Exception):
+class SpeechToTextV2Error(NabuCasaBaseError):
     """General speech to text error."""
 
 
 class SpeechToTextV2ConnectionError(SpeechToTextV2Error):
     """Error connecting to the speech to text service."""
+
+
+class SpeechToTextV2UnsupportedLanguageError(SpeechToTextV2Error):
+    """Error raised when the requested language is not supported."""
 
 
 class SpeechToTextV2:
@@ -158,7 +162,9 @@ class SpeechToTextV2:
         Reconnects automatically when the connection was closed in between.
         """
         if (service_language := self.resolve_language(language)) is None:
-            raise SpeechToTextV2Error(f"Language {language} not supported")
+            raise SpeechToTextV2UnsupportedLanguageError(
+                f"Language {language} not supported"
+            )
 
         async with self._session_lock:
             await self._stop_idle_listener()

@@ -17,6 +17,7 @@ from hass_nabucasa.stt_v2 import (
     SpeechToTextV2,
     SpeechToTextV2ConnectionError,
     SpeechToTextV2Error,
+    SpeechToTextV2UnsupportedLanguageError,
 )
 
 
@@ -165,7 +166,10 @@ async def test_process_stt_unsupported_language(stt: SpeechToTextV2) -> None:
     """Test that an unsupported language is rejected before connecting."""
     connect_returns(stt, MockWebSocket())
 
-    with pytest.raises(SpeechToTextV2Error, match="Language hy-AM not supported"):
+    with pytest.raises(
+        SpeechToTextV2UnsupportedLanguageError,
+        match="Language hy-AM not supported",
+    ):
         await stt.process_stt(
             stream=audio_stream(b"\x01\x02"),
             language="hy-AM",

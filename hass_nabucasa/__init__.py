@@ -98,6 +98,7 @@ from .stt_v2 import (
     SpeechToTextV2,
     SpeechToTextV2ConnectionError,
     SpeechToTextV2Error,
+    SpeechToTextV2UnsupportedLanguageError,
 )
 from .utils import (
     UTC,
@@ -164,6 +165,7 @@ __all__ = [
     "ServiceDiscoveryMissingParameterError",
     "SpeechToTextV2ConnectionError",
     "SpeechToTextV2Error",
+    "SpeechToTextV2UnsupportedLanguageError",
     "StorageType",
     "StoredFile",
     "SubscriptionInfo",
