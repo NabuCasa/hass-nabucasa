@@ -34,6 +34,7 @@ from .api import (
     CloudApiTimeoutError,
 )
 from .auth import (
+    AlreadyLoggedIn,
     AuthTimeoutError,
     CloudConnectionError,
     CognitoAuth,
@@ -123,6 +124,7 @@ __all__ = [
     "AlexaApiNeedsRelinkError",
     "AlexaApiNoTokenError",
     "AlreadyConnectedError",
+    "AlreadyLoggedIn",
     "AuthTimeoutError",
     "CertificateStatus",
     "CheckLatencyError",
@@ -448,6 +450,9 @@ class Cloud(Generic[_ClientT]):
 
         Returns a callback that cancels the pending auto-login.
         """
+        # Normalize once so the auto-login attempts use the same identifier that
+        # registration does (async_register lowercases the email).
+        email = email.lower()
         await self.auth.async_register(email, password, client_metadata=client_metadata)
 
         # Replace any in-flight auto-login.
@@ -498,15 +503,7 @@ class Cloud(Generic[_ClientT]):
                         err,
                         seconds_as_dhms(backoff),
                     )
-                except AssertionError:
-                    # A concurrent login can win the race between the guard
-                    # above and async_login's own assertion. Only suppress that
-                    # "already logged in" case; re-raise otherwise so genuine
-                    # assertion bugs are not masked. (Check id_token rather than
-                    # is_logged_in so mypy does not treat the re-raise as dead
-                    # code after narrowing the guard above.)
-                    if self.id_token is None:
-                        raise
+                except AlreadyLoggedIn:
                     _LOGGER.debug("Already logged in, stopping auto login")
                     return
                 else:
@@ -673,6 +670,10 @@ class Cloud(Generic[_ClientT]):
         if self._init_task:
             self._init_task.cancel()
             self._init_task = None
+
+        if self._auto_login_task is not None:
+            self._auto_login_task.cancel()
+            self._auto_login_task = None
 
         await self.service_discovery.async_stop_service_discovery()
         await self.client.cloud_stopped()

@@ -20,8 +20,8 @@ FIVE_MINUTES_IN_SECONDS = 5 * 60
 AUTO_LOGIN_FAST_RETRY_INTERVAL = 5  # seconds; retry interval for the first minute
 AUTO_LOGIN_FAST_RETRY_PERIOD = 60  # seconds; length of the fast-retry window
 AUTO_LOGIN_MEDIUM_RETRY_INTERVAL = 10  # seconds; retry interval up to 5 minutes
-AUTO_LOGIN_MEDIUM_RETRY_PERIOD = 300  # seconds; length of the medium-retry window
-AUTO_LOGIN_MAX_TOTAL_BACKOFF = 86400  # seconds; give up after ~1 day of waiting
+AUTO_LOGIN_MEDIUM_RETRY_PERIOD = FIVE_MINUTES_IN_SECONDS
+AUTO_LOGIN_MAX_TOTAL_BACKOFF = 24 * ONE_HOUR_IN_SECONDS
 
 MODE_PROD = "production"
 MODE_DEV = "development"

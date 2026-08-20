@@ -34,6 +34,10 @@ class Unauthenticated(CloudError):
     """Raised when authentication failed."""
 
 
+class AlreadyLoggedIn(CloudError):
+    """Raised when trying to log in while already logged in."""
+
+
 class MFARequired(CloudError):
     """Raised when MFA is required."""
 
@@ -224,7 +228,8 @@ class CognitoAuth:
         """Log user in and fetch certificate."""
         try:
             async with self._request_lock:
-                assert not self.cloud.is_logged_in, "Cannot login if already logged in."
+                if self.cloud.is_logged_in:
+                    raise AlreadyLoggedIn("Cannot login if already logged in.")
 
                 cognito: pycognito.Cognito = await self.cloud.run_executor(
                     partial(self._create_cognito_client, username=email),
@@ -275,9 +280,8 @@ class CognitoAuth:
         """Log user in and fetch certificate if MFA is required."""
         try:
             async with self._request_lock:
-                assert not self.cloud.is_logged_in, (
-                    "Cannot verify TOTP if already logged in."
-                )
+                if self.cloud.is_logged_in:
+                    raise AlreadyLoggedIn("Cannot verify TOTP if already logged in.")
 
                 cognito: pycognito.Cognito = await self.cloud.run_executor(
                     partial(self._create_cognito_client, username=email),
