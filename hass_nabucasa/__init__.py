@@ -35,6 +35,7 @@ from .api import (
 )
 from .auth import (
     AuthTimeoutError,
+    CloudConnectionError,
     CognitoAuth,
     InvalidTotpCode,
     MFARequired,
@@ -49,6 +50,8 @@ from .client import CloudClient
 from .cloudhooks import CloudhookDetails, Cloudhooks
 from .const import (
     ACCOUNT_URL,
+    AUTO_LOGIN_INITIAL_BACKOFF,
+    AUTO_LOGIN_MAX_TOTAL_BACKOFF,
     CONFIG_DIR,
     DEFAULT_SERVERS,
     DEFAULT_VALUES,
@@ -129,6 +132,7 @@ __all__ = [
     "CloudApiNonRetryableError",
     "CloudApiTimeoutError",
     "CloudClient",
+    "CloudConnectionError",
     "CloudError",
     "CloudEvent",
     "CloudEventBus",
@@ -217,6 +221,7 @@ class Cloud(Generic[_ClientT]):
 
         self._init_task: asyncio.Task | None = None
         self._subscription_reconnection_task: asyncio.Task | None = None
+        self._auto_login_task: asyncio.Task | None = None
 
         self.access_token: str | None = None
         self.id_token: str | None = None
@@ -424,6 +429,85 @@ class Cloud(Generic[_ClientT]):
             email, code, mfa_tokens, check_connection=check_connection
         )
         await self.events.publish(CloudEvent(type=CloudEventType.LOGIN))
+
+    async def register_and_auto_login(
+        self,
+        email: str,
+        password: str,
+        *,
+        client_metadata: Any | None = None,
+    ) -> None:
+        """Register a new account and log in once it has been confirmed.
+
+        Registration is awaited (errors such as UserExists propagate to the caller).
+        A background task then retries login with exponential backoff until the
+        account is confirmed or roughly a day has elapsed, at which point it gives up.
+        """
+        await self.auth.async_register(email, password, client_metadata=client_metadata)
+
+        self.cancel_auto_login()
+        self._auto_login_task = asyncio.create_task(
+            self._async_auto_login(email, password),
+            name="auto_login",
+        )
+
+    async def _async_auto_login(self, email: str, password: str) -> None:
+        """Retry login until the account is confirmed, then log in.
+
+        The credentials only ever live as parameters of this coroutine; they are
+        never stored on the instance, logged or persisted.
+        """
+        backoff = AUTO_LOGIN_INITIAL_BACKOFF
+        elapsed = 0
+        try:
+            while True:
+                if self.is_logged_in:
+                    return
+
+                try:
+                    await self.login(email, password)
+                except UserNotConfirmed:
+                    _LOGGER.debug(
+                        "Account not confirmed yet, retrying auto login in %s",
+                        seconds_as_dhms(backoff),
+                    )
+                except (CloudConnectionError, AuthTimeoutError) as err:
+                    _LOGGER.debug(
+                        "Auto login attempt failed (%s), retrying in %s",
+                        err,
+                        seconds_as_dhms(backoff),
+                    )
+                except AssertionError:
+                    _LOGGER.debug("Already logged in, stopping auto login")
+                    return
+                else:
+                    _LOGGER.debug("Auto login after registration succeeded")
+                    return
+
+                if elapsed + backoff > AUTO_LOGIN_MAX_TOTAL_BACKOFF:
+                    _LOGGER.info(
+                        "Giving up auto login, account was not confirmed within %s",
+                        seconds_as_dhms(AUTO_LOGIN_MAX_TOTAL_BACKOFF),
+                    )
+                    return
+
+                await asyncio.sleep(backoff)
+                elapsed += backoff
+                backoff = min(backoff * 2, AUTO_LOGIN_MAX_TOTAL_BACKOFF)
+        except asyncio.CancelledError:
+            _LOGGER.debug("Auto login cancelled")
+            raise
+        except CloudError as err:
+            _LOGGER.error("Auto login stopped due to unexpected error: %s", err)
+        finally:
+            if self._auto_login_task is asyncio.current_task():
+                self._auto_login_task = None
+
+    def cancel_auto_login(self) -> None:
+        """Cancel a pending auto-login retry loop, if any."""
+        if self._auto_login_task is not None:
+            self._auto_login_task.cancel()
+            self._auto_login_task = None
 
     async def logout(self) -> None:
         """Close connection and remove all credentials."""

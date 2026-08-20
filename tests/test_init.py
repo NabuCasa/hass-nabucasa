@@ -3,13 +3,18 @@
 import asyncio
 from datetime import timedelta
 import json
+import logging
 from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
 
 from freezegun import freeze_time
 import pytest
 
 import hass_nabucasa as cloud
-from hass_nabucasa.const import SubscriptionReconnectionReason
+from hass_nabucasa.const import (
+    AUTO_LOGIN_INITIAL_BACKOFF,
+    AUTO_LOGIN_MAX_TOTAL_BACKOFF,
+    SubscriptionReconnectionReason,
+)
 from hass_nabucasa.utils import utcnow
 
 from .common import MockClient
@@ -511,3 +516,181 @@ async def test_subscription_reconnection_handler_connection_error(
     assert "Stopping subscription reconnection handler" in caplog.text
     assert "Could not establish connection (attempt 1)" in caplog.text
     assert "waiting 3m:36s before retrying" in caplog.text
+
+
+async def test_register_and_auto_login_logs_in_after_confirmation(cl: cloud.Cloud):
+    """Test auto login retries until the account is confirmed, then logs in."""
+    cl.auth.async_register = AsyncMock()
+    cl.login = AsyncMock(side_effect=[cloud.UserNotConfirmed(), None])
+
+    with patch("hass_nabucasa.asyncio.sleep", AsyncMock()) as sleep_mock:
+        await cl.register_and_auto_login(
+            "email@home-assistant.io",
+            "password",
+            client_metadata={"test": "metadata"},
+        )
+        task = cl._auto_login_task
+        assert task is not None
+        await task
+
+    cl.auth.async_register.assert_awaited_once_with(
+        "email@home-assistant.io", "password", client_metadata={"test": "metadata"}
+    )
+    assert cl.login.call_count == 2
+    cl.login.assert_called_with("email@home-assistant.io", "password")
+    assert sleep_mock.call_count == 1
+    assert cl._auto_login_task is None
+
+
+async def test_register_and_auto_login_retries_transient_errors(cl: cloud.Cloud):
+    """Test auto login retries transient connection and timeout errors."""
+    cl.auth.async_register = AsyncMock()
+    cl.login = AsyncMock(
+        side_effect=[
+            cloud.CloudConnectionError(),
+            cloud.AuthTimeoutError("timeout"),
+            None,
+        ],
+    )
+
+    with patch("hass_nabucasa.asyncio.sleep", AsyncMock()):
+        await cl.register_and_auto_login("email@home-assistant.io", "password")
+        task = cl._auto_login_task
+        assert task is not None
+        await task
+
+    assert cl.login.call_count == 3
+    assert cl._auto_login_task is None
+
+
+async def test_register_and_auto_login_stops_on_fatal_error(cl: cloud.Cloud):
+    """Test auto login stops immediately on a non-retryable error."""
+    cl.auth.async_register = AsyncMock()
+    cl.login = AsyncMock(side_effect=cloud.Unauthenticated("nope"))
+
+    with patch("hass_nabucasa.asyncio.sleep", AsyncMock()) as sleep_mock:
+        await cl.register_and_auto_login("email@home-assistant.io", "password")
+        task = cl._auto_login_task
+        assert task is not None
+        await task
+
+    assert cl.login.call_count == 1
+    assert sleep_mock.call_count == 0
+    assert cl._auto_login_task is None
+
+
+async def test_register_and_auto_login_gives_up_after_one_day(cl: cloud.Cloud):
+    """Test auto login backs off exponentially and gives up after ~1 day."""
+    cl.auth.async_register = AsyncMock()
+    cl.login = AsyncMock(side_effect=cloud.UserNotConfirmed())
+
+    with patch("hass_nabucasa.asyncio.sleep", AsyncMock()) as sleep_mock:
+        await cl.register_and_auto_login("email@home-assistant.io", "password")
+        task = cl._auto_login_task
+        assert task is not None
+        await task
+
+    sleeps = [call.args[0] for call in sleep_mock.mock_calls]
+    assert sleeps
+    # Delays double each time, capped at the total budget.
+    for index, value in enumerate(sleeps):
+        assert value == min(
+            AUTO_LOGIN_INITIAL_BACKOFF * 2**index,
+            AUTO_LOGIN_MAX_TOTAL_BACKOFF,
+        )
+    # The accumulated wait never exceeds the one-day budget...
+    assert sum(sleeps) <= AUTO_LOGIN_MAX_TOTAL_BACKOFF
+    # ...and it gave up because the next delay would have exceeded it.
+    next_backoff = min(
+        AUTO_LOGIN_INITIAL_BACKOFF * 2 ** len(sleeps),
+        AUTO_LOGIN_MAX_TOTAL_BACKOFF,
+    )
+    assert sum(sleeps) + next_backoff > AUTO_LOGIN_MAX_TOTAL_BACKOFF
+    # One final attempt happens after the last sleep, before giving up.
+    assert cl.login.call_count == len(sleeps) + 1
+    assert cl._auto_login_task is None
+
+
+async def test_register_and_auto_login_handles_concurrent_login_race(cl: cloud.Cloud):
+    """Test a login winning the race with async_login's assert is a no-op."""
+    cl.auth.async_register = AsyncMock()
+
+    async def racing_login(*args, **kwargs):
+        """Simulate another task logging in just before async_login's assert."""
+        cl.id_token = "token"
+        raise AssertionError("Cannot login if already logged in.")
+
+    cl.login = AsyncMock(side_effect=racing_login)
+
+    with patch("hass_nabucasa.asyncio.sleep", AsyncMock()) as sleep_mock:
+        await cl.register_and_auto_login("email@home-assistant.io", "password")
+        task = cl._auto_login_task
+        assert task is not None
+        await task
+
+    assert cl.login.call_count == 1
+    assert sleep_mock.call_count == 0
+    assert cl._auto_login_task is None
+
+
+async def test_register_and_auto_login_register_failure_short_circuits(
+    cl: cloud.Cloud,
+):
+    """Test a failed registration propagates and never starts auto login."""
+    cl.auth.async_register = AsyncMock(side_effect=cloud.UserExists("exists"))
+    cl.login = AsyncMock()
+
+    with pytest.raises(cloud.UserExists):
+        await cl.register_and_auto_login("email@home-assistant.io", "password")
+
+    assert cl._auto_login_task is None
+    assert cl.login.call_count == 0
+
+
+async def test_cancel_auto_login(cl: cloud.Cloud):
+    """Test cancelling a pending auto login stops the retry loop."""
+    cl.auth.async_register = AsyncMock()
+    started = asyncio.Event()
+    parked = asyncio.Event()
+
+    async def blocking_login(*args, **kwargs):
+        """Park in the first login attempt until cancelled."""
+        started.set()
+        await parked.wait()
+
+    cl.login = AsyncMock(side_effect=blocking_login)
+
+    await cl.register_and_auto_login("email@home-assistant.io", "password")
+    task = cl._auto_login_task
+    assert task is not None
+
+    await started.wait()
+    cl.cancel_auto_login()
+
+    assert cl._auto_login_task is None
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert cl.login.call_count == 1
+
+
+async def test_register_and_auto_login_does_not_retain_credentials(
+    cl: cloud.Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test credentials are never stored on the instance or logged."""
+    password = "sup3r-s3cr3t-p4ssw0rd"
+    cl.auth.async_register = AsyncMock()
+    cl.login = AsyncMock(side_effect=[cloud.UserNotConfirmed(), None])
+
+    with (
+        caplog.at_level(logging.DEBUG),
+        patch("hass_nabucasa.asyncio.sleep", AsyncMock()),
+    ):
+        await cl.register_and_auto_login("email@home-assistant.io", password)
+        task = cl._auto_login_task
+        assert task is not None
+        await task
+
+    assert cl._auto_login_task is None
+    assert all(value != password for value in vars(cl).values())
+    assert password not in caplog.text
