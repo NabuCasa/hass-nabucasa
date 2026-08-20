@@ -383,7 +383,7 @@ class RemoteUI:
         try:
             context = await self._create_context()
         except (SSLError, FileNotFoundError) as err:
-            should_reset = not isinstance(err, SSLError) or (
+            should_reset = isinstance(err, FileNotFoundError) or (
                 err.reason == "KEY_VALUES_MISMATCH"
             )
             if should_reset:
