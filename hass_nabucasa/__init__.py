@@ -94,6 +94,11 @@ from .service_discovery import (
     ServiceDiscoveryMissingActionError,
     ServiceDiscoveryMissingParameterError,
 )
+from .stt_v2 import (
+    SpeechToTextV2,
+    SpeechToTextV2ConnectionError,
+    SpeechToTextV2Error,
+)
 from .utils import (
     UTC,
     CheckLatencyError,
@@ -157,6 +162,8 @@ __all__ = [
     "ServiceDiscoveryInvalidResponseError",
     "ServiceDiscoveryMissingActionError",
     "ServiceDiscoveryMissingParameterError",
+    "SpeechToTextV2ConnectionError",
+    "SpeechToTextV2Error",
     "StorageType",
     "StoredFile",
     "SubscriptionInfo",
@@ -263,6 +270,7 @@ class Cloud(Generic[_ClientT]):
             self,
             action_overrides=discovery_service_actions,
         )
+        self.stt_v2 = SpeechToTextV2(self)
         self.voice = Voice(self)
         self.voice_api = VoiceApi(self)
 
