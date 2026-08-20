@@ -439,20 +439,31 @@ class Cloud(Generic[_ClientT]):
         password: str,
         *,
         client_metadata: Any | None = None,
-    ) -> None:
+    ) -> Callable[[], None]:
         """Register a new account and log in once it has been confirmed.
 
         Registration is awaited (errors such as UserExists propagate to the caller).
         A background task then retries login with exponential backoff until the
         account is confirmed or roughly a day has elapsed, at which point it gives up.
+
+        Returns a callback that cancels the pending auto-login.
         """
         await self.auth.async_register(email, password, client_metadata=client_metadata)
 
-        self.cancel_auto_login()
-        self._auto_login_task = asyncio.create_task(
+        # Replace any in-flight auto-login.
+        if self._auto_login_task is not None:
+            self._auto_login_task.cancel()
+
+        task = self._auto_login_task = asyncio.create_task(
             self._async_auto_login(email, password),
             name="auto_login",
         )
+
+        def cancel_auto_login() -> None:
+            """Cancel this pending auto-login."""
+            task.cancel()
+
+        return cancel_auto_login
 
     async def _async_auto_login(self, email: str, password: str) -> None:
         """Retry login until the account is confirmed, then log in.
@@ -520,15 +531,11 @@ class Cloud(Generic[_ClientT]):
             if self._auto_login_task is asyncio.current_task():
                 self._auto_login_task = None
 
-    def cancel_auto_login(self) -> None:
-        """Cancel a pending auto-login retry loop, if any."""
+    async def logout(self) -> None:
+        """Close connection and remove all credentials."""
         if self._auto_login_task is not None:
             self._auto_login_task.cancel()
             self._auto_login_task = None
-
-    async def logout(self) -> None:
-        """Close connection and remove all credentials."""
-        self.cancel_auto_login()
         await self.events.publish(CloudEvent(type=CloudEventType.LOGOUT))
         self.id_token = None
         self.access_token = None

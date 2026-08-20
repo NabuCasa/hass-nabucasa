@@ -660,7 +660,7 @@ async def test_register_and_auto_login_register_failure_short_circuits(
 
 
 async def test_cancel_auto_login(cl: cloud.Cloud):
-    """Test cancelling a pending auto login stops the retry loop."""
+    """Test the returned callback cancels the pending auto login."""
     cl.auth.async_register = AsyncMock()
     started = asyncio.Event()
     parked = asyncio.Event()
@@ -672,16 +672,16 @@ async def test_cancel_auto_login(cl: cloud.Cloud):
 
     cl.login = AsyncMock(side_effect=blocking_login)
 
-    await cl.register_and_auto_login("email@home-assistant.io", "password")
+    cancel = await cl.register_and_auto_login("email@home-assistant.io", "password")
     task = cl._auto_login_task
     assert task is not None
 
     await started.wait()
-    cl.cancel_auto_login()
+    cancel()
 
-    assert cl._auto_login_task is None
     with pytest.raises(asyncio.CancelledError):
         await task
+    assert cl._auto_login_task is None
     assert cl.login.call_count == 1
 
 
