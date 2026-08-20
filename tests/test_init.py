@@ -11,8 +11,11 @@ import pytest
 
 import hass_nabucasa as cloud
 from hass_nabucasa.const import (
-    AUTO_LOGIN_INITIAL_BACKOFF,
+    AUTO_LOGIN_FAST_RETRY_INTERVAL,
+    AUTO_LOGIN_FAST_RETRY_PERIOD,
     AUTO_LOGIN_MAX_TOTAL_BACKOFF,
+    AUTO_LOGIN_MEDIUM_RETRY_INTERVAL,
+    AUTO_LOGIN_MEDIUM_RETRY_PERIOD,
     SubscriptionReconnectionReason,
 )
 from hass_nabucasa.utils import utcnow
@@ -580,7 +583,7 @@ async def test_register_and_auto_login_stops_on_fatal_error(cl: cloud.Cloud):
 
 
 async def test_register_and_auto_login_gives_up_after_one_day(cl: cloud.Cloud):
-    """Test auto login backs off exponentially and gives up after ~1 day."""
+    """Test auto login uses tiered backoff and gives up after ~1 day."""
     cl.auth.async_register = AsyncMock()
     cl.login = AsyncMock(side_effect=cloud.UserNotConfirmed())
 
@@ -591,21 +594,30 @@ async def test_register_and_auto_login_gives_up_after_one_day(cl: cloud.Cloud):
         await task
 
     sleeps = [call.args[0] for call in sleep_mock.mock_calls]
-    assert sleeps
-    # Delays double each time, capped at the total budget.
-    for index, value in enumerate(sleeps):
-        assert value == min(
-            AUTO_LOGIN_INITIAL_BACKOFF * 2**index,
-            AUTO_LOGIN_MAX_TOTAL_BACKOFF,
-        )
-    # The accumulated wait never exceeds the one-day budget...
-    assert sum(sleeps) <= AUTO_LOGIN_MAX_TOTAL_BACKOFF
-    # ...and it gave up because the next delay would have exceeded it.
-    next_backoff = min(
-        AUTO_LOGIN_INITIAL_BACKOFF * 2 ** len(sleeps),
-        AUTO_LOGIN_MAX_TOTAL_BACKOFF,
+
+    # Fixed 5s retries for the first minute.
+    fast_count = AUTO_LOGIN_FAST_RETRY_PERIOD // AUTO_LOGIN_FAST_RETRY_INTERVAL
+    assert sleeps[:fast_count] == [AUTO_LOGIN_FAST_RETRY_INTERVAL] * fast_count
+
+    # Fixed 10s retries from 1 minute up to 5 minutes.
+    medium_count = (
+        AUTO_LOGIN_MEDIUM_RETRY_PERIOD - AUTO_LOGIN_FAST_RETRY_PERIOD
+    ) // AUTO_LOGIN_MEDIUM_RETRY_INTERVAL
+    assert (
+        sleeps[fast_count : fast_count + medium_count]
+        == [AUTO_LOGIN_MEDIUM_RETRY_INTERVAL] * medium_count
     )
-    assert sum(sleeps) + next_backoff > AUTO_LOGIN_MAX_TOTAL_BACKOFF
+
+    # Exponential doubling after 5 minutes, starting from the medium interval.
+    tail = sleeps[fast_count + medium_count :]
+    assert tail == [
+        AUTO_LOGIN_MEDIUM_RETRY_INTERVAL * 2**index for index in range(1, len(tail) + 1)
+    ]
+
+    # The accumulated wait never exceeds the one-day budget, and it gave up
+    # because the next delay would have exceeded it.
+    assert sum(sleeps) <= AUTO_LOGIN_MAX_TOTAL_BACKOFF
+    assert sum(sleeps) + tail[-1] * 2 > AUTO_LOGIN_MAX_TOTAL_BACKOFF
     # One final attempt happens after the last sleep, before giving up.
     assert cl.login.call_count == len(sleeps) + 1
     assert cl._auto_login_task is None

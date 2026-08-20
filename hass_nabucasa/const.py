@@ -15,7 +15,12 @@ ONE_HOUR_IN_SECONDS = 60 * 60
 FIVE_MINUTES_IN_SECONDS = 5 * 60
 
 # Auto-login retry backoff (register + auto-login after confirmation).
-AUTO_LOGIN_INITIAL_BACKOFF = 5  # seconds; delay before the first retry
+# Retry quickly right after registration, when a confirmation is most likely,
+# then ease off: fast fixed retries, then slower fixed retries, then doubling.
+AUTO_LOGIN_FAST_RETRY_INTERVAL = 5  # seconds; retry interval for the first minute
+AUTO_LOGIN_FAST_RETRY_PERIOD = 60  # seconds; length of the fast-retry window
+AUTO_LOGIN_MEDIUM_RETRY_INTERVAL = 10  # seconds; retry interval up to 5 minutes
+AUTO_LOGIN_MEDIUM_RETRY_PERIOD = 300  # seconds; length of the medium-retry window
 AUTO_LOGIN_MAX_TOTAL_BACKOFF = 86400  # seconds; give up after ~1 day of waiting
 
 MODE_PROD = "production"

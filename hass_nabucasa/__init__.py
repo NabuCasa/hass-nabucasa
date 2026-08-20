@@ -50,8 +50,11 @@ from .client import CloudClient
 from .cloudhooks import CloudhookDetails, Cloudhooks
 from .const import (
     ACCOUNT_URL,
-    AUTO_LOGIN_INITIAL_BACKOFF,
+    AUTO_LOGIN_FAST_RETRY_INTERVAL,
+    AUTO_LOGIN_FAST_RETRY_PERIOD,
     AUTO_LOGIN_MAX_TOTAL_BACKOFF,
+    AUTO_LOGIN_MEDIUM_RETRY_INTERVAL,
+    AUTO_LOGIN_MEDIUM_RETRY_PERIOD,
     CONFIG_DIR,
     DEFAULT_SERVERS,
     DEFAULT_VALUES,
@@ -457,12 +460,19 @@ class Cloud(Generic[_ClientT]):
         The credentials only ever live as parameters of this coroutine; they are
         never stored on the instance, logged or persisted.
         """
-        backoff = AUTO_LOGIN_INITIAL_BACKOFF
+        backoff = AUTO_LOGIN_FAST_RETRY_INTERVAL
         elapsed = 0
         try:
             while True:
                 if self.is_logged_in:
                     return
+
+                if elapsed < AUTO_LOGIN_FAST_RETRY_PERIOD:
+                    backoff = AUTO_LOGIN_FAST_RETRY_INTERVAL
+                elif elapsed < AUTO_LOGIN_MEDIUM_RETRY_PERIOD:
+                    backoff = AUTO_LOGIN_MEDIUM_RETRY_INTERVAL
+                else:
+                    backoff = min(backoff * 2, AUTO_LOGIN_MAX_TOTAL_BACKOFF)
 
                 try:
                     await self.login(email, password)
@@ -501,7 +511,6 @@ class Cloud(Generic[_ClientT]):
 
                 await asyncio.sleep(backoff)
                 elapsed += backoff
-                backoff = min(backoff * 2, AUTO_LOGIN_MAX_TOTAL_BACKOFF)
         except asyncio.CancelledError:
             _LOGGER.debug("Auto login cancelled")
             raise
