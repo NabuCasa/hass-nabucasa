@@ -186,6 +186,43 @@ async def test_register_fails(mock_cognito, cloud_mock):
         await auth.async_register("email@home-assistant.io", "password")
 
 
+async def test_register_presignup_already_exists_maps_to_user_exists(
+    mock_cognito,
+    cloud_mock,
+):
+    """Test a PreSignUp Lambda "already exists" error maps to UserExists.
+
+    Cognito wraps it as a generic UserLambdaValidationException, not the plain
+    UsernameExistsException, so it must not leak as an UnknownError, and the
+    internal "PreSignUp failed with error ||" wrapper must be stripped.
+    """
+    mock_cognito.register.side_effect = aws_error(
+        "UserLambdaValidationException",
+        "PreSignUp failed with error ||An account for this email already exists.",
+    )
+    auth = auth_api.CognitoAuth(cloud_mock)
+    with pytest.raises(auth_api.UserExists) as err:
+        await auth.async_register("email@home-assistant.io", "password")
+
+    assert str(err.value) == "An account for this email already exists."
+
+
+async def test_register_other_lambda_validation_strips_wrapper(
+    mock_cognito,
+    cloud_mock,
+):
+    """Test an unrelated Lambda validation error keeps only the clean message."""
+    mock_cognito.register.side_effect = aws_error(
+        "UserLambdaValidationException",
+        "PreSignUp failed with error ||Sign ups are disabled.",
+    )
+    auth = auth_api.CognitoAuth(cloud_mock)
+    with pytest.raises(auth_api.UnknownError) as err:
+        await auth.async_register("email@home-assistant.io", "password")
+
+    assert str(err.value) == "Sign ups are disabled."
+
+
 async def test_resend_email_confirm(mock_cognito, cloud_mock):
     """Test starting forgot password flow."""
     auth = auth_api.CognitoAuth(cloud_mock)

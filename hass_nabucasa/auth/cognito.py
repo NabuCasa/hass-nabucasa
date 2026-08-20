@@ -400,9 +400,22 @@ def _map_aws_exception(err: ClientError | BotoCoreError) -> CloudError:
         return AWS_EXCEPTIONS.get(err.__class__.__name__, UnknownError)(
             err.kwargs.get("error", str(err))
         )
-    return AWS_EXCEPTIONS.get(err.response["Error"]["Code"], UnknownError)(
-        err.response["Error"]["Message"]
-    )
+
+    error = err.response["Error"]
+    error_code = error["Code"]
+    error_message = error["Message"]
+
+    # Strip Cognito's Lambda wrapper: "<trigger> failed with error ||<message>".
+    error_message = error_message.rsplit("||", 1)[-1].strip()
+
+    # A PreSignUp Lambda reports "already exists" as UserLambdaValidationException.
+    if (
+        error_code == "UserLambdaValidationException"
+        and "already exists" in error_message.lower()
+    ):
+        return UserExists(error_message)
+
+    return AWS_EXCEPTIONS.get(error_code, UnknownError)(error_message)
 
 
 @lru_cache(maxsize=2)
