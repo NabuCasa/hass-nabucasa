@@ -557,7 +557,6 @@ class AcmeHandler:
                         value=dns_challenges[-1].validation,
                     )
             except (TimeoutError, InstanceApiError) as err:
-                # Challenge already answered; leftover DNS record is not fatal
                 _LOGGER.warning(
                     "Failed to clean up challenge from NabuCasa DNS: %s", err
                 )
