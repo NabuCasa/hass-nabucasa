@@ -233,6 +233,9 @@ class CognitoAuth:
                         err,
                         seconds_as_dhms(backoff),
                     )
+                except AssertionError:
+                    _LOGGER.debug("Already logged in, stopping auto login")
+                    return
                 else:
                     _LOGGER.debug("Auto login after registration succeeded")
                     return

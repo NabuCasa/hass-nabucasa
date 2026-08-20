@@ -463,6 +463,31 @@ async def test_register_and_auto_login_gives_up_after_one_day(
     assert auth._auto_login_task is None
 
 
+async def test_register_and_auto_login_handles_concurrent_login_race(
+    mock_cognito,
+    mock_cloud,
+):
+    """Test a login winning the race with async_login's assert is a no-op."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+
+    async def racing_login(*args, **kwargs):
+        """Simulate another task logging in just before async_login's assert."""
+        mock_cloud.is_logged_in = True
+        raise AssertionError("Cannot login if already logged in.")
+
+    mock_cloud.login = AsyncMock(side_effect=racing_login)
+
+    with patch("hass_nabucasa.auth.cognito.asyncio.sleep", AsyncMock()) as mock_sleep:
+        await auth.async_register_and_auto_login("email@home-assistant.io", "password")
+        task = auth._auto_login_task
+        assert task is not None
+        await task
+
+    assert mock_cloud.login.call_count == 1
+    assert mock_sleep.call_count == 0
+    assert auth._auto_login_task is None
+
+
 async def test_register_and_auto_login_register_failure_short_circuits(
     mock_cognito,
     mock_cloud,
