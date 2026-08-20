@@ -249,7 +249,7 @@ class SpeechToTextV2:
             received = await self._ws.receive()
         except asyncio.CancelledError:
             return
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected error on speech to text WebSocket")
         else:
             if received.type in CLOSE_MESSAGE_TYPES:
@@ -305,7 +305,7 @@ class SpeechToTextV2:
             return self._handle_session_ended(
                 await self._stream_audio(receive_task, stream, codec)
             )
-        except BaseException:
+        except Exception:  # pylint: disable=broad-except
             await self._dispose_receive_task(receive_task)
             await self._close_ws()
             raise
