@@ -478,6 +478,14 @@ class Cloud(Generic[_ClientT]):
                         seconds_as_dhms(backoff),
                     )
                 except AssertionError:
+                    # A concurrent login can win the race between the guard
+                    # above and async_login's own assertion. Only suppress that
+                    # "already logged in" case; re-raise otherwise so genuine
+                    # assertion bugs are not masked. (Check id_token rather than
+                    # is_logged_in so mypy does not treat the re-raise as dead
+                    # code after narrowing the guard above.)
+                    if self.id_token is None:
+                        raise
                     _LOGGER.debug("Already logged in, stopping auto login")
                     return
                 else:
@@ -497,8 +505,8 @@ class Cloud(Generic[_ClientT]):
         except asyncio.CancelledError:
             _LOGGER.debug("Auto login cancelled")
             raise
-        except CloudError as err:
-            _LOGGER.error("Auto login stopped due to unexpected error: %s", err)
+        except CloudError:
+            _LOGGER.exception("Auto login stopped due to an unexpected error")
         finally:
             if self._auto_login_task is asyncio.current_task():
                 self._auto_login_task = None
@@ -511,6 +519,7 @@ class Cloud(Generic[_ClientT]):
 
     async def logout(self) -> None:
         """Close connection and remove all credentials."""
+        self.cancel_auto_login()
         await self.events.publish(CloudEvent(type=CloudEventType.LOGOUT))
         self.id_token = None
         self.access_token = None

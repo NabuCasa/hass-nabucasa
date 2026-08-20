@@ -694,3 +694,44 @@ async def test_register_and_auto_login_does_not_retain_credentials(
     assert cl._auto_login_task is None
     assert all(value != password for value in vars(cl).values())
     assert password not in caplog.text
+
+
+async def test_register_and_auto_login_reraises_unexpected_assertion(cl: cloud.Cloud):
+    """Test an assertion error while not logged in is not swallowed."""
+    cl.auth.async_register = AsyncMock()
+    cl.login = AsyncMock(side_effect=AssertionError("boom"))
+
+    with patch("hass_nabucasa.asyncio.sleep", AsyncMock()):
+        await cl.register_and_auto_login("email@home-assistant.io", "password")
+        task = cl._auto_login_task
+        assert task is not None
+        with pytest.raises(AssertionError, match="boom"):
+            await task
+
+    assert cl._auto_login_task is None
+
+
+async def test_logout_cancels_pending_auto_login(cl: cloud.Cloud):
+    """Test logging out cancels a pending auto-login retry loop."""
+    cl.auth.async_register = AsyncMock()
+    cl.stop = AsyncMock()
+    started = asyncio.Event()
+    parked = asyncio.Event()
+
+    async def blocking_login(*args, **kwargs):
+        """Park in the first login attempt until cancelled."""
+        started.set()
+        await parked.wait()
+
+    cl.login = AsyncMock(side_effect=blocking_login)
+
+    await cl.register_and_auto_login("email@home-assistant.io", "password")
+    task = cl._auto_login_task
+    assert task is not None
+    await started.wait()
+
+    await cl.logout()
+
+    assert cl._auto_login_task is None
+    with pytest.raises(asyncio.CancelledError):
+        await task
