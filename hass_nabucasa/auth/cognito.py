@@ -401,9 +401,9 @@ def _map_aws_exception(err: ClientError | BotoCoreError) -> CloudError:
             err.kwargs.get("error", str(err))
         )
 
-    error = err.response.get("Error", {})
-    error_code = error.get("Code", "")
-    error_message = error.get("Message", "")
+    error = err.response["Error"]
+    error_code = error["Code"]
+    error_message = error["Message"]
 
     # Strip Cognito's Lambda wrapper: "<trigger> failed with error ||<message>".
     error_message = error_message.rsplit("||", 1)[-1].strip()
