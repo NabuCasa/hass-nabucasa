@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 import aiohttp
 from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
 
-from .const import STT_V2_AUTHORIZED_KEY, STT_V2_SERVER
+from .const import STT_V2_AUTHORIZED_KEY, STT_V2_SERVER_URL
 from .exceptions import CloudError, NabuCasaBaseError
 from .voice import STTResponse
 
@@ -215,7 +215,7 @@ class SpeechToTextV2:
 
         try:
             self._ws = await self.cloud.websession.ws_connect(
-                f"wss://{STT_V2_SERVER}/ws",
+                STT_V2_SERVER_URL,
                 headers={
                     AUTHORIZATION: f"Bearer {token}",
                     USER_AGENT: self.cloud.client.client_name,

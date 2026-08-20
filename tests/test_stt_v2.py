@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from aiohttp import WSMessage, WSMsgType, client_exceptions
 import pytest
 
-from hass_nabucasa.const import STT_V2_SERVER
+from hass_nabucasa.const import STT_V2_SERVER_URL
 from hass_nabucasa.exceptions import CloudError
 from hass_nabucasa.stt_v2 import (
     SpeechToTextV2,
@@ -439,7 +439,7 @@ async def test_connect_uses_cloud_token(stt: SpeechToTextV2) -> None:
     await stt.connect()
 
     call = stt.cloud.websession.ws_connect.call_args
-    assert call.args[0] == f"wss://{STT_V2_SERVER}/ws"
+    assert call.args[0] == STT_V2_SERVER_URL
     assert call.kwargs["headers"]["Authorization"] == "Bearer mock-id-token"
     stt.cloud.auth.async_check_token.assert_awaited_once()
 
