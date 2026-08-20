@@ -485,7 +485,7 @@ class Cloud(Generic[_ClientT]):
     async def initialize(self) -> None:
         """Initialize the cloud component (load auth and maybe start)."""
 
-        def load_config() -> None | dict[str, Any]:
+        def load_config() -> dict[str, Any] | None:
             """Load config."""
             # Ensure config dir exists
             base_path = self.path()

@@ -55,7 +55,7 @@ test = [
     "pytest-socket==0.8.0",
     "pytest-timeout==2.4.0",
     "pytest==9.1.1",
-    "ruff==0.15.20",
+    "ruff==0.16.3",
     "types_atomicwrites==1.4.5.1",
     "types_pyOpenSSL==24.1.0.20240722",
     "types-requests==2.33.0.20260518",
@@ -148,6 +148,7 @@ target-version = "py314"
 ignore = [
   "ANN401", # https://docs.astral.sh/ruff/rules/any-type/
   "COM812", # https://docs.astral.sh/ruff/rules/missing-trailing-comma/
+  "CPY001", # https://docs.astral.sh/ruff/rules/missing-copyright-notice/
   "DTZ005", # https://docs.astral.sh/ruff/rules/call-datetime-now-without-tzinfo/
   "EM101", # https://docs.astral.sh/ruff/rules/raw-string-in-exception/
   "EM102", # https://docs.astral.sh/ruff/rules/f-string-in-exception/
