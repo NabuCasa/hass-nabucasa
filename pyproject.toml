@@ -148,6 +148,7 @@ target-version = "py314"
 ignore = [
   "ANN401", # https://docs.astral.sh/ruff/rules/any-type/
   "COM812", # https://docs.astral.sh/ruff/rules/missing-trailing-comma/
+  "CPY001", # https://docs.astral.sh/ruff/rules/missing-copyright-notice/
   "DTZ005", # https://docs.astral.sh/ruff/rules/call-datetime-now-without-tzinfo/
   "EM101", # https://docs.astral.sh/ruff/rules/raw-string-in-exception/
   "EM102", # https://docs.astral.sh/ruff/rules/f-string-in-exception/
