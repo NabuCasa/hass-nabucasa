@@ -136,7 +136,8 @@ class SpeechToTextV2:
         """Open the WebSocket connection to the speech to text service."""
         async with self._session_lock:
             await self._stop_idle_listener()
-            await self._connect_ws()
+            if self._ws is None or self._ws.closed:
+                await self._connect_ws()
             self._start_idle_listener()
 
     async def disconnect(self) -> None:

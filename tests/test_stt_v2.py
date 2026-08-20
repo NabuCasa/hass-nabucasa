@@ -522,6 +522,21 @@ async def test_connect_and_disconnect(stt: SpeechToTextV2) -> None:
     assert websocket.closed is True
 
 
+async def test_connect_twice_keeps_connection(stt: SpeechToTextV2) -> None:
+    """Test that connecting again reuses the open connection."""
+    websocket = MockWebSocket()
+    connect_returns(stt, websocket)
+
+    await stt.connect()
+    await stt.connect()
+
+    assert stt.cloud.websession.ws_connect.call_count == 1
+    assert websocket.closed is False
+
+    await stt.disconnect()
+    assert websocket.closed is True
+
+
 async def test_disconnect_without_connection(stt: SpeechToTextV2) -> None:
     """Test that disconnecting while idle is a no-op."""
     await stt.disconnect()
