@@ -80,7 +80,7 @@ STT_V2_LANGUAGES = [
     "sv",
     "sw",
     "ta",
-    "te",
+    "te",  # codespell:ignore
     "th",
     "tl",
     "tr",
