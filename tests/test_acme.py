@@ -1,9 +1,10 @@
 """Test ACME handler functionality."""
 
 from socket import gaierror
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from acme import messages
+import aiohttp
 import pytest
 from requests.exceptions import RequestException
 
@@ -13,8 +14,11 @@ from hass_nabucasa.acme import (
     AcmeClientError,
     AcmeHandler,
     AcmeJWSVerificationError,
+    AcmeNabuCasaError,
+    ChallengeHandler,
     _raise_if_jws_verification_failed,
 )
+from tests.utils.aiohttp import AiohttpClientMocker
 
 
 @pytest.mark.parametrize(
@@ -262,3 +266,80 @@ def test_acme_handler_deactivate_account_network_errors(
 
         with pytest.raises(AcmeClientError, match="Can't deactivate account"):
             handler._deactivate_account()
+
+
+async def test_issue_certificate_dns_challenge_set_failure_raises_acme_error(
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """A DNS blip creating the challenge record must surface as AcmeNabuCasaError.
+
+    Regression test: this call site used to only catch TimeoutError and
+    AssertionError, so a DNS/connection failure (which surfaces as
+    InstanceApiError) leaked past it and killed the calling task instead of
+    being handled as an expected, retryable ACME failure.
+    """
+    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
+    challenge = ChallengeHandler(Mock(), Mock(), Mock(), "test-validation")
+
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/dns_challenge_txt",
+        exc=aiohttp.ClientConnectionError("Timeout while contacting DNS servers"),
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/dns_challenge_cleanup",
+        json={},
+    )
+
+    with (
+        patch.object(handler, "_create_client"),
+        patch.object(handler, "_generate_csr", return_value=b"csr"),
+        patch.object(handler, "_create_order", return_value=Mock()),
+        patch.object(handler, "_start_challenge", return_value=[challenge]),
+        patch.object(handler, "_answer_challenge") as mock_answer,
+        patch.object(handler, "_finish_challenge") as mock_finish,
+        pytest.raises(AcmeNabuCasaError, match="Can't set challenge token"),
+    ):
+        await handler.issue_certificate()
+
+    mock_answer.assert_not_called()
+    mock_finish.assert_not_called()
+
+
+async def test_issue_certificate_dns_cleanup_failure_is_not_fatal(
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """A DNS blip cleaning up the challenge record must not abort issuance.
+
+    Regression test: by the time cleanup runs, the challenge has already been
+    answered, so the certificate can still finalize even if the leftover DNS
+    record isn't removed. This call site used to only catch TimeoutError, so
+    a DNS/connection failure (InstanceApiError) leaked past it and killed the
+    calling task after the hard work was already done.
+    """
+    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
+    challenge = ChallengeHandler(Mock(), Mock(), Mock(), "test-validation")
+
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/dns_challenge_txt",
+        json={},
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/dns_challenge_cleanup",
+        exc=aiohttp.ClientConnectionError("Timeout while contacting DNS servers"),
+    )
+
+    with (
+        patch.object(handler, "_create_client"),
+        patch.object(handler, "_generate_csr", return_value=b"csr"),
+        patch.object(handler, "_create_order", return_value=Mock()),
+        patch.object(handler, "_start_challenge", return_value=[challenge]),
+        patch.object(handler, "_answer_challenge"),
+        patch.object(handler, "_finish_challenge") as mock_finish,
+        patch.object(handler, "load_certificate", AsyncMock()),
+        patch("hass_nabucasa.acme.asyncio.sleep", AsyncMock()),
+    ):
+        await handler.issue_certificate()
+
+    mock_finish.assert_called_once()
