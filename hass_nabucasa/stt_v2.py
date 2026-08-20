@@ -305,7 +305,7 @@ class SpeechToTextV2:
             return self._handle_session_ended(
                 await self._stream_audio(receive_task, stream, codec)
             )
-        except Exception:  # pylint: disable=broad-except
+        except BaseException:  # pylint: disable=broad-except
             await self._dispose_receive_task(receive_task)
             await self._close_ws()
             raise
