@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 import json
 import logging
@@ -126,6 +127,7 @@ __all__ = [
     "AlreadyConnectedError",
     "AlreadyLoggedIn",
     "AuthTimeoutError",
+    "AutoLoginController",
     "CertificateStatus",
     "CheckLatencyError",
     "CheckLatencyHostResult",
@@ -193,6 +195,18 @@ class AlreadyConnectedError(CloudError):
         """Initialize an already connected error."""
         super().__init__("instance_already_connected")
         self.details = details
+
+
+@dataclass(frozen=True)
+class AutoLoginController:
+    """Controls for a pending register-and-auto-login.
+
+    ``cancel`` stops the retry loop; ``attempt_now`` triggers an immediate login
+    attempt instead of waiting for the current backoff to elapse.
+    """
+
+    cancel: Callable[[], None]
+    attempt_now: Callable[[], None]
 
 
 class Cloud(Generic[_ClientT]):
@@ -441,14 +455,15 @@ class Cloud(Generic[_ClientT]):
         password: str,
         *,
         client_metadata: Any | None = None,
-    ) -> Callable[[], None]:
+    ) -> AutoLoginController:
         """Register a new account and log in once it has been confirmed.
 
         Registration is awaited (errors such as UserExists propagate to the caller).
         A background task then retries login with exponential backoff until the
         account is confirmed or roughly a day has elapsed, at which point it gives up.
 
-        Returns a callback that cancels the pending auto-login.
+        Returns an AutoLoginController with cancel() and attempt_now() (the latter
+        forces an immediate retry, e.g. once the user says they confirmed the email).
         """
         # Normalize once so the auto-login attempts use the same identifier that
         # registration does (async_register lowercases the email).
@@ -459,18 +474,37 @@ class Cloud(Generic[_ClientT]):
         if self._auto_login_task is not None:
             self._auto_login_task.cancel()
 
+        wake = asyncio.Event()
         task = self._auto_login_task = asyncio.create_task(
-            self._async_auto_login(email, password),
+            self._async_auto_login(email, password, wake),
             name="auto_login",
         )
 
-        def cancel_auto_login() -> None:
+        def cancel() -> None:
             """Cancel this pending auto-login."""
             task.cancel()
 
-        return cancel_auto_login
+        def attempt_now() -> None:
+            """Force an immediate login attempt instead of waiting for backoff."""
+            wake.set()
 
-    async def _async_auto_login(self, email: str, password: str) -> None:
+        return AutoLoginController(cancel=cancel, attempt_now=attempt_now)
+
+    async def _wait_before_retry(self, wake: asyncio.Event, backoff: int) -> bool:
+        """Wait up to backoff seconds, or until an immediate attempt is requested.
+
+        Returns True when an immediate attempt was requested.
+        """
+        try:
+            await asyncio.wait_for(wake.wait(), timeout=backoff)
+        except TimeoutError:
+            return False
+        wake.clear()
+        return True
+
+    async def _async_auto_login(
+        self, email: str, password: str, wake: asyncio.Event
+    ) -> None:
         """Retry login until the account is confirmed, then log in.
 
         The credentials only ever live as parameters of this coroutine; they are
@@ -517,8 +551,11 @@ class Cloud(Generic[_ClientT]):
                     )
                     return
 
-                await asyncio.sleep(backoff)
-                elapsed += backoff
+                if await self._wait_before_retry(wake, backoff):
+                    # Forced attempt: restart the schedule so retries stay fast.
+                    elapsed = 0
+                else:
+                    elapsed += backoff
         except asyncio.CancelledError:
             _LOGGER.debug("Auto login cancelled")
             raise
