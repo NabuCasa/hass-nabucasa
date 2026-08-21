@@ -593,6 +593,24 @@ async def test_register_and_auto_login_retries_transient_errors(cl: cloud.Cloud)
     assert cl._auto_login_task is None
 
 
+async def test_register_and_auto_login_retries_account_not_ready(cl: cloud.Cloud):
+    """Test auto login retries while the account is still provisioning."""
+    cl.auth.async_register = AsyncMock()
+    cl.login = AsyncMock(side_effect=[cloud.AccountNotReady(), None])
+
+    with patch(
+        "hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)
+    ) as wait_mock:
+        await cl.register_and_auto_login("email@home-assistant.io", "password")
+        task = cl._auto_login_task
+        assert task is not None
+        await task
+
+    assert cl.login.call_count == 2
+    assert wait_mock.call_count == 1
+    assert cl._auto_login_task is None
+
+
 async def test_register_and_auto_login_stops_on_fatal_error(cl: cloud.Cloud):
     """Test auto login stops immediately on a non-retryable error."""
     cl.auth.async_register = AsyncMock()

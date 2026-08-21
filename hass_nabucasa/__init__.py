@@ -544,6 +544,11 @@ class Cloud(Generic[_ClientT]):
                         "Account not confirmed yet, retrying auto login in %s",
                         seconds_as_dhms(backoff),
                     )
+                except AccountNotReady:
+                    _LOGGER.debug(
+                        "Account not ready yet, retrying auto login in %s",
+                        seconds_as_dhms(backoff),
+                    )
                 except (CloudConnectionError, AuthTimeoutError) as err:
                     _LOGGER.debug(
                         "Auto login attempt failed (%s), retrying in %s",
