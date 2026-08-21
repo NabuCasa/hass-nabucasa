@@ -43,6 +43,10 @@ readme = "README.md"
 requires-python = ">=3.14"
 version = "0.0.0"
 
+[project.urls]
+"Source Code" = "https://github.com/NabuCasa/hass-nabucasa"
+"Bug Reports" = "https://github.com/NabuCasa/hass-nabucasa/issues"
+
 [project.optional-dependencies]
 test = [
     "codespell==2.4.3",
