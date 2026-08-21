@@ -85,7 +85,7 @@ from .payments_api import (
     PaymentsApiError,
     SubscriptionInfo,
 )
-from .remote import RemoteLatencyLocationResult, RemoteUI
+from .remote import RemoteLatencyLocationResult, RemoteNotConnected, RemoteUI
 from .service_discovery import (
     ServiceDiscovery,
     ServiceDiscoveryAction,
@@ -151,6 +151,7 @@ __all__ = [
     "PasswordChangeRequired",
     "PaymentsApiError",
     "RemoteLatencyLocationResult",
+    "RemoteNotConnected",
     "ServiceDiscovery",
     "ServiceDiscoveryAction",
     "ServiceDiscoveryError",
