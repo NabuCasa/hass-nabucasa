@@ -133,6 +133,18 @@ async def test_login(mock_cognito, mock_cloud):
     )
 
 
+async def test_login_account_not_ready(mock_cognito, mock_cloud):
+    """Test login surfaces AccountNotReady instead of swallowing it."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    mock_cognito.id_token = "test_id_token"
+    mock_cognito.access_token = "test_access_token"
+    mock_cognito.refresh_token = "test_refresh_token"
+    mock_cloud.update_token.side_effect = auth_api.AccountNotReady
+
+    with pytest.raises(auth_api.AccountNotReady):
+        await auth.async_login("user", "pass")
+
+
 async def test_login_with_check_connection(mock_cognito, mock_cloud):
     """Test login with connection check."""
     auth = auth_api.CognitoAuth(mock_cloud)
