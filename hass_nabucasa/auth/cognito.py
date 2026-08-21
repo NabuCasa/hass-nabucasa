@@ -66,6 +66,16 @@ class UserNotConfirmed(CloudError):
     """Raised when a user has not confirmed email yet."""
 
 
+class AccountNotReady(CloudError):
+    """Raised when the account's subscription has not finished provisioning.
+
+    Authentication succeeded, but the id token does not yet carry the
+    subscription expiration claim because provisioning is still in progress.
+    Login must not complete until it does, so this is a login precondition
+    much like UserNotConfirmed rather than an error.
+    """
+
+
 class CloudConnectionError(CloudError):
     """Raised when unable to connect to the cloud."""
 
