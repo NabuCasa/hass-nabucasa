@@ -38,6 +38,12 @@ DEFAULT_SERVERS: dict[str, dict[str, str]] = {
     "development": {},
 }
 
+# Temporary for the beta: the server goes away once the service is announced
+# through service discovery. Set a test key to bypass Cognito, or leave it
+# empty to authorize with the Cognito id token.
+STT_V2_SERVER_URL = "wss://51.159.143.210/ws"
+STT_V2_AUTHORIZED_KEY = ""
+
 DEFAULT_VALUES: dict[str, dict[str, str]] = {
     "production": {
         "cognito_client_id": "60i2uvhvbiref2mftj7rgcrt9u",
