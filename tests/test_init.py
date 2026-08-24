@@ -315,12 +315,37 @@ def test_subscription_not_expired(cl: cloud.Cloud):
 
 async def test_claims_decoding(cl: cloud.Cloud):
     """Test decoding claims."""
-    payload = {"cognito:username": "abc123", "some": "value"}
+    payload = {
+        "cognito:username": "abc123",
+        "custom:sub-exp": "2099-01-01",
+        "some": "value",
+    }
     encoded_token = cloud.jwt.encode(payload, key="secret")
 
     await cl.update_token(encoded_token, None)
     assert cl.claims == payload
     assert cl.username == "abc123"
+
+
+async def test_update_token_raises_account_not_ready_without_claim(cl: cloud.Cloud):
+    """Test a token without a subscription claim is refused.
+
+    The account is not usable yet, so nothing may be stored and the instance
+    must not be left half-logged-in.
+    """
+    token_without_claim = cloud.jwt.encode({"cognito:username": "abc"}, key="secret")
+
+    with pytest.raises(cloud.AccountNotReady):
+        await cl.update_token(
+            token_without_claim,
+            "test-access-token",
+            "test-refresh-token",
+        )
+
+    assert cl.id_token is None
+    assert cl.access_token is None
+    assert cl.refresh_token is None
+    assert not cl.is_logged_in
 
 
 @pytest.mark.parametrize(

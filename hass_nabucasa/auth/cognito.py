@@ -66,6 +66,10 @@ class UserNotConfirmed(CloudError):
     """Raised when a user has not confirmed email yet."""
 
 
+class AccountNotReady(CloudError):
+    """Raised when the account's subscription has not finished provisioning."""
+
+
 class CloudConnectionError(CloudError):
     """Raised when unable to connect to the cloud."""
 

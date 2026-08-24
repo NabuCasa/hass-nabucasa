@@ -34,6 +34,7 @@ from .api import (
     CloudApiTimeoutError,
 )
 from .auth import (
+    AccountNotReady,
     AuthTimeoutError,
     CognitoAuth,
     InvalidTotpCode,
@@ -110,6 +111,7 @@ from .voice_api import VoiceApi, VoiceApiError
 __all__ = [
     "MODE_DEV",
     "AccountApiError",
+    "AccountNotReady",
     "AccountsApi",
     "AccountsApiError",
     "AlexaAccessTokenDetails",
@@ -348,6 +350,9 @@ class Cloud(Generic[_ClientT]):
         refresh_token: str | None = None,
     ) -> asyncio.Task | None:
         """Update the id and access token."""
+        if self._decode_claims(id_token).get("custom:sub-exp") is None:
+            raise AccountNotReady("Account is still being provisioned")
+
         self.id_token = id_token
         self.access_token = access_token
         if refresh_token is not None:
