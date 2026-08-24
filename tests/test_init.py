@@ -747,20 +747,26 @@ async def test_register_and_auto_login_does_not_retain_credentials(
     assert password not in caplog.text
 
 
-async def test_register_and_auto_login_propagates_unexpected_error(cl: cloud.Cloud):
-    """Test an unexpected non-CloudError is not swallowed by the retry loop."""
+async def test_register_and_auto_login_logs_unexpected_error(
+    cl: cloud.Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test an unexpected error is logged and stops the loop without escaping."""
     cl.auth.async_register = AsyncMock()
     cl.login = AsyncMock(side_effect=RuntimeError("boom"))
 
-    with patch("hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)):
+    with (
+        caplog.at_level(logging.ERROR),
+        patch("hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)),
+    ):
         await cl.register_and_auto_login("email@home-assistant.io", "password")
         task = cl._auto_login_task
         assert task is not None
-        with pytest.raises(RuntimeError, match="boom"):
-            await task
+        await task
 
     assert cl.login.call_count == 1
     assert cl._auto_login_task is None
+    assert "Unexpected error in auto login" in caplog.text
 
 
 async def test_logout_cancels_pending_auto_login(cl: cloud.Cloud):
@@ -787,6 +793,31 @@ async def test_logout_cancels_pending_auto_login(cl: cloud.Cloud):
     assert cl._auto_login_task is None
     with pytest.raises(asyncio.CancelledError):
         await task
+
+
+async def test_login_cancels_pending_auto_login(cl: cloud.Cloud):
+    """Test a login on another path cancels a pending auto-login retry loop."""
+    cl.auth.async_register = AsyncMock()
+    cl.auth.async_login = AsyncMock(side_effect=[cloud.UserNotConfirmed(), None])
+    attempted = asyncio.Event()
+
+    async def park(wake, backoff):
+        """Park the retry loop in the backoff wait until cancelled."""
+        attempted.set()
+        await asyncio.Event().wait()
+
+    with patch("hass_nabucasa.Cloud._wait_before_retry", AsyncMock(side_effect=park)):
+        await cl.register_and_auto_login("email@home-assistant.io", "password")
+        task = cl._auto_login_task
+        assert task is not None
+        await attempted.wait()
+
+        await cl.login("email@home-assistant.io", "password")
+
+    assert cl._auto_login_task is None
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert cl.auth.async_login.call_count == 2
 
 
 async def test_stop_cancels_pending_auto_login(cl: cloud.Cloud):

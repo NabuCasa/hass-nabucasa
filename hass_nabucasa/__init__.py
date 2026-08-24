@@ -439,6 +439,7 @@ class Cloud(Generic[_ClientT]):
     ) -> None:
         """Log a user in."""
         await self.auth.async_login(email, password, check_connection=check_connection)
+        self._cancel_stale_auto_login()
         await self.events.publish(CloudEvent(type=CloudEventType.LOGIN))
 
     async def login_verify_totp(
@@ -453,7 +454,15 @@ class Cloud(Generic[_ClientT]):
         await self.auth.async_login_verify_totp(
             email, code, mfa_tokens, check_connection=check_connection
         )
+        self._cancel_stale_auto_login()
         await self.events.publish(CloudEvent(type=CloudEventType.LOGIN))
+
+    def _cancel_stale_auto_login(self) -> None:
+        """Cancel a pending auto-login after a login on another code path."""
+        task = self._auto_login_task
+        if task is not None and task is not asyncio.current_task():
+            task.cancel()
+            self._auto_login_task = None
 
     async def register_and_auto_login(
         self,
@@ -558,8 +567,11 @@ class Cloud(Generic[_ClientT]):
         except asyncio.CancelledError:
             _LOGGER.debug("Auto login cancelled")
             raise
-        except CloudError:
-            _LOGGER.exception("Auto login stopped due to an unexpected error")
+        except CloudError as err:
+            _LOGGER.warning("Auto login stopped: %s", err)
+        except Exception:  # pylint: disable=broad-except
+            # Safety net, so an unexpected error never escape this background task
+            _LOGGER.exception("Unexpected error in auto login")
         finally:
             if self._auto_login_task is asyncio.current_task():
                 self._auto_login_task = None
