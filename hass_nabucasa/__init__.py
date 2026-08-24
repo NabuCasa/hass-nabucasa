@@ -494,10 +494,7 @@ class Cloud(Generic[_ClientT]):
         return AutoLoginController(cancel=cancel, attempt_now=attempt_now)
 
     async def _wait_before_retry(self, wake: asyncio.Event, backoff: int) -> bool:
-        """Wait up to backoff seconds, or until an immediate attempt is requested.
-
-        Returns True when an immediate attempt was requested.
-        """
+        """Wait up to backoff seconds, or until an immediate attempt is requested."""
         try:
             await asyncio.wait_for(wake.wait(), timeout=backoff)
         except TimeoutError:
@@ -508,11 +505,7 @@ class Cloud(Generic[_ClientT]):
     async def _async_auto_login(
         self, email: str, password: str, wake: asyncio.Event
     ) -> None:
-        """Retry login until the account is confirmed, then log in.
-
-        The credentials only ever live as parameters of this coroutine; they are
-        never stored on the instance, logged or persisted.
-        """
+        """Retry login until the account is confirmed, then log in."""
         backoff = AUTO_LOGIN_FAST_RETRY_INTERVAL
         elapsed = 0
         try:
