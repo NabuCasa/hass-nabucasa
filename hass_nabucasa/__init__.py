@@ -348,17 +348,9 @@ class Cloud(Generic[_ClientT]):
         access_token: str,
         refresh_token: str | None = None,
     ) -> asyncio.Task | None:
-        """Update the id and access token.
-
-        A token without a subscription expiration claim means the account is
-        not usable yet: still being provisioned, or otherwise broken. Reject it
-        before storing anything, so a broken token never overwrites a good one
-        and the instance is never left half-logged-in on an unusable account.
-        On login this surfaces as AccountNotReady; on a token renewal it is
-        caught by the caller, which keeps the previous (valid) token.
-        """
+        """Update the id and access token."""
         if self._decode_claims(id_token).get("custom:sub-exp") is None:
-            raise AccountNotReady
+            raise AccountNotReady("Account is still being provisioned")
 
         self.id_token = id_token
         self.access_token = access_token

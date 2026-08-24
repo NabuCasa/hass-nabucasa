@@ -67,13 +67,7 @@ class UserNotConfirmed(CloudError):
 
 
 class AccountNotReady(CloudError):
-    """Raised when the account's subscription has not finished provisioning.
-
-    Authentication succeeded, but the id token does not yet carry the
-    subscription expiration claim because provisioning is still in progress.
-    Login must not complete until it does, so this is a login precondition
-    much like UserNotConfirmed rather than an error.
-    """
+    """Raised when the account's subscription has not finished provisioning."""
 
 
 class CloudConnectionError(CloudError):
