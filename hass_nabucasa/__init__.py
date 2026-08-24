@@ -570,7 +570,7 @@ class Cloud(Generic[_ClientT]):
         except CloudError as err:
             _LOGGER.warning("Auto login stopped: %s", err)
         except Exception:  # pylint: disable=broad-except
-            # Safety net, so an unexpected error never escape this background task
+            # Safety net, so an unexpected error never escapes this background task
             _LOGGER.exception("Unexpected error in auto login")
         finally:
             if self._auto_login_task is asyncio.current_task():
