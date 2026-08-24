@@ -924,3 +924,34 @@ async def test_register_and_auto_login_attempt_now(cl: cloud.Cloud):
 
     assert cl.login.call_count == 2
     assert cl._auto_login_task is None
+
+
+async def test_register_and_auto_login_resend_restarts_schedule(cl: cloud.Cloud):
+    """Test resend() resends the confirmation email and forces an immediate retry."""
+    cl.auth.async_register = AsyncMock()
+    cl.auth.async_resend_email_confirm = AsyncMock()
+    cl.login = AsyncMock(side_effect=[cloud.UserNotConfirmed(), None])
+
+    async def wait_until_forced(wake: asyncio.Event, backoff: int) -> bool:
+        """Block until an immediate attempt is requested (never time out)."""
+        await wake.wait()
+        wake.clear()
+        return True
+
+    with patch(
+        "hass_nabucasa.Cloud._wait_before_retry",
+        AsyncMock(side_effect=wait_until_forced),
+    ):
+        controller = await cl.register_and_auto_login(
+            "email@home-assistant.io", "password"
+        )
+        task = cl._auto_login_task
+        assert task is not None
+        await controller.resend()
+        await task
+
+    cl.auth.async_resend_email_confirm.assert_awaited_once_with(
+        "email@home-assistant.io"
+    )
+    assert cl.login.call_count == 2
+    assert cl._auto_login_task is None

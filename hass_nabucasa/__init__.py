@@ -205,11 +205,13 @@ class AutoLoginController:
     """Controls for a pending register-and-auto-login.
 
     ``cancel`` stops the retry loop; ``attempt_now`` triggers an immediate login
-    attempt instead of waiting for the current backoff to elapse.
+    attempt instead of waiting for the current backoff to elapse; ``resend``
+    resends the confirmation email and restarts the retry schedule.
     """
 
     cancel: Callable[[], None]
     attempt_now: Callable[[], None]
+    resend: Callable[[], Awaitable[None]]
 
 
 class Cloud(Generic[_ClientT]):
@@ -473,9 +475,10 @@ class Cloud(Generic[_ClientT]):
     ) -> AutoLoginController:
         """Register a new account and auto-login once it is confirmed.
 
-        Returns an AutoLoginController with cancel() and attempt_now(), which forces an
-        immediate retry; a background task retries login with backoff until confirmed,
-        else gives up after ~a day.
+        Returns an AutoLoginController with cancel(), attempt_now() (forces an immediate
+        retry) and resend() (resends the confirmation email and restarts the schedule);
+        a background task retries login with backoff until confirmed, else gives up
+        after ~a day.
         """
         # Normalize email, so the auto-login uses the same value as the registration
         email = email.lower()
@@ -498,7 +501,14 @@ class Cloud(Generic[_ClientT]):
             """Force an immediate login attempt instead of waiting for backoff."""
             wake.set()
 
-        return AutoLoginController(cancel=cancel, attempt_now=attempt_now)
+        async def resend() -> None:
+            """Resend the confirmation email and restart the retry schedule."""
+            await self.auth.async_resend_email_confirm(email)
+            wake.set()
+
+        return AutoLoginController(
+            cancel=cancel, attempt_now=attempt_now, resend=resend
+        )
 
     async def _wait_before_retry(self, wake: asyncio.Event, backoff: int) -> bool:
         """Wait up to backoff seconds, or until an immediate attempt is requested."""
