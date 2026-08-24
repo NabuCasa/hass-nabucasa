@@ -55,6 +55,7 @@ from .const import (
     ACCOUNT_URL,
     AUTO_LOGIN_FAST_RETRY_INTERVAL,
     AUTO_LOGIN_FAST_RETRY_PERIOD,
+    AUTO_LOGIN_INITIAL_DELAY,
     AUTO_LOGIN_MAX_TOTAL_BACKOFF,
     AUTO_LOGIN_MEDIUM_RETRY_INTERVAL,
     AUTO_LOGIN_MEDIUM_RETRY_PERIOD,
@@ -112,6 +113,7 @@ from .utils import (
     parse_date,
     seconds_as_dhms,
     utcnow,
+    wait_for_event,
 )
 from .voice import Voice
 from .voice_api import VoiceApi, VoiceApiError
@@ -441,7 +443,7 @@ class Cloud(Generic[_ClientT]):
     ) -> None:
         """Log a user in."""
         await self.auth.async_login(email, password, check_connection=check_connection)
-        self._cancel_stale_auto_login()
+        self._cancel_pending_auto_login()
         await self.events.publish(CloudEvent(type=CloudEventType.LOGIN))
 
     async def login_verify_totp(
@@ -456,11 +458,11 @@ class Cloud(Generic[_ClientT]):
         await self.auth.async_login_verify_totp(
             email, code, mfa_tokens, check_connection=check_connection
         )
-        self._cancel_stale_auto_login()
+        self._cancel_pending_auto_login()
         await self.events.publish(CloudEvent(type=CloudEventType.LOGIN))
 
-    def _cancel_stale_auto_login(self) -> None:
-        """Cancel a pending auto-login after a login on another code path."""
+    def _cancel_pending_auto_login(self) -> None:
+        """Cancel a pending auto-login, guarded to never cancel the running task."""
         task = self._auto_login_task
         if task is not None and task is not asyncio.current_task():
             task.cancel()
@@ -484,8 +486,7 @@ class Cloud(Generic[_ClientT]):
         email = email.lower()
         await self.auth.async_register(email, password, client_metadata=client_metadata)
 
-        if self._auto_login_task is not None:
-            self._auto_login_task.cancel()
+        self._cancel_pending_auto_login()
 
         wake = asyncio.Event()
         task = self._auto_login_task = asyncio.create_task(
@@ -493,31 +494,29 @@ class Cloud(Generic[_ClientT]):
             name="auto_login",
         )
 
+        def task_active() -> bool:
+            """Return True while the retry task is live and not being cancelled."""
+            return not task.done() and not task.cancelling()
+
         def cancel() -> None:
             """Cancel this pending auto-login."""
-            task.cancel()
+            if task_active():
+                task.cancel()
 
         def attempt_now() -> None:
             """Force an immediate login attempt instead of waiting for backoff."""
-            wake.set()
+            if task_active():
+                wake.set()
 
         async def resend() -> None:
             """Resend the confirmation email and restart the retry schedule."""
             await self.auth.async_resend_email_confirm(email)
-            wake.set()
+            if task_active():
+                wake.set()
 
         return AutoLoginController(
             cancel=cancel, attempt_now=attempt_now, resend=resend
         )
-
-    async def _wait_before_retry(self, wake: asyncio.Event, backoff: int) -> bool:
-        """Wait up to backoff seconds, or until an immediate attempt is requested."""
-        try:
-            await asyncio.wait_for(wake.wait(), timeout=backoff)
-        except TimeoutError:
-            return False
-        wake.clear()
-        return True
 
     async def _async_auto_login(
         self, email: str, password: str, wake: asyncio.Event
@@ -526,6 +525,9 @@ class Cloud(Generic[_ClientT]):
         backoff = AUTO_LOGIN_FAST_RETRY_INTERVAL
         elapsed = 0
         try:
+            # Give the user initial time to confirm the account before attempting
+            # the first check
+            await asyncio.sleep(AUTO_LOGIN_INITIAL_DELAY)
             while True:
                 if self.is_logged_in:
                     return
@@ -569,7 +571,7 @@ class Cloud(Generic[_ClientT]):
                     )
                     return
 
-                if await self._wait_before_retry(wake, backoff):
+                if await wait_for_event(wake, backoff):
                     # Forced attempt: restart the schedule so retries stay fast.
                     elapsed = 0
                 else:
@@ -588,9 +590,7 @@ class Cloud(Generic[_ClientT]):
 
     async def logout(self) -> None:
         """Close connection and remove all credentials."""
-        if self._auto_login_task is not None:
-            self._auto_login_task.cancel()
-            self._auto_login_task = None
+        self._cancel_pending_auto_login()
         await self.events.publish(CloudEvent(type=CloudEventType.LOGOUT))
         self.id_token = None
         self.access_token = None
@@ -729,9 +729,7 @@ class Cloud(Generic[_ClientT]):
             self._init_task.cancel()
             self._init_task = None
 
-        if self._auto_login_task is not None:
-            self._auto_login_task.cancel()
-            self._auto_login_task = None
+        self._cancel_pending_auto_login()
 
         await self.service_discovery.async_stop_service_discovery()
         await self.client.cloud_stopped()

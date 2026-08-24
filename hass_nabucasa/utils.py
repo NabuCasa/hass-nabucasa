@@ -214,6 +214,20 @@ async def gather_callbacks(
         )
 
 
+async def wait_for_event(event: asyncio.Event, timeout_seconds: float) -> bool:
+    """Wait up to timeout_seconds for event to be set.
+
+    Returns True if the event fired within the timeout, clearing it so it can be
+    reused, or False if the timeout elapsed first.
+    """
+    try:
+        await asyncio.wait_for(event.wait(), timeout=timeout_seconds)
+    except TimeoutError:
+        return False
+    event.clear()
+    return True
+
+
 class Registry(dict):
     """Registry of items."""
 

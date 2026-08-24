@@ -35,6 +35,13 @@ def mock_subscription_info(aioclient_mock):
     )
 
 
+@pytest.fixture(autouse=True)
+def _skip_auto_login_initial_delay():
+    """Skip the pre-loop auto-login delay so tests don't wait for real."""
+    with patch("hass_nabucasa.AUTO_LOGIN_INITIAL_DELAY", 0):
+        yield
+
+
 @pytest.fixture
 async def cl(cloud_client) -> cloud.Cloud:
     """Mock cloud client."""
@@ -552,7 +559,7 @@ async def test_register_and_auto_login_logs_in_after_confirmation(cl: cloud.Clou
     cl.login = AsyncMock(side_effect=[cloud.UserNotConfirmed(), None])
 
     with patch(
-        "hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)
+        "hass_nabucasa.wait_for_event", AsyncMock(return_value=False)
     ) as wait_mock:
         await cl.register_and_auto_login(
             "email@home-assistant.io",
@@ -583,7 +590,7 @@ async def test_register_and_auto_login_retries_transient_errors(cl: cloud.Cloud)
         ],
     )
 
-    with patch("hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)):
+    with patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)):
         await cl.register_and_auto_login("email@home-assistant.io", "password")
         task = cl._auto_login_task
         assert task is not None
@@ -599,7 +606,7 @@ async def test_register_and_auto_login_retries_account_not_ready(cl: cloud.Cloud
     cl.login = AsyncMock(side_effect=[cloud.AccountNotReady(), None])
 
     with patch(
-        "hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)
+        "hass_nabucasa.wait_for_event", AsyncMock(return_value=False)
     ) as wait_mock:
         await cl.register_and_auto_login("email@home-assistant.io", "password")
         task = cl._auto_login_task
@@ -617,7 +624,7 @@ async def test_register_and_auto_login_stops_on_fatal_error(cl: cloud.Cloud):
     cl.login = AsyncMock(side_effect=cloud.Unauthenticated("nope"))
 
     with patch(
-        "hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)
+        "hass_nabucasa.wait_for_event", AsyncMock(return_value=False)
     ) as wait_mock:
         await cl.register_and_auto_login("email@home-assistant.io", "password")
         task = cl._auto_login_task
@@ -635,7 +642,7 @@ async def test_register_and_auto_login_gives_up_after_one_day(cl: cloud.Cloud):
     cl.login = AsyncMock(side_effect=cloud.UserNotConfirmed())
 
     with patch(
-        "hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)
+        "hass_nabucasa.wait_for_event", AsyncMock(return_value=False)
     ) as wait_mock:
         await cl.register_and_auto_login("email@home-assistant.io", "password")
         task = cl._auto_login_task
@@ -672,7 +679,7 @@ async def test_register_and_auto_login_handles_concurrent_login_race(cl: cloud.C
     cl.login = AsyncMock(side_effect=cloud.AlreadyLoggedIn("already logged in"))
 
     with patch(
-        "hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)
+        "hass_nabucasa.wait_for_event", AsyncMock(return_value=False)
     ) as wait_mock:
         await cl.register_and_auto_login("email@home-assistant.io", "password")
         task = cl._auto_login_task
@@ -735,7 +742,7 @@ async def test_register_and_auto_login_does_not_retain_credentials(
 
     with (
         caplog.at_level(logging.DEBUG),
-        patch("hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)),
+        patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)),
     ):
         await cl.register_and_auto_login("email@home-assistant.io", password)
         task = cl._auto_login_task
@@ -757,7 +764,7 @@ async def test_register_and_auto_login_logs_unexpected_error(
 
     with (
         caplog.at_level(logging.ERROR),
-        patch("hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)),
+        patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)),
     ):
         await cl.register_and_auto_login("email@home-assistant.io", "password")
         task = cl._auto_login_task
@@ -806,7 +813,7 @@ async def test_login_cancels_pending_auto_login(cl: cloud.Cloud):
         attempted.set()
         await asyncio.Event().wait()
 
-    with patch("hass_nabucasa.Cloud._wait_before_retry", AsyncMock(side_effect=park)):
+    with patch("hass_nabucasa.wait_for_event", AsyncMock(side_effect=park)):
         await cl.register_and_auto_login("email@home-assistant.io", "password")
         task = cl._auto_login_task
         assert task is not None
@@ -852,7 +859,7 @@ async def test_register_and_auto_login_normalizes_email(cl: cloud.Cloud):
     cl.auth.async_register = AsyncMock()
     cl.login = AsyncMock(side_effect=[cloud.UserNotConfirmed(), None])
 
-    with patch("hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)):
+    with patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)):
         await cl.register_and_auto_login("User@Example.COM", "password")
         task = cl._auto_login_task
         assert task is not None
@@ -876,7 +883,7 @@ async def test_register_and_auto_login_publishes_login_event(cl: cloud.Cloud):
 
     cl.events.subscribe(event_type=cloud.CloudEventType.LOGIN, handler=on_login)
 
-    with patch("hass_nabucasa.Cloud._wait_before_retry", AsyncMock(return_value=False)):
+    with patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)):
         await cl.register_and_auto_login("email@home-assistant.io", "password")
         task = cl._auto_login_task
         assert task is not None
@@ -886,17 +893,6 @@ async def test_register_and_auto_login_publishes_login_event(cl: cloud.Cloud):
     assert len(received) == 1
     assert received[0].type is cloud.CloudEventType.LOGIN
     assert cl._auto_login_task is None
-
-
-async def test_auto_login_wait_before_retry(cl: cloud.Cloud):
-    """Test _wait_before_retry: a set event forces an immediate retry, else it waits."""
-    wake = asyncio.Event()
-    wake.set()
-
-    assert await cl._wait_before_retry(wake, 3600) is True
-    assert not wake.is_set()
-
-    assert await cl._wait_before_retry(wake, 0) is False
 
 
 async def test_register_and_auto_login_attempt_now(cl: cloud.Cloud):
@@ -911,7 +907,7 @@ async def test_register_and_auto_login_attempt_now(cl: cloud.Cloud):
         return True
 
     with patch(
-        "hass_nabucasa.Cloud._wait_before_retry",
+        "hass_nabucasa.wait_for_event",
         AsyncMock(side_effect=wait_until_forced),
     ):
         controller = await cl.register_and_auto_login(
@@ -939,7 +935,7 @@ async def test_register_and_auto_login_resend_restarts_schedule(cl: cloud.Cloud)
         return True
 
     with patch(
-        "hass_nabucasa.Cloud._wait_before_retry",
+        "hass_nabucasa.wait_for_event",
         AsyncMock(side_effect=wait_until_forced),
     ):
         controller = await cl.register_and_auto_login(
@@ -955,3 +951,80 @@ async def test_register_and_auto_login_resend_restarts_schedule(cl: cloud.Cloud)
     )
     assert cl.login.call_count == 2
     assert cl._auto_login_task is None
+
+
+async def test_auto_login_controls_noop_after_completion(cl: cloud.Cloud):
+    """Test the controls do not act on the retry task once it has finished."""
+    cl.auth.async_register = AsyncMock()
+    cl.auth.async_resend_email_confirm = AsyncMock()
+    cl.login = AsyncMock(return_value=None)
+
+    with patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)):
+        controller = await cl.register_and_auto_login(
+            "email@home-assistant.io", "password"
+        )
+        task = cl._auto_login_task
+        assert task is not None
+        await task
+
+    assert task.done()
+    assert not task.cancelled()
+
+    controller.cancel()
+    controller.attempt_now()
+    await controller.resend()
+
+    assert not task.cancelled()
+    cl.auth.async_resend_email_confirm.assert_awaited_once()
+
+
+async def test_register_and_auto_login_delays_first_attempt(cl: cloud.Cloud):
+    """Test the first login attempt is preceded by the initial delay."""
+    cl.auth.async_register = AsyncMock()
+    events: list = []
+
+    async def record_login(*args, **kwargs):
+        events.append("login")
+
+    async def record_sleep(seconds):
+        events.append(("sleep", seconds))
+
+    cl.login = AsyncMock(side_effect=record_login)
+
+    with (
+        patch("hass_nabucasa.AUTO_LOGIN_INITIAL_DELAY", 42),
+        patch("hass_nabucasa.asyncio.sleep", record_sleep),
+    ):
+        await cl.register_and_auto_login("email@home-assistant.io", "password")
+        task = cl._auto_login_task
+        assert task is not None
+        await task
+
+    assert events[0] == ("sleep", 42)
+    assert events[1] == "login"
+
+
+async def test_auto_login_cancel_guarded_while_cancelling(cl: cloud.Cloud):
+    """Test cancel() does not re-request cancellation while one is in flight."""
+    cl.auth.async_register = AsyncMock()
+    started = asyncio.Event()
+
+    async def park(*args, **kwargs):
+        """Park in the first login attempt until cancelled."""
+        started.set()
+        await asyncio.Event().wait()
+
+    cl.login = AsyncMock(side_effect=park)
+
+    controller = await cl.register_and_auto_login("email@home-assistant.io", "password")
+    task = cl._auto_login_task
+    assert task is not None
+    await started.wait()
+
+    controller.cancel()
+    assert task.cancelling() == 1
+    controller.cancel()
+    assert task.cancelling() == 1
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
