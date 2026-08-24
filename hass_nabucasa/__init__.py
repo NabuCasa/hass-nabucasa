@@ -462,13 +462,11 @@ class Cloud(Generic[_ClientT]):
         *,
         client_metadata: Any | None = None,
     ) -> AutoLoginController:
-        """Register a new account and log in once it has been confirmed.
+        """Register a new account and auto-login once it is confirmed.
 
-        Registration is awaited and a background task then retries login with
-        exponential backoff until the account is confirmed or roughly a day has elapsed.
-
-        Returns an AutoLoginController with cancel() and attempt_now() (the latter
-        forces an immediate retry, e.g. once the user says they confirmed the email).
+        Returns an AutoLoginController with cancel() and attempt_now(), which forces an
+        immediate retry; a background task retries login with backoff until confirmed,
+        else gives up after ~a day.
         """
         # Normalize email, so the auto-login uses the same value as the registration
         email = email.lower()
