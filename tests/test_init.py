@@ -642,14 +642,11 @@ async def test_register_and_auto_login_gives_up_after_one_day(cl: cloud.Cloud):
         assert task is not None
         await task
 
-    # _wait_before_retry is called as (wake, backoff); collect the backoffs.
     sleeps = [call.args[1] for call in wait_mock.mock_calls]
 
-    # Fixed 5s retries for the first minute.
     fast_count = AUTO_LOGIN_FAST_RETRY_PERIOD // AUTO_LOGIN_FAST_RETRY_INTERVAL
     assert sleeps[:fast_count] == [AUTO_LOGIN_FAST_RETRY_INTERVAL] * fast_count
 
-    # Fixed 10s retries from 1 minute up to 5 minutes.
     medium_count = (
         AUTO_LOGIN_MEDIUM_RETRY_PERIOD - AUTO_LOGIN_FAST_RETRY_PERIOD
     ) // AUTO_LOGIN_MEDIUM_RETRY_INTERVAL
@@ -658,17 +655,13 @@ async def test_register_and_auto_login_gives_up_after_one_day(cl: cloud.Cloud):
         == [AUTO_LOGIN_MEDIUM_RETRY_INTERVAL] * medium_count
     )
 
-    # Exponential doubling after 5 minutes, starting from the medium interval.
     tail = sleeps[fast_count + medium_count :]
     assert tail == [
         AUTO_LOGIN_MEDIUM_RETRY_INTERVAL * 2**index for index in range(1, len(tail) + 1)
     ]
 
-    # The accumulated wait never exceeds the one-day budget, and it gave up
-    # because the next delay would have exceeded it.
     assert sum(sleeps) <= AUTO_LOGIN_MAX_TOTAL_BACKOFF
     assert sum(sleeps) + tail[-1] * 2 > AUTO_LOGIN_MAX_TOTAL_BACKOFF
-    # One final attempt happens after the last sleep, before giving up.
     assert cl.login.call_count == len(sleeps) + 1
     assert cl._auto_login_task is None
 
@@ -749,9 +742,6 @@ async def test_register_and_auto_login_does_not_retain_credentials(
         assert task is not None
         await task
 
-    # The task self-clears on completion, so the coroutine frame (the only place
-    # the password lived) is released; and it was never stored as an instance
-    # attribute (guards against a `self._password = ...` regression) nor logged.
     assert cl._auto_login_task is None
     assert all(value != password for value in vars(cl).values())
     assert password not in caplog.text
@@ -872,11 +862,9 @@ async def test_auto_login_wait_before_retry(cl: cloud.Cloud):
     wake = asyncio.Event()
     wake.set()
 
-    # A pending immediate-attempt request returns True and is consumed.
     assert await cl._wait_before_retry(wake, 3600) is True
     assert not wake.is_set()
 
-    # Otherwise the backoff elapses and it returns False (timeout=0 → immediate).
     assert await cl._wait_before_retry(wake, 0) is False
 
 

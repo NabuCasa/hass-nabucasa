@@ -464,19 +464,16 @@ class Cloud(Generic[_ClientT]):
     ) -> AutoLoginController:
         """Register a new account and log in once it has been confirmed.
 
-        Registration is awaited (errors such as UserExists propagate to the caller).
-        A background task then retries login with exponential backoff until the
-        account is confirmed or roughly a day has elapsed, at which point it gives up.
+        Registration is awaited and a background task then retries login with
+        exponential backoff until the account is confirmed or roughly a day has elapsed.
 
         Returns an AutoLoginController with cancel() and attempt_now() (the latter
         forces an immediate retry, e.g. once the user says they confirmed the email).
         """
-        # Normalize once so the auto-login attempts use the same identifier that
-        # registration does (async_register lowercases the email).
+        # Normalize email, so the auto-login uses the same value as the registration
         email = email.lower()
         await self.auth.async_register(email, password, client_metadata=client_metadata)
 
-        # Replace any in-flight auto-login.
         if self._auto_login_task is not None:
             self._auto_login_task.cancel()
 
