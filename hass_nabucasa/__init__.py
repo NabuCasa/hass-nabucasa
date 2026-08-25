@@ -75,6 +75,7 @@ from .events import (
     CloudhookDeletedEvent,
     LoginEvent,
     LoginFailedEvent,
+    LoginFailedReason,
 )
 from .exceptions import (
     CloudError,
@@ -161,6 +162,7 @@ __all__ = [
     "InvalidTotpCode",
     "LoginEvent",
     "LoginFailedEvent",
+    "LoginFailedReason",
     "MFARequired",
     "MigratePaypalAgreementInfo",
     "NabuCasaAuthenticationError",
@@ -477,7 +479,7 @@ class Cloud(Generic[_ClientT]):
             task.cancel()
             self._auto_login_task = None
 
-    async def _publish_auto_login_failed(self, reason: str) -> None:
+    async def _publish_auto_login_failed(self, reason: LoginFailedReason) -> None:
         """Notify subscribers that auto login gave up without logging in."""
         await self.events.publish(LoginFailedEvent(auto=True, reason=reason))
 
@@ -585,9 +587,7 @@ class Cloud(Generic[_ClientT]):
                         "Giving up auto login, account was not confirmed within %s",
                         seconds_as_dhms(AUTO_LOGIN_MAX_TOTAL_BACKOFF),
                     )
-                    await self._publish_auto_login_failed(
-                        "Account was not confirmed in time"
-                    )
+                    await self._publish_auto_login_failed(LoginFailedReason.TIMEOUT)
                     return
 
                 if await wait_for_event(wake, backoff):
@@ -600,15 +600,11 @@ class Cloud(Generic[_ClientT]):
             raise
         except CloudError as err:
             _LOGGER.warning("Auto login stopped: %s", err)
-            await self._publish_auto_login_failed(
-                "A cloud error occurred while logging in"
-            )
+            await self._publish_auto_login_failed(LoginFailedReason.CLOUD_ERROR)
         except Exception:  # pylint: disable=broad-except
             # Safety net, so an unexpected error never escapes this background task
             _LOGGER.exception("Unexpected error in auto login")
-            await self._publish_auto_login_failed(
-                "An unexpected error occurred while logging in"
-            )
+            await self._publish_auto_login_failed(LoginFailedReason.UNEXPECTED_ERROR)
         finally:
             if self._auto_login_task is asyncio.current_task():
                 self._auto_login_task = None

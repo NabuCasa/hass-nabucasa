@@ -8,6 +8,7 @@ from .types import (
     CloudhookDeletedEvent,
     LoginEvent,
     LoginFailedEvent,
+    LoginFailedReason,
 )
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "EventBusError",
     "LoginEvent",
     "LoginFailedEvent",
+    "LoginFailedReason",
 ]

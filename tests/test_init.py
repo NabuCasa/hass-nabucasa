@@ -940,7 +940,7 @@ async def test_register_and_auto_login_publishes_failed_event_on_give_up(
     assert len(received) == 1
     assert received[0].type is cloud.CloudEventType.LOGIN_FAILED
     assert received[0].auto is True
-    assert received[0].reason == "Account was not confirmed in time"
+    assert received[0].reason is cloud.LoginFailedReason.TIMEOUT
     assert cl._auto_login_task is None
 
 
@@ -968,7 +968,7 @@ async def test_register_and_auto_login_publishes_failed_event_on_fatal_error(
     assert len(received) == 1
     assert received[0].type is cloud.CloudEventType.LOGIN_FAILED
     assert received[0].auto is True
-    assert received[0].reason == "A cloud error occurred while logging in"
+    assert received[0].reason is cloud.LoginFailedReason.CLOUD_ERROR
     assert cl._auto_login_task is None
 
 
@@ -1000,7 +1000,7 @@ async def test_register_and_auto_login_publishes_failed_event_on_unexpected_erro
     assert len(received) == 1
     assert received[0].type is cloud.CloudEventType.LOGIN_FAILED
     assert received[0].auto is True
-    assert received[0].reason == "An unexpected error occurred while logging in"
+    assert received[0].reason is cloud.LoginFailedReason.UNEXPECTED_ERROR
     assert cl._auto_login_task is None
 
 
