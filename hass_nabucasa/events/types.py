@@ -24,6 +24,7 @@ class CloudEventType(StrEnum):
     CLOUDHOOK_CREATED = "cloudhook_created"
     CLOUDHOOK_DELETED = "cloudhook_deleted"
     LOGIN = "login"
+    LOGIN_FAILED = "login_failed"
     LOGOUT = "logout"
     RELAYER_CONNECTED = "relayer_connected"
     RELAYER_DISCONNECTED = "relayer_disconnected"
@@ -69,3 +70,28 @@ class CloudhookDeletedEvent(CloudEvent):
 
     type: CloudEventType = field(default=CloudEventType.CLOUDHOOK_DELETED, init=False)
     cloudhook: CloudhookDetails
+
+
+class LoginFailedReason(StrEnum):
+    """Reason the register-and-auto-login flow gave up without logging in."""
+
+    TIMEOUT = "timeout"
+    CLOUD_ERROR = "cloud_error"
+    UNEXPECTED_ERROR = "unexpected_error"
+
+
+@dataclass(kw_only=True, frozen=True)
+class LoginEvent(CloudEvent):
+    """Login succeeded event."""
+
+    type: CloudEventType = field(default=CloudEventType.LOGIN, init=False)
+    auto: bool = False
+
+
+@dataclass(kw_only=True, frozen=True)
+class LoginFailedEvent(CloudEvent):
+    """Login failed event."""
+
+    type: CloudEventType = field(default=CloudEventType.LOGIN_FAILED, init=False)
+    reason: LoginFailedReason
+    auto: bool = False

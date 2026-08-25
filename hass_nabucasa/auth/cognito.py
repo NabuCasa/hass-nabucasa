@@ -34,6 +34,10 @@ class Unauthenticated(CloudError):
     """Raised when authentication failed."""
 
 
+class AlreadyLoggedIn(CloudError):
+    """Raised when trying to log in while already logged in."""
+
+
 class MFARequired(CloudError):
     """Raised when MFA is required."""
 
@@ -64,6 +68,10 @@ class UserExists(CloudError):
 
 class UserNotConfirmed(CloudError):
     """Raised when a user has not confirmed email yet."""
+
+
+class AccountNotReady(CloudError):
+    """Raised when the account's subscription has not finished provisioning."""
 
 
 class CloudConnectionError(CloudError):
@@ -224,7 +232,8 @@ class CognitoAuth:
         """Log user in and fetch certificate."""
         try:
             async with self._request_lock:
-                assert not self.cloud.is_logged_in, "Cannot login if already logged in."
+                if self.cloud.is_logged_in:
+                    raise AlreadyLoggedIn("Cannot login if already logged in.")
 
                 cognito: pycognito.Cognito = await self.cloud.run_executor(
                     partial(self._create_cognito_client, username=email),
@@ -275,9 +284,8 @@ class CognitoAuth:
         """Log user in and fetch certificate if MFA is required."""
         try:
             async with self._request_lock:
-                assert not self.cloud.is_logged_in, (
-                    "Cannot verify TOTP if already logged in."
-                )
+                if self.cloud.is_logged_in:
+                    raise AlreadyLoggedIn("Cannot verify TOTP if already logged in.")
 
                 cognito: pycognito.Cognito = await self.cloud.run_executor(
                     partial(self._create_cognito_client, username=email),
@@ -400,9 +408,22 @@ def _map_aws_exception(err: ClientError | BotoCoreError) -> CloudError:
         return AWS_EXCEPTIONS.get(err.__class__.__name__, UnknownError)(
             err.kwargs.get("error", str(err))
         )
-    return AWS_EXCEPTIONS.get(err.response["Error"]["Code"], UnknownError)(
-        err.response["Error"]["Message"]
-    )
+
+    error = err.response["Error"]
+    error_code = error["Code"]
+    error_message = error["Message"]
+
+    # Strip Cognito's Lambda wrapper: "<trigger> failed with error ||<message>".
+    error_message = error_message.rsplit("||", 1)[-1].strip()
+
+    # A PreSignUp Lambda reports "already exists" as UserLambdaValidationException.
+    if (
+        error_code == "UserLambdaValidationException"
+        and "already exists" in error_message.lower()
+    ):
+        return UserExists(error_message)
+
+    return AWS_EXCEPTIONS.get(error_code, UnknownError)(error_message)
 
 
 @lru_cache(maxsize=2)

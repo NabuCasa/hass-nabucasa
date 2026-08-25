@@ -25,6 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 MIN_REFRESH_INTERVAL = 60
 TIME_DELTA_FOR_INITIAL_LOAD_RETRY = TWELVE_HOURS_IN_SECONDS
+ACTION_URL_LOAD_TIMEOUT = 30
 
 ServiceDiscoveryAction = Literal[
     "account_services",
@@ -338,3 +339,26 @@ class ServiceDiscovery(ApiBase):
             raise ServiceDiscoveryMissingParameterError(
                 f"Missing required format parameter {err} for action '{action}'"
             ) from err
+
+    async def async_action_url(
+        self,
+        action: ServiceDiscoveryAction,
+        **kwargs: str,
+    ) -> str:
+        """Get URL for a specific action, ensuring discovery data is loaded."""
+        if action not in VALID_ACTION_NAMES:
+            raise ServiceDiscoveryMissingActionError(f"Unknown action: {action}")
+
+        if self._memory_cache is None or not _is_cache_valid(self._memory_cache):
+            try:
+                async with asyncio.timeout(ACTION_URL_LOAD_TIMEOUT):
+                    await self._load_service_discovery_data()
+            except TimeoutError:
+                _LOGGER.warning(
+                    "Timeout while waiting for service discovery data for action %s",
+                    action,
+                )
+            except ServiceDiscoveryError as err:
+                _LOGGER.info("Unable to load service discovery data: %s", err)
+
+        return self.action_url(action, **kwargs)
