@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 import aiohttp
 from aiohttp.hdrs import AUTHORIZATION, USER_AGENT
 
-from .const import STT_V2_AUTHORIZED_KEY, STT_V2_SERVER_URL
 from .exceptions import CloudError, NabuCasaBaseError
 from .voice import STTResponse
 
@@ -194,9 +193,6 @@ class SpeechToTextV2:
 
     async def _async_authorization_token(self) -> str:
         """Return the token that authorizes the connection."""
-        if STT_V2_AUTHORIZED_KEY:
-            return STT_V2_AUTHORIZED_KEY
-
         try:
             await self.cloud.auth.async_check_token()
         except CloudError as err:
@@ -212,10 +208,13 @@ class SpeechToTextV2:
     async def _connect_ws(self) -> None:
         """Open the raw WebSocket connection."""
         token = await self._async_authorization_token()
+        websocket_uri = await self.cloud.service_discovery.async_action_url(
+            "stt_proxy_websocket"
+        )
 
         try:
             self._ws = await self.cloud.websession.ws_connect(
-                STT_V2_SERVER_URL,
+                websocket_uri,
                 headers={
                     AUTHORIZATION: f"Bearer {token}",
                     USER_AGENT: self.cloud.client.client_name,
@@ -227,7 +226,7 @@ class SpeechToTextV2:
                 f"Unable to connect due to {err}"
             ) from err
 
-        _LOGGER.debug("Connected to speech to text service")
+        _LOGGER.debug("Connected to speech to text service at %s", websocket_uri)
 
     def _start_idle_listener(self) -> None:
         """Start a background task that monitors for connection drops."""

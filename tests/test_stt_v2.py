@@ -6,19 +6,22 @@ import asyncio
 from collections.abc import AsyncIterable
 import json
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from aiohttp import WSMessage, WSMsgType, client_exceptions
 import pytest
 
-from hass_nabucasa.const import STT_V2_SERVER_URL
+from hass_nabucasa import Cloud
 from hass_nabucasa.exceptions import CloudError
+from hass_nabucasa.service_discovery import VALID_ACTION_NAMES
 from hass_nabucasa.stt_v2 import (
     SpeechToTextV2,
     SpeechToTextV2ConnectionError,
     SpeechToTextV2Error,
     SpeechToTextV2UnsupportedLanguageError,
 )
+
+from .utils.aiohttp import AiohttpClientMocker
 
 
 class MockWebSocket:
@@ -71,11 +74,26 @@ async def audio_stream(*chunks: bytes) -> AsyncIterable[bytes]:
 
 
 @pytest.fixture(name="stt")
-def stt_fixture(cloud_mock: MagicMock) -> SpeechToTextV2:
-    """Return a speech to text instance with a mocked websession."""
-    cloud_mock.id_token = "mock-id-token"
-    cloud_mock.auth.async_check_token = AsyncMock()
-    return SpeechToTextV2(cloud_mock)
+def stt_fixture(
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+    service_discovery_fixture_data: dict[str, Any],
+) -> SpeechToTextV2:
+    """Return a speech to text instance with service discovery mocked."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json={
+            **service_discovery_fixture_data,
+            "actions": {
+                **{
+                    action: f"https://api.example.com/{action}"
+                    for action in VALID_ACTION_NAMES
+                },
+                **service_discovery_fixture_data["actions"],
+            },
+        },
+    )
+    return SpeechToTextV2(cloud)
 
 
 def connect_returns(stt: SpeechToTextV2, *websockets: MockWebSocket) -> None:
@@ -439,23 +457,9 @@ async def test_connect_uses_cloud_token(stt: SpeechToTextV2) -> None:
     await stt.connect()
 
     call = stt.cloud.websession.ws_connect.call_args
-    assert call.args[0] == STT_V2_SERVER_URL
-    assert call.kwargs["headers"]["Authorization"] == "Bearer mock-id-token"
+    assert call.args[0] == "wss://stt-proxy.example.com/websocket"
+    assert call.kwargs["headers"]["Authorization"] == f"Bearer {stt.cloud.id_token}"
     stt.cloud.auth.async_check_token.assert_awaited_once()
-
-    await stt.disconnect()
-
-
-async def test_connect_uses_configured_key(stt: SpeechToTextV2) -> None:
-    """Test that a configured key is used instead of the Cognito token."""
-    connect_returns(stt, MockWebSocket())
-
-    with patch("hass_nabucasa.stt_v2.STT_V2_AUTHORIZED_KEY", "mock-key"):
-        await stt.connect()
-
-    call = stt.cloud.websession.ws_connect.call_args
-    assert call.kwargs["headers"]["Authorization"] == "Bearer mock-key"
-    stt.cloud.auth.async_check_token.assert_not_called()
 
     await stt.disconnect()
 

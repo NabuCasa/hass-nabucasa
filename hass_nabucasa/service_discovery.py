@@ -46,6 +46,7 @@ ServiceDiscoveryAction = Literal[
     "storage_files_download",
     "storage_files_list",
     "storage_files_upload",
+    "stt_proxy_websocket",
     "subscription_info",
     "subscription_migrate_paypal",
     "voice_connection_details",
