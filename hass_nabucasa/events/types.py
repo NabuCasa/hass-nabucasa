@@ -85,5 +85,5 @@ class LoginFailedEvent(CloudEvent):
     """Login failed event."""
 
     type: CloudEventType = field(default=CloudEventType.LOGIN_FAILED, init=False)
-    auto: bool = False
     reason: str
+    auto: bool = False
