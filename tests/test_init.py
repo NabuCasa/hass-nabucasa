@@ -574,7 +574,7 @@ async def test_register_and_auto_login_logs_in_after_confirmation(cl: cloud.Clou
         "email@home-assistant.io", "password", client_metadata={"test": "metadata"}
     )
     assert cl.login.call_count == 2
-    cl.login.assert_called_with("email@home-assistant.io", "password")
+    cl.login.assert_called_with("email@home-assistant.io", "password", auto=True)
     assert wait_mock.call_count == 1
     assert cl._auto_login_task is None
 
@@ -868,7 +868,7 @@ async def test_register_and_auto_login_normalizes_email(cl: cloud.Cloud):
     cl.auth.async_register.assert_awaited_once_with(
         "user@example.com", "password", client_metadata=None
     )
-    cl.login.assert_called_with("user@example.com", "password")
+    cl.login.assert_called_with("user@example.com", "password", auto=True)
 
 
 async def test_register_and_auto_login_publishes_login_event(cl: cloud.Cloud):
@@ -882,7 +882,7 @@ async def test_register_and_auto_login_publishes_login_event(cl: cloud.Cloud):
         received.append(event)
 
     cl.events.subscribe(
-        event_type=[cloud.CloudEventType.LOGIN, cloud.CloudEventType.AUTO_LOGIN_FAILED],
+        event_type=[cloud.CloudEventType.LOGIN, cloud.CloudEventType.LOGIN_FAILED],
         handler=on_event,
     )
 
@@ -895,13 +895,32 @@ async def test_register_and_auto_login_publishes_login_event(cl: cloud.Cloud):
     assert cl.auth.async_login.call_count == 2
     assert len(received) == 1
     assert received[0].type is cloud.CloudEventType.LOGIN
+    assert received[0].auto is True
     assert cl._auto_login_task is None
+
+
+async def test_login_publishes_login_event_not_auto(cl: cloud.Cloud):
+    """Test a manual login emits a LOGIN event flagged as not auto."""
+    cl.auth.async_login = AsyncMock()
+
+    received: list[cloud.CloudEvent] = []
+
+    async def on_event(event: cloud.CloudEvent) -> None:
+        received.append(event)
+
+    cl.events.subscribe(event_type=cloud.CloudEventType.LOGIN, handler=on_event)
+
+    await cl.login("email@home-assistant.io", "password")
+
+    assert len(received) == 1
+    assert received[0].type is cloud.CloudEventType.LOGIN
+    assert received[0].auto is False
 
 
 async def test_register_and_auto_login_publishes_failed_event_on_give_up(
     cl: cloud.Cloud,
 ):
-    """Test giving up after the schedule is exhausted emits AUTO_LOGIN_FAILED."""
+    """Test giving up after the schedule is exhausted emits LOGIN_FAILED."""
     cl.auth.async_register = AsyncMock()
     cl.login = AsyncMock(side_effect=cloud.UserNotConfirmed())
 
@@ -910,9 +929,7 @@ async def test_register_and_auto_login_publishes_failed_event_on_give_up(
     async def on_failed(event: cloud.CloudEvent) -> None:
         received.append(event)
 
-    cl.events.subscribe(
-        event_type=cloud.CloudEventType.AUTO_LOGIN_FAILED, handler=on_failed
-    )
+    cl.events.subscribe(event_type=cloud.CloudEventType.LOGIN_FAILED, handler=on_failed)
 
     with patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)):
         await cl.register_and_auto_login("email@home-assistant.io", "password")
@@ -921,14 +938,16 @@ async def test_register_and_auto_login_publishes_failed_event_on_give_up(
         await task
 
     assert len(received) == 1
-    assert received[0].type is cloud.CloudEventType.AUTO_LOGIN_FAILED
+    assert received[0].type is cloud.CloudEventType.LOGIN_FAILED
+    assert received[0].auto is True
+    assert received[0].reason == "Account was not confirmed in time"
     assert cl._auto_login_task is None
 
 
 async def test_register_and_auto_login_publishes_failed_event_on_fatal_error(
     cl: cloud.Cloud,
 ):
-    """Test a fatal error emits AUTO_LOGIN_FAILED so the caller stops waiting."""
+    """Test a fatal error emits LOGIN_FAILED so the caller stops waiting."""
     cl.auth.async_register = AsyncMock()
     cl.login = AsyncMock(side_effect=cloud.Unauthenticated("nope"))
 
@@ -937,9 +956,7 @@ async def test_register_and_auto_login_publishes_failed_event_on_fatal_error(
     async def on_failed(event: cloud.CloudEvent) -> None:
         received.append(event)
 
-    cl.events.subscribe(
-        event_type=cloud.CloudEventType.AUTO_LOGIN_FAILED, handler=on_failed
-    )
+    cl.events.subscribe(event_type=cloud.CloudEventType.LOGIN_FAILED, handler=on_failed)
 
     with patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)):
         await cl.register_and_auto_login("email@home-assistant.io", "password")
@@ -949,7 +966,9 @@ async def test_register_and_auto_login_publishes_failed_event_on_fatal_error(
 
     assert cl.login.call_count == 1
     assert len(received) == 1
-    assert received[0].type is cloud.CloudEventType.AUTO_LOGIN_FAILED
+    assert received[0].type is cloud.CloudEventType.LOGIN_FAILED
+    assert received[0].auto is True
+    assert received[0].reason == "A cloud error occurred while logging in"
     assert cl._auto_login_task is None
 
 
@@ -957,7 +976,7 @@ async def test_register_and_auto_login_publishes_failed_event_on_unexpected_erro
     cl: cloud.Cloud,
     caplog: pytest.LogCaptureFixture,
 ):
-    """Test an unexpected error emits AUTO_LOGIN_FAILED without escaping the task."""
+    """Test an unexpected error emits LOGIN_FAILED without escaping the task."""
     cl.auth.async_register = AsyncMock()
     cl.login = AsyncMock(side_effect=RuntimeError("boom"))
 
@@ -966,9 +985,7 @@ async def test_register_and_auto_login_publishes_failed_event_on_unexpected_erro
     async def on_failed(event: cloud.CloudEvent) -> None:
         received.append(event)
 
-    cl.events.subscribe(
-        event_type=cloud.CloudEventType.AUTO_LOGIN_FAILED, handler=on_failed
-    )
+    cl.events.subscribe(event_type=cloud.CloudEventType.LOGIN_FAILED, handler=on_failed)
 
     with (
         caplog.at_level(logging.ERROR),
@@ -981,12 +998,14 @@ async def test_register_and_auto_login_publishes_failed_event_on_unexpected_erro
 
     assert "Unexpected error in auto login" in caplog.text
     assert len(received) == 1
-    assert received[0].type is cloud.CloudEventType.AUTO_LOGIN_FAILED
+    assert received[0].type is cloud.CloudEventType.LOGIN_FAILED
+    assert received[0].auto is True
+    assert received[0].reason == "An unexpected error occurred while logging in"
     assert cl._auto_login_task is None
 
 
 async def test_register_and_auto_login_no_failed_event_on_cancel(cl: cloud.Cloud):
-    """Test a cancelled auto login does not emit AUTO_LOGIN_FAILED."""
+    """Test a cancelled auto login does not emit LOGIN_FAILED."""
     cl.auth.async_register = AsyncMock()
     started = asyncio.Event()
     parked = asyncio.Event()
@@ -1003,9 +1022,7 @@ async def test_register_and_auto_login_no_failed_event_on_cancel(cl: cloud.Cloud
     async def on_failed(event: cloud.CloudEvent) -> None:
         received.append(event)
 
-    cl.events.subscribe(
-        event_type=cloud.CloudEventType.AUTO_LOGIN_FAILED, handler=on_failed
-    )
+    cl.events.subscribe(event_type=cloud.CloudEventType.LOGIN_FAILED, handler=on_failed)
 
     controller = await cl.register_and_auto_login("email@home-assistant.io", "password")
     task = cl._auto_login_task
@@ -1022,7 +1039,7 @@ async def test_register_and_auto_login_no_failed_event_on_cancel(cl: cloud.Cloud
 
 
 async def test_register_and_auto_login_no_failed_event_on_login_race(cl: cloud.Cloud):
-    """Test a login winning the race does not emit AUTO_LOGIN_FAILED."""
+    """Test a login winning the race does not emit LOGIN_FAILED."""
     cl.auth.async_register = AsyncMock()
     cl.login = AsyncMock(side_effect=cloud.AlreadyLoggedIn("already logged in"))
 
@@ -1031,9 +1048,7 @@ async def test_register_and_auto_login_no_failed_event_on_login_race(cl: cloud.C
     async def on_failed(event: cloud.CloudEvent) -> None:
         received.append(event)
 
-    cl.events.subscribe(
-        event_type=cloud.CloudEventType.AUTO_LOGIN_FAILED, handler=on_failed
-    )
+    cl.events.subscribe(event_type=cloud.CloudEventType.LOGIN_FAILED, handler=on_failed)
 
     with patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)):
         await cl.register_and_auto_login("email@home-assistant.io", "password")
