@@ -21,6 +21,7 @@ def _timestamp_factory() -> float:
 class CloudEventType(StrEnum):
     """Cloud event types."""
 
+    AUTO_LOGIN_FAILED = "auto_login_failed"
     CLOUDHOOK_CREATED = "cloudhook_created"
     CLOUDHOOK_DELETED = "cloudhook_deleted"
     LOGIN = "login"

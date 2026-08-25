@@ -468,6 +468,10 @@ class Cloud(Generic[_ClientT]):
             task.cancel()
             self._auto_login_task = None
 
+    async def _publish_auto_login_failed(self) -> None:
+        """Notify subscribers that auto login gave up without logging in."""
+        await self.events.publish(CloudEvent(type=CloudEventType.AUTO_LOGIN_FAILED))
+
     async def register_and_auto_login(
         self,
         email: str,
@@ -480,7 +484,9 @@ class Cloud(Generic[_ClientT]):
         Returns an AutoLoginController with cancel(), attempt_now() (forces an immediate
         retry) and resend() (resends the confirmation email and restarts the schedule);
         a background task retries login with backoff until confirmed, else gives up
-        after ~a day.
+        after ~a day. On success a LOGIN event is published; if the task gives up
+        without logging in (schedule exhausted or a fatal error) an AUTO_LOGIN_FAILED
+        event is published so the caller can stop waiting.
         """
         # Normalize email, so the auto-login uses the same value as the registration
         email = email.lower()
@@ -569,6 +575,7 @@ class Cloud(Generic[_ClientT]):
                         "Giving up auto login, account was not confirmed within %s",
                         seconds_as_dhms(AUTO_LOGIN_MAX_TOTAL_BACKOFF),
                     )
+                    await self._publish_auto_login_failed()
                     return
 
                 if await wait_for_event(wake, backoff):
@@ -581,9 +588,11 @@ class Cloud(Generic[_ClientT]):
             raise
         except CloudError as err:
             _LOGGER.warning("Auto login stopped: %s", err)
+            await self._publish_auto_login_failed()
         except Exception:  # pylint: disable=broad-except
             # Safety net, so an unexpected error never escapes this background task
             _LOGGER.exception("Unexpected error in auto login")
+            await self._publish_auto_login_failed()
         finally:
             if self._auto_login_task is asyncio.current_task():
                 self._auto_login_task = None
