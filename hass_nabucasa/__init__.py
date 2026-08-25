@@ -486,7 +486,8 @@ class Cloud(Generic[_ClientT]):
         a background task retries login with backoff until confirmed, else gives up
         after ~a day. On success a LOGIN event is published. If the task gives up
         without logging in (schedule exhausted, a fatal CloudError, or an unexpected
-        exception), an AUTO_LOGIN_FAILED event is published so the caller can stop waiting.
+        exception), an AUTO_LOGIN_FAILED event is published so the caller can stop
+        waiting.
         """
         # Normalize email, so the auto-login uses the same value as the registration
         email = email.lower()
