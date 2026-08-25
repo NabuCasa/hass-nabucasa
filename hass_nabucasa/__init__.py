@@ -470,7 +470,7 @@ class Cloud(Generic[_ClientT]):
             email, code, mfa_tokens, check_connection=check_connection
         )
         self._cancel_pending_auto_login()
-        await self.events.publish(LoginEvent(auto=False))
+        await self.events.publish(LoginEvent())
 
     def _cancel_pending_auto_login(self) -> None:
         """Cancel a pending auto-login, guarded to never cancel the running task."""
