@@ -484,9 +484,9 @@ class Cloud(Generic[_ClientT]):
         Returns an AutoLoginController with cancel(), attempt_now() (forces an immediate
         retry) and resend() (resends the confirmation email and restarts the schedule);
         a background task retries login with backoff until confirmed, else gives up
-        after ~a day. On success a LOGIN event is published; if the task gives up
-        without logging in (schedule exhausted or a fatal error) an AUTO_LOGIN_FAILED
-        event is published so the caller can stop waiting.
+        after ~a day. On success a LOGIN event is published. If the task gives up
+        without logging in (schedule exhausted, a fatal CloudError, or an unexpected
+        exception), an AUTO_LOGIN_FAILED event is published so the caller can stop waiting.
         """
         # Normalize email, so the auto-login uses the same value as the registration
         email = email.lower()
