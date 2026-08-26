@@ -73,6 +73,12 @@ async def audio_stream(*chunks: bytes) -> AsyncIterable[bytes]:
         yield chunk
 
 
+@pytest.fixture(name="prefill_service_discovery_cache")
+def prefill_service_discovery_cache_fixture() -> bool:
+    """Start without a service discovery cache, so the mocked endpoint is used."""
+    return False
+
+
 @pytest.fixture(name="stt")
 def stt_fixture(
     cloud: Cloud,
