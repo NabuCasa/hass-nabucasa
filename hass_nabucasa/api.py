@@ -280,7 +280,7 @@ class ApiBase:
             assert self._cloud.id_token is not None
 
         if action is not None:
-            final_url = self._cloud.service_discovery.action_url(
+            final_url = await self._cloud.service_discovery.async_action_url(
                 action=action,
                 **(action_values or {}),
             )
