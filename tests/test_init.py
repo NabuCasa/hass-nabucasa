@@ -102,7 +102,7 @@ async def test_initialize_loads_info(cl: cloud.Cloud) -> None:
     """
     assert len(cl._on_start) == 2
     cl._on_start.clear()
-    assert len(cl._on_stop) == 3
+    assert len(cl._on_stop) == 4
     cl._on_stop.clear()
 
     info_file = MagicMock(
@@ -205,7 +205,7 @@ async def test_logout_clears_info(cl: cloud.Cloud):
     """Test logging out disconnects and removes info."""
     assert len(cl._on_start) == 2
     cl._on_start.clear()
-    assert len(cl._on_stop) == 3
+    assert len(cl._on_stop) == 4
     cl._on_stop.clear()
 
     info_file = MagicMock(
