@@ -18,6 +18,11 @@ import pytest
 from snitun.client.access_list import AccessList
 
 from hass_nabucasa.client import CloudClient
+from hass_nabucasa.service_discovery import (
+    ServiceDiscoveryCacheData,
+    ServiceDiscoveryResponse,
+)
+from hass_nabucasa.utils import utcnow
 
 FROZEN_NOW_AS_TIMESTAMP = 1537185600  # 2018-09-17 12:00:00 UTC
 
@@ -41,6 +46,18 @@ def construct_service_discovery_actions(
         **fixture_data["actions"],
         **(overrides or {}),
     }
+
+
+def prefilled_service_discovery_cache() -> ServiceDiscoveryCacheData:
+    """Return a valid service discovery cache holding no actions.
+
+    Action URLs then resolve through the fallback actions, without any request
+    being made to the well-known endpoint.
+    """
+    return ServiceDiscoveryCacheData(
+        data=ServiceDiscoveryResponse(actions={}, valid_for=3600, version="test"),
+        valid_until=utcnow().timestamp() + 3600,
+    )
 
 
 class MockClient(CloudClient):

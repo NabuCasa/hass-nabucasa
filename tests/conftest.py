@@ -16,7 +16,12 @@ import pytest
 
 import hass_nabucasa
 
-from .common import WELL_KNOWN_SERVICE_DISCOVERY_JSON, FreezeTimeFixture, MockClient
+from .common import (
+    WELL_KNOWN_SERVICE_DISCOVERY_JSON,
+    FreezeTimeFixture,
+    MockClient,
+    prefilled_service_discovery_cache,
+)
 from .utils.aiohttp import AiohttpClientMocker, mock_aiohttp_client
 
 logging.basicConfig(level=logging.DEBUG)
@@ -118,11 +123,23 @@ def cloud_client(cloud_mock: MagicMock) -> MockClient:
     return cast("MockClient", cloud_mock.client)
 
 
+@pytest.fixture(name="prefill_service_discovery_cache")
+def prefill_service_discovery_cache_fixture() -> bool:
+    """Return if the cloud fixture starts with a valid service discovery cache.
+
+    The cache is prefilled without any actions, so action URLs still resolve via
+    the fallback actions while no request is made to the well-known endpoint.
+    Override this fixture with False to start without a cache.
+    """
+    return True
+
+
 @pytest.fixture
 async def cloud(
     aioclient_mock: AiohttpClientMocker,
     loop: asyncio.AbstractEventLoop,
     tmp_path: Path,
+    prefill_service_discovery_cache: bool,
 ) -> AsyncGenerator[hass_nabucasa.Cloud, Any]:
     """Create a cloud fixture."""
     client_session = aioclient_mock.create_session(loop)
@@ -195,6 +212,9 @@ async def cloud(
         cloud.id_token = id_token
         cloud.access_token = access_token
         cloud.refresh_token = refresh_token
+
+        if prefill_service_discovery_cache:
+            cloud.service_discovery._memory_cache = prefilled_service_discovery_cache()
 
         yield cloud
         await client_session.close()

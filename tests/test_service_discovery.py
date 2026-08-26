@@ -47,6 +47,12 @@ def assert_snapshot_with_logs(
     assert {"result": result, "log": extract_log_messages(caplog)} == snapshot
 
 
+@pytest.fixture(name="prefill_service_discovery_cache")
+def prefill_service_discovery_cache_fixture() -> bool:
+    """Start without a service discovery cache, these tests populate it."""
+    return False
+
+
 @pytest.fixture(autouse=True)
 def jitter_patch() -> Generator[Any, Any, Any]:
     """Mock jitter to always return 0."""
