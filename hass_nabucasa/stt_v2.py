@@ -208,10 +208,14 @@ class SpeechToTextV2:
     async def _connect_ws(self) -> None:
         """Open the raw WebSocket connection."""
         token = await self._async_authorization_token()
-        websocket_uri = await self.cloud.service_discovery.async_action_url(
-            "stt_proxy_websocket"
-        )
-
+        try:
+            websocket_uri = await self.cloud.service_discovery.async_action_url(
+                "stt_proxy_websocket"
+            )
+        except CloudError as err:
+            raise SpeechToTextV2ConnectionError(
+                f"Unable to connect due to service discovery failure: {err}"
+            ) from err
         try:
             self._ws = await self.cloud.websession.ws_connect(
                 websocket_uri,
