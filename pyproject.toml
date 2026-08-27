@@ -64,7 +64,7 @@ test = [
     "types_pyOpenSSL==24.1.0.20240722",
     "types-requests==2.33.0.20260712",
     "xmltodict==1.0.4",
-    "syrupy==5.5.3",
+    "syrupy==6.0.0",
     "tomli==2.4.1",
 ]
 
