@@ -8,6 +8,7 @@ from syrupy import SnapshotAssertion
 from hass_nabucasa.events import CloudEventBus
 from hass_nabucasa.events.bus import EventBusError
 from hass_nabucasa.events.types import (
+    CloudEvent,
     CloudEventType,
     RelayerConnectedEvent,
     RelayerDisconnectedEvent,
@@ -135,6 +136,35 @@ async def test_error_handling(
     assert extract_log_messages(caplog) == snapshot
 
 
+async def test_error_handling_sync_handler(
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+):
+    """Test that a raising synchronous handler is isolated and logged."""
+    calls: list[str] = []
+
+    def failing_sync_handler(event: CloudEvent) -> None:
+        calls.append("failing")
+        raise ValueError("Test error")
+
+    def working_sync_handler(event: CloudEvent) -> None:
+        calls.append("working")
+
+    event_bus = CloudEventBus()
+
+    event_bus.subscribe(
+        event_type=CloudEventType.RELAYER_CONNECTED, handler=failing_sync_handler
+    )
+    event_bus.subscribe(
+        event_type=CloudEventType.RELAYER_CONNECTED, handler=working_sync_handler
+    )
+
+    await event_bus.publish(event=RelayerConnectedEvent())
+
+    assert sorted(calls) == ["failing", "working"]
+    assert extract_log_messages(caplog) == snapshot
+
+
 async def test_multiple_event_types(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
@@ -234,6 +264,28 @@ async def test_subscribe_to_multiple_event_types(
     await event_bus.publish(event=RelayerConnectedEvent())
     assert len(subscriber.call_args_list) == 2
 
+    assert extract_log_messages(caplog) == snapshot
+
+
+async def test_publish_to_sync_handler(
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+):
+    """Test a plain (non-async) handler is invoked and its None return is fine."""
+    received: list[CloudEvent] = []
+
+    def sync_handler(event: CloudEvent) -> None:
+        received.append(event)
+
+    event_bus = CloudEventBus()
+    event_bus.subscribe(
+        event_type=CloudEventType.RELAYER_CONNECTED, handler=sync_handler
+    )
+
+    await event_bus.publish(event=RelayerConnectedEvent())
+
+    assert len(received) == 1
+    assert received[0].type == CloudEventType.RELAYER_CONNECTED
     assert extract_log_messages(caplog) == snapshot
 
 
