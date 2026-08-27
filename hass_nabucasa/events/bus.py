@@ -24,9 +24,9 @@ class CloudEventBus:
     def __init__(self) -> None:
         """Initialize the event bus."""
         self._subscribers: dict[
-            str,
+            CloudEventType,
             list[Callable[[CloudEvent], Awaitable[None] | None]],
-        ] = {k.value: [] for k in CloudEventType}
+        ] = {k: [] for k in CloudEventType}
 
     def subscribe(
         self,
@@ -80,7 +80,7 @@ class CloudEventBus:
                 await result
 
         results = await asyncio.gather(
-            *[_invoke(handler) for handler in handlers],
+            *(_invoke(handler) for handler in handlers),
             return_exceptions=True,
         )
 
