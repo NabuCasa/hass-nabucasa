@@ -95,3 +95,10 @@ class LoginFailedEvent(CloudEvent):
     type: CloudEventType = field(default=CloudEventType.LOGIN_FAILED, init=False)
     reason: LoginFailedReason
     auto: bool = False
+
+
+@dataclass(kw_only=True, frozen=True)
+class LogoutEvent(CloudEvent):
+    """Logout event."""
+
+    type: CloudEventType = field(default=CloudEventType.LOGOUT, init=False)
