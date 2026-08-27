@@ -9,6 +9,7 @@ from .types import (
     LoginEvent,
     LoginFailedEvent,
     LoginFailedReason,
+    LogoutEvent,
 )
 
 __all__ = [
@@ -21,4 +22,5 @@ __all__ = [
     "LoginEvent",
     "LoginFailedEvent",
     "LoginFailedReason",
+    "LogoutEvent",
 ]

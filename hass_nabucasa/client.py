@@ -82,7 +82,7 @@ class CloudClient(ABC):
 
     @abstractmethod
     async def logout_cleanups(self) -> None:
-        """Cleanup before logout."""
+        """Cleanup on logout (runs last)."""
 
     @abstractmethod
     async def async_cloud_connect_update(self, connect: bool) -> None:

@@ -230,6 +230,15 @@ async def test_logout_clears_info(cl: cloud.Cloud):
         [cl.iot.disconnect, cl.remote.disconnect, cl.google_report_state.disconnect],
     )
 
+    logout_events: list[cloud.CloudEvent] = []
+    token_at_publish: list[str | None] = []
+
+    async def on_logout(event: cloud.CloudEvent) -> None:
+        logout_events.append(event)
+        token_at_publish.append(cl.id_token)
+
+    cl.events.subscribe(event_type=cloud.CloudEventType.LOGOUT, handler=on_logout)
+
     with patch(
         "hass_nabucasa.Cloud.user_info_path",
         new_callable=PropertyMock(return_value=info_file),
@@ -243,6 +252,11 @@ async def test_logout_clears_info(cl: cloud.Cloud):
     assert cl.access_token is None
     assert cl.refresh_token is None
     assert info_file.unlink.called
+
+    assert len(logout_events) == 1
+    assert isinstance(logout_events[0], cloud.LogoutEvent)
+    assert logout_events[0].type is cloud.CloudEventType.LOGOUT
+    assert token_at_publish == [None]
 
 
 async def test_remove_data(cloud_client: MockClient, cl: cloud.Cloud) -> None:

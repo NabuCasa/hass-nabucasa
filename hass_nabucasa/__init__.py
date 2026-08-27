@@ -76,6 +76,7 @@ from .events import (
     LoginEvent,
     LoginFailedEvent,
     LoginFailedReason,
+    LogoutEvent,
 )
 from .exceptions import (
     CloudError,
@@ -169,6 +170,7 @@ __all__ = [
     "LoginEvent",
     "LoginFailedEvent",
     "LoginFailedReason",
+    "LogoutEvent",
     "MFARequired",
     "MigratePaypalAgreementInfo",
     "NabuCasaAuthenticationError",
@@ -622,10 +624,10 @@ class Cloud(Generic[_ClientT]):
     async def logout(self) -> None:
         """Close connection and remove all credentials."""
         self._cancel_pending_auto_login()
-        await self.events.publish(CloudEvent(type=CloudEventType.LOGOUT))
         self.id_token = None
         self.access_token = None
         self.refresh_token = None
+        await self.events.publish(LogoutEvent())
 
         self.started = False
         await self.stop()
