@@ -136,6 +136,35 @@ async def test_error_handling(
     assert extract_log_messages(caplog) == snapshot
 
 
+async def test_error_handling_sync_handler(
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+):
+    """Test that a raising synchronous handler is isolated and logged."""
+    calls: list[str] = []
+
+    def failing_sync_handler(event: CloudEvent) -> None:
+        calls.append("failing")
+        raise ValueError("Test error")
+
+    def working_sync_handler(event: CloudEvent) -> None:
+        calls.append("working")
+
+    event_bus = CloudEventBus()
+
+    event_bus.subscribe(
+        event_type=CloudEventType.RELAYER_CONNECTED, handler=failing_sync_handler
+    )
+    event_bus.subscribe(
+        event_type=CloudEventType.RELAYER_CONNECTED, handler=working_sync_handler
+    )
+
+    await event_bus.publish(event=RelayerConnectedEvent())
+
+    assert sorted(calls) == ["failing", "working"]
+    assert extract_log_messages(caplog) == snapshot
+
+
 async def test_multiple_event_types(
     caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,

@@ -7,6 +7,14 @@
   [ERROR] hass_nabucasa.events.bus: Error in event handler AsyncMock for event relayer_connected
   '''
 # ---
+# name: test_error_handling_sync_handler
+  '''
+  [DEBUG] hass_nabucasa.events.bus: failing_sync_handler subscribed to [<CloudEventType.RELAYER_CONNECTED: 'relayer_connected'>]
+  [DEBUG] hass_nabucasa.events.bus: working_sync_handler subscribed to [<CloudEventType.RELAYER_CONNECTED: 'relayer_connected'>]
+  [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 2 subscribers
+  [ERROR] hass_nabucasa.events.bus: Error in event handler failing_sync_handler for event relayer_connected
+  '''
+# ---
 # name: test_event_timestamp
   '''
   [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to [<CloudEventType.RELAYER_CONNECTED: 'relayer_connected'>]
