@@ -76,7 +76,7 @@ class LoginFailedReason(StrEnum):
     """Reason the register-and-auto-login flow gave up without logging in."""
 
     TIMEOUT = "timeout"
-    CLOUD_ERROR = "cloud_error"
+    AUTH_ERROR = "auth_error"
     UNEXPECTED_ERROR = "unexpected_error"
 
 
