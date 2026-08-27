@@ -219,18 +219,26 @@ class AlreadyConnectedError(CloudError):
         self.details = details
 
 
-@dataclass(frozen=True)
+@dataclass
 class AutoLoginController:
-    """Controls for a pending register-and-auto-login.
+    """Controls and state for a pending register-and-auto-login.
 
     ``cancel`` stops the retry loop; ``attempt_now`` triggers an immediate login
     attempt instead of waiting for the current backoff to elapse; ``resend``
     resends the confirmation email and restarts the retry schedule.
+
+    ``email`` is the (normalized) account being confirmed. ``active`` is ``True``
+    while the retry loop is live and flips to ``False`` on every exit (success,
+    cancel, or give-up). ``failed_reason`` is set only when the loop gives up
+    without logging in, and stays ``None`` on success or cancel.
     """
 
+    email: str
     cancel: Callable[[], None]
     attempt_now: Callable[[], None]
     resend: Callable[[], Awaitable[None]]
+    active: bool = True
+    failed_reason: LoginFailedReason | None = None
 
 
 class Cloud(Generic[_ClientT]):
@@ -491,8 +499,11 @@ class Cloud(Generic[_ClientT]):
             task.cancel()
             self._auto_login_task = None
 
-    async def _publish_auto_login_failed(self, reason: LoginFailedReason) -> None:
+    async def _publish_auto_login_failed(
+        self, controller: AutoLoginController, reason: LoginFailedReason
+    ) -> None:
         """Notify subscribers that auto login gave up without logging in."""
+        controller.failed_reason = reason
         await self.events.publish(LoginFailedEvent(auto=True, reason=reason))
 
     async def register_and_auto_login(
@@ -512,6 +523,11 @@ class Cloud(Generic[_ClientT]):
         an unexpected exception), a LOGIN_FAILED event is published (with auto=True and
         a reason) so the caller can stop waiting.
         """
+        if self.is_logged_in:
+            raise AlreadyLoggedIn(
+                "Cannot register and auto-login while already logged in."
+            )
+
         # Normalize email, so the auto-login uses the same value as the registration
         email = email.lower()
         await self.auth.async_register(email, password, client_metadata=client_metadata)
@@ -519,10 +535,6 @@ class Cloud(Generic[_ClientT]):
         self._cancel_pending_auto_login()
 
         wake = asyncio.Event()
-        task = self._auto_login_task = asyncio.create_task(
-            self._async_auto_login(email, password, wake),
-            name="auto_login",
-        )
 
         def task_active() -> bool:
             """Return True while the retry task is live and not being cancelled."""
@@ -544,12 +556,21 @@ class Cloud(Generic[_ClientT]):
             if task_active():
                 wake.set()
 
-        return AutoLoginController(
-            cancel=cancel, attempt_now=attempt_now, resend=resend
+        controller = AutoLoginController(
+            email=email, cancel=cancel, attempt_now=attempt_now, resend=resend
         )
+        task = self._auto_login_task = asyncio.create_task(
+            self._async_auto_login(email, password, wake, controller),
+            name="auto_login",
+        )
+        return controller
 
     async def _async_auto_login(
-        self, email: str, password: str, wake: asyncio.Event
+        self,
+        email: str,
+        password: str,
+        wake: asyncio.Event,
+        controller: AutoLoginController,
     ) -> None:
         """Retry login until the account is confirmed, then log in."""
         backoff = AUTO_LOGIN_FAST_RETRY_INTERVAL
@@ -599,7 +620,9 @@ class Cloud(Generic[_ClientT]):
                         "Giving up auto login, account was not confirmed within %s",
                         seconds_as_dhms(AUTO_LOGIN_MAX_TOTAL_BACKOFF),
                     )
-                    await self._publish_auto_login_failed(LoginFailedReason.TIMEOUT)
+                    await self._publish_auto_login_failed(
+                        controller, LoginFailedReason.TIMEOUT
+                    )
                     return
 
                 if await wait_for_event(wake, backoff):
@@ -612,12 +635,17 @@ class Cloud(Generic[_ClientT]):
             raise
         except CloudError as err:
             _LOGGER.warning("Auto login stopped: %s", err)
-            await self._publish_auto_login_failed(LoginFailedReason.CLOUD_ERROR)
+            await self._publish_auto_login_failed(
+                controller, LoginFailedReason.CLOUD_ERROR
+            )
         except Exception:  # pylint: disable=broad-except
             # Safety net, so an unexpected error never escapes this background task
             _LOGGER.exception("Unexpected error in auto login")
-            await self._publish_auto_login_failed(LoginFailedReason.UNEXPECTED_ERROR)
+            await self._publish_auto_login_failed(
+                controller, LoginFailedReason.UNEXPECTED_ERROR
+            )
         finally:
+            controller.active = False
             if self._auto_login_task is asyncio.current_task():
                 self._auto_login_task = None
 

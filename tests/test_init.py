@@ -948,7 +948,9 @@ async def test_register_and_auto_login_publishes_failed_event_on_give_up(
     cl.events.subscribe(event_type=cloud.CloudEventType.LOGIN_FAILED, handler=on_failed)
 
     with patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)):
-        await cl.register_and_auto_login("email@home-assistant.io", "password")
+        controller = await cl.register_and_auto_login(
+            "email@home-assistant.io", "password"
+        )
         task = cl._auto_login_task
         assert task is not None
         await task
@@ -957,6 +959,8 @@ async def test_register_and_auto_login_publishes_failed_event_on_give_up(
     assert received[0].type is cloud.CloudEventType.LOGIN_FAILED
     assert received[0].auto is True
     assert received[0].reason is cloud.LoginFailedReason.TIMEOUT
+    assert controller.failed_reason is cloud.LoginFailedReason.TIMEOUT
+    assert controller.active is False
     assert cl._auto_login_task is None
 
 
@@ -975,7 +979,9 @@ async def test_register_and_auto_login_publishes_failed_event_on_fatal_error(
     cl.events.subscribe(event_type=cloud.CloudEventType.LOGIN_FAILED, handler=on_failed)
 
     with patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)):
-        await cl.register_and_auto_login("email@home-assistant.io", "password")
+        controller = await cl.register_and_auto_login(
+            "email@home-assistant.io", "password"
+        )
         task = cl._auto_login_task
         assert task is not None
         await task
@@ -985,6 +991,8 @@ async def test_register_and_auto_login_publishes_failed_event_on_fatal_error(
     assert received[0].type is cloud.CloudEventType.LOGIN_FAILED
     assert received[0].auto is True
     assert received[0].reason is cloud.LoginFailedReason.CLOUD_ERROR
+    assert controller.failed_reason is cloud.LoginFailedReason.CLOUD_ERROR
+    assert controller.active is False
     assert cl._auto_login_task is None
 
 
@@ -1007,7 +1015,9 @@ async def test_register_and_auto_login_publishes_failed_event_on_unexpected_erro
         caplog.at_level(logging.ERROR),
         patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)),
     ):
-        await cl.register_and_auto_login("email@home-assistant.io", "password")
+        controller = await cl.register_and_auto_login(
+            "email@home-assistant.io", "password"
+        )
         task = cl._auto_login_task
         assert task is not None
         await task
@@ -1017,6 +1027,8 @@ async def test_register_and_auto_login_publishes_failed_event_on_unexpected_erro
     assert received[0].type is cloud.CloudEventType.LOGIN_FAILED
     assert received[0].auto is True
     assert received[0].reason is cloud.LoginFailedReason.UNEXPECTED_ERROR
+    assert controller.failed_reason is cloud.LoginFailedReason.UNEXPECTED_ERROR
+    assert controller.active is False
     assert cl._auto_login_task is None
 
 
@@ -1051,6 +1063,8 @@ async def test_register_and_auto_login_no_failed_event_on_cancel(cl: cloud.Cloud
         await task
 
     assert received == []
+    assert controller.active is False
+    assert controller.failed_reason is None
     assert cl._auto_login_task is None
 
 
@@ -1210,3 +1224,35 @@ async def test_auto_login_cancel_guarded_while_cancelling(cl: cloud.Cloud):
 
     with pytest.raises(asyncio.CancelledError):
         await task
+
+
+async def test_register_and_auto_login_raises_when_already_logged_in(cl: cloud.Cloud):
+    """Test registering while already logged in raises before registering."""
+    cl.id_token = "already-logged-in"
+    assert cl.is_logged_in
+    cl.auth.async_register = AsyncMock()
+
+    with pytest.raises(cloud.AlreadyLoggedIn):
+        await cl.register_and_auto_login("email@home-assistant.io", "password")
+
+    cl.auth.async_register.assert_not_called()
+    assert cl._auto_login_task is None
+
+
+async def test_auto_login_controller_reports_email_and_completes(cl: cloud.Cloud):
+    """Test the controller exposes the email and clears state on a clean login."""
+    cl.auth.async_register = AsyncMock()
+    cl.login = AsyncMock(return_value=None)
+
+    with patch("hass_nabucasa.wait_for_event", AsyncMock(return_value=False)):
+        controller = await cl.register_and_auto_login(
+            "Email@Home-Assistant.io", "password"
+        )
+        task = cl._auto_login_task
+        assert task is not None
+        await task
+
+    assert controller.email == "email@home-assistant.io"
+    assert controller.active is False
+    assert controller.failed_reason is None
+    assert cl._auto_login_task is None
