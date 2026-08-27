@@ -256,7 +256,7 @@ async def test_logout_clears_info(cl: cloud.Cloud):
     assert len(logout_events) == 1
     assert isinstance(logout_events[0], cloud.LogoutEvent)
     assert logout_events[0].type is cloud.CloudEventType.LOGOUT
-    assert token_at_publish == [None]
+    assert token_at_publish == ["id_token"]
 
 
 async def test_remove_data(cloud_client: MockClient, cl: cloud.Cloud) -> None:
