@@ -634,7 +634,7 @@ class Cloud(Generic[_ClientT]):
         except CloudError as err:
             _LOGGER.warning("Auto login stopped: %s", err)
             await self._publish_auto_login_failed(
-                controller, LoginFailedReason.AUTH_ERROR
+                controller, LoginFailedReason.CLOUD_ERROR
             )
         except Exception:  # pylint: disable=broad-except
             # Safety net, so an unexpected error never escapes this background task

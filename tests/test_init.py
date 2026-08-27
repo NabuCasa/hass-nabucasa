@@ -976,8 +976,8 @@ async def test_register_and_auto_login_publishes_failed_event_on_fatal_error(
     assert len(received) == 1
     assert received[0].type is cloud.CloudEventType.LOGIN_FAILED
     assert received[0].auto is True
-    assert received[0].reason is cloud.LoginFailedReason.AUTH_ERROR
-    assert controller.failed_reason is cloud.LoginFailedReason.AUTH_ERROR
+    assert received[0].reason is cloud.LoginFailedReason.CLOUD_ERROR
+    assert controller.failed_reason is cloud.LoginFailedReason.CLOUD_ERROR
     assert controller.active is False
     assert cl._auto_login_task is None
 
