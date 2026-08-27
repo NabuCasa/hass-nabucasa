@@ -624,10 +624,14 @@ class Cloud(Generic[_ClientT]):
     async def logout(self) -> None:
         """Close connection and remove all credentials."""
         self._cancel_pending_auto_login()
+
+        # Event is published before tokens are cleared, so subscribers can still access
+        # the tokens if needed
+        await self.events.publish(LogoutEvent())
+
         self.id_token = None
         self.access_token = None
         self.refresh_token = None
-        await self.events.publish(LogoutEvent())
 
         self.started = False
         await self.stop()
