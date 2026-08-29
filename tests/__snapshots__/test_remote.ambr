@@ -201,6 +201,7 @@
   [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
   [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't order a new ACME challenge: Connection timeout
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 10s
   '''
 # ---
 # name: test_certificate_network_error_handling[gaierror-DNS resolution failed]
@@ -221,6 +222,49 @@
   [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
   [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't order a new ACME challenge: DNS resolution failed
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 10s
+  '''
+# ---
+# name: test_certificate_task_backend_retry_backoff
+  '''
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 10s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 15s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 22s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 33s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 50s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 1m:15s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 1m:53s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 2m:50s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 4m:16s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 6m:24s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 9m:36s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 14m:24s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 21m:37s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 32m:26s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 48m:39s
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 1h
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 1h
+  [DEBUG] hass_nabucasa.remote: Initializing backend
+  [DEBUG] hass_nabucasa.remote: Retrying to initialize the backend in 1h
+  [DEBUG] hass_nabucasa.remote: Stopping Remote UI loop
+  [DEBUG] hass_nabucasa.remote: Closing backend
   '''
 # ---
 # name: test_context_error_handling[file_not_found]

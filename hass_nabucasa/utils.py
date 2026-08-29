@@ -20,6 +20,9 @@ from .exceptions import NabuCasaBaseError
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 UTC = dt.UTC
 
+DEFAULT_BACKOFF_JITTER = 0.125
+DEFAULT_BACKOFF_MULTIPLIER = 1.5
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -197,6 +200,107 @@ async def async_check_latency(
 def jitter(minimum: float, maximum: float) -> float:
     """Return a random float between minimum and maximum for backoff jitter."""
     return random.uniform(minimum, maximum)
+
+
+class Backoff:
+    """Calculate the delays between the attempts of a retry loop.
+
+    The class only calculates the delays, it does not sleep, so the caller
+    stays in control of how it waits and of what it logs while waiting:
+
+    ```python
+    backoff = Backoff(initial=10, maximum=ONE_HOUR_IN_SECONDS)
+
+    while True:
+        if await do_the_thing():
+            backoff.reset()
+            continue
+
+        interval = backoff.next_interval()
+        _LOGGER.debug("Trying again in %s", seconds_as_dhms(interval))
+        await asyncio.sleep(interval)
+    ```
+
+    An instance belongs to a single loop and is not safe to share between
+    concurrent loops.
+    """
+
+    def __init__(
+        self,
+        *,
+        initial: float,
+        maximum: float,
+        multiplier: float = DEFAULT_BACKOFF_MULTIPLIER,
+        jitter_fraction: float = DEFAULT_BACKOFF_JITTER,
+    ) -> None:
+        """Initialize the backoff.
+
+        Args:
+            initial: Seconds to wait before the first retry. Keep it short so
+                a transient failure recovers quickly, the growth handles the
+                failures that are not transient.
+            maximum: Upper bound in seconds for a single interval. The interval
+                grows until it reaches this value and then stays there, so this
+                is the slowest the loop will ever retry.
+            multiplier: What the interval is multiplied by for every attempt.
+                The default of 1.5 grows the interval by half each time (10s,
+                15s, 22.5s, ...), which stays responsive for a while before it
+                settles at the maximum. Use 1.0 for a fixed interval, or 2.0 to
+                double the interval on every attempt.
+            jitter_fraction: Fraction of the interval added on top as a random
+                delay, between 0 and 1. The default of 0.125 spreads retries
+                out by up to 12.5%, so instances that failed at the same time
+                (a service outage) do not all retry in the same moment. Pass 0
+                to disable.
+
+        Raises:
+            ValueError: If an option is outside of its valid range.
+
+        """
+        if initial <= 0:
+            raise ValueError("initial must be greater than 0")
+        if maximum < initial:
+            raise ValueError("maximum must not be smaller than initial")
+        if multiplier < 1:
+            raise ValueError("multiplier must not be smaller than 1")
+        if not 0 <= jitter_fraction <= 1:
+            raise ValueError("jitter_fraction must be between 0 and 1")
+
+        self._initial = initial
+        self._maximum = maximum
+        self._multiplier = multiplier
+        self._jitter_fraction = jitter_fraction
+
+        self._attempts = 0
+        self._elapsed = 0.0
+
+    @property
+    def attempts(self) -> int:
+        """Return the number of intervals handed out since the last reset."""
+        return self._attempts
+
+    @property
+    def elapsed(self) -> float:
+        """Return the accumulated delay handed out since the last reset."""
+        return self._elapsed
+
+    def reset(self) -> None:
+        """Start over from the initial interval."""
+        self._attempts = 0
+        self._elapsed = 0.0
+
+    def next_interval(self) -> float:
+        """Return the seconds to wait before the next attempt."""
+        interval = min(
+            self._initial * self._multiplier**self._attempts,
+            self._maximum,
+        )
+        if self._jitter_fraction:
+            interval += jitter(0, interval * self._jitter_fraction)
+
+        self._attempts += 1
+        self._elapsed += interval
+        return interval
 
 
 async def gather_callbacks(

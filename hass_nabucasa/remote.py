@@ -22,6 +22,7 @@ from .accounts_api import AccountsApiError
 from .acme import AcmeClientError, AcmeHandler, AcmeJWSVerificationError
 from .const import (
     DISPATCH_CERTIFICATE_STATUS,
+    ONE_HOUR_IN_SECONDS,
     CertificateStatus,
     SubscriptionReconnectionReason,
 )
@@ -35,6 +36,9 @@ _LOGGER = logging.getLogger(__name__)
 
 RENEW_IF_EXPIRES_DAYS = 25
 WARN_RENEW_FAILED_DAYS = 18
+
+BACKEND_RETRY_INITIAL_INTERVAL = 10
+BACKEND_RETRY_MAX_INTERVAL = ONE_HOUR_IN_SECONDS
 
 is_cloud_request = ContextVar("IS_CLOUD_REQUEST", default=False)
 
@@ -591,6 +595,11 @@ class RemoteUI:
 
     async def _certificate_handler(self) -> None:
         """Handle certification ACME Tasks."""
+        backend_backoff = utils.Backoff(
+            initial=BACKEND_RETRY_INITIAL_INTERVAL,
+            maximum=BACKEND_RETRY_MAX_INTERVAL,
+        )
+
         while True:
             try:
                 if self._snitun:
@@ -599,8 +608,16 @@ class RemoteUI:
 
                 else:
                     _LOGGER.debug("Initializing backend")
-                    if not await self.load_backend():
-                        await asyncio.sleep(10)
+                    if await self.load_backend():
+                        backend_backoff.reset()
+                        continue
+
+                    interval = backend_backoff.next_interval()
+                    _LOGGER.debug(
+                        "Retrying to initialize the backend in %s",
+                        utils.seconds_as_dhms(interval),
+                    )
+                    await asyncio.sleep(interval)
                     continue
 
                 if TYPE_CHECKING:
