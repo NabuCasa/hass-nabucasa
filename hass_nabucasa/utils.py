@@ -248,12 +248,14 @@ class Backoff:
                 settles at the maximum. Use 1.0 for a fixed interval, or 2.0 to
                 double the interval on every attempt.
             jitter_fraction: Fraction of the interval that is randomly shaved
-                off it, between 0 and 1. The default of 0.125 spreads retries
-                out by up to 12.5%, so instances that failed at the same time
-                (a service outage) do not all retry in the same moment. It is
-                subtracted rather than added so that an interval never passes
-                the maximum, and it applies to the initial interval as well.
-                Pass 0 to disable.
+                off it, from 0 up to but not including 1. The default of 0.125
+                spreads retries out by up to 12.5%, so instances that failed at
+                the same time (a service outage) do not all retry in the same
+                moment. It is subtracted rather than added so that an interval
+                never passes the maximum, and it applies to the initial
+                interval as well. A full fraction is not allowed since it could
+                shave the whole interval off and leave a loop retrying without
+                waiting. Pass 0 to disable.
 
         Raises:
             ValueError: If an option is outside of its valid range.
@@ -265,8 +267,8 @@ class Backoff:
             raise ValueError("maximum must not be smaller than initial")
         if multiplier < 1:
             raise ValueError("multiplier must not be smaller than 1")
-        if not 0 <= jitter_fraction <= 1:
-            raise ValueError("jitter_fraction must be between 0 and 1")
+        if not 0 <= jitter_fraction < 1:
+            raise ValueError("jitter_fraction must be at least 0 and below 1")
 
         self._initial = float(initial)
         self._maximum = float(maximum)

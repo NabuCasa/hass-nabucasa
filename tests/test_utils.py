@@ -383,7 +383,7 @@ def test_backoff_jitter_is_shaved_off_the_interval() -> None:
 
 def test_backoff_never_passes_the_maximum() -> None:
     """Test that the maximum holds once the growth has settled there."""
-    backoff = utils.Backoff(initial=1, maximum=10, jitter_fraction=1)
+    backoff = utils.Backoff(initial=1, maximum=10, jitter_fraction=0.999)
 
     assert all(backoff.next_interval() <= 10 for _ in range(50))
 
@@ -429,11 +429,16 @@ def test_backoff_reset() -> None:
         ),
         (
             {"initial": 1, "maximum": 10, "jitter_fraction": 1.5},
-            "jitter_fraction must be between 0 and 1",
+            "jitter_fraction must be at least 0 and below 1",
+        ),
+        (
+            # A full fraction can shave the whole interval off
+            {"initial": 1, "maximum": 10, "jitter_fraction": 1},
+            "jitter_fraction must be at least 0 and below 1",
         ),
         (
             {"initial": 1, "maximum": 10, "jitter_fraction": -0.1},
-            "jitter_fraction must be between 0 and 1",
+            "jitter_fraction must be at least 0 and below 1",
         ),
     ],
 )
