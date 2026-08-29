@@ -19,7 +19,7 @@ from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
 from . import const, utils
 from .accounts_api import AccountsApiError
-from .acme import AcmeClientError, AcmeHandler, AcmeJWSVerificationError
+from .acme import AcmeAccountError, AcmeClientError, AcmeHandler
 from .const import (
     DISPATCH_CERTIFICATE_STATUS,
     CertificateStatus,
@@ -348,8 +348,13 @@ class RemoteUI:
             try:
                 self._update_certificate_status(CertificateStatus.INITIAL_GENERATING)
                 await self._acme.issue_certificate()
-            except (AcmeJWSVerificationError, AcmeClientError) as err:
-                if isinstance(err, AcmeJWSVerificationError):
+            except AcmeClientError as err:
+                if isinstance(err, AcmeAccountError):
+                    _LOGGER.warning(
+                        "Recreating the ACME account for %s: %s",
+                        ",".join(domains),
+                        err,
+                    )
                     await self._recreate_acme(domains, email)
                 else:
                     _LOGGER.warning(
