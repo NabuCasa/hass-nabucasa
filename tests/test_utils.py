@@ -371,20 +371,27 @@ def test_backoff_default_multiplier() -> None:
     ]
 
 
-def test_backoff_jitter_is_added_on_top_of_the_interval() -> None:
-    """Test that jitter spreads the interval out without going below it."""
+def test_backoff_jitter_is_shaved_off_the_interval() -> None:
+    """Test that jitter spreads the interval out without passing the maximum."""
     backoff = utils.Backoff(initial=10, maximum=10, jitter_fraction=0.5)
 
     intervals = [backoff.next_interval() for _ in range(20)]
 
-    assert all(10 <= interval <= 15 for interval in intervals)
+    assert all(5 <= interval <= 10 for interval in intervals)
     assert len(set(intervals)) > 1
+
+
+def test_backoff_never_passes_the_maximum() -> None:
+    """Test that the maximum holds once the growth has settled there."""
+    backoff = utils.Backoff(initial=1, maximum=10, jitter_fraction=1)
+
+    assert all(backoff.next_interval() <= 10 for _ in range(50))
 
 
 def test_backoff_default_jitter_is_applied() -> None:
     """Test that jitter is enabled by default."""
     with patch("hass_nabucasa.utils.jitter", return_value=1.0) as jitter_mock:
-        assert utils.Backoff(initial=10, maximum=10).next_interval() == 11.0
+        assert utils.Backoff(initial=10, maximum=10).next_interval() == 9.0
 
     assert jitter_mock.call_args[0] == (0, 10 * utils.DEFAULT_BACKOFF_JITTER)
 
@@ -393,8 +400,8 @@ def test_backoff_retries_forever() -> None:
     """Test that a backoff keeps handing out intervals."""
     backoff = utils.Backoff(initial=1, maximum=2, multiplier=2, jitter_fraction=0)
 
-    assert all(backoff.next_interval() for _ in range(100))
-    assert backoff.elapsed == 199
+    assert all(backoff.next_interval() for _ in range(100_000))
+    assert backoff.elapsed == 199_999
 
 
 def test_backoff_reset() -> None:

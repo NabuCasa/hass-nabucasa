@@ -247,11 +247,13 @@ class Backoff:
                 15s, 22.5s, ...), which stays responsive for a while before it
                 settles at the maximum. Use 1.0 for a fixed interval, or 2.0 to
                 double the interval on every attempt.
-            jitter_fraction: Fraction of the interval added on top as a random
-                delay, between 0 and 1. The default of 0.125 spreads retries
+            jitter_fraction: Fraction of the interval that is randomly shaved
+                off it, between 0 and 1. The default of 0.125 spreads retries
                 out by up to 12.5%, so instances that failed at the same time
-                (a service outage) do not all retry in the same moment. Pass 0
-                to disable.
+                (a service outage) do not all retry in the same moment. It is
+                subtracted rather than added so that an interval never passes
+                the maximum, and it applies to the initial interval as well.
+                Pass 0 to disable.
 
         Raises:
             ValueError: If an option is outside of its valid range.
@@ -266,13 +268,14 @@ class Backoff:
         if not 0 <= jitter_fraction <= 1:
             raise ValueError("jitter_fraction must be between 0 and 1")
 
-        self._initial = initial
-        self._maximum = maximum
-        self._multiplier = multiplier
-        self._jitter_fraction = jitter_fraction
+        self._initial = float(initial)
+        self._maximum = float(maximum)
+        self._multiplier = float(multiplier)
+        self._jitter_fraction = float(jitter_fraction)
 
         self._attempts = 0
         self._elapsed = 0.0
+        self._interval = self._initial
 
     @property
     def attempts(self) -> int:
@@ -288,18 +291,17 @@ class Backoff:
         """Start over from the initial interval."""
         self._attempts = 0
         self._elapsed = 0.0
+        self._interval = self._initial
 
     def next_interval(self) -> float:
         """Return the seconds to wait before the next attempt."""
-        interval = min(
-            self._initial * self._multiplier**self._attempts,
-            self._maximum,
-        )
+        interval = self._interval
         if self._jitter_fraction:
-            interval += jitter(0, interval * self._jitter_fraction)
+            interval -= jitter(0, interval * self._jitter_fraction)
 
         self._attempts += 1
         self._elapsed += interval
+        self._interval = min(self._interval * self._multiplier, self._maximum)
         return interval
 
 
