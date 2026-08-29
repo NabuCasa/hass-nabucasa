@@ -14,6 +14,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for acme_directory: https://acme.example.com/directory
+  [WARNING] hass_nabucasa.remote: Recreating the ACME account for test.dui.nabu.casa: JWS verification failed: urn:ietf:params:acme:error:malformed :: The request message was malformed :: JWS verification error
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
@@ -32,6 +33,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for acme_directory: https://acme.example.com/directory
+  [WARNING] hass_nabucasa.remote: Recreating the ACME account for test.dui.nabu.casa: JWS verification failed: urn:ietf:params:acme:error:malformed :: The request message was malformed :: Unable to validate JWS
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
@@ -50,10 +52,49 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for acme_directory: https://acme.example.com/directory
+  [WARNING] hass_nabucasa.remote: Recreating the ACME account for test.dui.nabu.casa: JWS verification failed: urn:ietf:params:acme:error:malformed :: The request message was malformed :: Unable to validate JWS :: Invalid Content-Type header on
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
-# name: test_acme_client_create_client_jws_errors[json_error3-False]
+# name: test_acme_client_create_client_jws_errors[json_error3-True]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
+  [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
+  [DEBUG] hass_nabucasa.remote: Certificate status: loading
+  [DEBUG] hass_nabucasa.remote: Certificate status: validating
+  [DEBUG] hass_nabucasa.remote: Certificate status: expired
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for acme_directory: https://acme.example.com/directory
+  [WARNING] hass_nabucasa.remote: Recreating the ACME account for test.dui.nabu.casa: ACME account is deactivated: urn:ietf:params:acme:error:unauthorized :: The client lacks sufficient authorization :: Unable to validate JWS :: Account is not valid, has status "deactivated"
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
+  '''
+# ---
+# name: test_acme_client_create_client_jws_errors[json_error4-False]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
+  [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
+  [DEBUG] hass_nabucasa.remote: Certificate status: loading
+  [DEBUG] hass_nabucasa.remote: Certificate status: validating
+  [DEBUG] hass_nabucasa.remote: Certificate status: expired
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for acme_directory: https://acme.example.com/directory
+  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't connect to ACME server: urn:ietf:params:acme:error:unauthorized :: The client lacks sufficient authorization :: Some other unauthorized reason
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
+  '''
+# ---
+# name: test_acme_client_create_client_jws_errors[json_error5-False]
   '''
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
   [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
@@ -72,7 +113,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
-# name: test_acme_client_create_client_jws_errors[json_error4-False]
+# name: test_acme_client_create_client_jws_errors[json_error6-False]
   '''
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
   [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
@@ -106,6 +147,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
   [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
+  [WARNING] hass_nabucasa.remote: Recreating the ACME account for test.dui.nabu.casa: JWS verification failed: urn:ietf:params:acme:error:malformed :: The request message was malformed :: JWS verification error
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
@@ -124,6 +166,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
   [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
+  [WARNING] hass_nabucasa.remote: Recreating the ACME account for test.dui.nabu.casa: JWS verification failed: urn:ietf:params:acme:error:malformed :: The request message was malformed :: Unable to validate JWS
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
@@ -142,10 +185,49 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
   [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
+  [WARNING] hass_nabucasa.remote: Recreating the ACME account for test.dui.nabu.casa: JWS verification failed: urn:ietf:params:acme:error:malformed :: The request message was malformed :: Unable to validate JWS :: Invalid Content-Type header on
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
-# name: test_acme_client_new_order_errors[json_error3-False]
+# name: test_acme_client_new_order_errors[json_error3-True]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
+  [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
+  [DEBUG] hass_nabucasa.remote: Certificate status: loading
+  [DEBUG] hass_nabucasa.remote: Certificate status: validating
+  [DEBUG] hass_nabucasa.remote: Certificate status: expired
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
+  [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
+  [WARNING] hass_nabucasa.remote: Recreating the ACME account for test.dui.nabu.casa: ACME account is deactivated: urn:ietf:params:acme:error:unauthorized :: The client lacks sufficient authorization :: Unable to validate JWS :: Account is not valid, has status "deactivated"
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
+  '''
+# ---
+# name: test_acme_client_new_order_errors[json_error4-False]
+  '''
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
+  [DEBUG] hass_nabucasa.api: Response for get from api.example.com/instance/remote_ping_targets (200) 
+  [DEBUG] hass_nabucasa.remote: No ping targets returned, skipping ping
+  [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_register: https://api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Sending POST request to api.example.com/instance/register
+  [DEBUG] hass_nabucasa.api: Response for post from api.example.com/instance/register (200) 
+  [DEBUG] hass_nabucasa.remote: Retrieved instance data: {'domain': 'test.dui.nabu.casa', 'email': 'test@nabucasa.inc', 'server': 'rest-remote.nabu.casa'}
+  [DEBUG] hass_nabucasa.remote: Certificate status: loading
+  [DEBUG] hass_nabucasa.remote: Certificate status: validating
+  [DEBUG] hass_nabucasa.remote: Certificate status: expired
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
+  [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
+  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't order a new ACME challenge: urn:ietf:params:acme:error:unauthorized :: The client lacks sufficient authorization :: Some other unauthorized reason
+  [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
+  '''
+# ---
+# name: test_acme_client_new_order_errors[json_error5-False]
   '''
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
   [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets
@@ -164,7 +246,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
-# name: test_acme_client_new_order_errors[json_error4-False]
+# name: test_acme_client_new_order_errors[json_error6-False]
   '''
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for remote_access_ping_targets: https://api.example.com/instance/remote_ping_targets
   [DEBUG] hass_nabucasa.api: Sending GET request to api.example.com/instance/remote_ping_targets

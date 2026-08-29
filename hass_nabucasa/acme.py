@@ -52,16 +52,27 @@ if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
 
-def _raise_if_jws_verification_failed(exception: Exception) -> None:
-    """Raise if JWS verification failed."""
-    if (
-        isinstance(exception, messages.Error)
-        and exception.typ == "urn:ietf:params:acme:error:malformed"
-        and str(exception.detail).split(" ::", maxsplit=1)[0]
-        in {"JWS verification error", "Unable to validate JWS"}
-    ):
+def _raise_if_account_unusable(exception: Exception) -> None:
+    """Raise if the ACME account can not be used anymore."""
+    if not isinstance(exception, messages.Error):
+        return
+
+    detail_parts = [part.strip() for part in str(exception.detail).split(" ::")]
+
+    if exception.typ == "urn:ietf:params:acme:error:malformed" and detail_parts[0] in {
+        "JWS verification error",
+        "Unable to validate JWS",
+    }:
         raise AcmeJWSVerificationError(
             f"JWS verification failed: {exception}",
+        ) from exception
+
+    if (
+        exception.typ == "urn:ietf:params:acme:error:unauthorized"
+        and detail_parts[-1] == 'Account is not valid, has status "deactivated"'
+    ):
+        raise AcmeAccountDeactivatedError(
+            f"ACME account is deactivated: {exception}",
         ) from exception
 
 
@@ -73,8 +84,16 @@ class AcmeChallengeError(AcmeClientError):
     """Raise if a challenge fails."""
 
 
-class AcmeJWSVerificationError(AcmeClientError):
+class AcmeAccountError(AcmeClientError):
+    """Raise if the ACME account can not be used and needs to be recreated."""
+
+
+class AcmeJWSVerificationError(AcmeAccountError):
     """Raise if a JWS verification fails."""
+
+
+class AcmeAccountDeactivatedError(AcmeAccountError):
+    """Raise if the ACME account is deactivated."""
 
 
 class AcmeNabuCasaError(AcmeClientError):
@@ -274,7 +293,7 @@ class AcmeHandler:
                 )
                 self._acme_client = client.ClientV2(directory=directory, net=network)
             except _ACME_CLIENT_EXCEPTIONS as err:
-                _raise_if_jws_verification_failed(err)
+                _raise_if_account_unusable(err)
                 raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
             return
 
@@ -287,7 +306,7 @@ class AcmeHandler:
             )
             self._acme_client = client.ClientV2(directory=directory, net=network)
         except _ACME_CLIENT_EXCEPTIONS as err:
-            _raise_if_jws_verification_failed(err)
+            _raise_if_account_unusable(err)
             raise AcmeClientError(f"Can't connect to ACME server: {err}") from err
 
         try:
@@ -302,7 +321,7 @@ class AcmeHandler:
                 ),
             )
         except _ACME_CLIENT_EXCEPTIONS as err:
-            _raise_if_jws_verification_failed(err)
+            _raise_if_account_unusable(err)
             raise AcmeClientError(f"Can't register to ACME server: {err}") from err
 
         # Store registration info
@@ -319,7 +338,7 @@ class AcmeHandler:
         try:
             return self._acme_client.new_order(csr_pem)
         except _ACME_CLIENT_EXCEPTIONS as err:
-            _raise_if_jws_verification_failed(err)
+            _raise_if_account_unusable(err)
             raise AcmeChallengeError(
                 f"Can't order a new ACME challenge: {err}",
             ) from err
