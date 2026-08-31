@@ -612,7 +612,7 @@ class RemoteUI:
                         backend_backoff.reset()
                         continue
 
-                    interval = backend_backoff.next_interval()
+                    interval = backend_backoff.time_to_next_attempt()
                     _LOGGER.debug(
                         "Retrying to initialize the backend in %s",
                         utils.seconds_as_dhms(interval),

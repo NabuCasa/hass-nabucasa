@@ -216,7 +216,7 @@ class Backoff:
             backoff.reset()
             continue
 
-        interval = backoff.next_interval()
+        interval = backoff.time_to_next_attempt()
         _LOGGER.debug("Trying again in %s", seconds_as_dhms(interval))
         await asyncio.sleep(interval)
     ```
@@ -277,7 +277,7 @@ class Backoff:
 
         self._attempts = 0
         self._elapsed = 0.0
-        self._interval = self._initial
+        self._base_time = self._initial
 
     @property
     def attempts(self) -> int:
@@ -290,21 +290,21 @@ class Backoff:
         return self._elapsed
 
     def reset(self) -> None:
-        """Start over from the initial interval."""
+        """Start over from the initial wait time."""
         self._attempts = 0
         self._elapsed = 0.0
-        self._interval = self._initial
+        self._base_time = self._initial
 
-    def next_interval(self) -> float:
+    def time_to_next_attempt(self) -> float:
         """Return the seconds to wait before the next attempt."""
-        interval = self._interval
+        time_to_wait = self._base_time
         if self._jitter_fraction:
-            interval -= jitter(0, interval * self._jitter_fraction)
+            time_to_wait -= jitter(0, time_to_wait * self._jitter_fraction)
 
         self._attempts += 1
-        self._elapsed += interval
-        self._interval = min(self._interval * self._multiplier, self._maximum)
-        return interval
+        self._elapsed += time_to_wait
+        self._base_time = min(self._base_time * self._multiplier, self._maximum)
+        return time_to_wait
 
 
 async def gather_callbacks(
