@@ -1,5 +1,6 @@
 """Tests for hass_nabucasa utils."""
 
+import asyncio
 from unittest.mock import MagicMock, patch
 
 from icmplib import Host, ICMPLibError, SocketPermissionError
@@ -328,3 +329,14 @@ async def test_async_check_latency_all_unreachable():
 
     assert len(result) == 2
     assert not any(host["is_alive"] for host in result)
+
+
+async def test_wait_for_event():
+    """Test wait_for_event returns True and clears a set event, else times out."""
+    event = asyncio.Event()
+    event.set()
+
+    assert await utils.wait_for_event(event, 3600) is True
+    assert not event.is_set()
+
+    assert await utils.wait_for_event(event, 0) is False
