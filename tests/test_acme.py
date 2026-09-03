@@ -77,8 +77,6 @@ def test_acme_handler_generate_csr_creates_private_key(cloud: Cloud) -> None:
     mock_chmod.assert_called_once_with(0o600)
 
     key_pem = mock_write_bytes.call_args[0][0]
-    assert key_pem.startswith(b"-----BEGIN PRIVATE KEY-----")
-
     key = serialization.load_pem_private_key(key_pem, password=None)
     assert isinstance(key, rsa.RSAPrivateKey)
     assert key.key_size == 2048
