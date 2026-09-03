@@ -33,6 +33,7 @@ FILE_REGISTRATION = "acme_reg.json"
 
 ACCOUNT_KEY_SIZE = 2048
 PRIVATE_KEY_SIZE = 2048
+RSA_PUBLIC_EXPONENT = 65537
 USER_AGENT = "home-assistant-cloud"
 
 _LOGGER = logging.getLogger(__name__)
@@ -204,7 +205,7 @@ class AcmeHandler:
         else:
             _LOGGER.debug("create private keyfile: %s", self.path_private_key)
             key = rsa.generate_private_key(
-                public_exponent=65537,
+                public_exponent=RSA_PUBLIC_EXPONENT,
                 key_size=PRIVATE_KEY_SIZE,
             )
             key_pem = key.private_bytes(
@@ -228,7 +229,7 @@ class AcmeHandler:
         else:
             _LOGGER.debug("Create new RSA keyfile: %s", self.path_account_key)
             key = rsa.generate_private_key(
-                public_exponent=65537,
+                public_exponent=RSA_PUBLIC_EXPONENT,
                 key_size=ACCOUNT_KEY_SIZE,
             )
 
