@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import AsyncGenerator, Generator
 from datetime import timedelta
+from itertools import pairwise
 from socket import gaierror
 from ssl import SSLError
 from typing import Any
@@ -27,8 +28,11 @@ from hass_nabucasa.const import (
     CertificateStatus,
 )
 from hass_nabucasa.remote import (
+    BACKEND_RETRY_INITIAL_INTERVAL,
+    BACKEND_RETRY_MAX_INTERVAL,
     RENEW_IF_EXPIRES_DAYS,
     WARN_RENEW_FAILED_DAYS,
+    RemoteUI,
     SubscriptionExpired,
 )
 from hass_nabucasa.utils import utcnow
@@ -600,6 +604,35 @@ async def test_certificate_task_no_backend(
         await asyncio.sleep(0.1)
 
         assert acme_task.done()
+
+
+async def test_certificate_task_backend_retry_backoff(
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+    snapshot: SnapshotAssertion,
+) -> None:
+    """Test that a failing backend is retried with a growing interval."""
+    intervals: list[float] = []
+
+    async def _mock_sleep(seconds: float) -> None:
+        """Record the interval instead of sleeping, then stop the loop."""
+        intervals.append(seconds)
+        if len(intervals) == 18:
+            raise asyncio.CancelledError
+
+    with (
+        patch.object(RemoteUI, "load_backend", return_value=False),
+        patch("hass_nabucasa.remote.asyncio.sleep", side_effect=_mock_sleep),
+        patch("hass_nabucasa.utils.jitter", return_value=0),
+    ):
+        await cloud.remote._certificate_handler()
+
+    # Grows from the initial interval and then stays at the maximum
+    assert intervals[0] == BACKEND_RETRY_INITIAL_INTERVAL
+    assert all(later >= earlier for earlier, later in pairwise(intervals))
+    assert intervals[-1] == BACKEND_RETRY_MAX_INTERVAL == max(intervals)
+
+    assert snapshot == extract_log_messages(caplog)
 
 
 async def test_certificate_task_renew_cert(
@@ -1446,9 +1479,13 @@ async def test_certificate_network_error_handling(
         },
     )
 
-    with patch(
-        "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(cloud, [], "test@nabucasa.inc", Mock()),
+    with (
+        patch(
+            "hass_nabucasa.remote.AcmeHandler",
+            return_value=_MockAcme(cloud, [], "test@nabucasa.inc", Mock()),
+        ),
+        # Keep the logged retry interval free of random jitter
+        patch("hass_nabucasa.utils.jitter", return_value=0),
     ):
         cloud.client.prop_remote_autostart = True
         await cloud.remote.start()

@@ -82,6 +82,10 @@ All API components extend `ApiBase` and provide specific cloud service integrati
 - Webhook management for cloud-to-local communication.
 - Dynamic webhook URL generation and routing.
 
+**Backoff (`utils.Backoff`)**
+- Shared retry scheduling with exponential growth and jitter. Calculates delays only — the caller sleeps and logs.
+- Use it for new retry loops. The ad-hoc backoff in `iot_base.py` and `__init__.py` (auto login, subscription reconnection) is not migrated yet.
+
 ### Configuration and constants
 
 **Environment configuration (`hass_nabucasa/const.py`)**

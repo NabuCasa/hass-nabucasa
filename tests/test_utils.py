@@ -340,3 +340,109 @@ async def test_wait_for_event():
     assert not event.is_set()
 
     assert await utils.wait_for_event(event, 0) is False
+
+
+def test_backoff_interval_grows_until_maximum() -> None:
+    """Test that the interval grows until it hits the maximum."""
+    backoff = utils.Backoff(initial=1, maximum=8, multiplier=2, jitter_fraction=0)
+
+    assert [backoff.time_to_next_attempt() for _ in range(6)] == [1, 2, 4, 8, 8, 8]
+    assert backoff.attempts == 6
+    assert backoff.elapsed == 31
+
+
+def test_backoff_multiplier() -> None:
+    """Test that the multiplier controls the growth."""
+    fixed = utils.Backoff(initial=10, maximum=100, multiplier=1, jitter_fraction=0)
+    assert [fixed.time_to_next_attempt() for _ in range(2)] == [10, 10]
+
+    tripled = utils.Backoff(initial=10, maximum=1000, multiplier=3, jitter_fraction=0)
+    assert [tripled.time_to_next_attempt() for _ in range(3)] == [10, 30, 90]
+
+
+def test_backoff_default_multiplier() -> None:
+    """Test the growth of a backoff that does not pick a multiplier."""
+    backoff = utils.Backoff(initial=100, maximum=1000, jitter_fraction=0)
+
+    assert [backoff.time_to_next_attempt() for _ in range(3)] == [
+        100,
+        100 * utils.DEFAULT_BACKOFF_MULTIPLIER,
+        100 * utils.DEFAULT_BACKOFF_MULTIPLIER**2,
+    ]
+
+
+def test_backoff_jitter_is_shaved_off_the_interval() -> None:
+    """Test that jitter spreads the interval out without passing the maximum."""
+    backoff = utils.Backoff(initial=10, maximum=10, jitter_fraction=0.5)
+
+    intervals = [backoff.time_to_next_attempt() for _ in range(20)]
+
+    assert all(5 <= interval <= 10 for interval in intervals)
+    assert len(set(intervals)) > 1
+
+
+def test_backoff_never_passes_the_maximum() -> None:
+    """Test that the maximum holds once the growth has settled there."""
+    backoff = utils.Backoff(initial=1, maximum=10, jitter_fraction=0.999)
+
+    assert all(backoff.time_to_next_attempt() <= 10 for _ in range(50))
+
+
+def test_backoff_default_jitter_is_applied() -> None:
+    """Test that jitter is enabled by default."""
+    with patch("hass_nabucasa.utils.jitter", return_value=1.0) as jitter_mock:
+        assert utils.Backoff(initial=10, maximum=10).time_to_next_attempt() == 9.0
+
+    assert jitter_mock.call_args[0] == (0, 10 * utils.DEFAULT_BACKOFF_JITTER)
+
+
+def test_backoff_retries_forever() -> None:
+    """Test that a backoff keeps handing out intervals."""
+    backoff = utils.Backoff(initial=1, maximum=2, multiplier=2, jitter_fraction=0)
+
+    assert all(backoff.time_to_next_attempt() for _ in range(100_000))
+    assert backoff.elapsed == 199_999
+
+
+def test_backoff_reset() -> None:
+    """Test that a reset starts over from the initial interval."""
+    backoff = utils.Backoff(initial=10, maximum=100, multiplier=2, jitter_fraction=0)
+
+    assert [backoff.time_to_next_attempt() for _ in range(3)] == [10, 20, 40]
+
+    backoff.reset()
+
+    assert backoff.attempts == 0
+    assert backoff.elapsed == 0
+    assert backoff.time_to_next_attempt() == 10
+
+
+@pytest.mark.parametrize(
+    ("options", "message"),
+    [
+        ({"initial": 0, "maximum": 10}, "initial must be greater than 0"),
+        ({"initial": -1, "maximum": 10}, "initial must be greater than 0"),
+        ({"initial": 10, "maximum": 9}, "maximum must not be smaller than initial"),
+        (
+            {"initial": 1, "maximum": 10, "multiplier": 0.5},
+            "multiplier must not be smaller than 1",
+        ),
+        (
+            {"initial": 1, "maximum": 10, "jitter_fraction": 1.5},
+            "jitter_fraction must be at least 0 and below 1",
+        ),
+        (
+            # A full fraction can shave the whole interval off
+            {"initial": 1, "maximum": 10, "jitter_fraction": 1},
+            "jitter_fraction must be at least 0 and below 1",
+        ),
+        (
+            {"initial": 1, "maximum": 10, "jitter_fraction": -0.1},
+            "jitter_fraction must be at least 0 and below 1",
+        ),
+    ],
+)
+def test_backoff_invalid_options(options: dict[str, float], message: str) -> None:
+    """Test that invalid options are rejected."""
+    with pytest.raises(ValueError, match=message):
+        utils.Backoff(**options)
