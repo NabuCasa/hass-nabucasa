@@ -71,7 +71,7 @@ def test_expiration_from_token():
             "iat": 1234567890,
             "sub": "user_id",
         },
-        "secret",
+        "secret-secret-secret-secret-secret",
         algorithm="HS256",
     )
     assert utils.expiration_from_token(encoded) == 1234567890
@@ -84,7 +84,7 @@ def test_expiration_from_token_no_exp():
             "iat": 1234567890,
             "sub": "user_id",
         },
-        "secret",
+        "secret-secret-secret-secret-secret",
         algorithm="HS256",
     )
     assert utils.expiration_from_token(encoded) is None

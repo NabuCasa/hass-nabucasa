@@ -5,7 +5,15 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from botocore import UNSIGNED as UNSIGNED_BOTOCORE
-from botocore.exceptions import ClientError, EndpointConnectionError
+from botocore.exceptions import (
+    ClientError,
+    ConnectionClosedError,
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    NoCredentialsError,
+    ProxyConnectionError,
+    ReadTimeoutError,
+)
 from pycognito.exceptions import MFAChallengeException
 import pytest
 
@@ -67,18 +75,63 @@ async def test_login_user_not_confirmed(mock_cognito, mock_cloud):
     assert len(mock_cloud.update_token.mock_calls) == 0
 
 
-async def test_login_connection_error(mock_cognito, mock_cloud):
-    """Test login raises CloudConnectionError instead of UnknownError."""
+@pytest.mark.parametrize(
+    ("side_effect", "expected_error", "expected_message"),
+    [
+        (
+            EndpointConnectionError(
+                endpoint_url="https://example.com",
+                error="Failed to establish a new connection: [Errno 111] "
+                "Connection refused",
+            ),
+            auth_api.CloudConnectionError,
+            "Connection refused",
+        ),
+        (
+            ConnectTimeoutError(endpoint_url="https://example.com"),
+            auth_api.CloudConnectionError,
+            "Connect timeout",
+        ),
+        (
+            ConnectionClosedError(endpoint_url="https://example.com"),
+            auth_api.CloudConnectionError,
+            "Connection was closed",
+        ),
+        (
+            ProxyConnectionError(proxy_url="https://proxy.example.com"),
+            auth_api.CloudConnectionError,
+            "Failed to connect to proxy",
+        ),
+        (
+            ReadTimeoutError(endpoint_url="https://example.com"),
+            auth_api.AuthTimeoutError,
+            "Read timeout",
+        ),
+    ],
+)
+async def test_login_connection_error(
+    mock_cognito,
+    mock_cloud,
+    side_effect,
+    expected_error,
+    expected_message,
+):
+    """Test transient botocore errors map to retryable errors, not UnknownError."""
     auth = auth_api.CognitoAuth(mock_cloud)
-    mock_cognito.authenticate.side_effect = EndpointConnectionError(
-        endpoint_url="https://cognito-idp.us-east-1.amazonaws.com/",
-        error="Failed to establish a new connection: [Errno 111] Connection refused",
-    )
+    mock_cognito.authenticate.side_effect = side_effect
 
-    with pytest.raises(
-        auth_api.CloudConnectionError,
-        match="Connection refused",
-    ):
+    with pytest.raises(expected_error, match=expected_message):
+        await auth.async_login("user", "pass")
+
+    assert len(mock_cloud.update_token.mock_calls) == 0
+
+
+async def test_login_unmapped_botocore_error(mock_cognito, mock_cloud):
+    """Test an unmapped botocore error is not treated as retryable."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    mock_cognito.authenticate.side_effect = NoCredentialsError()
+
+    with pytest.raises(auth_api.UnknownError, match="Unable to locate credentials"):
         await auth.async_login("user", "pass")
 
     assert len(mock_cloud.update_token.mock_calls) == 0
@@ -359,6 +412,19 @@ async def test_login_verify_totp_times_out(mock_cognito, mock_cloud):
         await auth.async_login_verify_totp("user", "123456", {"session": "session"})
 
     assert len(mock_cloud.update_token.mock_calls) == 0
+
+
+async def test_renew_access_token_read_timeout(mock_cognito, cloud_mock):
+    """Test a read timeout while renewing the token raises AuthTimeoutError."""
+    mock_cognito.renew_access_token.side_effect = ReadTimeoutError(
+        endpoint_url="https://example.com",
+    )
+    auth = auth_api.CognitoAuth(cloud_mock)
+
+    with pytest.raises(auth_api.AuthTimeoutError, match="Read timeout"):
+        await auth.async_renew_access_token()
+
+    assert len(cloud_mock.update_token.mock_calls) == 0
 
 
 async def test_async_setup(cloud_mock):
