@@ -4,11 +4,20 @@ import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from botocore import UNSIGNED as UNSIGNED_BOTOCORE
 from botocore.exceptions import ClientError, EndpointConnectionError
 from pycognito.exceptions import MFAChallengeException
 import pytest
 
 from hass_nabucasa import CloudError, auth as auth_api
+from hass_nabucasa.auth.cognito import _cached_cognito
+from hass_nabucasa.auth.const import (
+    AUTH_CALL_TIMEOUT,
+    AUTH_CONNECT_TIMEOUT,
+    AUTH_LOGIN_TIMEOUT,
+    AUTH_MAX_ATTEMPTS,
+    AUTH_READ_TIMEOUT,
+)
 from tests.common import FROZEN_NOW_AS_TIMESTAMP
 
 
@@ -314,12 +323,42 @@ async def test_check_token_renew_times_out(mock_cognito, cloud_mock):
     auth = auth_api.CognitoAuth(cloud_mock)
 
     with (
-        patch("hass_nabucasa.auth.cognito.DEFAULT_AUTH_TIMEOUT", 0.01),
+        patch("hass_nabucasa.auth.cognito.AUTH_CALL_TIMEOUT", 0.01),
         pytest.raises(auth_api.AuthTimeoutError),
     ):
         await auth.async_check_token()
 
     assert len(cloud_mock.update_token.mock_calls) == 0
+
+
+async def test_login_times_out(mock_cognito, mock_cloud):
+    """Test a stalled login raises AuthTimeoutError."""
+    mock_cognito.authenticate.side_effect = lambda **_: time.sleep(0.1)
+    auth = auth_api.CognitoAuth(mock_cloud)
+
+    with (
+        patch("hass_nabucasa.auth.cognito.AUTH_LOGIN_TIMEOUT", 0.01),
+        pytest.raises(auth_api.AuthTimeoutError),
+    ):
+        await auth.async_login("user", "pass")
+
+    assert len(mock_cloud.update_token.mock_calls) == 0
+
+
+async def test_login_verify_totp_times_out(mock_cognito, mock_cloud):
+    """Test a stalled TOTP verification raises AuthTimeoutError."""
+    mock_cognito.respond_to_software_token_mfa_challenge.side_effect = lambda **_: (
+        time.sleep(0.1)
+    )
+    auth = auth_api.CognitoAuth(mock_cloud)
+
+    with (
+        patch("hass_nabucasa.auth.cognito.AUTH_CALL_TIMEOUT", 0.01),
+        pytest.raises(auth_api.AuthTimeoutError),
+    ):
+        await auth.async_login_verify_totp("user", "123456", {"session": "session"})
+
+    assert len(mock_cloud.update_token.mock_calls) == 0
 
 
 async def test_async_setup(cloud_mock):
@@ -402,3 +441,35 @@ async def test_sleep_time_calculation(
         await auth._async_handle_token_refresh()
 
         assert f"Sleeping for {expected_sleep} before refreshing token" in caplog.text
+
+
+async def test_cognito_client_botocore_config(cloud_mock):
+    """Test the cognito client is created with bounded timeouts and retries."""
+    cloud_mock.user_pool_id = "us-east-1_abc123"
+    cloud_mock.cognito_client_id = "cognito_client_id"
+    cloud_mock.region = "us-east-1"
+    auth = auth_api.CognitoAuth(cloud_mock)
+
+    _cached_cognito.cache_clear()
+    try:
+        cognito = auth._create_cognito_client(username="user")
+    finally:
+        _cached_cognito.cache_clear()
+
+    config = cognito.client.meta.config
+    assert config.signature_version is UNSIGNED_BOTOCORE
+    assert config.connect_timeout == AUTH_CONNECT_TIMEOUT
+    assert config.read_timeout == AUTH_READ_TIMEOUT
+    assert config.retries["total_max_attempts"] == AUTH_MAX_ATTEMPTS
+    assert config.retries["mode"] == "standard"
+
+
+def test_auth_timeout_budget_covers_botocore_retries():
+    """Test the asyncio timeouts outlast the retries botocore is allowed."""
+    worst_case_attempt = AUTH_CONNECT_TIMEOUT + AUTH_READ_TIMEOUT
+    # 3 seconds for potential backoff
+    worst_case_call = AUTH_MAX_ATTEMPTS * worst_case_attempt + 3
+
+    assert worst_case_call <= AUTH_CALL_TIMEOUT
+    # Logging in performs two sequential Cognito calls.
+    assert 2 * worst_case_call <= AUTH_LOGIN_TIMEOUT
