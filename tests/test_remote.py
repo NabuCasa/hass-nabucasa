@@ -555,6 +555,85 @@ async def test_get_certificate_details(
     assert certificate.fingerprint == "ffff"
 
 
+async def test_certificate_task_survives_unexpected_error(
+    cloud: Cloud,
+    acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    caplog: pytest.LogCaptureFixture,
+    mock_timing: None,
+) -> None:
+    """An unhandled exception in the loop must not kill the task permanently.
+
+    Regression test: _certificate_handler used to re-raise any exception it
+    didn't have a specific handler for, which ended the asyncio.Task for
+    good. Nothing but a full Core restart or a config-entry reload could
+    produce another attempt. It should instead log, back off, and retry.
+    """
+    valid = utcnow() + timedelta(days=1)
+
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+            "throttling": 400,
+        },
+    )
+
+    acme_mock.expire_date = valid
+
+    original_issue_certificate = acme_mock.issue_certificate
+    attempts = 0
+
+    async def flaky_issue_certificate() -> None:
+        """Fail exactly once, simulating a DNS blip, then behave normally."""
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("simulated unexpected DNS blip")
+        await original_issue_certificate()
+
+    acme_mock.issue_certificate = flaky_issue_certificate
+
+    with (
+        patch("hass_nabucasa.utils.next_midnight", return_value=0),
+        patch("random.randint", return_value=0),
+    ):
+        acme_task = cloud.remote._acme_task = asyncio.create_task(
+            cloud.remote._certificate_handler(),
+        )
+        # mock_timing collapses every asyncio.sleep() call (both the one
+        # below and the loop's internal retry backoff) to ~0.001s of real
+        # time, so poll in short rounds instead of one fixed wait: a single
+        # await is a coin flip against the handler's own retry-backoff timer
+        # firing first.
+        for _ in range(100):
+            if attempts >= 2:
+                break
+            await asyncio.sleep(0.01)
+        else:
+            pytest.fail("certificate handler never retried after the error")
+
+        assert "Unexpected error in Remote UI loop" in caplog.text
+        assert acme_mock.call_issue
+        assert snitun_mock.call_start
+        assert not acme_task.done()
+
+        await cloud.remote.stop()
+        await asyncio.sleep(0.1)
+        assert acme_task.done()
+
+
 async def test_certificate_task_no_backend(
     cloud: Cloud,
     acme_mock: MockAcme,
