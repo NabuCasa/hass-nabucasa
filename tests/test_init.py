@@ -351,7 +351,7 @@ async def test_claims_decoding(cl: cloud.Cloud):
         "custom:sub-exp": "2099-01-01",
         "some": "value",
     }
-    encoded_token = cloud.jwt.encode(payload, key="secret")
+    encoded_token = cloud.jwt.encode(payload, key="secret-secret-secret-secret-secret")
 
     await cl.update_token(encoded_token, None)
     assert cl.claims == payload
@@ -364,7 +364,10 @@ async def test_update_token_raises_account_not_ready_without_claim(cl: cloud.Clo
     The account is not usable yet, so nothing may be stored and the instance
     must not be left half-logged-in.
     """
-    token_without_claim = cloud.jwt.encode({"cognito:username": "abc"}, key="secret")
+    token_without_claim = cloud.jwt.encode(
+        {"cognito:username": "abc"},
+        key="secret-secret-secret-secret-secret",
+    )
 
     with pytest.raises(cloud.AccountNotReady):
         await cl.update_token(
