@@ -229,61 +229,75 @@ async def test_async_check_latency_partial_unreachable(snapshot: SnapshotAsserti
     assert result == snapshot
 
 
-async def test_async_check_latency_socket_permission_error_retries():
-    """Test async_check_latency.
+async def test_async_resolve_ping_privileges_privileged():
+    """Test async_resolve_ping_privileges keeps privileged mode when available."""
+    with patch("hass_nabucasa.utils.async_ping") as mock_ping:
+        assert await utils.async_resolve_ping_privileges() is True
 
-    retries with privileged=False on SocketPermissionError.
+    assert mock_ping.call_count == 1
+    assert mock_ping.call_args[1]["privileged"] is True
+
+
+async def test_async_resolve_ping_privileges_falls_back():
+    """Test async_resolve_ping_privileges.
+
+    falls back to unprivileged mode on SocketPermissionError.
     """
-    mock_host = MagicMock(
-        address="999.999.999.999",
-        is_alive=True,
-        avg_rtt=10.5,
-        max_rtt=15.0,
-        min_rtt=5.0,
-        spec=Host,
-    )
-
     with patch(
-        "hass_nabucasa.utils.async_multiping",
-        side_effect=[SocketPermissionError(privileged=True), [mock_host]],
-    ) as mock_multiping:
-        result = await utils.async_check_latency(["999.999.999.999"])
+        "hass_nabucasa.utils.async_ping",
+        side_effect=[SocketPermissionError(privileged=True), None],
+    ) as mock_ping:
+        assert await utils.async_resolve_ping_privileges() is False
 
-    assert mock_multiping.call_count == 2
-    assert mock_multiping.call_args_list[0][1]["privileged"] is True
-    assert mock_multiping.call_args_list[1][1]["privileged"] is False
-    assert len(result) == 1
-    assert result[0]["address"] == "999.999.999.999"
+    assert mock_ping.call_count == 2
+    assert mock_ping.call_args_list[0][1]["privileged"] is True
+    assert mock_ping.call_args_list[1][1]["privileged"] is False
 
 
-async def test_async_check_latency_socket_permission_error_unprivileged():
-    """Test async_check_latency.
+async def test_async_resolve_ping_privileges_unprivileged():
+    """Test async_resolve_ping_privileges.
 
     raises CheckLatencyInsufficientPrivileges when privileged=False.
     """
     with (
         patch(
-            "hass_nabucasa.utils.async_multiping",
+            "hass_nabucasa.utils.async_ping",
             side_effect=SocketPermissionError(privileged=True),
-        ),
+        ) as mock_ping,
         pytest.raises(utils.CheckLatencyInsufficientPrivileges),
     ):
-        await utils.async_check_latency(["999.999.999.999"], privileged=False)
+        await utils.async_resolve_ping_privileges(privileged=False)
+
+    assert mock_ping.call_count == 1
 
 
-async def test_async_check_latency_socket_permission_error_retry_also_fails():
-    """Test async_check_latency.
+async def test_async_resolve_ping_privileges_fallback_also_fails():
+    """Test async_resolve_ping_privileges.
 
-    raises CheckLatencyInsufficientPrivileges when retry also fails.
+    raises CheckLatencyInsufficientPrivileges when the fallback also fails.
     """
     with (
         patch(
-            "hass_nabucasa.utils.async_multiping",
+            "hass_nabucasa.utils.async_ping",
             side_effect=SocketPermissionError(privileged=True),
-        ),
+        ) as mock_ping,
         pytest.raises(utils.CheckLatencyInsufficientPrivileges),
     ):
-        await utils.async_check_latency(["999.999.999.999"])
+        await utils.async_resolve_ping_privileges()
+
+    assert mock_ping.call_count == 2
+
+
+async def test_async_resolve_ping_privileges_icmp_error():
+    """Test async_resolve_ping_privileges raises CheckLatencyError on ICMP errors."""
+    with (
+        patch(
+            "hass_nabucasa.utils.async_ping",
+            side_effect=ICMPLibError("ICMP error"),
+        ),
+        pytest.raises(utils.CheckLatencyError, match="ICMP ping failed"),
+    ):
+        await utils.async_resolve_ping_privileges()
 
 
 async def test_async_check_latency_icmp_error():
