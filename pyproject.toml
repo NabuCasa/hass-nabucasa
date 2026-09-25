@@ -215,6 +215,7 @@ zip-safe = false
 
 [tool.setuptools.package-data]
 hass_nabucasa = [
+  "auth/botocore_data/**/*.json",
   "py.typed",
 ]
 
