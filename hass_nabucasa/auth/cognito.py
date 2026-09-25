@@ -10,9 +10,7 @@ import random
 from typing import TYPE_CHECKING, Any
 
 import boto3
-import botocore
 from botocore.exceptions import BotoCoreError, ClientError
-import botocore.session
 import pycognito
 from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
@@ -385,6 +383,10 @@ class CognitoAuth:
 
         NOTE: This will do I/O
         """
+        # Imported here so importing this module does not load botocore's
+        # client machinery.
+        import botocore.session  # noqa: PLC0415  # pylint: disable=import-outside-toplevel
+
         if self._session is None:
             botocore_session = botocore.session.Session()
             botocore_session.set_config_variable("data_path", str(BOTOCORE_DATA_PATH))
