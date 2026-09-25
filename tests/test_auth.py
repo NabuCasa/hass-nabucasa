@@ -1,6 +1,8 @@
 """Tests for the tools to communicate with the cloud."""
 
 import asyncio
+import subprocess
+import sys
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -13,7 +15,7 @@ from botocore.exceptions import (
     ProxyConnectionError,
     ReadTimeoutError,
 )
-from pycognito.exceptions import MFAChallengeException
+from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 import pytest
 
 from hass_nabucasa import CloudError, auth as auth_api
@@ -137,6 +139,34 @@ async def test_login_user_mfa_required(mock_cognito, mock_cloud):
         await auth.async_login("user", "pass")
 
     assert len(mock_cloud.update_token.mock_calls) == 0
+
+
+async def test_login_user_password_change_required(mock_cognito, mock_cloud):
+    """Test trying to login when a password change is required."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    mock_cognito.authenticate.side_effect = ForceChangePasswordException(
+        "Change password"
+    )
+
+    with pytest.raises(auth_api.PasswordChangeRequired):
+        await auth.async_login("user", "pass")
+
+    assert len(mock_cloud.update_token.mock_calls) == 0
+
+
+def test_import_does_not_load_aws_sdk():
+    """Test importing the package does not import boto3 or pycognito."""
+    code = (
+        "import sys, hass_nabucasa; "
+        "print(sorted({'boto3', 'pycognito'} & set(sys.modules)))"
+    )
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, "-c", code],
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    assert result.stdout.strip() == "[]"
 
 
 async def test_login_user_verify_totp_invalid_code(mock_cognito, mock_cloud):
