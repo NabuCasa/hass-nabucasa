@@ -1038,6 +1038,23 @@ async def test_regeneration_without_warning_for_good_dns_config(
         ),
         (
             {
+                "type": "urn:ietf:params:acme:error:unauthorized",
+                "detail": (
+                    "Unable to validate JWS "
+                    ':: Account is not valid, has status "deactivated"'
+                ),
+            },
+            True,
+        ),
+        (
+            {
+                "type": "urn:ietf:params:acme:error:unauthorized",
+                "detail": "Some other unauthorized reason",
+            },
+            False,
+        ),
+        (
+            {
                 "type": "urn:ietf:params:acme:error:malformed",
                 "detail": "Some other malformed reason",
             },
@@ -1140,6 +1157,23 @@ async def test_acme_client_new_order_errors(
                 "detail": "Unable to validate JWS :: Invalid Content-Type header on",
             },
             True,
+        ),
+        (
+            {
+                "type": "urn:ietf:params:acme:error:unauthorized",
+                "detail": (
+                    "Unable to validate JWS "
+                    ':: Account is not valid, has status "deactivated"'
+                ),
+            },
+            True,
+        ),
+        (
+            {
+                "type": "urn:ietf:params:acme:error:unauthorized",
+                "detail": "Some other unauthorized reason",
+            },
+            False,
         ),
         (
             {

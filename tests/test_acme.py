@@ -9,35 +9,63 @@ from requests.exceptions import RequestException
 
 from hass_nabucasa import Cloud
 from hass_nabucasa.acme import (
+    AcmeAccountDeactivatedError,
     AcmeChallengeError,
     AcmeClientError,
     AcmeHandler,
     AcmeJWSVerificationError,
-    _raise_if_jws_verification_failed,
+    _raise_if_account_unusable,
 )
 
 
 @pytest.mark.parametrize(
-    "error",
+    ("error", "expected_error", "expected_message"),
     [
-        messages.Error(
-            typ="urn:ietf:params:acme:error:malformed",
-            detail="JWS verification error",
+        (
+            messages.Error(
+                typ="urn:ietf:params:acme:error:malformed",
+                detail="JWS verification error",
+            ),
+            AcmeJWSVerificationError,
+            "JWS verification failed",
         ),
-        messages.Error(
-            typ="urn:ietf:params:acme:error:malformed",
-            detail="Unable to validate JWS",
+        (
+            messages.Error(
+                typ="urn:ietf:params:acme:error:malformed",
+                detail="Unable to validate JWS",
+            ),
+            AcmeJWSVerificationError,
+            "JWS verification failed",
         ),
-        messages.Error(
-            typ="urn:ietf:params:acme:error:malformed",
-            detail="Unable to validate JWS :: Invalid Content-Type header on",
+        (
+            messages.Error(
+                typ="urn:ietf:params:acme:error:malformed",
+                detail="Unable to validate JWS :: Invalid Content-Type header on",
+            ),
+            AcmeJWSVerificationError,
+            "JWS verification failed",
+        ),
+        (
+            messages.Error(
+                typ="urn:ietf:params:acme:error:unauthorized",
+                detail=(
+                    "Unable to validate JWS "
+                    ':: Account is not valid, has status "deactivated"'
+                ),
+            ),
+            AcmeAccountDeactivatedError,
+            "ACME account is deactivated",
         ),
     ],
 )
-def test_raise_if_jws_verification_failed_should_raise(error):
-    """Test _raise_if_jws_verification_failed raises exception for JWS errors."""
-    with pytest.raises(AcmeJWSVerificationError, match="JWS verification failed"):
-        _raise_if_jws_verification_failed(error)
+def test_raise_if_account_unusable_should_raise(
+    error,
+    expected_error: type[Exception],
+    expected_message: str,
+):
+    """Test _raise_if_account_unusable raises for unusable account errors."""
+    with pytest.raises(expected_error, match=expected_message):
+        _raise_if_account_unusable(error)
 
 
 @pytest.mark.parametrize(
@@ -51,12 +79,20 @@ def test_raise_if_jws_verification_failed_should_raise(error):
             typ="about:blank",
             detail="JWS verification error",
         ),
+        messages.Error(
+            typ="urn:ietf:params:acme:error:unauthorized",
+            detail="Some other unauthorized reason",
+        ),
+        messages.Error(
+            typ="urn:ietf:params:acme:error:malformed",
+            detail='Account is not valid, has status "deactivated"',
+        ),
         ValueError("Some other error"),
     ],
 )
-def test_raise_if_jws_verification_failed_should_not_raise(error):
-    """Test _raise_if_jws_verification_failed does not raise for non-JWS errors."""
-    _raise_if_jws_verification_failed(error)
+def test_raise_if_account_unusable_should_not_raise(error):
+    """Test _raise_if_account_unusable does not raise for other errors."""
+    _raise_if_account_unusable(error)
 
 
 def test_acme_handler_create_client_jws_error_existing_registration(
