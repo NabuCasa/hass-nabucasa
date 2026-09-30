@@ -43,17 +43,18 @@ def _cognito_regions() -> list[str]:
 def _request_response_view(model: dict, operations: set[str]) -> dict:
     """Return what shapes the requests and parses the responses.
 
-    Error shapes are left out: botocore adds new error types between
-    releases, and hass_nabucasa maps errors by their code string.
+    Every operation field is compared, including ``auth`` and ``authtype``,
+    which keep the calls unsigned. Error shapes are left out: botocore adds
+    new error types between releases, and hass_nabucasa maps errors by their
+    code string.
     """
     script = _load_script()
     view = {}
     pending = []
     for name in sorted(operations):
-        operation = model["operations"][name]
-        view[name] = {
-            key: operation[key] for key in ("http", "input", "output", "name")
-        }
+        operation = script._strip_docs(model["operations"][name])
+        view[name] = {key: value for key, value in operation.items() if key != "errors"}
+        assert {"auth", "authtype"} <= view[name].keys(), name
         pending.extend(operation[key]["shape"] for key in ("input", "output"))
 
     shapes = {}
