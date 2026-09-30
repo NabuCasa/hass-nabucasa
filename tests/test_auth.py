@@ -1,9 +1,13 @@
 """Tests for the tools to communicate with the cloud."""
 
 import asyncio
+from functools import partial
+import subprocess
+import sys
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import botocore
 from botocore.exceptions import (
     ClientError,
     ConnectionClosedError,
@@ -13,7 +17,7 @@ from botocore.exceptions import (
     ProxyConnectionError,
     ReadTimeoutError,
 )
-from pycognito.exceptions import MFAChallengeException
+from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 import pytest
 
 from hass_nabucasa import CloudError, auth as auth_api
@@ -137,6 +141,65 @@ async def test_login_user_mfa_required(mock_cognito, mock_cloud):
         await auth.async_login("user", "pass")
 
     assert len(mock_cloud.update_token.mock_calls) == 0
+
+
+async def test_login_user_password_change_required(mock_cognito, mock_cloud):
+    """Test trying to login when a password change is required."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    mock_cognito.authenticate.side_effect = ForceChangePasswordException(
+        "Change password"
+    )
+
+    with pytest.raises(auth_api.PasswordChangeRequired):
+        await auth.async_login("user", "pass")
+
+    assert len(mock_cloud.update_token.mock_calls) == 0
+
+
+def test_import_does_not_load_aws_sdk():
+    """Test importing the package does not import boto3 or pycognito."""
+    code = (
+        "import sys, hass_nabucasa; "
+        "print(sorted({'boto3', 'pycognito'} & set(sys.modules)))"
+    )
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, "-c", code],
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    assert result.stdout.strip() == "[]"
+
+
+async def test_create_cognito_client(mock_cloud):
+    """Test the first Cognito client is built through the deferred imports."""
+    mock_cloud.user_pool_id = "user_pool_id"
+    mock_cloud.cognito_client_id = "client_id"
+    mock_cloud.region = "us-east-1"
+    auth = auth_api.CognitoAuth(mock_cloud)
+    auth_api.cognito._cached_cognito.cache_clear()
+
+    try:
+        with (
+            patch("boto3.session.Session") as session_cls,
+            patch("pycognito.Cognito") as cognito_cls,
+        ):
+            client = await mock_cloud.run_executor(
+                partial(auth._create_cognito_client, access_token="access")  # noqa: S106
+            )
+    finally:
+        auth_api.cognito._cached_cognito.cache_clear()
+
+    assert client is cognito_cls.return_value
+    session_cls.assert_called_once_with()
+    cognito_cls.assert_called_once()
+    kwargs = cognito_cls.call_args.kwargs
+    assert kwargs["user_pool_id"] == "user_pool_id"
+    assert kwargs["client_id"] == "client_id"
+    assert kwargs["user_pool_region"] == "us-east-1"
+    assert kwargs["session"] is session_cls.return_value
+    assert kwargs["botocore_config"].signature_version is botocore.UNSIGNED
+    assert kwargs["access_token"] == "access"
 
 
 async def test_login_user_verify_totp_invalid_code(mock_cognito, mock_cloud):
