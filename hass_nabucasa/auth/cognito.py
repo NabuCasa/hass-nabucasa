@@ -5,11 +5,11 @@ from __future__ import annotations
 import asyncio
 from functools import lru_cache, partial
 import logging
+from pathlib import Path
 import random
 from typing import TYPE_CHECKING, Any
 
 import boto3
-import botocore
 from botocore.exceptions import BotoCoreError, ClientError
 import pycognito
 from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
@@ -28,6 +28,11 @@ if TYPE_CHECKING:
     from .. import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
+
+# Trimmed copies of botocore's endpoints.json and cognito-idp model, holding
+# only what this module uses. The full files cost about 9 MiB once loaded.
+# Regenerate with scripts/update_botocore_data.py.
+BOTOCORE_DATA_PATH = Path(__file__).parent / "botocore_data"
 
 
 class Unauthenticated(CloudError):
@@ -378,8 +383,14 @@ class CognitoAuth:
 
         NOTE: This will do I/O
         """
+        # Imported here so importing this module does not load botocore's
+        # client machinery.
+        import botocore.session  # noqa: PLC0415  # pylint: disable=import-outside-toplevel
+
         if self._session is None:
-            self._session = boto3.session.Session()
+            botocore_session = botocore.session.Session()
+            botocore_session.set_config_variable("data_path", str(BOTOCORE_DATA_PATH))
+            self._session = boto3.session.Session(botocore_session=botocore_session)
 
         return _cached_cognito(
             user_pool_id=self.cloud.user_pool_id,

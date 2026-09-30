@@ -1,0 +1,1117 @@
+{
+ "metadata": {
+  "apiVersion": "2016-04-18",
+  "auth": [
+   "aws.auth#sigv4"
+  ],
+  "endpointPrefix": "cognito-idp",
+  "jsonVersion": "1.1",
+  "protocol": "json",
+  "protocols": [
+   "json"
+  ],
+  "serviceFullName": "Amazon Cognito Identity Provider",
+  "serviceId": "Cognito Identity Provider",
+  "signatureVersion": "v4",
+  "targetPrefix": "AWSCognitoIdentityProviderService",
+  "uid": "cognito-idp-2016-04-18"
+ },
+ "operations": {
+  "ForgotPassword": {
+   "auth": [
+    "smithy.api#noAuth"
+   ],
+   "authtype": "none",
+   "errors": [
+    {
+     "shape": "ResourceNotFoundException"
+    },
+    {
+     "shape": "InvalidParameterException"
+    },
+    {
+     "shape": "UnexpectedLambdaException"
+    },
+    {
+     "shape": "UserLambdaValidationException"
+    },
+    {
+     "shape": "NotAuthorizedException"
+    },
+    {
+     "shape": "InvalidLambdaResponseException"
+    },
+    {
+     "shape": "TooManyRequestsException"
+    },
+    {
+     "shape": "LimitExceededException"
+    },
+    {
+     "shape": "InvalidSmsRoleAccessPolicyException"
+    },
+    {
+     "shape": "InvalidSmsRoleTrustRelationshipException"
+    },
+    {
+     "shape": "InvalidEmailRoleAccessPolicyException"
+    },
+    {
+     "shape": "CodeDeliveryFailureException"
+    },
+    {
+     "shape": "UserNotFoundException"
+    },
+    {
+     "shape": "OperationNotEnabledException"
+    },
+    {
+     "shape": "InternalErrorException"
+    },
+    {
+     "shape": "ForbiddenException"
+    }
+   ],
+   "http": {
+    "method": "POST",
+    "requestUri": "/"
+   },
+   "input": {
+    "shape": "ForgotPasswordRequest"
+   },
+   "name": "ForgotPassword",
+   "output": {
+    "shape": "ForgotPasswordResponse"
+   }
+  },
+  "InitiateAuth": {
+   "auth": [
+    "smithy.api#noAuth"
+   ],
+   "authtype": "none",
+   "errors": [
+    {
+     "shape": "UnsupportedOperationException"
+    },
+    {
+     "shape": "ResourceNotFoundException"
+    },
+    {
+     "shape": "InvalidParameterException"
+    },
+    {
+     "shape": "NotAuthorizedException"
+    },
+    {
+     "shape": "TooManyRequestsException"
+    },
+    {
+     "shape": "UnexpectedLambdaException"
+    },
+    {
+     "shape": "InvalidUserPoolConfigurationException"
+    },
+    {
+     "shape": "UserLambdaValidationException"
+    },
+    {
+     "shape": "InvalidLambdaResponseException"
+    },
+    {
+     "shape": "PasswordResetRequiredException"
+    },
+    {
+     "shape": "UserNotFoundException"
+    },
+    {
+     "shape": "UserNotConfirmedException"
+    },
+    {
+     "shape": "InternalErrorException"
+    },
+    {
+     "shape": "InvalidSmsRoleAccessPolicyException"
+    },
+    {
+     "shape": "InvalidEmailRoleAccessPolicyException"
+    },
+    {
+     "shape": "InvalidSmsRoleTrustRelationshipException"
+    },
+    {
+     "shape": "OperationNotEnabledException"
+    },
+    {
+     "shape": "ForbiddenException"
+    }
+   ],
+   "http": {
+    "method": "POST",
+    "requestUri": "/"
+   },
+   "input": {
+    "shape": "InitiateAuthRequest"
+   },
+   "name": "InitiateAuth",
+   "output": {
+    "shape": "InitiateAuthResponse"
+   }
+  },
+  "ResendConfirmationCode": {
+   "auth": [
+    "smithy.api#noAuth"
+   ],
+   "authtype": "none",
+   "errors": [
+    {
+     "shape": "ResourceNotFoundException"
+    },
+    {
+     "shape": "InvalidParameterException"
+    },
+    {
+     "shape": "UnexpectedLambdaException"
+    },
+    {
+     "shape": "UserLambdaValidationException"
+    },
+    {
+     "shape": "NotAuthorizedException"
+    },
+    {
+     "shape": "InvalidLambdaResponseException"
+    },
+    {
+     "shape": "TooManyRequestsException"
+    },
+    {
+     "shape": "LimitExceededException"
+    },
+    {
+     "shape": "InvalidSmsRoleAccessPolicyException"
+    },
+    {
+     "shape": "InvalidSmsRoleTrustRelationshipException"
+    },
+    {
+     "shape": "InvalidEmailRoleAccessPolicyException"
+    },
+    {
+     "shape": "CodeDeliveryFailureException"
+    },
+    {
+     "shape": "UserNotFoundException"
+    },
+    {
+     "shape": "OperationNotEnabledException"
+    },
+    {
+     "shape": "InternalErrorException"
+    },
+    {
+     "shape": "ForbiddenException"
+    }
+   ],
+   "http": {
+    "method": "POST",
+    "requestUri": "/"
+   },
+   "input": {
+    "shape": "ResendConfirmationCodeRequest"
+   },
+   "name": "ResendConfirmationCode",
+   "output": {
+    "shape": "ResendConfirmationCodeResponse"
+   }
+  },
+  "RespondToAuthChallenge": {
+   "auth": [
+    "smithy.api#noAuth"
+   ],
+   "authtype": "none",
+   "errors": [
+    {
+     "shape": "ResourceNotFoundException"
+    },
+    {
+     "shape": "InvalidParameterException"
+    },
+    {
+     "shape": "NotAuthorizedException"
+    },
+    {
+     "shape": "CodeMismatchException"
+    },
+    {
+     "shape": "ExpiredCodeException"
+    },
+    {
+     "shape": "UnexpectedLambdaException"
+    },
+    {
+     "shape": "UserLambdaValidationException"
+    },
+    {
+     "shape": "InvalidPasswordException"
+    },
+    {
+     "shape": "PasswordHistoryPolicyViolationException"
+    },
+    {
+     "shape": "InvalidLambdaResponseException"
+    },
+    {
+     "shape": "TooManyRequestsException"
+    },
+    {
+     "shape": "InvalidUserPoolConfigurationException"
+    },
+    {
+     "shape": "MFAMethodNotFoundException"
+    },
+    {
+     "shape": "PasswordResetRequiredException"
+    },
+    {
+     "shape": "UserNotFoundException"
+    },
+    {
+     "shape": "UserNotConfirmedException"
+    },
+    {
+     "shape": "InvalidSmsRoleAccessPolicyException"
+    },
+    {
+     "shape": "InvalidSmsRoleTrustRelationshipException"
+    },
+    {
+     "shape": "InvalidEmailRoleAccessPolicyException"
+    },
+    {
+     "shape": "AliasExistsException"
+    },
+    {
+     "shape": "InternalErrorException"
+    },
+    {
+     "shape": "SoftwareTokenMFANotFoundException"
+    },
+    {
+     "shape": "ForbiddenException"
+    },
+    {
+     "shape": "OperationNotEnabledException"
+    }
+   ],
+   "http": {
+    "method": "POST",
+    "requestUri": "/"
+   },
+   "input": {
+    "shape": "RespondToAuthChallengeRequest"
+   },
+   "name": "RespondToAuthChallenge",
+   "output": {
+    "shape": "RespondToAuthChallengeResponse"
+   }
+  },
+  "SignUp": {
+   "auth": [
+    "smithy.api#noAuth"
+   ],
+   "authtype": "none",
+   "errors": [
+    {
+     "shape": "ResourceNotFoundException"
+    },
+    {
+     "shape": "InvalidParameterException"
+    },
+    {
+     "shape": "UnexpectedLambdaException"
+    },
+    {
+     "shape": "UserLambdaValidationException"
+    },
+    {
+     "shape": "NotAuthorizedException"
+    },
+    {
+     "shape": "InvalidPasswordException"
+    },
+    {
+     "shape": "InvalidLambdaResponseException"
+    },
+    {
+     "shape": "UsernameExistsException"
+    },
+    {
+     "shape": "TooManyRequestsException"
+    },
+    {
+     "shape": "InternalErrorException"
+    },
+    {
+     "shape": "LimitExceededException"
+    },
+    {
+     "shape": "InvalidSmsRoleAccessPolicyException"
+    },
+    {
+     "shape": "InvalidSmsRoleTrustRelationshipException"
+    },
+    {
+     "shape": "InvalidEmailRoleAccessPolicyException"
+    },
+    {
+     "shape": "CodeDeliveryFailureException"
+    },
+    {
+     "shape": "OperationNotEnabledException"
+    },
+    {
+     "shape": "ForbiddenException"
+    }
+   ],
+   "http": {
+    "method": "POST",
+    "requestUri": "/"
+   },
+   "input": {
+    "shape": "SignUpRequest"
+   },
+   "name": "SignUp",
+   "output": {
+    "shape": "SignUpResponse"
+   }
+  }
+ },
+ "shapes": {
+  "AliasExistsException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "AnalyticsMetadataType": {
+   "members": {
+    "AnalyticsEndpointId": {
+     "shape": "StringType"
+    }
+   },
+   "type": "structure"
+  },
+  "AttributeListType": {
+   "member": {
+    "shape": "AttributeType"
+   },
+   "type": "list"
+  },
+  "AttributeNameType": {
+   "max": 32,
+   "min": 1,
+   "pattern": "[\\p{L}\\p{M}\\p{S}\\p{N}\\p{P}\\t\\n\\r ]+",
+   "type": "string"
+  },
+  "AttributeType": {
+   "members": {
+    "Name": {
+     "shape": "AttributeNameType"
+    },
+    "Value": {
+     "shape": "AttributeValueType"
+    }
+   },
+   "required": [
+    "Name"
+   ],
+   "type": "structure"
+  },
+  "AttributeValueType": {
+   "max": 2048,
+   "sensitive": true,
+   "type": "string"
+  },
+  "AuthFlowType": {
+   "enum": [
+    "USER_SRP_AUTH",
+    "REFRESH_TOKEN_AUTH",
+    "REFRESH_TOKEN",
+    "CUSTOM_AUTH",
+    "ADMIN_NO_SRP_AUTH",
+    "USER_PASSWORD_AUTH",
+    "ADMIN_USER_PASSWORD_AUTH",
+    "USER_AUTH"
+   ],
+   "type": "string"
+  },
+  "AuthParametersType": {
+   "key": {
+    "shape": "StringType"
+   },
+   "sensitive": true,
+   "type": "map",
+   "value": {
+    "shape": "StringType"
+   }
+  },
+  "AuthenticationResultType": {
+   "members": {
+    "AccessToken": {
+     "shape": "TokenModelType"
+    },
+    "ExpiresIn": {
+     "shape": "IntegerType"
+    },
+    "IdToken": {
+     "shape": "TokenModelType"
+    },
+    "NewDeviceMetadata": {
+     "shape": "NewDeviceMetadataType"
+    },
+    "RefreshToken": {
+     "shape": "TokenModelType"
+    },
+    "TokenType": {
+     "shape": "StringType"
+    }
+   },
+   "type": "structure"
+  },
+  "AvailableChallengeListType": {
+   "member": {
+    "shape": "ChallengeNameType"
+   },
+   "type": "list"
+  },
+  "BooleanType": {
+   "type": "boolean"
+  },
+  "ChallengeNameType": {
+   "enum": [
+    "SMS_MFA",
+    "EMAIL_OTP",
+    "SOFTWARE_TOKEN_MFA",
+    "SELECT_MFA_TYPE",
+    "MFA_SETUP",
+    "PASSWORD_VERIFIER",
+    "CUSTOM_CHALLENGE",
+    "SELECT_CHALLENGE",
+    "DEVICE_SRP_AUTH",
+    "DEVICE_PASSWORD_VERIFIER",
+    "ADMIN_NO_SRP_AUTH",
+    "NEW_PASSWORD_REQUIRED",
+    "SMS_OTP",
+    "PASSWORD",
+    "WEB_AUTHN",
+    "PASSWORD_SRP"
+   ],
+   "type": "string"
+  },
+  "ChallengeParametersType": {
+   "key": {
+    "shape": "StringType"
+   },
+   "type": "map",
+   "value": {
+    "shape": "StringType"
+   }
+  },
+  "ChallengeResponsesType": {
+   "key": {
+    "shape": "StringType"
+   },
+   "sensitive": true,
+   "type": "map",
+   "value": {
+    "shape": "StringType"
+   }
+  },
+  "ClientIdType": {
+   "max": 128,
+   "min": 1,
+   "pattern": "[\\w+]+",
+   "sensitive": true,
+   "type": "string"
+  },
+  "ClientMetadataType": {
+   "key": {
+    "shape": "StringType"
+   },
+   "type": "map",
+   "value": {
+    "shape": "StringType"
+   }
+  },
+  "CodeDeliveryDetailsType": {
+   "members": {
+    "AttributeName": {
+     "shape": "AttributeNameType"
+    },
+    "DeliveryMedium": {
+     "shape": "DeliveryMediumType"
+    },
+    "Destination": {
+     "shape": "StringType"
+    }
+   },
+   "type": "structure"
+  },
+  "CodeDeliveryFailureException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "CodeMismatchException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "DeliveryMediumType": {
+   "enum": [
+    "SMS",
+    "EMAIL"
+   ],
+   "type": "string"
+  },
+  "DeviceKeyType": {
+   "max": 55,
+   "min": 1,
+   "pattern": "[\\w-]+_[0-9a-f-]+",
+   "type": "string"
+  },
+  "ExpiredCodeException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "ForbiddenException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "ForgotPasswordRequest": {
+   "members": {
+    "AnalyticsMetadata": {
+     "shape": "AnalyticsMetadataType"
+    },
+    "ClientId": {
+     "shape": "ClientIdType"
+    },
+    "ClientMetadata": {
+     "shape": "ClientMetadataType"
+    },
+    "SecretHash": {
+     "shape": "SecretHashType"
+    },
+    "UserContextData": {
+     "shape": "UserContextDataType"
+    },
+    "Username": {
+     "shape": "UsernameType"
+    }
+   },
+   "required": [
+    "ClientId",
+    "Username"
+   ],
+   "type": "structure"
+  },
+  "ForgotPasswordResponse": {
+   "members": {
+    "CodeDeliveryDetails": {
+     "shape": "CodeDeliveryDetailsType"
+    }
+   },
+   "type": "structure"
+  },
+  "InitiateAuthRequest": {
+   "members": {
+    "AnalyticsMetadata": {
+     "shape": "AnalyticsMetadataType"
+    },
+    "AuthFlow": {
+     "shape": "AuthFlowType"
+    },
+    "AuthParameters": {
+     "shape": "AuthParametersType"
+    },
+    "ClientId": {
+     "shape": "ClientIdType"
+    },
+    "ClientMetadata": {
+     "shape": "ClientMetadataType"
+    },
+    "Session": {
+     "shape": "SessionType"
+    },
+    "UserContextData": {
+     "shape": "UserContextDataType"
+    }
+   },
+   "required": [
+    "AuthFlow",
+    "ClientId"
+   ],
+   "type": "structure"
+  },
+  "InitiateAuthResponse": {
+   "members": {
+    "AuthenticationResult": {
+     "shape": "AuthenticationResultType"
+    },
+    "AvailableChallenges": {
+     "shape": "AvailableChallengeListType"
+    },
+    "ChallengeName": {
+     "shape": "ChallengeNameType"
+    },
+    "ChallengeParameters": {
+     "shape": "ChallengeParametersType"
+    },
+    "Session": {
+     "shape": "SessionType"
+    }
+   },
+   "type": "structure"
+  },
+  "IntegerType": {
+   "type": "integer"
+  },
+  "InternalErrorException": {
+   "exception": true,
+   "fault": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "InvalidEmailRoleAccessPolicyException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "InvalidLambdaResponseException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "InvalidParameterException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    },
+    "reasonCode": {
+     "shape": "InvalidParameterExceptionReasonCodeType"
+    }
+   },
+   "type": "structure"
+  },
+  "InvalidParameterExceptionReasonCodeType": {
+   "type": "string"
+  },
+  "InvalidPasswordException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "InvalidSmsRoleAccessPolicyException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "InvalidSmsRoleTrustRelationshipException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "InvalidUserPoolConfigurationException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "LimitExceededException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "MFAMethodNotFoundException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "MessageType": {
+   "type": "string"
+  },
+  "NewDeviceMetadataType": {
+   "members": {
+    "DeviceGroupKey": {
+     "shape": "StringType"
+    },
+    "DeviceKey": {
+     "shape": "DeviceKeyType"
+    }
+   },
+   "type": "structure"
+  },
+  "NotAuthorizedException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "OperationNotEnabledException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "PasswordHistoryPolicyViolationException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "PasswordResetRequiredException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "PasswordType": {
+   "max": 256,
+   "pattern": "[\\S]+",
+   "sensitive": true,
+   "type": "string"
+  },
+  "ResendConfirmationCodeRequest": {
+   "members": {
+    "AnalyticsMetadata": {
+     "shape": "AnalyticsMetadataType"
+    },
+    "ClientId": {
+     "shape": "ClientIdType"
+    },
+    "ClientMetadata": {
+     "shape": "ClientMetadataType"
+    },
+    "SecretHash": {
+     "shape": "SecretHashType"
+    },
+    "UserContextData": {
+     "shape": "UserContextDataType"
+    },
+    "Username": {
+     "shape": "UsernameType"
+    }
+   },
+   "required": [
+    "ClientId",
+    "Username"
+   ],
+   "type": "structure"
+  },
+  "ResendConfirmationCodeResponse": {
+   "members": {
+    "CodeDeliveryDetails": {
+     "shape": "CodeDeliveryDetailsType"
+    }
+   },
+   "type": "structure"
+  },
+  "ResourceNotFoundException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "RespondToAuthChallengeRequest": {
+   "members": {
+    "AnalyticsMetadata": {
+     "shape": "AnalyticsMetadataType"
+    },
+    "ChallengeName": {
+     "shape": "ChallengeNameType"
+    },
+    "ChallengeResponses": {
+     "shape": "ChallengeResponsesType"
+    },
+    "ClientId": {
+     "shape": "ClientIdType"
+    },
+    "ClientMetadata": {
+     "shape": "ClientMetadataType"
+    },
+    "Session": {
+     "shape": "SessionType"
+    },
+    "UserContextData": {
+     "shape": "UserContextDataType"
+    }
+   },
+   "required": [
+    "ClientId",
+    "ChallengeName"
+   ],
+   "type": "structure"
+  },
+  "RespondToAuthChallengeResponse": {
+   "members": {
+    "AuthenticationResult": {
+     "shape": "AuthenticationResultType"
+    },
+    "ChallengeName": {
+     "shape": "ChallengeNameType"
+    },
+    "ChallengeParameters": {
+     "shape": "ChallengeParametersType"
+    },
+    "Session": {
+     "shape": "SessionType"
+    }
+   },
+   "type": "structure"
+  },
+  "SecretHashType": {
+   "max": 128,
+   "min": 1,
+   "pattern": "[\\w+=/]+",
+   "sensitive": true,
+   "type": "string"
+  },
+  "SessionType": {
+   "max": 2048,
+   "min": 20,
+   "sensitive": true,
+   "type": "string"
+  },
+  "SignUpRequest": {
+   "members": {
+    "AnalyticsMetadata": {
+     "shape": "AnalyticsMetadataType"
+    },
+    "ClientId": {
+     "shape": "ClientIdType"
+    },
+    "ClientMetadata": {
+     "shape": "ClientMetadataType"
+    },
+    "Password": {
+     "shape": "PasswordType"
+    },
+    "SecretHash": {
+     "shape": "SecretHashType"
+    },
+    "UserAttributes": {
+     "shape": "AttributeListType"
+    },
+    "UserContextData": {
+     "shape": "UserContextDataType"
+    },
+    "Username": {
+     "shape": "UsernameType"
+    },
+    "ValidationData": {
+     "shape": "AttributeListType"
+    }
+   },
+   "required": [
+    "ClientId",
+    "Username"
+   ],
+   "type": "structure"
+  },
+  "SignUpResponse": {
+   "members": {
+    "CodeDeliveryDetails": {
+     "shape": "CodeDeliveryDetailsType"
+    },
+    "Session": {
+     "shape": "SessionType"
+    },
+    "UserConfirmed": {
+     "shape": "BooleanType"
+    },
+    "UserSub": {
+     "shape": "StringType"
+    }
+   },
+   "required": [
+    "UserConfirmed",
+    "UserSub"
+   ],
+   "type": "structure"
+  },
+  "SoftwareTokenMFANotFoundException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "StringType": {
+   "max": 131072,
+   "min": 0,
+   "type": "string"
+  },
+  "TokenModelType": {
+   "pattern": "[A-Za-z0-9-_=.]+",
+   "sensitive": true,
+   "type": "string"
+  },
+  "TooManyRequestsException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "UnexpectedLambdaException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "UnsupportedOperationException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "UserContextDataType": {
+   "members": {
+    "EncodedData": {
+     "shape": "StringType"
+    },
+    "IpAddress": {
+     "shape": "StringType"
+    }
+   },
+   "sensitive": true,
+   "type": "structure"
+  },
+  "UserLambdaValidationException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "UserNotConfirmedException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "UserNotFoundException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "UsernameExistsException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
+  "UsernameType": {
+   "max": 128,
+   "min": 1,
+   "pattern": "[\\p{L}\\p{M}\\p{S}\\p{N}\\p{P}]+",
+   "sensitive": true,
+   "type": "string"
+  }
+ },
+ "version": "2.0"
+}
