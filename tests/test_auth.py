@@ -1,11 +1,13 @@
 """Tests for the tools to communicate with the cloud."""
 
 import asyncio
+from functools import partial
 import subprocess
 import sys
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import botocore
 from botocore.exceptions import (
     ClientError,
     ConnectionClosedError,
@@ -167,6 +169,37 @@ def test_import_does_not_load_aws_sdk():
         text=True,
     )
     assert result.stdout.strip() == "[]"
+
+
+async def test_create_cognito_client(mock_cloud):
+    """Test the first Cognito client is built through the deferred imports."""
+    mock_cloud.user_pool_id = "user_pool_id"
+    mock_cloud.cognito_client_id = "client_id"
+    mock_cloud.region = "us-east-1"
+    auth = auth_api.CognitoAuth(mock_cloud)
+    auth_api.cognito._cached_cognito.cache_clear()
+
+    try:
+        with (
+            patch("boto3.session.Session") as session_cls,
+            patch("pycognito.Cognito") as cognito_cls,
+        ):
+            client = await mock_cloud.run_executor(
+                partial(auth._create_cognito_client, access_token="access")  # noqa: S106
+            )
+    finally:
+        auth_api.cognito._cached_cognito.cache_clear()
+
+    assert client is cognito_cls.return_value
+    session_cls.assert_called_once_with()
+    cognito_cls.assert_called_once()
+    kwargs = cognito_cls.call_args.kwargs
+    assert kwargs["user_pool_id"] == "user_pool_id"
+    assert kwargs["client_id"] == "client_id"
+    assert kwargs["user_pool_region"] == "us-east-1"
+    assert kwargs["session"] is session_cls.return_value
+    assert kwargs["botocore_config"].signature_version is botocore.UNSIGNED
+    assert kwargs["access_token"] == "access"
 
 
 async def test_login_user_verify_totp_invalid_code(mock_cognito, mock_cloud):
