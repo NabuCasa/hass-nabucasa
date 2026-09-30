@@ -123,6 +123,7 @@ class CognitoAuth:
         self.cloud = cloud
         self._refresh_task: asyncio.Task | None = None
         self._session: boto3.Session | None = None
+        self._botocore_config: botocore.config.Config | None = None
         self._request_lock = asyncio.Lock()
 
         cloud.iot.register_on_connect(self.on_connect)
@@ -380,12 +381,18 @@ class CognitoAuth:
         """
         if self._session is None:
             self._session = boto3.session.Session()
+        if self._botocore_config is None:
+            # Reused so _cached_cognito sees equal arguments: Config objects
+            # only compare equal to themselves.
+            self._botocore_config = botocore.config.Config(
+                signature_version=botocore.UNSIGNED
+            )
 
         return _cached_cognito(
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=botocore.config.Config(signature_version=botocore.UNSIGNED),
+            botocore_config=self._botocore_config,
             session=self._session,
             **kwargs,
         )
