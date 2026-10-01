@@ -144,7 +144,6 @@ class SpeechToTextV2:
         async with self._session_lock:
             await self._stop_idle_listener()
             await self._close_ws()
-        _LOGGER.debug("Disconnected from speech to text service")
 
     async def process_stt(
         self,
@@ -270,6 +269,7 @@ class SpeechToTextV2:
         if self._ws is not None and not self._ws.closed:
             with contextlib.suppress(aiohttp.ClientError):
                 await self._ws.close()
+            _LOGGER.debug("Disconnected from speech to text service")
         self._ws = None
 
     async def _run_session(
