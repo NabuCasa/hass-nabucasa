@@ -108,6 +108,7 @@ class RemoteUI:
         self._certificate_status: CertificateStatus | None = None
 
         self._results_by_location: dict[str, RemoteLatencyLocationResult] = {}
+        self._ping_privileged: bool | None = None
 
         self._info_loaded = asyncio.Event()
 
@@ -252,11 +253,15 @@ class RemoteUI:
         # The API returns timeout in milliseconds, but we need seconds.
         timeout_seconds = ping_data["timeout"] / 1000
         try:
+            if self._ping_privileged is None:
+                self._ping_privileged = await utils.async_resolve_ping_privileges(
+                    privileged=self.cloud.privileged_ping,
+                )
             latency_results = await utils.async_check_latency(
                 list(target_by_ip),
                 count=ping_data["count"],
                 ping_timeout=timeout_seconds,
-                privileged=self.cloud.privileged_ping,
+                privileged=self._ping_privileged,
             )
         except utils.CheckLatencyError as err:
             _LOGGER.warning("Ping latency check failed: %s", err)

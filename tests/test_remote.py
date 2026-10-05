@@ -103,6 +103,16 @@ def mock_ping_targets(
     )
 
 
+@pytest.fixture(autouse=True)
+def mock_resolve_ping_privileges() -> Generator[Mock]:
+    """Resolve ping privileges without touching the socket layer."""
+    with patch(
+        "hass_nabucasa.remote.utils.async_resolve_ping_privileges",
+        side_effect=lambda *, privileged: privileged,
+    ) as resolve:
+        yield resolve
+
+
 async def test_load_backend_exists_cert(
     cloud: Cloud,
     valid_acme_mock: MockAcme,
@@ -1911,3 +1921,116 @@ async def test_load_backend_ping_unprivileged_passed(
     assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     await cloud.remote.stop()
     await asyncio.sleep(0.1)
+
+
+async def test_ping_privileges_resolved_once(
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+    mock_resolve_ping_privileges: Mock,
+) -> None:
+    """Test that ping privileges are only resolved once."""
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        json={
+            "targets": [{"ip": "192.0.2.1", "location": "Hogwarts"}],
+            "timeout": 5000,
+            "count": 1,
+        },
+    )
+
+    with patch(
+        "hass_nabucasa.remote.utils.async_check_latency",
+        return_value=[
+            {
+                "address": "192.0.2.1",
+                "is_alive": True,
+                "avg_rtt": 15.0,
+                "max_rtt": 20.0,
+                "min_rtt": 10.0,
+            },
+        ],
+    ) as mock_latency:
+        await cloud.remote._fetch_ping_results()
+        await cloud.remote._fetch_ping_results()
+
+    mock_resolve_ping_privileges.assert_called_once_with(privileged=True)
+    assert mock_latency.call_count == 2
+    assert all(call[1]["privileged"] is True for call in mock_latency.call_args_list)
+
+
+async def test_ping_privileges_fallback_passed_to_latency_check(
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+    mock_resolve_ping_privileges: Mock,
+) -> None:
+    """Test that a resolved unprivileged mode is used for the latency check."""
+    mock_resolve_ping_privileges.side_effect = None
+    mock_resolve_ping_privileges.return_value = False
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        json={
+            "targets": [{"ip": "192.0.2.1", "location": "Hogwarts"}],
+            "timeout": 5000,
+            "count": 1,
+        },
+    )
+
+    with patch(
+        "hass_nabucasa.remote.utils.async_check_latency",
+        return_value=[
+            {
+                "address": "192.0.2.1",
+                "is_alive": True,
+                "avg_rtt": 15.0,
+                "max_rtt": 20.0,
+                "min_rtt": 10.0,
+            },
+        ],
+    ) as mock_latency:
+        await cloud.remote._fetch_ping_results()
+
+    mock_resolve_ping_privileges.assert_called_once_with(privileged=True)
+    mock_latency.assert_called_once_with(
+        ["192.0.2.1"],
+        count=1,
+        ping_timeout=5,
+        privileged=False,
+    )
+    assert cloud.remote._ping_privileged is False
+
+
+async def test_ping_privileges_resolution_failure_retried(
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+    caplog: pytest.LogCaptureFixture,
+    mock_resolve_ping_privileges: Mock,
+) -> None:
+    """Test that a failed privilege resolution is not cached."""
+    mock_resolve_ping_privileges.side_effect = utils.CheckLatencyInsufficientPrivileges(
+        "Insufficient privileges to perform ICMP ping.",
+    )
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        json={
+            "targets": [{"ip": "192.0.2.1", "location": "Hogwarts"}],
+            "timeout": 5000,
+            "count": 1,
+        },
+    )
+
+    with patch("hass_nabucasa.remote.utils.async_check_latency") as mock_latency:
+        assert await cloud.remote._fetch_ping_results() is None
+        assert cloud.remote._ping_privileged is None
+        assert await cloud.remote._fetch_ping_results() is None
+
+    assert mock_latency.call_count == 0
+    assert mock_resolve_ping_privileges.call_count == 2
+    assert (
+        "Ping latency check failed: Insufficient privileges to perform ICMP ping."
+        in extract_log_messages(caplog)
+    )
