@@ -4,6 +4,10 @@ from socket import gaierror
 from unittest.mock import Mock, patch
 
 from acme import messages
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.extensions import SubjectAlternativeName
 import pytest
 from requests.exceptions import RequestException
 
@@ -57,6 +61,57 @@ def test_raise_if_jws_verification_failed_should_raise(error):
 def test_raise_if_jws_verification_failed_should_not_raise(error):
     """Test _raise_if_jws_verification_failed does not raise for non-JWS errors."""
     _raise_if_jws_verification_failed(error)
+
+
+def test_acme_handler_generate_csr_creates_private_key(cloud: Cloud) -> None:
+    """Test _generate_csr creates, stores and uses a new private key."""
+    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
+
+    with (
+        patch("pathlib.Path.write_bytes") as mock_write_bytes,
+        patch("pathlib.Path.chmod") as mock_chmod,
+    ):
+        csr_pem = handler._generate_csr()
+
+    mock_write_bytes.assert_called_once()
+    mock_chmod.assert_called_once_with(0o600)
+
+    key_pem = mock_write_bytes.call_args[0][0]
+    key = serialization.load_pem_private_key(key_pem, password=None)
+    assert isinstance(key, rsa.RSAPrivateKey)
+    assert key.key_size == 2048
+
+    csr = x509.load_pem_x509_csr(csr_pem)
+    assert csr.is_signature_valid
+    assert csr.public_key().public_numbers() == key.public_key().public_numbers()
+    alternative_names = csr.extensions.get_extension_for_class(
+        SubjectAlternativeName,
+    ).value
+    assert [str(entry.value) for entry in alternative_names] == ["test.example.com"]
+
+
+def test_acme_handler_generate_csr_existing_private_key(cloud: Cloud) -> None:
+    """Test _generate_csr reuses an existing private key."""
+    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    key_pem = key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=key_pem),
+        patch("pathlib.Path.write_bytes") as mock_write_bytes,
+    ):
+        csr_pem = handler._generate_csr()
+
+    mock_write_bytes.assert_not_called()
+
+    csr = x509.load_pem_x509_csr(csr_pem)
+    assert csr.public_key().public_numbers() == key.public_key().public_numbers()
 
 
 def test_acme_handler_create_client_jws_error_existing_registration(
