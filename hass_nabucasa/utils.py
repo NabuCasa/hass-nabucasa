@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable, Mapping
 import datetime as dt
 import logging
 from logging import Logger
+import math
 import random
 import ssl
 from typing import Any, TypedDict, TypeVar
@@ -282,6 +283,13 @@ class Backoff:
             ValueError: If an option is outside of its valid range.
 
         """
+        for name, value in (
+            ("initial", initial),
+            ("maximum", maximum),
+            ("multiplier", multiplier),
+        ):
+            if not math.isfinite(value):
+                raise ValueError(f"{name} must be a finite number")
         if initial <= 0:
             raise ValueError("initial must be greater than 0")
         if maximum < initial:

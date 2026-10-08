@@ -1,6 +1,7 @@
 """Tests for hass_nabucasa utils."""
 
 import asyncio
+import math
 from unittest.mock import MagicMock, patch
 
 from icmplib import Host, ICMPLibError, SocketPermissionError
@@ -434,6 +435,16 @@ def test_backoff_reset() -> None:
 @pytest.mark.parametrize(
     ("options", "message"),
     [
+        ({"initial": math.nan, "maximum": 10}, "initial must be a finite number"),
+        ({"initial": 1, "maximum": math.inf}, "maximum must be a finite number"),
+        (
+            {"initial": 1, "maximum": 10, "multiplier": math.nan},
+            "multiplier must be a finite number",
+        ),
+        (
+            {"initial": 1, "maximum": 10, "jitter_fraction": math.nan},
+            "jitter_fraction must be at least 0 and below 1",
+        ),
         ({"initial": 0, "maximum": 10}, "initial must be greater than 0"),
         ({"initial": -1, "maximum": 10}, "initial must be greater than 0"),
         ({"initial": 10, "maximum": 9}, "maximum must not be smaller than initial"),
