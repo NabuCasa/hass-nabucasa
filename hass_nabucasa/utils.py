@@ -326,9 +326,9 @@ class Backoff:
 
     def time_to_next_attempt(self) -> float:
         """Return the seconds to wait before the next attempt."""
-        time_to_wait = self._base_time
-        if self._jitter_fraction:
-            time_to_wait -= jitter(0, time_to_wait * self._jitter_fraction)
+        time_to_wait = self._base_time - jitter(
+            0, self._base_time * self._jitter_fraction
+        )
 
         self._attempts += 1
         self._elapsed += time_to_wait
