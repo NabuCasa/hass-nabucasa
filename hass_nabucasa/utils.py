@@ -261,9 +261,12 @@ class Backoff:
             initial: Seconds to wait before the first retry. Keep it short so
                 a transient failure recovers quickly, the growth handles the
                 failures that are not transient.
-            maximum: Upper bound in seconds for a single interval. The interval
-                grows until it reaches this value and then stays there, so this
-                is the slowest the loop will ever retry.
+            maximum: Upper bound in seconds for a single interval. The base
+                interval grows until it reaches this value and then stays
+                there, so this is the slowest the loop will ever retry. Jitter
+                is still shaved off every returned interval, so with jitter
+                enabled the delays vary below the maximum instead of staying
+                constant.
             multiplier: What the interval is multiplied by for every attempt.
                 The default of 1.5 grows the interval by half each time (10s,
                 15s, 22.5s, ...), which stays responsive for a while before it
