@@ -390,10 +390,13 @@ def test_backoff_jitter_is_shaved_off_the_interval() -> None:
     """Test that jitter spreads the interval out without passing the maximum."""
     backoff = utils.Backoff(initial=10, maximum=10, jitter_fraction=0.5)
 
-    intervals = [backoff.time_to_next_attempt() for _ in range(20)]
+    with patch(
+        "hass_nabucasa.utils.jitter", side_effect=[0.0, 2.5, 5.0]
+    ) as jitter_mock:
+        intervals = [backoff.time_to_next_attempt() for _ in range(3)]
 
-    assert all(5 <= interval <= 10 for interval in intervals)
-    assert len(set(intervals)) > 1
+    assert intervals == [10, 7.5, 5]
+    assert [call.args for call in jitter_mock.call_args_list] == [(0, 5.0)] * 3
 
 
 def test_backoff_never_passes_the_maximum() -> None:
