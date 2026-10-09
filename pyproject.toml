@@ -65,7 +65,7 @@ test = [
     "types-requests==2.33.0.20260712",
     "xmltodict==1.0.4",
     "syrupy==5.5.3",
-    "tomli==2.4.1",
+    "tomli==2.5.0",
 ]
 
 [tool.mypy]
