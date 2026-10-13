@@ -22,7 +22,13 @@ from ..exceptions import (
     NabuCasaConnectionError,
 )
 from ..utils import expiration_from_token, seconds_as_dhms, utcnow
-from .const import DEFAULT_AUTH_TIMEOUT
+from .const import (
+    AUTH_CALL_TIMEOUT,
+    AUTH_CONNECT_TIMEOUT,
+    AUTH_LOGIN_TIMEOUT,
+    AUTH_MAX_ATTEMPTS,
+    AUTH_READ_TIMEOUT,
+)
 
 if TYPE_CHECKING:
     from .. import Cloud, _ClientT
@@ -237,7 +243,7 @@ class CognitoAuth:
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+                async with asyncio.timeout(AUTH_LOGIN_TIMEOUT):
                     await self.cloud.run_executor(
                         partial(cognito.authenticate, password=password),
                     )
@@ -286,7 +292,7 @@ class CognitoAuth:
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+                async with asyncio.timeout(AUTH_CALL_TIMEOUT):
                     await self.cloud.run_executor(
                         partial(
                             cognito.respond_to_software_token_mfa_challenge,
@@ -350,7 +356,7 @@ class CognitoAuth:
         cognito = await self._async_authenticated_cognito()
 
         try:
-            async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+            async with asyncio.timeout(AUTH_CALL_TIMEOUT):
                 await self.cloud.run_executor(cognito.renew_access_token)
             await self.cloud.update_token(cognito.id_token, cognito.access_token)
 
@@ -385,7 +391,15 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=botocore.config.Config(signature_version=botocore.UNSIGNED),
+            botocore_config=botocore.config.Config(
+                signature_version=botocore.UNSIGNED,
+                connect_timeout=AUTH_CONNECT_TIMEOUT,
+                read_timeout=AUTH_READ_TIMEOUT,
+                retries={
+                    "total_max_attempts": AUTH_MAX_ATTEMPTS,
+                    "mode": "standard",
+                },
+            ),
             session=self._session,
             **kwargs,
         )
