@@ -151,7 +151,8 @@ async def test_load_backend_exists_cert(
     assert not valid_acme_mock.call_issue
     assert valid_acme_mock.init_args == (
         cloud,
-        ["test.dui.nabu.casa"],
+        "test.dui.nabu.casa",
+        [],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
@@ -274,7 +275,8 @@ async def test_load_backend_not_exists_cert(
     assert acme_mock.call_issue
     assert acme_mock.init_args == (
         cloud,
-        ["test.dui.nabu.casa"],
+        "test.dui.nabu.casa",
+        [],
         "test@nabucasa.inc",
     )
     assert acme_mock.call_hardening
@@ -333,7 +335,8 @@ async def test_load_and_unload_backend(
     assert not valid_acme_mock.call_issue
     assert valid_acme_mock.init_args == (
         cloud,
-        ["test.dui.nabu.casa"],
+        "test.dui.nabu.casa",
+        [],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
@@ -405,7 +408,8 @@ async def test_load_backend_exists_wrong_cert(
     assert valid_acme_mock.call_reset
     assert valid_acme_mock.init_args == (
         cloud,
-        ["test.dui.nabu.casa", "example.com"],
+        "test.dui.nabu.casa",
+        ["example.com"],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
@@ -853,7 +857,8 @@ async def test_recreating_old_certificate_with_bad_dns_config(
     assert valid_acme_mock.call_reset
     assert valid_acme_mock.init_args == (
         cloud,
-        ["test.dui.nabu.casa"],
+        "test.dui.nabu.casa",
+        [],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
@@ -1103,7 +1108,9 @@ async def test_acme_client_new_order_errors(
 
     with patch(
         "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(cloud, [], "test@nabucasa.inc", Mock()),
+        return_value=_MockAcme(
+            cloud, "test.dui.nabu.casa", [], "test@nabucasa.inc", Mock()
+        ),
     ):
         assert cloud.remote._certificate_status is None
         await cloud.remote.load_backend()
@@ -1210,7 +1217,9 @@ async def test_acme_client_create_client_jws_errors(
 
     with patch(
         "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(cloud, [], "test@nabucasa.inc", Mock()),
+        return_value=_MockAcme(
+            cloud, "test.dui.nabu.casa", [], "test@nabucasa.inc", Mock()
+        ),
     ):
         assert cloud.remote._certificate_status is None
         await cloud.remote.load_backend()
@@ -1307,7 +1316,7 @@ async def test_recreate_acme_calls_reset_when_acme_exists(cloud: Cloud) -> None:
     mock_acme = MockAcme()
     cloud.remote._acme = mock_acme
 
-    await cloud.remote._recreate_acme(["new.example.com"], "new@example.com")
+    await cloud.remote._recreate_acme("new.example.com", [], "new@example.com")
 
     assert mock_acme.call_reset is True
     assert cloud.remote._acme is not mock_acme
@@ -1318,7 +1327,7 @@ async def test_recreate_acme_with_certificate_available(cloud: Cloud) -> None:
     mock_acme = MockAcme()
     cloud.remote._acme = mock_acme
 
-    await cloud.remote._recreate_acme(["new.example.com"], "new@example.com")
+    await cloud.remote._recreate_acme("new.example.com", [], "new@example.com")
 
     assert mock_acme.call_reset is True
     assert cloud.remote._acme is not mock_acme
@@ -1330,7 +1339,7 @@ async def test_recreate_acme_without_certificate_available(cloud: Cloud) -> None
     mock_acme.common_name = None
     cloud.remote._acme = mock_acme
 
-    await cloud.remote._recreate_acme(["new.example.com"], "new@example.com")
+    await cloud.remote._recreate_acme("new.example.com", [], "new@example.com")
 
     assert mock_acme.call_reset is True
     assert cloud.remote._acme is not mock_acme
@@ -1342,7 +1351,7 @@ async def test_recreate_acme_with_error_status(cloud: Cloud) -> None:
     cloud.remote._acme = mock_acme
     cloud.remote._certificate_status = CertificateStatus.ERROR
 
-    await cloud.remote._recreate_acme(["new.example.com"], "new@example.com")
+    await cloud.remote._recreate_acme("new.example.com", [], "new@example.com")
 
     assert mock_acme.call_reset is True
     assert cloud.remote._acme is not mock_acme
@@ -1352,7 +1361,7 @@ async def test_recreate_acme_when_no_acme_exists(cloud: Cloud) -> None:
     """Test _recreate_acme behavior when no ACME handler exists."""
     cloud.remote._acme = None
 
-    await cloud.remote._recreate_acme(["test.example.com"], "test@example.com")
+    await cloud.remote._recreate_acme("test.example.com", [], "test@example.com")
 
     assert cloud.remote._acme is not None
 
@@ -1388,10 +1397,10 @@ async def test_recreate_acme_integration_during_load_backend(
 
     assert valid_acme_mock.call_reset is True
 
-    expected_domains = ["test.dui.nabu.casa", "new-alias.com"]
     assert valid_acme_mock.init_args == (
         cloud,
-        expected_domains,
+        "test.dui.nabu.casa",
+        ["new-alias.com"],
         "test@nabucasa.inc",
     )
 
@@ -1458,7 +1467,9 @@ async def test_certificate_network_error_handling(
 
     with patch(
         "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(cloud, [], "test@nabucasa.inc", Mock()),
+        return_value=_MockAcme(
+            cloud, "test.dui.nabu.casa", [], "test@nabucasa.inc", Mock()
+        ),
     ):
         cloud.client.prop_remote_autostart = True
         await cloud.remote.start()
