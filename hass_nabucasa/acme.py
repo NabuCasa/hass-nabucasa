@@ -138,11 +138,6 @@ class AcmeHandler:
         return self._alias
 
     @property
-    def domains(self) -> list[str]:
-        """Return the domains."""
-        return [self._domain, *self._alias]
-
-    @property
     def path_account_key(self) -> Path:
         """Return path of account key."""
         return Path(self.cloud.path(FILE_ACCOUNT_KEY))
@@ -223,7 +218,7 @@ class AcmeHandler:
             self.path_private_key.write_bytes(key_pem)
             self.path_private_key.chmod(0o600)
 
-        return crypto_util.make_csr(key_pem, self.domains)
+        return crypto_util.make_csr(key_pem, [self._domain, *self._alias])
 
     def _load_account_key(self) -> None:
         """Load or create account key."""
