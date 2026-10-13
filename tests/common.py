@@ -229,6 +229,11 @@ class MockAcme:
         self.alias = []
         self.email = "test@nabucasa.inc"
 
+    @property
+    def domains(self):
+        """Return all domains."""
+        return [self.domain, *self.alias]
+
     def set_false(self):
         """Set certificate as not valid."""
         self.is_valid = False

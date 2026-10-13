@@ -372,7 +372,7 @@ class RemoteUI:
                 else:
                     _LOGGER.warning(
                         "Failed to issue certificate for %s: %s",
-                        ",".join([self._acme.domain, *self._acme.alias]),
+                        ",".join(self._acme.domains),
                         err,
                     )
                 self.cloud.client.user_message(
