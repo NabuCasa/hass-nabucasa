@@ -98,7 +98,7 @@ class AcmeHandler:
         self,
         cloud: Cloud[_ClientT],
         domain: str,
-        alias: list[str],
+        aliases: list[str],
         email: str,
         status_callback: Callable[[CertificateStatus], None],
     ) -> None:
@@ -109,7 +109,7 @@ class AcmeHandler:
         self._x509: x509.Certificate | None = None
 
         self._domain = domain
-        self._alias = alias
+        self._aliases = aliases
         self._email = email
         self._status_callback = status_callback
 
@@ -133,14 +133,14 @@ class AcmeHandler:
         return self._domain
 
     @property
-    def alias(self) -> list[str]:
-        """Return the alias."""
-        return self._alias
+    def aliases(self) -> list[str]:
+        """Return the aliases."""
+        return self._aliases
 
     @property
     def domains(self) -> list[str]:
         """Return the domains."""
-        return [self._domain, *self._alias]
+        return [self._domain, *self._aliases]
 
     @property
     def path_account_key(self) -> Path:

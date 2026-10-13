@@ -222,24 +222,24 @@ class RemoteUI:
         self,
         *,
         domain: str,
-        alias: list[str],
+        aliases: list[str],
         email: str,
     ) -> AcmeHandler:
         """Generate a new ACME handler."""
         return AcmeHandler(
             self.cloud,
             domain,
-            alias,
+            aliases,
             email,
             status_callback=self._update_certificate_status,
         )
 
-    async def _recreate_acme(self, domain: str, alias: list[str], email: str) -> None:
+    async def _recreate_acme(self, domain: str, aliases: list[str], email: str) -> None:
         """Recreate the acme client."""
         if self._acme:
             await self._acme.reset_acme()
         self._acme = self._generate_acme_handler(
-            domain=domain, alias=alias, email=email
+            domain=domain, aliases=aliases, email=email
         )
 
     async def _fetch_ping_results(self) -> list[PingResult] | None:
@@ -328,7 +328,7 @@ class RemoteUI:
         # Set instance details for certificate
         self._acme = self._generate_acme_handler(
             domain=instance_domain,
-            alias=aliases,
+            aliases=aliases,
             email=email,
         )
 
@@ -718,12 +718,12 @@ class RemoteUI:
 
         self._update_certificate_status(CertificateStatus.EXPIRING_SOON)
 
-        if not self._acme.alias:
+        if not self._acme.aliases:
             return True
 
         # Check if defined alias is still valid:
         bad_alias = []
-        for alias in self._acme.alias:
+        for alias in self._acme.aliases:
             if not await self._custom_domain_dns_configuration_is_valid(
                 self.instance_domain,
                 alias,
@@ -758,7 +758,7 @@ class RemoteUI:
 
         await self._recreate_acme(
             self._acme.domain,
-            [alias for alias in self._acme.alias if alias not in bad_alias],
+            [alias for alias in self._acme.aliases if alias not in bad_alias],
             self._acme.email,
         )
         return True

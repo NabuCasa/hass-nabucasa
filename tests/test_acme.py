@@ -60,7 +60,7 @@ def test_raise_if_jws_verification_failed_should_not_raise(error):
 
 
 def test_acme_handler_generate_csr_domains(cloud: Cloud) -> None:
-    """Test _generate_csr uses the domain and alias."""
+    """Test _generate_csr uses the domain and aliases."""
     handler = AcmeHandler(
         cloud, "test.example.com", ["alias.example.com"], "test@example.com", Mock()
     )
