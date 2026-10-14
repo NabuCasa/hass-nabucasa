@@ -1406,6 +1406,64 @@ async def test_recreate_acme_integration_during_load_backend(
 
 
 @pytest.mark.parametrize(
+    ("common_name", "alternative_names", "recreated"),
+    [
+        ("test.dui.nabu.casa", ["test.dui.nabu.casa"], False),
+        (
+            "test.dui.nabu.casa",
+            ["test.dui.nabu.casa", "*.test.dui.nabu.casa"],
+            False,
+        ),
+        (
+            "*.test.dui.nabu.casa",
+            ["test.dui.nabu.casa", "*.test.dui.nabu.casa"],
+            False,
+        ),
+        (
+            "test.dui.nabu.casa",
+            ["test.dui.nabu.casa", "*.old.dui.nabu.casa"],
+            True,
+        ),
+    ],
+)
+async def test_load_backend_wildcard_does_not_force_new_order(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    common_name: str,
+    alternative_names: list[str],
+    recreated: bool,
+) -> None:
+    """Test the primary domain wildcard is ignored when validating the certificate."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": (utcnow() + timedelta(days=1)).timestamp(),
+            "throttling": 400,
+        },
+    )
+
+    valid_acme_mock.common_name = common_name
+    valid_acme_mock.alternative_names = alternative_names
+
+    await cloud.remote.load_backend()
+    await asyncio.sleep(0.1)
+
+    assert valid_acme_mock.call_reset is recreated
+
+
+@pytest.mark.parametrize(
     ("exception_type", "exception_message"),
     [
         (gaierror, "DNS resolution failed"),
