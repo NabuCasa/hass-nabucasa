@@ -350,6 +350,32 @@ def test_acme_handler_wait_for_authorization_network_errors(
         handler._wait_for_authorization(_challenge_handler())
 
 
+def test_acme_handler_wait_for_authorization_jws_error(cloud: Cloud) -> None:
+    """Test _wait_for_authorization raises JWS errors instead of wrapping them."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._acme_client = Mock()
+    handler._acme_client.poll_authorizations.side_effect = messages.Error(
+        typ="urn:ietf:params:acme:error:malformed",
+        detail="JWS verification error",
+    )
+
+    with pytest.raises(AcmeJWSVerificationError, match="JWS verification failed"):
+        handler._wait_for_authorization(_challenge_handler())
+
+
+def test_acme_handler_finish_challenge_jws_error(cloud: Cloud) -> None:
+    """Test _finish_challenge raises JWS errors instead of wrapping them."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._acme_client = Mock()
+    handler._acme_client.poll_authorizations.side_effect = messages.Error(
+        typ="urn:ietf:params:acme:error:malformed",
+        detail="Unable to validate JWS",
+    )
+
+    with pytest.raises(AcmeJWSVerificationError, match="JWS verification failed"):
+        handler._finish_challenge(Mock())
+
+
 async def test_acme_handler_issue_certificate_waits_for_each_authorization(
     cloud: Cloud,
 ) -> None:

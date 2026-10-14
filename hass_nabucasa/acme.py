@@ -403,6 +403,7 @@ class AcmeHandler:
                 f"Timeout waiting for ACME authorization of {identifier}"
             ) from err
         except _ACME_CLIENT_EXCEPTIONS as err:
+            _raise_if_jws_verification_failed(err)
             raise AcmeChallengeError(
                 f"ACME authorization of {identifier} failed: {err}"
             ) from err
@@ -421,6 +422,7 @@ class AcmeHandler:
                 fetch_alternative_chains=True,
             )
         except _ACME_CLIENT_EXCEPTIONS as err:
+            _raise_if_jws_verification_failed(err)
             raise AcmeChallengeError(f"Wait of ACME challenge fails: {err}") from err
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception while finalizing order")
