@@ -142,7 +142,7 @@ class AcmeHandler:
     @property
     def domains(self) -> list[str]:
         """Return the domains."""
-        return [self._domain, *self._aliases]
+        return [self._domain, f"*.{self._domain}", *self._aliases]
 
     @property
     def path_account_key(self) -> Path:
