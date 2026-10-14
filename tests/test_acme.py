@@ -408,17 +408,26 @@ async def test_acme_handler_issue_certificate_waits_for_each_authorization(
 
 
 @pytest.mark.parametrize(
-    ("patched_method", "error", "expected_status", "match"),
+    ("patched_method", "error", "expected_error", "expected_status", "match"),
     [
         (
             "_wait_for_authorization",
             AcmeChallengeError("boom"),
+            AcmeChallengeError,
+            CertificateStatus.CHALLENGE_ANSWER_FAILED,
+            "boom",
+        ),
+        (
+            "_answer_challenge",
+            AcmeJWSVerificationError("boom"),
+            AcmeJWSVerificationError,
             CertificateStatus.CHALLENGE_ANSWER_FAILED,
             "boom",
         ),
         (
             "_answer_challenge",
             RuntimeError("boom"),
+            AcmeChallengeError,
             CertificateStatus.CHALLENGE_UNEXPECTED_ERROR,
             "Unexpected error answering challenge",
         ),
@@ -428,6 +437,7 @@ async def test_acme_handler_issue_certificate_stops_on_challenge_failure(
     cloud: Cloud,
     patched_method: str,
     error: Exception,
+    expected_error: type[Exception],
     expected_status: CertificateStatus,
     match: str,
 ) -> None:
@@ -459,7 +469,7 @@ async def test_acme_handler_issue_certificate_stops_on_challenge_failure(
             cloud.instance, "cleanup_dns_challenge_record", AsyncMock()
         ) as mock_cleanup,
         patch("hass_nabucasa.acme.asyncio.sleep", AsyncMock()),
-        pytest.raises(AcmeChallengeError, match=match),
+        pytest.raises(expected_error, match=match),
     ):
         await handler.issue_certificate()
 
