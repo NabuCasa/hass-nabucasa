@@ -1,7 +1,7 @@
 """Test ACME handler functionality."""
 
 from socket import gaierror
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from acme import messages
 import pytest
@@ -13,6 +13,7 @@ from hass_nabucasa.acme import (
     AcmeClientError,
     AcmeHandler,
     AcmeJWSVerificationError,
+    AcmeNabuCasaError,
     _raise_if_jws_verification_failed,
 )
 
@@ -241,6 +242,72 @@ def test_acme_handler_answer_challenge_network_errors(
 
     with pytest.raises(AcmeChallengeError, match="Can't accept ACME challenge"):
         handler._answer_challenge(mock_challenge_handler)
+
+
+@pytest.mark.parametrize(
+    ("answer_error", "expected_cleanup"),
+    [
+        (None, "second"),
+        (AcmeChallengeError("boom"), "first"),
+        (RuntimeError("boom"), "first"),
+    ],
+)
+async def test_acme_handler_issue_certificate_cleans_up_published_record(
+    cloud: Cloud,
+    answer_error: Exception | None,
+    expected_cleanup: str,
+) -> None:
+    """Test issue_certificate cleans up the last DNS record it published."""
+    handler = AcmeHandler(
+        cloud, "test.example.com", ["alias.example.com"], "test@example.com", Mock()
+    )
+    handler._acme_client = Mock()
+    challenges = [Mock(validation="first"), Mock(validation="second")]
+
+    with (
+        patch.object(handler, "_generate_csr"),
+        patch.object(handler, "_create_order"),
+        patch.object(handler, "_start_challenge", return_value=challenges),
+        patch.object(handler, "_answer_challenge", side_effect=answer_error),
+        patch.object(handler, "_finish_challenge"),
+        patch.object(handler, "load_certificate", AsyncMock()),
+        patch.object(cloud.instance, "create_dns_challenge_record", AsyncMock()),
+        patch.object(
+            cloud.instance, "cleanup_dns_challenge_record", AsyncMock()
+        ) as mock_cleanup,
+        patch("hass_nabucasa.acme.asyncio.sleep", AsyncMock()),
+    ):
+        await handler.issue_certificate()
+
+    mock_cleanup.assert_awaited_once_with(value=expected_cleanup)
+
+
+async def test_acme_handler_issue_certificate_skips_cleanup_without_record(
+    cloud: Cloud,
+) -> None:
+    """Test issue_certificate skips cleanup when no DNS record was published."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._acme_client = Mock()
+
+    with (
+        patch.object(handler, "_generate_csr"),
+        patch.object(handler, "_create_order"),
+        patch.object(
+            handler, "_start_challenge", return_value=[Mock(validation="first")]
+        ),
+        patch.object(
+            cloud.instance,
+            "create_dns_challenge_record",
+            AsyncMock(side_effect=TimeoutError),
+        ),
+        patch.object(
+            cloud.instance, "cleanup_dns_challenge_record", AsyncMock()
+        ) as mock_cleanup,
+        pytest.raises(AcmeNabuCasaError, match="Can't set challenge token"),
+    ):
+        await handler.issue_certificate()
+
+    mock_cleanup.assert_not_awaited()
 
 
 @pytest.mark.parametrize(

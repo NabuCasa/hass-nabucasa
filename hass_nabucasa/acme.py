@@ -519,6 +519,7 @@ class AcmeHandler:
             order,
         )
 
+        published: str | None = None
         try:
             for challenge in dns_challenges:
                 # Update DNS
@@ -528,6 +529,7 @@ class AcmeHandler:
                         await self.cloud.instance.create_dns_challenge_record(
                             value=challenge.validation
                         )
+                    published = challenge.validation
                     self._update_status(CertificateStatus.CHALLENGE_DNS_UPDATED)
                 except TimeoutError, AssertionError:
                     self._update_status(CertificateStatus.CHALLENGE_DNS_FAILED)
@@ -560,15 +562,17 @@ class AcmeHandler:
                     break
         finally:
             # Cleanup DNS challenge records
-            self._update_status(CertificateStatus.CHALLENGE_CLEANUP)
-            try:
-                async with asyncio.timeout(30):
-                    # We only need to cleanup for the last entry
-                    await self.cloud.instance.cleanup_dns_challenge_record(
-                        value=dns_challenges[-1].validation,
-                    )
-            except TimeoutError:
-                _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
+            if published is not None:
+                self._update_status(CertificateStatus.CHALLENGE_CLEANUP)
+                try:
+                    async with asyncio.timeout(30):
+                        # Each record replaces the previous one, so only the
+                        # last published value needs to be cleaned up
+                        await self.cloud.instance.cleanup_dns_challenge_record(
+                            value=published,
+                        )
+                except TimeoutError:
+                    _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
 
         # Finish validation
         self._update_status(CertificateStatus.CERTIFICATE_FINALIZING)
