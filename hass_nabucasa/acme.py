@@ -35,6 +35,7 @@ FILE_REGISTRATION = "acme_reg.json"
 ACCOUNT_KEY_SIZE = 2048
 PRIVATE_KEY_SIZE = 2048
 USER_AGENT = "home-assistant-cloud"
+AUTHORIZATION_TIMEOUT = 60
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -89,6 +90,7 @@ class ChallengeHandler:
     order = attr.ib(type=messages.OrderResource)
     response = attr.ib(type=challenges.ChallengeResponse)
     validation = attr.ib(type=str)
+    authorization = attr.ib(type=messages.AuthorizationResource)
 
 
 class AcmeHandler:
@@ -342,19 +344,21 @@ class AcmeHandler:
 
         # Find DNS challenge
         # pylint: disable=not-an-iterable
-        dns_challenges: list[messages.ChallengeBody] = []
+        dns_challenges: list[
+            tuple[messages.AuthorizationResource, messages.ChallengeBody]
+        ] = []
         for auth in order.authorizations:
             for challenge in auth.body.challenges:
                 if challenge.typ != "dns-01":
                     continue
-                dns_challenges.append(challenge)
+                dns_challenges.append((auth, challenge))
 
         if len(dns_challenges) == 0:
             raise AcmeChallengeError("No pending ACME challenge")
 
         handlers = []
 
-        for dns_challenge in dns_challenges:
+        for auth, dns_challenge in dns_challenges:
             try:
                 response, validation = dns_challenge.response_and_validation(
                     self._account_jwk,
@@ -364,7 +368,7 @@ class AcmeHandler:
                     f"Can't validate the new ACME challenge: {err}",
                 ) from err
             handlers.append(
-                ChallengeHandler(dns_challenge, order, response, validation),
+                ChallengeHandler(dns_challenge, order, response, validation, auth),
             )
 
         return handlers
@@ -378,6 +382,29 @@ class AcmeHandler:
             self._acme_client.answer_challenge(handler.challenge, handler.response)
         except _ACME_CLIENT_EXCEPTIONS as err:
             raise AcmeChallengeError(f"Can't accept ACME challenge: {err}") from err
+
+    def _wait_for_authorization(self, handler: ChallengeHandler) -> None:
+        """Wait until the authorization of a challenge is valid."""
+        if TYPE_CHECKING:
+            assert self._acme_client is not None
+        identifier = handler.authorization.body.identifier.value
+        # Scope the order to this authorization, the others are not answered yet
+        order = handler.order.update(
+            body=handler.order.body.update(
+                authorizations=[handler.authorization.uri],
+            ),
+        )
+        deadline = datetime.now() + timedelta(seconds=AUTHORIZATION_TIMEOUT)
+        try:
+            self._acme_client.poll_authorizations(order, deadline)
+        except errors.TimeoutError as err:
+            raise AcmeChallengeError(
+                f"Timeout waiting for ACME authorization of {identifier}"
+            ) from err
+        except _ACME_CLIENT_EXCEPTIONS as err:
+            raise AcmeChallengeError(
+                f"ACME authorization of {identifier} failed: {err}"
+            ) from err
 
     def _finish_challenge(self, order: messages.OrderResource) -> None:
         """Wait until challenge is finished."""
@@ -548,6 +575,9 @@ class AcmeHandler:
 
                     self._update_status(CertificateStatus.CHALLENGE_ANSWERING)
                     await self.cloud.run_executor(self._answer_challenge, challenge)
+                    await self.cloud.run_executor(
+                        self._wait_for_authorization, challenge
+                    )
 
                     self._update_status(CertificateStatus.CHALLENGE_ANSWERED)
                 except AcmeChallengeError as err:
