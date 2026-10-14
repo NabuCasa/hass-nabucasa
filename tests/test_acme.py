@@ -1,13 +1,13 @@
 """Test ACME handler functionality."""
 
 from socket import gaierror
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, call, patch
 
-from acme import messages
+from acme import challenges, errors, messages
 import pytest
 from requests.exceptions import RequestException
 
-from hass_nabucasa import Cloud
+from hass_nabucasa import CertificateStatus, Cloud
 from hass_nabucasa.acme import (
     AcmeChallengeError,
     AcmeClientError,
@@ -244,6 +244,168 @@ def test_acme_handler_answer_challenge_network_errors(
         handler._answer_challenge(mock_challenge_handler)
 
 
+def _authorization(
+    status: messages.Status,
+    challenge_error: messages.Error | None = None,
+) -> messages.AuthorizationResource:
+    """Return an authorization resource with a single DNS challenge."""
+    return messages.AuthorizationResource(
+        uri="https://example.com/acme/authz/1",
+        body=messages.Authorization(
+            identifier=messages.Identifier(
+                typ=messages.IDENTIFIER_FQDN, value="test.example.com"
+            ),
+            status=status,
+            challenges=(
+                messages.ChallengeBody(
+                    chall=challenges.DNS01(token=b"t" * 16),
+                    status=status,
+                    error=challenge_error,
+                ),
+            ),
+        ),
+    )
+
+
+def _challenge_handler() -> Mock:
+    """Return a challenge handler for an order with two authorizations."""
+    return Mock(
+        order=messages.OrderResource(
+            uri="https://example.com/acme/order/1",
+            body=messages.Order(
+                authorizations=[
+                    "https://example.com/acme/authz/1",
+                    "https://example.com/acme/authz/2",
+                ],
+            ),
+        ),
+        authorization=_authorization(messages.STATUS_PENDING),
+    )
+
+
+def test_acme_handler_wait_for_authorization_valid(cloud: Cloud) -> None:
+    """Test _wait_for_authorization polls only the authorization of the challenge."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._acme_client = Mock()
+
+    handler._wait_for_authorization(_challenge_handler())
+
+    order, _ = handler._acme_client.poll_authorizations.call_args.args
+    assert list(order.body.authorizations) == ["https://example.com/acme/authz/1"]
+
+
+def test_acme_handler_wait_for_authorization_invalid(cloud: Cloud) -> None:
+    """Test _wait_for_authorization raises when the authorization is invalid."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._acme_client = Mock()
+    handler._acme_client.poll_authorizations.side_effect = errors.ValidationError(
+        [
+            _authorization(
+                messages.STATUS_INVALID,
+                messages.Error(detail="Incorrect TXT record"),
+            )
+        ]
+    )
+
+    with pytest.raises(
+        AcmeChallengeError,
+        match=r"(?s)test\.example\.com failed: .*Incorrect TXT record",
+    ):
+        handler._wait_for_authorization(_challenge_handler())
+
+
+def test_acme_handler_wait_for_authorization_timeout(cloud: Cloud) -> None:
+    """Test _wait_for_authorization raises when the authorization stays pending."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._acme_client = Mock()
+    handler._acme_client.poll_authorizations.side_effect = errors.TimeoutError()
+
+    with pytest.raises(AcmeChallengeError, match="Timeout waiting"):
+        handler._wait_for_authorization(_challenge_handler())
+
+
+@pytest.mark.parametrize(
+    ("exception_type", "exception_args"),
+    [
+        (gaierror, ("DNS lookup failed",)),
+        (RequestException, ("Connection error",)),
+    ],
+)
+def test_acme_handler_wait_for_authorization_network_errors(
+    cloud: Cloud,
+    exception_type: type[Exception],
+    exception_args: tuple,
+) -> None:
+    """Test _wait_for_authorization handles network errors."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._acme_client = Mock()
+    handler._acme_client.poll_authorizations.side_effect = exception_type(
+        *exception_args
+    )
+
+    with pytest.raises(
+        AcmeChallengeError, match=r"ACME authorization of test\.example\.com failed"
+    ):
+        handler._wait_for_authorization(_challenge_handler())
+
+
+async def test_acme_handler_issue_certificate_waits_for_each_authorization(
+    cloud: Cloud,
+) -> None:
+    """Test issue_certificate waits for each authorization before the next record."""
+    status_callback = Mock()
+    handler = AcmeHandler(
+        cloud,
+        "test.example.com",
+        ["alias.example.com"],
+        "test@example.com",
+        status_callback,
+    )
+    handler._acme_client = Mock()
+    order = Mock()
+    first = Mock(validation="first")
+    second = Mock(validation="second")
+    manager = Mock()
+    manager.attach_mock(AsyncMock(), "set_dns")
+    manager.attach_mock(AsyncMock(), "cleanup_dns")
+    status_during_wait = []
+    manager.wait.side_effect = lambda _: status_during_wait.append(
+        status_callback.call_args
+    )
+
+    with (
+        patch.object(handler, "_generate_csr"),
+        patch.object(handler, "_create_order", return_value=order),
+        patch.object(handler, "_start_challenge", return_value=[first, second]),
+        patch.object(handler, "_answer_challenge", manager.answer),
+        patch.object(handler, "_wait_for_authorization", manager.wait),
+        patch.object(handler, "_finish_challenge", manager.finish),
+        patch.object(handler, "load_certificate", AsyncMock()),
+        patch.object(cloud.instance, "create_dns_challenge_record", manager.set_dns),
+        patch.object(
+            cloud.instance, "cleanup_dns_challenge_record", manager.cleanup_dns
+        ),
+        patch("hass_nabucasa.acme.asyncio.sleep", AsyncMock()),
+    ):
+        await handler.issue_certificate()
+
+    assert manager.mock_calls == [
+        call.set_dns(value="first"),
+        call.answer(first),
+        call.wait(first),
+        call.set_dns(value="second"),
+        call.answer(second),
+        call.wait(second),
+        call.cleanup_dns(value="second"),
+        call.finish(order),
+    ]
+    assert status_during_wait == [call(CertificateStatus.CHALLENGE_VALIDATING)] * 2
+    assert (
+        status_callback.mock_calls.count(call(CertificateStatus.CHALLENGE_VALIDATED))
+        == 2
+    )
+
+
 @pytest.mark.parametrize(
     ("answer_error", "expected_cleanup"),
     [
@@ -262,13 +424,14 @@ async def test_acme_handler_issue_certificate_cleans_up_published_record(
         cloud, "test.example.com", ["alias.example.com"], "test@example.com", Mock()
     )
     handler._acme_client = Mock()
-    challenges = [Mock(validation="first"), Mock(validation="second")]
+    dns_challenges = [Mock(validation="first"), Mock(validation="second")]
 
     with (
         patch.object(handler, "_generate_csr"),
         patch.object(handler, "_create_order"),
-        patch.object(handler, "_start_challenge", return_value=challenges),
+        patch.object(handler, "_start_challenge", return_value=dns_challenges),
         patch.object(handler, "_answer_challenge", side_effect=answer_error),
+        patch.object(handler, "_wait_for_authorization"),
         patch.object(handler, "_finish_challenge"),
         patch.object(handler, "load_certificate", AsyncMock()),
         patch.object(cloud.instance, "create_dns_challenge_record", AsyncMock()),
