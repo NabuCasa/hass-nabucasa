@@ -59,11 +59,29 @@ def test_raise_if_jws_verification_failed_should_not_raise(error):
     _raise_if_jws_verification_failed(error)
 
 
+def test_acme_handler_generate_csr_domains(cloud: Cloud) -> None:
+    """Test _generate_csr uses the domain and aliases."""
+    handler = AcmeHandler(
+        cloud, "test.example.com", ["alias.example.com"], "test@example.com", Mock()
+    )
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=b"key"),
+        patch("hass_nabucasa.acme.crypto_util.make_csr") as mock_make_csr,
+    ):
+        handler._generate_csr()
+
+    mock_make_csr.assert_called_once_with(
+        b"key", ["test.example.com", "alias.example.com"]
+    )
+
+
 def test_acme_handler_create_client_jws_error_existing_registration(
     cloud: Cloud,
 ) -> None:
     """Test _create_client handles JWS error when registration exists."""
-    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
 
     registration_data = '{"uri": "https://acme-v99.api.letsencrypt.org/acme/acct/1"}'
 
@@ -108,7 +126,7 @@ def test_acme_handler_create_client_jws_error_no_registration(
     error_location: str,
 ) -> None:
     """Test _create_client handles JWS errors when no registration exists."""
-    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
 
     with (
         patch("hass_nabucasa.acme.client.ClientV2") as mock_clientv2,
@@ -154,7 +172,7 @@ def test_acme_handler_create_client_network_errors(
     exception_args: tuple,
 ) -> None:
     """Test _create_client handles network errors (gaierror, RequestException)."""
-    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
 
     with (
         patch("hass_nabucasa.acme.client.ClientV2") as mock_clientv2,
@@ -184,7 +202,7 @@ def test_acme_handler_create_order_network_errors(
     exception_args: tuple,
 ) -> None:
     """Test _create_order handles network errors (gaierror, RequestException)."""
-    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
 
     mock_client = Mock()
     handler._acme_client = mock_client
@@ -209,7 +227,7 @@ def test_acme_handler_answer_challenge_network_errors(
     exception_args: tuple,
 ) -> None:
     """Test _answer_challenge handles network errors (gaierror, RequestException)."""
-    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
 
     mock_client = Mock()
     handler._acme_client = mock_client
@@ -238,7 +256,7 @@ def test_acme_handler_deactivate_account_network_errors(
     exception_args: tuple,
 ) -> None:
     """Test _deactivate_account handles network errors (gaierror, RequestException)."""
-    handler = AcmeHandler(cloud, ["test.example.com"], "test@example.com", Mock())
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
 
     mock_client = Mock()
     handler._acme_client = mock_client

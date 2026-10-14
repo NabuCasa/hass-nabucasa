@@ -97,7 +97,8 @@ class AcmeHandler:
     def __init__(
         self,
         cloud: Cloud[_ClientT],
-        domains: list[str],
+        domain: str,
+        aliases: list[str],
         email: str,
         status_callback: Callable[[CertificateStatus], None],
     ) -> None:
@@ -107,7 +108,8 @@ class AcmeHandler:
         self._acme_client: client.ClientV2 | None = None
         self._x509: x509.Certificate | None = None
 
-        self._domains = domains
+        self._domain = domain
+        self._aliases = aliases
         self._email = email
         self._status_callback = status_callback
 
@@ -126,9 +128,19 @@ class AcmeHandler:
         return self._email
 
     @property
+    def domain(self) -> str:
+        """Return the domain."""
+        return self._domain
+
+    @property
+    def aliases(self) -> list[str]:
+        """Return the aliases."""
+        return self._aliases
+
+    @property
     def domains(self) -> list[str]:
         """Return the domains."""
-        return self._domains
+        return [self._domain, *self._aliases]
 
     @property
     def path_account_key(self) -> Path:
@@ -211,7 +223,7 @@ class AcmeHandler:
             self.path_private_key.write_bytes(key_pem)
             self.path_private_key.chmod(0o600)
 
-        return crypto_util.make_csr(key_pem, self._domains)
+        return crypto_util.make_csr(key_pem, self.domains)
 
     def _load_account_key(self) -> None:
         """Load or create account key."""
