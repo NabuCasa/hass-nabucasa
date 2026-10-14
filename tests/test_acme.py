@@ -7,7 +7,7 @@ from acme import challenges, errors, messages
 import pytest
 from requests.exceptions import RequestException
 
-from hass_nabucasa import Cloud
+from hass_nabucasa import CertificateStatus, Cloud
 from hass_nabucasa.acme import (
     AcmeChallengeError,
     AcmeClientError,
@@ -353,8 +353,13 @@ async def test_acme_handler_issue_certificate_waits_for_each_authorization(
     cloud: Cloud,
 ) -> None:
     """Test issue_certificate waits for each authorization before the next record."""
+    status_callback = Mock()
     handler = AcmeHandler(
-        cloud, "test.example.com", ["alias.example.com"], "test@example.com", Mock()
+        cloud,
+        "test.example.com",
+        ["alias.example.com"],
+        "test@example.com",
+        status_callback,
     )
     handler._acme_client = Mock()
     order = Mock()
@@ -363,6 +368,10 @@ async def test_acme_handler_issue_certificate_waits_for_each_authorization(
     manager = Mock()
     manager.attach_mock(AsyncMock(), "set_dns")
     manager.attach_mock(AsyncMock(), "cleanup_dns")
+    status_during_wait = []
+    manager.wait.side_effect = lambda _: status_during_wait.append(
+        status_callback.call_args
+    )
 
     with (
         patch.object(handler, "_generate_csr"),
@@ -390,6 +399,11 @@ async def test_acme_handler_issue_certificate_waits_for_each_authorization(
         call.cleanup_dns(value="second"),
         call.finish(order),
     ]
+    assert status_during_wait == [call(CertificateStatus.CHALLENGE_VALIDATING)] * 2
+    assert (
+        status_callback.mock_calls.count(call(CertificateStatus.CHALLENGE_VALIDATED))
+        == 2
+    )
 
 
 @pytest.mark.parametrize(

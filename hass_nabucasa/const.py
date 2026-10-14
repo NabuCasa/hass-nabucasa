@@ -101,6 +101,8 @@ class CertificateStatus(StrEnum):
     CHALLENGE_DNS_UPDATING = "challenge_dns_updating"
     CHALLENGE_PENDING = "challenge_pending"
     CHALLENGE_UNEXPECTED_ERROR = "challenge_unexpected_error"
+    CHALLENGE_VALIDATED = "challenge_validated"
+    CHALLENGE_VALIDATING = "challenge_validating"
     CSR_GENERATING = "csr_generating"
     DOMAIN_VALIDATION_FAILED = "domain_validation_failed"
     ERROR = "error"

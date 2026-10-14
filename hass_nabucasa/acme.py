@@ -575,11 +575,13 @@ class AcmeHandler:
 
                     self._update_status(CertificateStatus.CHALLENGE_ANSWERING)
                     await self.cloud.run_executor(self._answer_challenge, challenge)
+                    self._update_status(CertificateStatus.CHALLENGE_ANSWERED)
+
+                    self._update_status(CertificateStatus.CHALLENGE_VALIDATING)
                     await self.cloud.run_executor(
                         self._wait_for_authorization, challenge
                     )
-
-                    self._update_status(CertificateStatus.CHALLENGE_ANSWERED)
+                    self._update_status(CertificateStatus.CHALLENGE_VALIDATED)
                 except AcmeChallengeError as err:
                     _LOGGER.error("Could not complete answer challenge - %s", err)
                     self._update_status(CertificateStatus.CHALLENGE_ANSWER_FAILED)
