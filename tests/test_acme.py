@@ -1,5 +1,6 @@
 """Test ACME handler functionality."""
 
+from contextlib import AbstractContextManager, nullcontext
 from socket import gaierror
 from unittest.mock import AsyncMock, Mock, call, patch
 
@@ -407,17 +408,83 @@ async def test_acme_handler_issue_certificate_waits_for_each_authorization(
 
 
 @pytest.mark.parametrize(
-    ("answer_error", "expected_cleanup"),
+    ("patched_method", "error", "expected_status", "match"),
     [
-        (None, "second"),
-        (AcmeChallengeError("boom"), "first"),
-        (RuntimeError("boom"), "first"),
+        (
+            "_wait_for_authorization",
+            AcmeChallengeError("boom"),
+            CertificateStatus.CHALLENGE_ANSWER_FAILED,
+            "boom",
+        ),
+        (
+            "_answer_challenge",
+            RuntimeError("boom"),
+            CertificateStatus.CHALLENGE_UNEXPECTED_ERROR,
+            "Unexpected error answering challenge",
+        ),
+    ],
+)
+async def test_acme_handler_issue_certificate_stops_on_challenge_failure(
+    cloud: Cloud,
+    patched_method: str,
+    error: Exception,
+    expected_status: CertificateStatus,
+    match: str,
+) -> None:
+    """Test issue_certificate stops at the first failed challenge."""
+    status_callback = Mock()
+    handler = AcmeHandler(
+        cloud,
+        "test.example.com",
+        ["alias.example.com"],
+        "test@example.com",
+        status_callback,
+    )
+    handler._acme_client = Mock()
+    dns_challenges = [Mock(validation="first"), Mock(validation="second")]
+
+    with (
+        patch.object(handler, "_generate_csr"),
+        patch.object(handler, "_create_order"),
+        patch.object(handler, "_start_challenge", return_value=dns_challenges),
+        patch.object(handler, "_answer_challenge"),
+        patch.object(handler, "_wait_for_authorization"),
+        patch.object(handler, patched_method, side_effect=error),
+        patch.object(handler, "_finish_challenge") as mock_finish,
+        patch.object(handler, "load_certificate", AsyncMock()),
+        patch.object(
+            cloud.instance, "create_dns_challenge_record", AsyncMock()
+        ) as mock_create,
+        patch.object(
+            cloud.instance, "cleanup_dns_challenge_record", AsyncMock()
+        ) as mock_cleanup,
+        patch("hass_nabucasa.acme.asyncio.sleep", AsyncMock()),
+        pytest.raises(AcmeChallengeError, match=match),
+    ):
+        await handler.issue_certificate()
+
+    mock_create.assert_awaited_once_with(value="first")
+    mock_cleanup.assert_awaited_once_with(value="first")
+    mock_finish.assert_not_called()
+    assert call(expected_status) in status_callback.mock_calls
+    assert call(CertificateStatus.CERTIFICATE_FINALIZING) not in (
+        status_callback.mock_calls
+    )
+
+
+@pytest.mark.parametrize(
+    ("answer_error", "expected_cleanup", "expectation"),
+    [
+        (None, "second", nullcontext()),
+        (AcmeChallengeError("boom"), "first", pytest.raises(AcmeChallengeError)),
+        (RuntimeError("boom"), "first", pytest.raises(AcmeChallengeError)),
     ],
 )
 async def test_acme_handler_issue_certificate_cleans_up_published_record(
     cloud: Cloud,
     answer_error: Exception | None,
     expected_cleanup: str,
+    expectation: AbstractContextManager,
 ) -> None:
     """Test issue_certificate cleans up the last DNS record it published."""
     handler = AcmeHandler(
@@ -439,6 +506,7 @@ async def test_acme_handler_issue_certificate_cleans_up_published_record(
             cloud.instance, "cleanup_dns_challenge_record", AsyncMock()
         ) as mock_cleanup,
         patch("hass_nabucasa.acme.asyncio.sleep", AsyncMock()),
+        expectation,
     ):
         await handler.issue_certificate()
 
