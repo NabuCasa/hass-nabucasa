@@ -381,6 +381,7 @@ class AcmeHandler:
         try:
             self._acme_client.answer_challenge(handler.challenge, handler.response)
         except _ACME_CLIENT_EXCEPTIONS as err:
+            _raise_if_jws_verification_failed(err)
             raise AcmeChallengeError(f"Can't accept ACME challenge: {err}") from err
 
     def _wait_for_authorization(self, handler: ChallengeHandler) -> None:

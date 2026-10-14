@@ -408,25 +408,34 @@ async def test_acme_handler_issue_certificate_waits_for_each_authorization(
 
 
 @pytest.mark.parametrize(
-    ("patched_method", "error", "expected_error", "expected_status", "match"),
+    (
+        "answer_error",
+        "wait_error",
+        "expected_error",
+        "expected_status",
+        "match",
+    ),
     [
         (
-            "_wait_for_authorization",
+            None,
             AcmeChallengeError("boom"),
             AcmeChallengeError,
             CertificateStatus.CHALLENGE_ANSWER_FAILED,
             "boom",
         ),
         (
-            "_answer_challenge",
-            AcmeJWSVerificationError("boom"),
+            messages.Error(
+                typ="urn:ietf:params:acme:error:malformed",
+                detail="JWS verification error",
+            ),
+            None,
             AcmeJWSVerificationError,
             CertificateStatus.CHALLENGE_ANSWER_FAILED,
-            "boom",
+            "JWS verification failed",
         ),
         (
-            "_answer_challenge",
             RuntimeError("boom"),
+            None,
             AcmeChallengeError,
             CertificateStatus.CHALLENGE_UNEXPECTED_ERROR,
             "Unexpected error answering challenge",
@@ -435,8 +444,8 @@ async def test_acme_handler_issue_certificate_waits_for_each_authorization(
 )
 async def test_acme_handler_issue_certificate_stops_on_challenge_failure(
     cloud: Cloud,
-    patched_method: str,
-    error: Exception,
+    answer_error: Exception | None,
+    wait_error: Exception | None,
     expected_error: type[Exception],
     expected_status: CertificateStatus,
     match: str,
@@ -451,15 +460,14 @@ async def test_acme_handler_issue_certificate_stops_on_challenge_failure(
         status_callback,
     )
     handler._acme_client = Mock()
+    handler._acme_client.answer_challenge.side_effect = answer_error
     dns_challenges = [Mock(validation="first"), Mock(validation="second")]
 
     with (
         patch.object(handler, "_generate_csr"),
         patch.object(handler, "_create_order"),
         patch.object(handler, "_start_challenge", return_value=dns_challenges),
-        patch.object(handler, "_answer_challenge"),
-        patch.object(handler, "_wait_for_authorization"),
-        patch.object(handler, patched_method, side_effect=error),
+        patch.object(handler, "_wait_for_authorization", side_effect=wait_error),
         patch.object(handler, "_finish_challenge") as mock_finish,
         patch.object(handler, "load_certificate", AsyncMock()),
         patch.object(
