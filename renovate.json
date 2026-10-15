@@ -8,5 +8,14 @@
   "labels": [
     "dependencies"
   ],
-  "prConcurrentLimit": 10
+  "prConcurrentLimit": 10,
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "actions/download-artifact",
+        "actions/upload-artifact"
+      ],
+      "groupName": "actions artifact"
+    }
+  ]
 }
