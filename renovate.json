@@ -11,7 +11,10 @@
   "prConcurrentLimit": 10,
   "packageRules": [
     {
-      "matchPackageNames": ["actions/*-artifact"],
+      "matchPackageNames": [
+        "actions/download-artifact",
+        "actions/upload-artifact"
+      ],
       "groupName": "actions artifact"
     }
   ]
