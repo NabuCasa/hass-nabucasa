@@ -381,6 +381,7 @@ class AcmeHandler:
         try:
             self._acme_client.answer_challenge(handler.challenge, handler.response)
         except _ACME_CLIENT_EXCEPTIONS as err:
+            _raise_if_jws_verification_failed(err)
             raise AcmeChallengeError(f"Can't accept ACME challenge: {err}") from err
 
     def _wait_for_authorization(self, handler: ChallengeHandler) -> None:
@@ -402,6 +403,7 @@ class AcmeHandler:
                 f"Timeout waiting for ACME authorization of {identifier}"
             ) from err
         except _ACME_CLIENT_EXCEPTIONS as err:
+            _raise_if_jws_verification_failed(err)
             raise AcmeChallengeError(
                 f"ACME authorization of {identifier} failed: {err}"
             ) from err
@@ -420,6 +422,7 @@ class AcmeHandler:
                 fetch_alternative_chains=True,
             )
         except _ACME_CLIENT_EXCEPTIONS as err:
+            _raise_if_jws_verification_failed(err)
             raise AcmeChallengeError(f"Wait of ACME challenge fails: {err}") from err
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception while finalizing order")
@@ -582,16 +585,15 @@ class AcmeHandler:
                         self._wait_for_authorization, challenge
                     )
                     self._update_status(CertificateStatus.CHALLENGE_VALIDATED)
-                except AcmeChallengeError as err:
-                    _LOGGER.error("Could not complete answer challenge - %s", err)
+                except AcmeClientError:
                     self._update_status(CertificateStatus.CHALLENGE_ANSWER_FAILED)
-                    # There is no point in continuing here
-                    break
+                    raise
                 except Exception:  # pylint: disable=broad-except
                     _LOGGER.exception("Unexpected exception while answering challenge")
                     self._update_status(CertificateStatus.CHALLENGE_UNEXPECTED_ERROR)
-                    # There is no point in continuing here
-                    break
+                    raise AcmeChallengeError(
+                        "Unexpected error answering challenge",
+                    ) from None
         finally:
             # Cleanup DNS challenge records
             if published is not None:
