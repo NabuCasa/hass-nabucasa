@@ -773,6 +773,7 @@ class Voice:
                 # Synthesize audio while text chunks are still being accumulated
                 wav_buffer = bytearray()
                 frame_size: int | None = None
+                audio_remaining = 0
                 async for chunk in self._async_tts_chunks(
                     text=text,
                     language=language,
@@ -786,17 +787,24 @@ class Voice:
                     if frame_size is None:
                         if (header := _try_parse_wav_header(wav_buffer)) is None:
                             continue
-                        header_bytes, audio_offset, frame_size = header
+                        header_bytes, audio_offset, frame_size, audio_remaining = header
                         del wav_buffer[:audio_offset]
                         if not wav_header_sent:
                             # Send WAV header once, then stream audio
                             yield header_bytes
                             wav_header_sent = True
 
-                    # Only send whole frames, so no sample is split
-                    if whole := len(wav_buffer) - len(wav_buffer) % frame_size:
+                    # Only send whole frames of the data chunk, so no sample is
+                    # split and trailing chunks are not played as audio
+                    whole = min(len(wav_buffer), audio_remaining)
+                    whole -= whole % frame_size
+                    if whole:
                         yield bytes(wav_buffer[:whole])
                         del wav_buffer[:whole]
+                        audio_remaining -= whole
+
+                if frame_size is None:
+                    raise VoiceReturnError("Invalid WAV data received from TTS")
 
         if not wav_header_sent:
             # Send empty WAV header if no audio data was received.
@@ -806,11 +814,11 @@ class Voice:
 
 def _try_parse_wav_header(
     wav_bytes: bytes | bytearray,
-) -> tuple[bytes, int, int] | None:
+) -> tuple[bytes, int, int, int] | None:
     """Parse the start of a WAV file.
 
-    Return (streaming header, audio offset, frame size), or None while the
-    header is still incomplete.
+    Return (streaming header, audio offset, frame size, audio size), or None
+    while the header is still incomplete.
     """
     if len(wav_bytes) < 12:
         return None
@@ -828,7 +836,7 @@ def _try_parse_wav_header(
         if chunk_id == b"data":
             if streaming_header is None:
                 raise VoiceReturnError("Invalid WAV data received from TTS")
-            return streaming_header, position + 8, frame_size
+            return streaming_header, position + 8, frame_size, chunk_size
 
         if chunk_id == b"fmt ":
             if position + 24 > len(wav_bytes):
