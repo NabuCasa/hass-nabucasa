@@ -35,6 +35,7 @@ FILE_REGISTRATION = "acme_reg.json"
 ACCOUNT_KEY_SIZE = 2048
 PRIVATE_KEY_SIZE = 2048
 USER_AGENT = "home-assistant-cloud"
+AUTHORIZATION_TIMEOUT = 60
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -89,6 +90,7 @@ class ChallengeHandler:
     order = attr.ib(type=messages.OrderResource)
     response = attr.ib(type=challenges.ChallengeResponse)
     validation = attr.ib(type=str)
+    authorization = attr.ib(type=messages.AuthorizationResource)
 
 
 class AcmeHandler:
@@ -97,7 +99,8 @@ class AcmeHandler:
     def __init__(
         self,
         cloud: Cloud[_ClientT],
-        domains: list[str],
+        domain: str,
+        aliases: list[str],
         email: str,
         status_callback: Callable[[CertificateStatus], None],
     ) -> None:
@@ -107,7 +110,8 @@ class AcmeHandler:
         self._acme_client: client.ClientV2 | None = None
         self._x509: x509.Certificate | None = None
 
-        self._domains = domains
+        self._domain = domain
+        self._aliases = aliases
         self._email = email
         self._status_callback = status_callback
 
@@ -126,9 +130,19 @@ class AcmeHandler:
         return self._email
 
     @property
+    def domain(self) -> str:
+        """Return the domain."""
+        return self._domain
+
+    @property
+    def aliases(self) -> list[str]:
+        """Return the aliases."""
+        return self._aliases
+
+    @property
     def domains(self) -> list[str]:
         """Return the domains."""
-        return self._domains
+        return [self._domain, *self._aliases]
 
     @property
     def path_account_key(self) -> Path:
@@ -211,7 +225,7 @@ class AcmeHandler:
             self.path_private_key.write_bytes(key_pem)
             self.path_private_key.chmod(0o600)
 
-        return crypto_util.make_csr(key_pem, self._domains)
+        return crypto_util.make_csr(key_pem, self.domains)
 
     def _load_account_key(self) -> None:
         """Load or create account key."""
@@ -330,19 +344,21 @@ class AcmeHandler:
 
         # Find DNS challenge
         # pylint: disable=not-an-iterable
-        dns_challenges: list[messages.ChallengeBody] = []
+        dns_challenges: list[
+            tuple[messages.AuthorizationResource, messages.ChallengeBody]
+        ] = []
         for auth in order.authorizations:
             for challenge in auth.body.challenges:
                 if challenge.typ != "dns-01":
                     continue
-                dns_challenges.append(challenge)
+                dns_challenges.append((auth, challenge))
 
         if len(dns_challenges) == 0:
             raise AcmeChallengeError("No pending ACME challenge")
 
         handlers = []
 
-        for dns_challenge in dns_challenges:
+        for auth, dns_challenge in dns_challenges:
             try:
                 response, validation = dns_challenge.response_and_validation(
                     self._account_jwk,
@@ -352,7 +368,7 @@ class AcmeHandler:
                     f"Can't validate the new ACME challenge: {err}",
                 ) from err
             handlers.append(
-                ChallengeHandler(dns_challenge, order, response, validation),
+                ChallengeHandler(dns_challenge, order, response, validation, auth),
             )
 
         return handlers
@@ -365,7 +381,32 @@ class AcmeHandler:
         try:
             self._acme_client.answer_challenge(handler.challenge, handler.response)
         except _ACME_CLIENT_EXCEPTIONS as err:
+            _raise_if_jws_verification_failed(err)
             raise AcmeChallengeError(f"Can't accept ACME challenge: {err}") from err
+
+    def _wait_for_authorization(self, handler: ChallengeHandler) -> None:
+        """Wait until the authorization of a challenge is valid."""
+        if TYPE_CHECKING:
+            assert self._acme_client is not None
+        identifier = handler.authorization.body.identifier.value
+        # Scope the order to this authorization, the others are not answered yet
+        order = handler.order.update(
+            body=handler.order.body.update(
+                authorizations=[handler.authorization.uri],
+            ),
+        )
+        deadline = datetime.now() + timedelta(seconds=AUTHORIZATION_TIMEOUT)
+        try:
+            self._acme_client.poll_authorizations(order, deadline)
+        except errors.TimeoutError as err:
+            raise AcmeChallengeError(
+                f"Timeout waiting for ACME authorization of {identifier}"
+            ) from err
+        except _ACME_CLIENT_EXCEPTIONS as err:
+            _raise_if_jws_verification_failed(err)
+            raise AcmeChallengeError(
+                f"ACME authorization of {identifier} failed: {err}"
+            ) from err
 
     def _finish_challenge(self, order: messages.OrderResource) -> None:
         """Wait until challenge is finished."""
@@ -381,6 +422,7 @@ class AcmeHandler:
                 fetch_alternative_chains=True,
             )
         except _ACME_CLIENT_EXCEPTIONS as err:
+            _raise_if_jws_verification_failed(err)
             raise AcmeChallengeError(f"Wait of ACME challenge fails: {err}") from err
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception while finalizing order")
@@ -507,6 +549,7 @@ class AcmeHandler:
             order,
         )
 
+        published: str | None = None
         try:
             for challenge in dns_challenges:
                 # Update DNS
@@ -516,6 +559,7 @@ class AcmeHandler:
                         await self.cloud.instance.create_dns_challenge_record(
                             value=challenge.validation
                         )
+                    published = challenge.validation
                     self._update_status(CertificateStatus.CHALLENGE_DNS_UPDATED)
                 except TimeoutError, AssertionError:
                     self._update_status(CertificateStatus.CHALLENGE_DNS_FAILED)
@@ -534,29 +578,35 @@ class AcmeHandler:
 
                     self._update_status(CertificateStatus.CHALLENGE_ANSWERING)
                     await self.cloud.run_executor(self._answer_challenge, challenge)
-
                     self._update_status(CertificateStatus.CHALLENGE_ANSWERED)
-                except AcmeChallengeError as err:
-                    _LOGGER.error("Could not complete answer challenge - %s", err)
+
+                    self._update_status(CertificateStatus.CHALLENGE_VALIDATING)
+                    await self.cloud.run_executor(
+                        self._wait_for_authorization, challenge
+                    )
+                    self._update_status(CertificateStatus.CHALLENGE_VALIDATED)
+                except AcmeClientError:
                     self._update_status(CertificateStatus.CHALLENGE_ANSWER_FAILED)
-                    # There is no point in continuing here
-                    break
+                    raise
                 except Exception:  # pylint: disable=broad-except
                     _LOGGER.exception("Unexpected exception while answering challenge")
                     self._update_status(CertificateStatus.CHALLENGE_UNEXPECTED_ERROR)
-                    # There is no point in continuing here
-                    break
+                    raise AcmeChallengeError(
+                        "Unexpected error answering challenge",
+                    ) from None
         finally:
             # Cleanup DNS challenge records
-            self._update_status(CertificateStatus.CHALLENGE_CLEANUP)
-            try:
-                async with asyncio.timeout(30):
-                    # We only need to cleanup for the last entry
-                    await self.cloud.instance.cleanup_dns_challenge_record(
-                        value=dns_challenges[-1].validation,
-                    )
-            except TimeoutError:
-                _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
+            if published is not None:
+                self._update_status(CertificateStatus.CHALLENGE_CLEANUP)
+                try:
+                    async with asyncio.timeout(30):
+                        # Each record replaces the previous one, so only the
+                        # last published value needs to be cleaned up
+                        await self.cloud.instance.cleanup_dns_challenge_record(
+                            value=published,
+                        )
+                except TimeoutError:
+                    _LOGGER.error("Failed to clean up challenge from NabuCasa DNS!")
 
         # Finish validation
         self._update_status(CertificateStatus.CERTIFICATE_FINALIZING)

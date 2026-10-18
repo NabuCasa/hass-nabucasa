@@ -10,6 +10,7 @@ import random
 from typing import TYPE_CHECKING, Any
 
 import boto3
+import botocore
 from botocore.exceptions import BotoCoreError, ClientError
 import pycognito
 from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
@@ -33,6 +34,10 @@ _LOGGER = logging.getLogger(__name__)
 # only what this module uses. The full files cost about 9 MiB once loaded.
 # Regenerate with scripts/update_botocore_data.py.
 BOTOCORE_DATA_PATH = Path(__file__).parent / "botocore_data"
+
+# One shared object, so _cached_cognito sees equal arguments: Config objects
+# only compare equal to themselves.
+_BOTOCORE_CONFIG = botocore.config.Config(signature_version=botocore.UNSIGNED)
 
 
 class Unauthenticated(CloudError):
@@ -385,10 +390,11 @@ class CognitoAuth:
         """
         # Imported here so importing this module does not load botocore's
         # client machinery.
-        import botocore.session  # noqa: PLC0415  # pylint: disable=import-outside-toplevel
+        # pylint: disable-next=import-outside-toplevel
+        from botocore.session import get_session  # noqa: PLC0415
 
         if self._session is None:
-            botocore_session = botocore.session.Session()
+            botocore_session = get_session()
             botocore_session.set_config_variable("data_path", str(BOTOCORE_DATA_PATH))
             self._session = boto3.session.Session(botocore_session=botocore_session)
 
@@ -396,7 +402,7 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=botocore.config.Config(signature_version=botocore.UNSIGNED),
+            botocore_config=_BOTOCORE_CONFIG,
             session=self._session,
             **kwargs,
         )

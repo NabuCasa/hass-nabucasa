@@ -225,12 +225,14 @@ class MockAcme:
         self.expire_date = None
         self.fingerprint = None
 
+        self.domain = None
+        self.aliases = []
         self.email = "test@nabucasa.inc"
 
     @property
     def domains(self):
         """Return all domains."""
-        return self.alternative_names
+        return [self.domain, *self.aliases]
 
     def set_false(self):
         """Set certificate as not valid."""
@@ -266,6 +268,7 @@ class MockAcme:
         """Init."""
         self.init_args = args
         self.init_kwargs = kwargs
+        _, self.domain, self.aliases, *_ = args
         return self
 
 
