@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from functools import lru_cache, partial
+from functools import cache, lru_cache, partial
 import logging
 import random
 from typing import TYPE_CHECKING, Any
@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     # created, in the executor. Most instances never log in to the cloud,
     # and importing them costs about 15 MiB.
     import boto3
+    import botocore.config
     import pycognito
 
     from .. import Cloud, _ClientT
@@ -376,7 +377,6 @@ class CognitoAuth:
         """
         # pylint: disable=import-outside-toplevel
         import boto3  # noqa: PLC0415
-        import botocore.config  # noqa: PLC0415
 
         if self._session is None:
             self._session = boto3.session.Session()
@@ -385,10 +385,24 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=botocore.config.Config(signature_version=botocore.UNSIGNED),
+            botocore_config=_botocore_config(),
             session=self._session,
             **kwargs,
         )
+
+
+@cache
+def _botocore_config() -> botocore.config.Config:
+    """Return one shared botocore Config.
+
+    _cached_cognito needs the same object on every call, since Config objects
+    only compare equal to themselves. It is built on first use because
+    importing botocore.config loads most of botocore.
+    """
+    # pylint: disable-next=import-outside-toplevel
+    import botocore.config  # noqa: PLC0415
+
+    return botocore.config.Config(signature_version=botocore.UNSIGNED)
 
 
 def _authenticate(cognito: pycognito.Cognito, password: str) -> None:
