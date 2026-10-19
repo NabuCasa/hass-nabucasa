@@ -611,8 +611,7 @@ class RemoteUI:
                     await self._snitun.wait()
 
                 self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_DISCONNECT)
-                should_reregister = await self._should_reregister(backoff)
-                if should_reregister:
+                if await self._should_reregister(backoff):
                     asyncio.create_task(self._restart_backend())
                     return
                 await asyncio.sleep(backoff.time_to_next_attempt())
@@ -629,10 +628,10 @@ class RemoteUI:
         if backoff.attempts < settings["reregister_after_attempts"]:
             return False
         backoff.reset()
-        reachable = await self._current_server_reachable()
-        if not reachable:
-            _LOGGER.info("Unable to reach %s, re-registering", self._snitun_server)
-        return not reachable
+        if await self._current_server_reachable():
+            return False
+        _LOGGER.info("Unable to reach %s, re-registering", self._snitun_server)
+        return True
 
     async def _current_server_reachable(self) -> bool:
         """Return True if the current SniTun server responds to ping."""
