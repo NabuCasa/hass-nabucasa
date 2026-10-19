@@ -618,6 +618,10 @@ async def test_call_cloud_api_with_action_loads_service_discovery(
         f"https://{cloud.api_server}/.well-known/service-discovery",
         json={
             "actions": {"test_api_action": "https://example.com/test/{param}/action"},
+            "remote_access": {
+                "reconnect_backoff_base": 5,
+                "reregister_after_attempts": 13,
+            },
             "valid_for": 3600,
             "version": "1.0",
         },

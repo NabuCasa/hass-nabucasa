@@ -76,9 +76,20 @@ def _filter_and_validate_actions(actions: dict[str, Any]) -> dict[str, str]:
     return filtered
 
 
+REMOTE_ACCESS_SCHEMA = vol.Schema(
+    {
+        vol.Required("reconnect_backoff_base"): vol.All(
+            int, vol.Range(min=1, max=ONE_HOUR_IN_SECONDS)
+        ),
+        vol.Required("reregister_after_attempts"): vol.All(int, vol.Range(min=1)),
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+
 SERVICE_DISCOVERY_SCHEMA = vol.Schema(
     {
         vol.Required("actions"): _filter_and_validate_actions,
+        vol.Required("remote_access"): REMOTE_ACCESS_SCHEMA,
         vol.Required("valid_for"): vol.All(int, vol.Range(min=0)),
         vol.Required("version"): str,
     },
@@ -102,10 +113,24 @@ class ServiceDiscoveryMissingActionError(ServiceDiscoveryError):
     """Exception raised when an action has no URL configured."""
 
 
+class ServiceDiscoveryRemoteAccess(TypedDict):
+    """Remote access settings from service discovery."""
+
+    reconnect_backoff_base: int
+    reregister_after_attempts: int
+
+
+DEFAULT_REMOTE_ACCESS = ServiceDiscoveryRemoteAccess(
+    reconnect_backoff_base=5,
+    reregister_after_attempts=13,
+)
+
+
 class ServiceDiscoveryResponse(TypedDict):
     """Response from service discovery API."""
 
     actions: dict[str, str]
+    remote_access: ServiceDiscoveryRemoteAccess
     valid_for: int
     version: str
 
@@ -191,6 +216,13 @@ class ServiceDiscovery(ApiBase):
             assert self._cloud.api_server is not None
         return self._cloud.api_server
 
+    @property
+    def remote_access(self) -> ServiceDiscoveryRemoteAccess:
+        """Return remote access settings, falling back to defaults."""
+        if self._memory_cache is None:
+            return DEFAULT_REMOTE_ACCESS
+        return self._memory_cache["data"]["remote_access"]
+
     @api_exception_handler(ServiceDiscoveryError)
     async def _fetch_well_known_service_discovery(self) -> ServiceDiscoveryResponse:
         """Fetch service discovery data from the well-known API."""
@@ -206,6 +238,7 @@ class ServiceDiscovery(ApiBase):
         )
         return ServiceDiscoveryResponse(
             actions=validated_data["actions"],
+            remote_access=validated_data["remote_access"],
             valid_for=validated_data["valid_for"],
             version=validated_data["version"],
         )

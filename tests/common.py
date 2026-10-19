@@ -19,6 +19,7 @@ from snitun.client.access_list import AccessList
 
 from hass_nabucasa.client import CloudClient
 from hass_nabucasa.service_discovery import (
+    DEFAULT_REMOTE_ACCESS,
     ServiceDiscoveryCacheData,
     ServiceDiscoveryResponse,
 )
@@ -55,7 +56,12 @@ def prefilled_service_discovery_cache() -> ServiceDiscoveryCacheData:
     being made to the well-known endpoint.
     """
     return ServiceDiscoveryCacheData(
-        data=ServiceDiscoveryResponse(actions={}, valid_for=3600, version="test"),
+        data=ServiceDiscoveryResponse(
+            actions={},
+            remote_access=DEFAULT_REMOTE_ACCESS,
+            valid_for=3600,
+            version="test",
+        ),
         valid_until=utcnow().timestamp() + 3600,
     )
 

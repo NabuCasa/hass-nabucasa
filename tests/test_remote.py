@@ -1,12 +1,12 @@
 """Test remote sni handler."""
 
 import asyncio
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Callable, Generator
 from datetime import timedelta
 from socket import gaierror
 from ssl import SSLError
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from acme import client, messages
 import aiohttp
@@ -27,10 +27,13 @@ from hass_nabucasa.const import (
     CertificateStatus,
 )
 from hass_nabucasa.remote import (
+    RECONNECT_RETRY_MAX_INTERVAL,
     RENEW_IF_EXPIRES_DAYS,
     WARN_RENEW_FAILED_DAYS,
+    RemoteUI,
     SubscriptionExpired,
 )
+from hass_nabucasa.service_discovery import DEFAULT_REMOTE_ACCESS
 from hass_nabucasa.utils import utcnow
 from tests.common import extract_log_messages
 from tests.utils.aiohttp import AiohttpClientMocker
@@ -2045,3 +2048,278 @@ async def test_ping_privileges_resolution_failure_retried(
         "Ping latency check failed: Insufficient privileges to perform ICMP ping."
         in extract_log_messages(caplog)
     )
+
+
+def _set_remote_access(
+    cloud: Cloud, *, base: int = 5, reregister_after_attempts: int = 13
+) -> None:
+    """Set the remote access settings from service discovery."""
+    assert cloud.service_discovery._memory_cache is not None
+    cloud.service_discovery._memory_cache["data"]["remote_access"] = {
+        "reconnect_backoff_base": base,
+        "reregister_after_attempts": reregister_after_attempts,
+    }
+
+
+def _record_sleeps(stop_after: int) -> tuple[list[float], Callable]:
+    """Record reconnect sleeps and stop the loop after a number of them."""
+    sleeps: list[float] = []
+
+    async def _sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        if len(sleeps) >= stop_after:
+            raise asyncio.CancelledError
+
+    return sleeps, _sleep
+
+
+def _ping_result(*, is_alive: bool) -> list[utils.CheckLatencyHostResult]:
+    """Return a latency result for the current SniTun server."""
+    return [
+        utils.CheckLatencyHostResult(
+            address="rest-remote.nabu.casa",
+            is_alive=is_alive,
+            avg_rtt=10.0,
+            max_rtt=10.0,
+            min_rtt=10.0,
+        )
+    ]
+
+
+@pytest.fixture
+def reconnect_setup(cloud: Cloud, snitun_mock: MockSnitun) -> Generator[None]:
+    """Prepare the remote for a reconnect loop without a real connection."""
+    cloud.remote._snitun = snitun_mock
+    cloud.remote._snitun_server = "rest-remote.nabu.casa"
+    with (
+        patch("hass_nabucasa.utils.jitter", return_value=0),
+        patch.object(RemoteUI, "connect", AsyncMock()),
+    ):
+        yield
+
+
+@pytest.mark.usefixtures("reconnect_setup")
+async def test_reconnect_backoff_grows(cloud: Cloud) -> None:
+    """Test that reconnect attempts back off from the service discovery base."""
+    _set_remote_access(cloud, base=10, reregister_after_attempts=100)
+    sleeps, sleep = _record_sleeps(stop_after=4)
+
+    with patch("hass_nabucasa.remote.asyncio.sleep", side_effect=sleep):
+        await cloud.remote._reconnect_snitun()
+
+    assert sleeps == [10, 15, 22.5, 33.75]
+
+
+@pytest.mark.usefixtures("reconnect_setup")
+async def test_reconnect_backoff_capped(cloud: Cloud) -> None:
+    """Test that the reconnect interval never passes the maximum."""
+    _set_remote_access(cloud, base=3000, reregister_after_attempts=100)
+    sleeps, sleep = _record_sleeps(stop_after=3)
+
+    with patch("hass_nabucasa.remote.asyncio.sleep", side_effect=sleep):
+        await cloud.remote._reconnect_snitun()
+
+    assert sleeps == [3000, RECONNECT_RETRY_MAX_INTERVAL, RECONNECT_RETRY_MAX_INTERVAL]
+
+
+@pytest.mark.usefixtures("reconnect_setup")
+async def test_reconnect_backoff_uses_defaults(cloud: Cloud) -> None:
+    """Test that the defaults are used without service discovery data."""
+    cloud.service_discovery._memory_cache = None
+    sleeps, sleep = _record_sleeps(stop_after=1)
+
+    with patch("hass_nabucasa.remote.asyncio.sleep", side_effect=sleep):
+        await cloud.remote._reconnect_snitun()
+
+    assert sleeps == [DEFAULT_REMOTE_ACCESS["reconnect_backoff_base"]]
+
+
+@pytest.mark.usefixtures("reconnect_setup")
+async def test_reconnect_backoff_resets_after_connection(
+    cloud: Cloud,
+    snitun_mock: MockSnitun,
+) -> None:
+    """Test that the backoff starts over after a successful connection."""
+    _set_remote_access(cloud, base=10, reregister_after_attempts=100)
+    sleeps, sleep = _record_sleeps(stop_after=5)
+    attempts = 0
+
+    async def _connect() -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 3:
+            snitun_mock.call_connect = True
+            snitun_mock.wait_task.set()
+        elif attempts == 4:
+            snitun_mock.call_disconnect = True
+
+    with (
+        patch("hass_nabucasa.remote.asyncio.sleep", side_effect=sleep),
+        patch.object(RemoteUI, "connect", side_effect=_connect),
+    ):
+        await cloud.remote._reconnect_snitun()
+
+    assert sleeps == [10, 15, 22.5, 10, 15]
+
+
+@pytest.mark.usefixtures("reconnect_setup")
+async def test_reconnect_keeps_reachable_server(cloud: Cloud) -> None:
+    """Test that a server that responds to ping is kept."""
+    _set_remote_access(cloud, base=10, reregister_after_attempts=2)
+    sleeps, sleep = _record_sleeps(stop_after=5)
+
+    with (
+        patch("hass_nabucasa.remote.asyncio.sleep", side_effect=sleep),
+        patch(
+            "hass_nabucasa.remote.utils.async_check_latency",
+            return_value=_ping_result(is_alive=True),
+        ) as check_latency,
+        patch.object(RemoteUI, "_restart_backend", AsyncMock()) as restart,
+    ):
+        await cloud.remote._reconnect_snitun()
+
+    assert sleeps == [10, 15, 10, 15, 10]
+    assert check_latency.call_count == 2
+    assert check_latency.call_args.args == (["rest-remote.nabu.casa"],)
+    restart.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "check_latency_kwargs",
+    [
+        {"return_value": _ping_result(is_alive=False)},
+        {"side_effect": utils.CheckLatencyError("ICMP ping failed")},
+        {"side_effect": utils.CheckLatencyInsufficientPrivileges("No privileges")},
+    ],
+    ids=["not-alive", "ping-failed", "no-privileges"],
+)
+@pytest.mark.usefixtures("reconnect_setup")
+async def test_reconnect_reregisters_unreachable_server(
+    cloud: Cloud,
+    check_latency_kwargs: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that an unreachable server restarts the backend."""
+    _set_remote_access(cloud, base=10, reregister_after_attempts=2)
+    sleeps, sleep = _record_sleeps(stop_after=10)
+
+    with (
+        patch("hass_nabucasa.remote.asyncio.sleep", side_effect=sleep),
+        patch("hass_nabucasa.remote.utils.async_check_latency", **check_latency_kwargs),
+        patch.object(RemoteUI, "_restart_backend", AsyncMock()) as restart,
+    ):
+        await cloud.remote._reconnect_snitun()
+    await asyncio.sleep(0)
+
+    assert sleeps == [10, 15]
+    restart.assert_awaited_once()
+    assert cloud.remote._reconnect_task is None
+    assert "Unable to reach rest-remote.nabu.casa, re-registering" in caplog.text
+
+
+async def test_current_server_reachable_without_server(cloud: Cloud) -> None:
+    """Test that a missing server is treated as unreachable without pinging."""
+    cloud.remote._snitun_server = None
+
+    with patch("hass_nabucasa.remote.utils.async_check_latency") as check_latency:
+        assert not await cloud.remote._current_server_reachable()
+
+    check_latency.assert_not_called()
+
+
+async def test_restart_backend_reregisters(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test that restarting the backend registers again and uses the new server."""
+    valid = utcnow() + timedelta(days=1)
+
+    def _mock_backend(server: str) -> None:
+        aioclient_mock.clear_requests()
+        aioclient_mock.get(
+            f"https://{cloud.api_server}/instance/remote_ping_targets",
+            json={"targets": [], "timeout": 5000, "count": 1},
+        )
+        aioclient_mock.post(
+            f"https://{cloud.api_server}/instance/register",
+            json={
+                "domain": "test.dui.nabu.casa",
+                "email": "test@nabucasa.inc",
+                "server": server,
+            },
+        )
+        aioclient_mock.post(
+            f"https://{cloud.api_server}/instance/snitun_token",
+            json={
+                "token": "test-token",
+                "server": server,
+                "valid": valid.timestamp(),
+                "throttling": 400,
+            },
+        )
+
+    _mock_backend("rest-remote.nabu.casa")
+    await cloud.remote.start()
+    await asyncio.sleep(0.1)
+    assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
+    original_acme_task = cloud.remote._acme_task
+
+    _mock_backend("other-remote.nabu.casa")
+    cloud.client.mock_dispatcher.clear()
+    await cloud.remote._restart_backend()
+    await asyncio.sleep(0.1)
+
+    assert cloud.remote.snitun_server == "other-remote.nabu.casa"
+    assert snitun_mock.init_kwarg == {
+        "snitun_server": "other-remote.nabu.casa",
+        "snitun_port": 443,
+    }
+    called_urls = [str(call[1]) for call in aioclient_mock.mock_calls]
+    assert f"https://{cloud.api_server}/instance/remote_ping_targets" in called_urls
+    assert f"https://{cloud.api_server}/instance/register" in called_urls
+    dispatched = [message[0] for message in cloud.client.mock_dispatcher]
+    assert dispatched.index(DISPATCH_REMOTE_BACKEND_DOWN) < dispatched.index(
+        DISPATCH_REMOTE_BACKEND_UP
+    )
+    assert original_acme_task is not None
+    assert original_acme_task.done()
+    assert cloud.remote._acme_task is not original_acme_task
+    assert cloud.remote._acme_task is not None
+    assert not cloud.remote._acme_task.done()
+
+    await cloud.remote.stop()
+    await asyncio.sleep(0.1)
+
+
+async def test_restart_backend_when_stopped(cloud: Cloud) -> None:
+    """Test that a stopped remote is not restarted."""
+    cloud.remote._acme_task = None
+
+    with patch.object(RemoteUI, "_certificate_handler") as handler:
+        await cloud.remote._restart_backend()
+
+    handler.assert_not_called()
+    assert cloud.remote._acme_task is None
+
+
+async def test_restart_backend_stopped_while_restarting(cloud: Cloud) -> None:
+    """Test that a stop during the restart does not start a new handler."""
+
+    async def _handler() -> None:
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            await cloud.remote.stop()
+            raise
+
+    cloud.remote._acme_task = asyncio.create_task(_handler())
+    await asyncio.sleep(0)
+
+    with patch.object(RemoteUI, "_certificate_handler") as handler:
+        await cloud.remote._restart_backend()
+
+    handler.assert_not_called()
+    assert cloud.remote._acme_task is None

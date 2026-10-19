@@ -9,6 +9,10 @@
     "subscription_migrate_paypal": "https://accounts.example.com/payments/migrate_paypal_agreement",
     "voice_connection_details": "https://api.example.com/voice/connection_details"
   },
+  "remote_access": {
+    "reconnect_backoff_base": 5,
+    "reregister_after_attempts": 13
+  },
   "valid_for": 3600,
   "version": "1.0"
 }

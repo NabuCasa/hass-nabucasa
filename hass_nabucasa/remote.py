@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from contextvars import ContextVar
 from datetime import datetime, timedelta
 import logging
@@ -22,6 +23,7 @@ from .accounts_api import AccountsApiError
 from .acme import AcmeClientError, AcmeHandler, AcmeJWSVerificationError
 from .const import (
     DISPATCH_CERTIFICATE_STATUS,
+    ONE_HOUR_IN_SECONDS,
     CertificateStatus,
     SubscriptionReconnectionReason,
 )
@@ -35,6 +37,7 @@ _LOGGER = logging.getLogger(__name__)
 
 RENEW_IF_EXPIRES_DAYS = 25
 WARN_RENEW_FAILED_DAYS = 18
+RECONNECT_RETRY_MAX_INTERVAL = ONE_HOUR_IN_SECONDS
 
 is_cloud_request = ContextVar("IS_CLOUD_REQUEST", default=False)
 
@@ -595,19 +598,66 @@ class RemoteUI:
 
     async def _reconnect_snitun(self) -> None:
         """Reconnect after disconnect."""
+        backoff = utils.Backoff(
+            initial=self.cloud.service_discovery.remote_access[
+                "reconnect_backoff_base"
+            ],
+            maximum=RECONNECT_RETRY_MAX_INTERVAL,
+        )
         try:
             while True:
                 if self._snitun is not None and self._snitun.is_connected:
+                    backoff.reset()
                     await self._snitun.wait()
 
                 self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_DISCONNECT)
-                await asyncio.sleep(random.randint(1, 15))
+                if await self._should_reregister(backoff):
+                    asyncio.create_task(self._restart_backend())
+                    return
+                await asyncio.sleep(backoff.time_to_next_attempt())
                 await self.connect()
         except asyncio.CancelledError:
             pass
         finally:
             _LOGGER.debug("Close remote UI reconnect guard")
             self._reconnect_task = None
+
+    async def _should_reregister(self, backoff: utils.Backoff) -> bool:
+        """Return True if the current server is unreachable after too many attempts."""
+        settings = self.cloud.service_discovery.remote_access
+        if backoff.attempts < settings["reregister_after_attempts"]:
+            return False
+        backoff.reset()
+        if await self._current_server_reachable():
+            return False
+        _LOGGER.info("Unable to reach %s, re-registering", self._snitun_server)
+        return True
+
+    async def _current_server_reachable(self) -> bool:
+        """Return True if the current SniTun server responds to ping."""
+        if self._snitun_server is None:
+            return False
+        try:
+            if self._ping_privileged is None:
+                self._ping_privileged = await utils.async_resolve_ping_privileges(
+                    privileged=self.cloud.privileged_ping,
+                )
+            results = await utils.async_check_latency(
+                [self._snitun_server], privileged=self._ping_privileged
+            )
+        except utils.CheckLatencyError:
+            return False
+        return any(result["is_alive"] for result in results)
+
+    async def _restart_backend(self) -> None:
+        """Restart the backend loop to re-register with a fresh latency check."""
+        if (acme_task := self._acme_task) is None:
+            return
+        acme_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await acme_task
+        if self._acme_task is acme_task:
+            self._acme_task = asyncio.create_task(self._certificate_handler())
 
     async def _certificate_handler(self) -> None:
         """Handle certification ACME Tasks."""

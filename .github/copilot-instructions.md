@@ -77,6 +77,7 @@ All API components extend `ApiBase` and provide specific cloud service integrati
 **Remote UI (`hass_nabucasa/remote.py`)**
 - ACME certificate management for secure remote access.
 - SniTun tunnel integration for remote connectivity.
+- Reconnects use `utils.Backoff`. After a number of failed attempts, the current SniTun server is pinged, and if it doesn't respond, the backend loop restarts to re-register with a fresh latency check. The base interval and the attempt count come from the required `remote_access` section in service discovery.
 
 **Cloudhooks (`hass_nabucasa/cloudhooks.py`)**
 - Webhook management for cloud-to-local communication.

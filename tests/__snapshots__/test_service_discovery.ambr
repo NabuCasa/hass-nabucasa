@@ -108,6 +108,10 @@
       'actions': dict({
         'test_api_action': 'https://example.com/test/{param}/action',
       }),
+      'remote_access': dict({
+        'reconnect_backoff_base': 5,
+        'reregister_after_attempts': 13,
+      }),
       'valid_for': 3600,
       'version': '1.0',
     }),
@@ -123,6 +127,10 @@
     'result': dict({
       'actions': dict({
         'test_api_action': 'https://example.com/test/{param}/action',
+      }),
+      'remote_access': dict({
+        'reconnect_backoff_base': 5,
+        'reregister_after_attempts': 13,
       }),
       'valid_for': 3600,
       'version': '2.0',
@@ -140,6 +148,10 @@
       'actions': dict({
         'test_api_action': 'https://example.com/test/{param}/action',
       }),
+      'remote_access': dict({
+        'reconnect_backoff_base': 5,
+        'reregister_after_attempts': 13,
+      }),
       'valid_for': 3600,
       'version': '1.0',
     }),
@@ -156,6 +168,10 @@
       'actions': dict({
         'test_api_action': 'https://example.com/test/{param}/action',
       }),
+      'remote_access': dict({
+        'reconnect_backoff_base': 5,
+        'reregister_after_attempts': 13,
+      }),
       'valid_for': 3600,
       'version': '1.0',
     }),
@@ -171,6 +187,10 @@
     'result': dict({
       'actions': dict({
         'test_api_action': 'https://example.com/test/{param}/action',
+      }),
+      'remote_access': dict({
+        'reconnect_backoff_base': 5,
+        'reregister_after_attempts': 13,
       }),
       'valid_for': 3600,
       'version': '1.0',
@@ -192,12 +212,20 @@
         'actions': dict({
           'test_api_action': 'https://example.com/test/{param}/action',
         }),
+        'remote_access': dict({
+          'reconnect_backoff_base': 5,
+          'reregister_after_attempts': 13,
+        }),
         'valid_for': 3600,
         'version': '1.0',
       }),
       'cache2': dict({
         'actions': dict({
           'test_api_action': 'https://example.com/test/{param}/action',
+        }),
+        'remote_access': dict({
+          'reconnect_backoff_base': 5,
+          'reregister_after_attempts': 13,
         }),
         'valid_for': 3600,
         'version': '1.0',
@@ -220,12 +248,20 @@
         'actions': dict({
           'test_api_action': 'https://example.com/test/{param}/action',
         }),
+        'remote_access': dict({
+          'reconnect_backoff_base': 5,
+          'reregister_after_attempts': 13,
+        }),
         'valid_for': 3600,
         'version': '1.0',
       }),
       'cache2': dict({
         'actions': dict({
           'test_api_action': 'https://example.com/test/{param}/action',
+        }),
+        'remote_access': dict({
+          'reconnect_backoff_base': 5,
+          'reregister_after_attempts': 13,
         }),
         'valid_for': 3600,
         'version': '1.0',

@@ -15,6 +15,7 @@ from syrupy import SnapshotAssertion
 from hass_nabucasa.const import FIVE_MINUTES_IN_SECONDS
 from hass_nabucasa.events.types import CloudEventType
 from hass_nabucasa.service_discovery import (
+    DEFAULT_REMOTE_ACCESS,
     MIN_REFRESH_INTERVAL,
     ServiceDiscovery,
     ServiceDiscoveryError,
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
 
 BASE_EXPECTED_RESULT = {
     "actions": {"test_api_action": "https://example.com/test/{param}/action"},
+    "remote_access": {"reconnect_backoff_base": 5, "reregister_after_attempts": 13},
     "valid_for": 3600,
     "version": "1.0",
 }
@@ -154,6 +156,89 @@ async def test_fetch_well_known_invalid_response(
         ServiceDiscoveryError, match=re.escape("required key not provided")
     ):
         await cloud.service_discovery._fetch_well_known_service_discovery()
+
+
+@pytest.mark.parametrize(
+    "remote_access",
+    [
+        None,
+        {"reconnect_backoff_base": 5},
+        {"reregister_after_attempts": 13},
+        {"reconnect_backoff_base": 0, "reregister_after_attempts": 13},
+        {"reconnect_backoff_base": 3601, "reregister_after_attempts": 13},
+        {"reconnect_backoff_base": 5, "reregister_after_attempts": 0},
+        {"reconnect_backoff_base": "5", "reregister_after_attempts": 13},
+    ],
+    ids=[
+        "missing",
+        "missing-attempts",
+        "missing-base",
+        "base-too-low",
+        "base-too-high",
+        "attempts-too-low",
+        "base-not-int",
+    ],
+)
+async def test_fetch_well_known_invalid_remote_access(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    remote_access: dict[str, Any] | None,
+):
+    """Test that an invalid remote_access section is rejected."""
+    response = {**BASE_EXPECTED_RESULT, "remote_access": remote_access}
+    if remote_access is None:
+        del response["remote_access"]
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json=response,
+    )
+
+    with pytest.raises(ServiceDiscoveryError):
+        await cloud.service_discovery._fetch_well_known_service_discovery()
+
+
+async def test_fetch_well_known_remote_access_extra_keys_removed(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+):
+    """Test that unknown keys in remote_access are removed."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json={
+            **BASE_EXPECTED_RESULT,
+            "remote_access": {
+                **BASE_EXPECTED_RESULT["remote_access"],
+                "future_setting": 1,
+            },
+        },
+    )
+
+    result = await cloud.service_discovery._fetch_well_known_service_discovery()
+
+    assert result["remote_access"] == BASE_EXPECTED_RESULT["remote_access"]
+
+
+async def test_remote_access_uses_cached_values(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+):
+    """Test that remote_access returns the values from service discovery."""
+    remote_access = {"reconnect_backoff_base": 30, "reregister_after_attempts": 3}
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json={**BASE_EXPECTED_RESULT, "remote_access": remote_access},
+    )
+
+    await cloud.service_discovery._load_service_discovery_data()
+
+    assert cloud.service_discovery.remote_access == remote_access
+
+
+async def test_remote_access_defaults_without_cache(cloud: Cloud):
+    """Test that remote_access falls back to defaults without cached data."""
+    cloud.service_discovery._memory_cache = None
+
+    assert cloud.service_discovery.remote_access == DEFAULT_REMOTE_ACCESS
 
 
 async def test_load_service_discovery_data_caches_result(
