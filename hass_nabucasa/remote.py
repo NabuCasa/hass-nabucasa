@@ -651,7 +651,17 @@ class RemoteUI:
         return any(result["is_alive"] for result in results)
 
     async def _restart_backend(self) -> None:
-        """Restart the backend loop to re-register with a fresh latency check."""
+        """Restart the backend loop to re-register with a fresh latency check.
+
+        Cancelling the certificate handler makes it close the backend. A new
+        handler then finds no backend and runs the same path as at startup:
+        fetch ping targets, register, start SniTun, and connect.
+
+        The remote is stopped when there is no certificate handler, so there is
+        nothing to restart. The handler is also not restarted when ``stop()``
+        ran while the old one was shutting down, which replaces or clears
+        ``_acme_task``.
+        """
         if (acme_task := self._acme_task) is None:
             return
         acme_task.cancel()
