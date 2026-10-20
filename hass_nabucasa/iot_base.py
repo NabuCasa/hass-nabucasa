@@ -226,7 +226,7 @@ class BaseIoT:
                 await self._connected()
 
             while not self.client.closed:
-                msg: WSMessage | None | str = None
+                msg: WSMessage | str | None = None
                 try:
                     msg = await self.client.receive(55)
                 except TimeoutError:

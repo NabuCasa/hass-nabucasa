@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 import contextlib
+import inspect
 import logging
 
 from ..exceptions import CloudError
@@ -23,15 +24,15 @@ class CloudEventBus:
     def __init__(self) -> None:
         """Initialize the event bus."""
         self._subscribers: dict[
-            str,
-            list[Callable[[CloudEvent], Awaitable[None]]],
-        ] = {k.value: [] for k in CloudEventType}
+            CloudEventType,
+            list[Callable[[CloudEvent], Awaitable[None] | None]],
+        ] = {k: [] for k in CloudEventType}
 
     def subscribe(
         self,
         *,
         event_type: CloudEventType | list[CloudEventType],
-        handler: Callable[[CloudEvent], Awaitable[None]],
+        handler: Callable[[CloudEvent], Awaitable[None] | None],
     ) -> Callable[[], None]:
         """Subscribe to an event type or list of event types."""
         event_types = event_type if isinstance(event_type, list) else [event_type]
@@ -70,8 +71,16 @@ class CloudEventBus:
 
         _LOGGER.debug("Publish %s to %d subscribers", event_type, len(handlers))
 
+        async def _invoke(
+            handler: Callable[[CloudEvent], Awaitable[None] | None],
+        ) -> None:
+            """Invoke a handler, awaiting it only when it returns an awaitable."""
+            result = handler(event)
+            if inspect.isawaitable(result):
+                await result
+
         results = await asyncio.gather(
-            *[handler(event) for handler in handlers],
+            *(_invoke(handler) for handler in handlers),
             return_exceptions=True,
         )
 

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, TypedDict
 import aiohttp
 import attr
 from snitun.exceptions import SniTunConnectionError
+from snitun.utils import DEFAULT_PROTOCOL_VERSION
 from snitun.utils.aes import generate_aes_keyset
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
@@ -77,6 +78,7 @@ class SniTunToken:
     aes_iv = attr.ib(type=bytes)
     valid = attr.ib(type=datetime)
     throttling = attr.ib(type=int)
+    protocol_version = attr.ib(type=int, default=DEFAULT_PROTOCOL_VERSION)
 
 
 @attr.s
@@ -106,6 +108,7 @@ class RemoteUI:
         self._certificate_status: CertificateStatus | None = None
 
         self._results_by_location: dict[str, RemoteLatencyLocationResult] = {}
+        self._ping_privileged: bool | None = None
 
         self._info_loaded = asyncio.Event()
 
@@ -215,20 +218,29 @@ class RemoteUI:
         await asyncio.sleep(5)
         await self.load_backend()
 
-    def _generate_acme_handler(self, *, domains: list[str], email: str) -> AcmeHandler:
+    def _generate_acme_handler(
+        self,
+        *,
+        domain: str,
+        aliases: list[str],
+        email: str,
+    ) -> AcmeHandler:
         """Generate a new ACME handler."""
         return AcmeHandler(
             self.cloud,
-            domains,
+            domain,
+            aliases,
             email,
             status_callback=self._update_certificate_status,
         )
 
-    async def _recreate_acme(self, domains: list[str], email: str) -> None:
+    async def _recreate_acme(self, domain: str, aliases: list[str], email: str) -> None:
         """Recreate the acme client."""
         if self._acme:
             await self._acme.reset_acme()
-        self._acme = self._generate_acme_handler(domains=domains, email=email)
+        self._acme = self._generate_acme_handler(
+            domain=domain, aliases=aliases, email=email
+        )
 
     async def _fetch_ping_results(self) -> list[PingResult] | None:
         """Fetch ping targets and measure latency.
@@ -250,11 +262,15 @@ class RemoteUI:
         # The API returns timeout in milliseconds, but we need seconds.
         timeout_seconds = ping_data["timeout"] / 1000
         try:
+            if self._ping_privileged is None:
+                self._ping_privileged = await utils.async_resolve_ping_privileges(
+                    privileged=self.cloud.privileged_ping,
+                )
             latency_results = await utils.async_check_latency(
                 list(target_by_ip),
                 count=ping_data["count"],
                 ping_timeout=timeout_seconds,
-                privileged=self.cloud.privileged_ping,
+                privileged=self._ping_privileged,
             )
         except utils.CheckLatencyError as err:
             _LOGGER.warning("Ping latency check failed: %s", err)
@@ -307,10 +323,14 @@ class RemoteUI:
         self._snitun_server = server
         self._alias = data.get("alias", [])
 
-        domains: list[str] = [instance_domain, *self._alias]
+        aliases: list[str] = [*self._alias]
 
         # Set instance details for certificate
-        self._acme = self._generate_acme_handler(domains=domains, email=email)
+        self._acme = self._generate_acme_handler(
+            domain=instance_domain,
+            aliases=aliases,
+            email=email,
+        )
 
         # Load exists certificate
         self._update_certificate_status(CertificateStatus.LOADING)
@@ -322,21 +342,21 @@ class RemoteUI:
             ca_domains.add(self._acme.common_name)
 
         if not self._acme.certificate_available or (
-            ca_domains and ca_domains != set(domains)
+            ca_domains and ca_domains != {instance_domain, *aliases}
         ):
             for alias in self.alias or []:
                 if not await self._custom_domain_dns_configuration_is_valid(
                     instance_domain, alias
                 ):
-                    domains.remove(alias)
+                    aliases.remove(alias)
 
-        if ca_domains != set(domains):
+        if ca_domains != {instance_domain, *aliases}:
             if ca_domains:
                 _LOGGER.warning(
                     "Invalid certificate found for: (%s)",
                     ",".join(ca_domains),
                 )
-            await self._recreate_acme(domains, email)
+            await self._recreate_acme(instance_domain, aliases, email)
 
         self._info_loaded.set()
 
@@ -348,10 +368,12 @@ class RemoteUI:
                 await self._acme.issue_certificate()
             except (AcmeJWSVerificationError, AcmeClientError) as err:
                 if isinstance(err, AcmeJWSVerificationError):
-                    await self._recreate_acme(domains, email)
+                    await self._recreate_acme(instance_domain, aliases, email)
                 else:
                     _LOGGER.warning(
-                        "Failed to issue certificate for %s: %s", ",".join(domains), err
+                        "Failed to issue certificate for %s: %s",
+                        ",".join(self._acme.domains),
+                        err,
                     )
                 self.cloud.client.user_message(
                     "cloud_remote_acme",
@@ -381,7 +403,7 @@ class RemoteUI:
         try:
             context = await self._create_context()
         except (SSLError, FileNotFoundError) as err:
-            should_reset = not isinstance(err, SSLError) or (
+            should_reset = isinstance(err, FileNotFoundError) or (
                 err.reason == "KEY_VALUES_MISMATCH"
             )
             if should_reset:
@@ -390,7 +412,7 @@ class RemoteUI:
                     "Home Assistant Cloud",
                     const.MESSAGE_LOAD_CERTIFICATE_FAILURE,
                 )
-                await self._recreate_acme(domains, email)
+                await self._recreate_acme(instance_domain, aliases, email)
             self._update_certificate_status(CertificateStatus.SSL_CONTEXT_ERROR)
             return False
 
@@ -405,7 +427,7 @@ class RemoteUI:
 
         _LOGGER.debug("Starting SniTun")
         is_cloud_request.set(True)
-        await self._snitun.start(False, self._recreate_backend)
+        await self._snitun.start()
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_UP)
 
         _LOGGER.debug(
@@ -480,6 +502,7 @@ class RemoteUI:
             aes_iv,
             utils.utc_from_timestamp(data["valid"]),
             data["throttling"],
+            data.get("protocol_version", DEFAULT_PROTOCOL_VERSION),
         )
 
     async def connect(self) -> None:
@@ -508,6 +531,7 @@ class RemoteUI:
                     self._token.aes_key,
                     self._token.aes_iv,
                     throttling=self._token.throttling,
+                    protocol_version=self._token.protocol_version,
                 )
             _LOGGER.debug("Connected")
 
@@ -694,16 +718,12 @@ class RemoteUI:
 
         self._update_certificate_status(CertificateStatus.EXPIRING_SOON)
 
-        check_alias = [
-            domain for domain in self._acme.domains if domain != self.instance_domain
-        ]
-
-        if not check_alias:
+        if not self._acme.aliases:
             return True
 
         # Check if defined alias is still valid:
         bad_alias = []
-        for alias in check_alias:
+        for alias in self._acme.aliases:
             if not await self._custom_domain_dns_configuration_is_valid(
                 self.instance_domain,
                 alias,
@@ -737,7 +757,8 @@ class RemoteUI:
         )
 
         await self._recreate_acme(
-            [domain for domain in self._acme.domains if domain not in bad_alias],
+            self._acme.domain,
+            [alias for alias in self._acme.aliases if alias not in bad_alias],
             self._acme.email,
         )
         return True

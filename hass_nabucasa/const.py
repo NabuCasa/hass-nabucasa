@@ -14,6 +14,13 @@ TWELVE_HOURS_IN_SECONDS = 12 * 60 * 60
 ONE_HOUR_IN_SECONDS = 60 * 60
 FIVE_MINUTES_IN_SECONDS = 5 * 60
 
+AUTO_LOGIN_INITIAL_DELAY = 10
+AUTO_LOGIN_FAST_RETRY_INTERVAL = 5
+AUTO_LOGIN_FAST_RETRY_PERIOD = 60
+AUTO_LOGIN_MEDIUM_RETRY_INTERVAL = 10
+AUTO_LOGIN_MEDIUM_RETRY_PERIOD = FIVE_MINUTES_IN_SECONDS
+AUTO_LOGIN_MAX_TOTAL_BACKOFF = 24 * ONE_HOUR_IN_SECONDS
+
 MODE_PROD = "production"
 MODE_DEV = "development"
 
@@ -94,6 +101,8 @@ class CertificateStatus(StrEnum):
     CHALLENGE_DNS_UPDATING = "challenge_dns_updating"
     CHALLENGE_PENDING = "challenge_pending"
     CHALLENGE_UNEXPECTED_ERROR = "challenge_unexpected_error"
+    CHALLENGE_VALIDATED = "challenge_validated"
+    CHALLENGE_VALIDATING = "challenge_validating"
     CSR_GENERATING = "csr_generating"
     DOMAIN_VALIDATION_FAILED = "domain_validation_failed"
     ERROR = "error"

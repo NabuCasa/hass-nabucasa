@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine
 import json
 from pathlib import Path
 import threading
@@ -16,8 +15,14 @@ from freezegun.api import (
     TickingDateTimeFactory,
 )
 import pytest
+from snitun.client.access_list import AccessList
 
 from hass_nabucasa.client import CloudClient
+from hass_nabucasa.service_discovery import (
+    ServiceDiscoveryCacheData,
+    ServiceDiscoveryResponse,
+)
+from hass_nabucasa.utils import utcnow
 
 FROZEN_NOW_AS_TIMESTAMP = 1537185600  # 2018-09-17 12:00:00 UTC
 
@@ -41,6 +46,18 @@ def construct_service_discovery_actions(
         **fixture_data["actions"],
         **(overrides or {}),
     }
+
+
+def prefilled_service_discovery_cache() -> ServiceDiscoveryCacheData:
+    """Return a valid service discovery cache holding no actions.
+
+    Action URLs then resolve through the fallback actions, without any request
+    being made to the well-known endpoint.
+    """
+    return ServiceDiscoveryCacheData(
+        data=ServiceDiscoveryResponse(actions={}, valid_for=3600, version="test"),
+        valid_until=utcnow().timestamp() + 3600,
+    )
 
 
 class MockClient(CloudClient):
@@ -208,12 +225,14 @@ class MockAcme:
         self.expire_date = None
         self.fingerprint = None
 
+        self.domain = None
+        self.aliases = []
         self.email = "test@nabucasa.inc"
 
     @property
     def domains(self):
         """Return all domains."""
-        return self.alternative_names
+        return [self.domain, *self.aliases]
 
     def set_false(self):
         """Set certificate as not valid."""
@@ -249,6 +268,7 @@ class MockAcme:
         """Init."""
         self.init_args = args
         self.init_kwargs = kwargs
+        _, self.domain, self.aliases, *_ = args
         return self
 
 
@@ -263,11 +283,11 @@ class MockSnitun:
         self.call_disconnect = False
         self.init_args = None
         self.connect_args = None
+        self.connect_kwargs = None
         self.init_kwarg = None
         self.wait_task = asyncio.Event()
 
-        self.start_whitelist = None
-        self.start_endpoint_connection_error_callback = None
+        self.start_access_list = None
 
     @property
     def is_connected(self):
@@ -280,14 +300,10 @@ class MockSnitun:
 
     async def start(
         self,
-        whitelist: bool = False,
-        endpoint_connection_error_callback: Coroutine[Any, Any, None] | None = None,
-    ):
+        access_list: AccessList | None = None,
+    ) -> None:
         """Start snitun."""
-        self.start_whitelist = whitelist
-        self.start_endpoint_connection_error_callback = (
-            endpoint_connection_error_callback
-        )
+        self.start_access_list = access_list
         self.call_start = True
 
     async def stop(self):
@@ -299,11 +315,16 @@ class MockSnitun:
         token: bytes,
         aes_key: bytes,
         aes_iv: bytes,
-        throttling=None,
-    ):
+        throttling: int | None = None,
+        protocol_version: int = 0,
+    ) -> None:
         """Connect snitun."""
         self.call_connect = True
         self.connect_args = [token, aes_key, aes_iv, throttling]
+        self.connect_kwargs = {
+            "throttling": throttling,
+            "protocol_version": protocol_version,
+        }
 
     async def disconnect(self):
         """Disconnect snitun."""

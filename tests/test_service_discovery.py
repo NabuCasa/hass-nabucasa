@@ -47,6 +47,12 @@ def assert_snapshot_with_logs(
     assert {"result": result, "log": extract_log_messages(caplog)} == snapshot
 
 
+@pytest.fixture(name="prefill_service_discovery_cache")
+def prefill_service_discovery_cache_fixture() -> bool:
+    """Start without a service discovery cache, these tests populate it."""
+    return False
+
+
 @pytest.fixture(autouse=True)
 def jitter_patch() -> Generator[Any, Any, Any]:
     """Mock jitter to always return 0."""
@@ -412,6 +418,200 @@ async def test_service_discovery_with_action_overrides(
     url = discovery.action_url("test_api_action")
     assert url == override_url
     assert_snapshot_with_logs(url, caplog, snapshot)
+
+
+async def test_async_action_url_uses_valid_cache_without_fetching(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that async_action_url does not refetch when the cache is valid."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json=BASE_EXPECTED_RESULT,
+    )
+
+    await cloud.service_discovery._load_service_discovery_data()
+    assert aioclient_mock.call_count == 1
+
+    url = await cloud.service_discovery.async_action_url(
+        "test_api_action", param="test"
+    )
+
+    assert url == "https://example.com/test/test/action"
+    assert aioclient_mock.call_count == 1
+
+
+async def test_async_action_url_fetches_when_nothing_is_cached(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that async_action_url fetches and stores data when there is no cache."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json=BASE_EXPECTED_RESULT,
+    )
+    cloud.service_discovery._fallback_actions = {
+        "test_api_action": "https://example.com/test/fallback/action"
+    }
+
+    url = await cloud.service_discovery.async_action_url(
+        "test_api_action", param="test"
+    )
+
+    assert url == "https://example.com/test/test/action"
+    assert aioclient_mock.call_count == 1
+    assert cloud.service_discovery._memory_cache is not None
+    assert cloud.service_discovery._memory_cache["data"] == BASE_EXPECTED_RESULT
+    assert cloud.service_discovery._service_discovery_refresh_task is None
+
+
+async def test_async_action_url_waits_for_in_flight_load(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that async_action_url waits for an in-flight load to complete."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json=BASE_EXPECTED_RESULT,
+    )
+    cloud.service_discovery._fallback_actions = {
+        "test_api_action": "https://example.com/test/fallback/action"
+    }
+    original_fetch = cloud.service_discovery._fetch_well_known_service_discovery
+
+    async def slow_fetch():
+        await asyncio.sleep(0.1)
+        return await original_fetch()
+
+    with patch.object(
+        cloud.service_discovery,
+        "_fetch_well_known_service_discovery",
+        slow_fetch,
+    ):
+        load_task = asyncio.create_task(
+            cloud.service_discovery._load_service_discovery_data()
+        )
+        await asyncio.sleep(0)
+
+        url = await cloud.service_discovery.async_action_url(
+            "test_api_action", param="test"
+        )
+        await load_task
+
+    assert url == "https://example.com/test/test/action"
+    assert aioclient_mock.call_count == 1
+
+
+async def test_async_action_url_does_not_compete_with_start(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that async_action_url does not duplicate work done by start."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json=BASE_EXPECTED_RESULT,
+    )
+    cloud.events.publish = AsyncMock()
+
+    _, url = await asyncio.gather(
+        cloud.service_discovery.async_start_service_discovery(),
+        cloud.service_discovery.async_action_url("test_api_action", param="test"),
+    )
+
+    assert url == "https://example.com/test/test/action"
+    assert aioclient_mock.call_count == 1
+    assert cloud.events.publish.call_count == 1
+    assert cloud.events.publish.call_args[1]["event"].type == (
+        CloudEventType.SERVICE_DISCOVERY_UPDATE
+    )
+
+    await cloud.service_discovery.async_stop_service_discovery()
+
+
+async def test_async_action_url_falls_back_on_fetch_failure(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that async_action_url falls back when the fetch fails."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        status=500,
+        text="Internal Server Error",
+    )
+    cloud.service_discovery._fallback_actions = {
+        "test_api_action": "https://example.com/test/fallback/action"
+    }
+
+    url = await cloud.service_discovery.async_action_url(
+        "test_api_action", param="test"
+    )
+
+    assert url == "https://example.com/test/fallback/action"
+    assert "Unable to load service discovery data" in caplog.text
+
+
+async def test_async_action_url_falls_back_on_timeout(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that async_action_url falls back when loading times out."""
+    cloud.service_discovery._fallback_actions = {
+        "test_api_action": "https://example.com/test/fallback/action"
+    }
+
+    async def never_finish():
+        await asyncio.Event().wait()
+
+    with (
+        patch("hass_nabucasa.service_discovery.ACTION_URL_LOAD_TIMEOUT", 0.01),
+        patch.object(
+            cloud.service_discovery,
+            "_load_service_discovery_data",
+            never_finish,
+        ),
+    ):
+        url = await cloud.service_discovery.async_action_url(
+            "test_api_action", param="test"
+        )
+
+    assert url == "https://example.com/test/fallback/action"
+    assert (
+        "Timeout while waiting for service discovery data for action test_api_action"
+        in caplog.text
+    )
+
+
+async def test_async_action_url_missing_format_parameter(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that async_action_url raises when a format parameter is missing."""
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json=BASE_EXPECTED_RESULT,
+    )
+
+    with pytest.raises(ServiceDiscoveryMissingParameterError):
+        await cloud.service_discovery.async_action_url("test_api_action")
+
+
+async def test_async_action_url_unknown_action(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that async_action_url raises for an unknown action."""
+    with pytest.raises(ServiceDiscoveryMissingActionError):
+        await cloud.service_discovery.async_action_url("invalid_action")  # type: ignore[arg-type]
+
+    assert aioclient_mock.call_count == 0
 
 
 async def test_invalid_action_name_in_response(

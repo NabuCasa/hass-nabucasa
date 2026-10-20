@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from .cognito import (
+    AccountNotReady,
+    AlreadyLoggedIn,
+    AuthTimeoutError,
     CloudConnectionError,
     CloudError,
     CognitoAuth,
@@ -17,6 +20,9 @@ from .cognito import (
 )
 
 __all__ = [
+    "AccountNotReady",
+    "AlreadyLoggedIn",
+    "AuthTimeoutError",
     "CloudConnectionError",
     "CloudError",
     "CognitoAuth",

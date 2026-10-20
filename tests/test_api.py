@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
+from aiohttp import ClientError
 import pytest
 import voluptuous as vol
 
@@ -603,6 +604,67 @@ async def test_call_cloud_api_with_action_values(
         )
 
         assert result == {"result": "success"}
+
+
+async def test_call_cloud_api_with_action_loads_service_discovery(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test _call_cloud_api with an action loads missing service discovery data."""
+    test_api = AwesomeApiClass(cloud)
+    cloud.service_discovery._memory_cache = None
+
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        json={
+            "actions": {"test_api_action": "https://example.com/test/{param}/action"},
+            "valid_for": 3600,
+            "version": "1.0",
+        },
+    )
+    aioclient_mock.get(
+        "https://example.com/test/value/action",
+        json={"result": "success"},
+    )
+
+    result = await test_api._call_cloud_api(
+        action="test_api_action",
+        action_values={"param": "value"},
+    )
+
+    assert result == {"result": "success"}
+    assert cloud.service_discovery._memory_cache is not None
+    assert cloud.service_discovery._memory_cache["data"]["version"] == "1.0"
+    assert [str(url) for _, url, _, _ in aioclient_mock.mock_calls] == [
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        "https://example.com/test/value/action",
+    ]
+
+
+async def test_call_cloud_api_with_action_when_service_discovery_fails(
+    aioclient_mock: AiohttpClientMocker,
+    cloud: Cloud,
+) -> None:
+    """Test _call_cloud_api with an action when service discovery is unavailable."""
+    test_api = AwesomeApiClass(cloud)
+    cloud.service_discovery._memory_cache = None
+
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/.well-known/service-discovery",
+        exc=ClientError("boom!"),
+    )
+    aioclient_mock.get(
+        "https://example.com/test/value/action",
+        json={"result": "success"},
+    )
+
+    result = await test_api._call_cloud_api(
+        action="test_api_action",
+        action_values={"param": "value"},
+    )
+
+    assert result == {"result": "success"}
+    assert cloud.service_discovery._memory_cache is None
 
 
 async def test_hostname_property_default(

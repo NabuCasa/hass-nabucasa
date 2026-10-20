@@ -10,22 +10,36 @@ from typing import TYPE_CHECKING, Any
 
 import boto3
 import botocore
-from botocore.exceptions import BotoCoreError, ClientError, EndpointConnectionError
+from botocore.exceptions import BotoCoreError, ClientError
 import pycognito
 from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
 from ..const import MESSAGE_AUTH_FAIL
-from ..exceptions import CloudError
+from ..exceptions import (
+    CloudError,
+    NabuCasaAuthenticationError,
+    NabuCasaBaseError,
+    NabuCasaConnectionError,
+)
 from ..utils import expiration_from_token, seconds_as_dhms, utcnow
+from .const import DEFAULT_AUTH_TIMEOUT
 
 if TYPE_CHECKING:
     from .. import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
 
+# One shared object, so _cached_cognito sees equal arguments: Config objects
+# only compare equal to themselves.
+_BOTOCORE_CONFIG = botocore.config.Config(signature_version=botocore.UNSIGNED)
+
 
 class Unauthenticated(CloudError):
     """Raised when authentication failed."""
+
+
+class AlreadyLoggedIn(CloudError):
+    """Raised when trying to log in while already logged in."""
 
 
 class MFARequired(CloudError):
@@ -60,8 +74,20 @@ class UserNotConfirmed(CloudError):
     """Raised when a user has not confirmed email yet."""
 
 
+class AccountNotReady(CloudError):
+    """Raised when the account's subscription has not finished provisioning."""
+
+
 class CloudConnectionError(CloudError):
     """Raised when unable to connect to the cloud."""
+
+
+class AuthTimeoutError(
+    CloudError,
+    NabuCasaConnectionError,
+    NabuCasaAuthenticationError,
+):
+    """Raised when an authentication request times out."""
 
 
 class PasswordChangeRequired(CloudError):
@@ -85,7 +111,11 @@ AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
     "UsernameExistsException": UserExists,
     "NotAuthorizedException": Unauthenticated,
     "PasswordResetRequiredException": PasswordChangeRequired,
+    "ConnectionClosedError": CloudConnectionError,
+    "ConnectTimeoutError": CloudConnectionError,
     "EndpointConnectionError": CloudConnectionError,
+    "ProxyConnectionError": CloudConnectionError,
+    "ReadTimeoutError": AuthTimeoutError,
 }
 
 
@@ -125,7 +155,7 @@ class CognitoAuth:
                 )
                 await asyncio.sleep(sleep_time)
                 await self.async_renew_access_token()
-            except CloudError as err:
+            except NabuCasaBaseError as err:
                 _LOGGER.error("Can't refresh cloud token: %s", err)
             except asyncio.CancelledError:
                 # Task is canceled, stop it.
@@ -162,10 +192,8 @@ class CognitoAuth:
                     ),
                 )
 
-        except (ClientError, EndpointConnectionError) as err:
+        except (ClientError, BotoCoreError) as err:
             raise _map_aws_exception(err) from err
-        except BotoCoreError as err:
-            raise UnknownError from err
 
     async def async_resend_email_confirm(self, email: str) -> None:
         """Resend email confirmation."""
@@ -181,10 +209,8 @@ class CognitoAuth:
                         ClientId=cognito.client_id,
                     ),
                 )
-        except (ClientError, EndpointConnectionError) as err:
+        except (ClientError, BotoCoreError) as err:
             raise _map_aws_exception(err) from err
-        except BotoCoreError as err:
-            raise UnknownError from err
 
     async def async_forgot_password(self, email: str) -> None:
         """Initialize forgotten password flow."""
@@ -195,10 +221,8 @@ class CognitoAuth:
                 )
                 await self.cloud.run_executor(cognito.initiate_forgot_password)
 
-        except (ClientError, EndpointConnectionError) as err:
+        except (ClientError, BotoCoreError) as err:
             raise _map_aws_exception(err) from err
-        except BotoCoreError as err:
-            raise UnknownError from err
 
     async def async_login(
         self,
@@ -210,13 +234,14 @@ class CognitoAuth:
         """Log user in and fetch certificate."""
         try:
             async with self._request_lock:
-                assert not self.cloud.is_logged_in, "Cannot login if already logged in."
+                if self.cloud.is_logged_in:
+                    raise AlreadyLoggedIn("Cannot login if already logged in.")
 
                 cognito: pycognito.Cognito = await self.cloud.run_executor(
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with asyncio.timeout(30):
+                async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
                     await self.cloud.run_executor(
                         partial(cognito.authenticate, password=password),
                     )
@@ -241,11 +266,11 @@ class CognitoAuth:
         except ForceChangePasswordException as err:
             raise PasswordChangeRequired from err
 
-        except (ClientError, EndpointConnectionError) as err:
-            raise _map_aws_exception(err) from err
+        except TimeoutError as err:
+            raise AuthTimeoutError("Timeout while logging in") from err
 
-        except BotoCoreError as err:
-            raise UnknownError from err
+        except (ClientError, BotoCoreError) as err:
+            raise _map_aws_exception(err) from err
 
     async def async_login_verify_totp(
         self,
@@ -258,15 +283,14 @@ class CognitoAuth:
         """Log user in and fetch certificate if MFA is required."""
         try:
             async with self._request_lock:
-                assert not self.cloud.is_logged_in, (
-                    "Cannot verify TOTP if already logged in."
-                )
+                if self.cloud.is_logged_in:
+                    raise AlreadyLoggedIn("Cannot verify TOTP if already logged in.")
 
                 cognito: pycognito.Cognito = await self.cloud.run_executor(
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with asyncio.timeout(30):
+                async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
                     await self.cloud.run_executor(
                         partial(
                             cognito.respond_to_software_token_mfa_challenge,
@@ -289,11 +313,11 @@ class CognitoAuth:
             if task:
                 await task
 
-        except (ClientError, EndpointConnectionError) as err:
-            raise _map_aws_exception(err) from err
+        except TimeoutError as err:
+            raise AuthTimeoutError("Timeout while verifying TOTP code") from err
 
-        except BotoCoreError as err:
-            raise UnknownError from err
+        except (ClientError, BotoCoreError) as err:
+            raise _map_aws_exception(err) from err
 
     async def async_check_token(self) -> None:
         """Check that the token is valid and renew if necessary."""
@@ -330,14 +354,15 @@ class CognitoAuth:
         cognito = await self._async_authenticated_cognito()
 
         try:
-            await self.cloud.run_executor(cognito.renew_access_token)
+            async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+                await self.cloud.run_executor(cognito.renew_access_token)
             await self.cloud.update_token(cognito.id_token, cognito.access_token)
 
-        except (ClientError, EndpointConnectionError) as err:
-            raise _map_aws_exception(err) from err
+        except TimeoutError as err:
+            raise AuthTimeoutError("Timeout while renewing access token") from err
 
-        except BotoCoreError as err:
-            raise UnknownError from err
+        except (ClientError, BotoCoreError) as err:
+            raise _map_aws_exception(err) from err
 
     async def _async_authenticated_cognito(self) -> pycognito.Cognito:
         """Return an authenticated cognito instance."""
@@ -364,7 +389,7 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=botocore.config.Config(signature_version=botocore.UNSIGNED),
+            botocore_config=_BOTOCORE_CONFIG,
             session=self._session,
             **kwargs,
         )
@@ -376,9 +401,22 @@ def _map_aws_exception(err: ClientError | BotoCoreError) -> CloudError:
         return AWS_EXCEPTIONS.get(err.__class__.__name__, UnknownError)(
             err.kwargs.get("error", str(err))
         )
-    return AWS_EXCEPTIONS.get(err.response["Error"]["Code"], UnknownError)(
-        err.response["Error"]["Message"]
-    )
+
+    error = err.response["Error"]
+    error_code = error["Code"]
+    error_message = error["Message"]
+
+    # Strip Cognito's Lambda wrapper: "<trigger> failed with error ||<message>".
+    error_message = error_message.rsplit("||", 1)[-1].strip()
+
+    # A PreSignUp Lambda reports "already exists" as UserLambdaValidationException.
+    if (
+        error_code == "UserLambdaValidationException"
+        and "already exists" in error_message.lower()
+    ):
+        return UserExists(error_message)
+
+    return AWS_EXCEPTIONS.get(error_code, UnknownError)(error_message)
 
 
 @lru_cache(maxsize=2)
