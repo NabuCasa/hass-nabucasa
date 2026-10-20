@@ -53,17 +53,6 @@
   '[DEBUG] hass_nabucasa.events.bus: No subscribers for event relayer_connected'
 # ---
 # name: test_subscribe_and_publish
-  _CallList([
-    _Call(
-      tuple(
-        RelayerConnectedEvent(type=<CloudEventType.RELAYER_CONNECTED: 'relayer_connected'>, timestamp=1537185600),
-      ),
-      dict({
-      }),
-    ),
-  ])
-# ---
-# name: test_subscribe_and_publish.1
   '''
   [DEBUG] hass_nabucasa.events.bus: AsyncMock subscribed to [<CloudEventType.RELAYER_CONNECTED: 'relayer_connected'>]
   [DEBUG] hass_nabucasa.events.bus: Publish relayer_connected to 1 subscribers
