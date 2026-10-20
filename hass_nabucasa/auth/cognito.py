@@ -3,16 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-from functools import lru_cache, partial
+from functools import cache, lru_cache, partial
 import logging
 import random
 from typing import TYPE_CHECKING, Any
 
-import boto3
-import botocore
 from botocore.exceptions import BotoCoreError, ClientError
-import pycognito
-from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
 from ..const import MESSAGE_AUTH_FAIL
 from ..exceptions import (
@@ -25,13 +21,16 @@ from ..utils import expiration_from_token, seconds_as_dhms, utcnow
 from .const import DEFAULT_AUTH_TIMEOUT
 
 if TYPE_CHECKING:
+    # boto3 and pycognito are imported when the first Cognito client is
+    # created, in the executor. Most instances never log in to the cloud,
+    # and importing them costs about 15 MiB.
+    import boto3
+    import botocore.config
+    import pycognito
+
     from .. import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
-
-# One shared object, so _cached_cognito sees equal arguments: Config objects
-# only compare equal to themselves.
-_BOTOCORE_CONFIG = botocore.config.Config(signature_version=botocore.UNSIGNED)
 
 
 class Unauthenticated(CloudError):
@@ -243,7 +242,7 @@ class CognitoAuth:
 
                 async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
                     await self.cloud.run_executor(
-                        partial(cognito.authenticate, password=password),
+                        partial(_authenticate, cognito, password),
                     )
 
                 if check_connection:
@@ -259,12 +258,6 @@ class CognitoAuth:
 
             if task:
                 await task
-
-        except MFAChallengeException as err:
-            raise MFARequired(err.get_tokens()) from err
-
-        except ForceChangePasswordException as err:
-            raise PasswordChangeRequired from err
 
         except TimeoutError as err:
             raise AuthTimeoutError("Timeout while logging in") from err
@@ -382,6 +375,9 @@ class CognitoAuth:
 
         NOTE: This will do I/O
         """
+        # pylint: disable=import-outside-toplevel
+        import boto3  # noqa: PLC0415
+
         if self._session is None:
             self._session = boto3.session.Session()
 
@@ -389,10 +385,43 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=_BOTOCORE_CONFIG,
+            botocore_config=_botocore_config(),
             session=self._session,
             **kwargs,
         )
+
+
+@cache
+def _botocore_config() -> botocore.config.Config:
+    """Return one shared botocore Config.
+
+    _cached_cognito needs the same object on every call, since Config objects
+    only compare equal to themselves. It is built on first use because
+    importing botocore.config loads most of botocore.
+    """
+    # pylint: disable-next=import-outside-toplevel
+    import botocore.config  # noqa: PLC0415
+
+    return botocore.config.Config(signature_version=botocore.UNSIGNED)
+
+
+def _authenticate(cognito: pycognito.Cognito, password: str) -> None:
+    """Authenticate with a password, mapping pycognito challenges.
+
+    NOTE: This will do I/O
+    """
+    # pylint: disable-next=import-outside-toplevel
+    from pycognito.exceptions import (  # noqa: PLC0415
+        ForceChangePasswordException,
+        MFAChallengeException,
+    )
+
+    try:
+        cognito.authenticate(password=password)
+    except MFAChallengeException as err:
+        raise MFARequired(err.get_tokens()) from err
+    except ForceChangePasswordException as err:
+        raise PasswordChangeRequired from err
 
 
 def _map_aws_exception(err: ClientError | BotoCoreError) -> CloudError:
@@ -432,6 +461,9 @@ def _cached_cognito(
 
     NOTE: This will do I/O
     """
+    # pylint: disable-next=import-outside-toplevel
+    import pycognito  # noqa: PLC0415
+
     return pycognito.Cognito(
         user_pool_id=user_pool_id,
         client_id=client_id,
