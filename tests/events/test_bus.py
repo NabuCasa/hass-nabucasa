@@ -30,13 +30,11 @@ async def test_subscribe_and_publish(
 
     await event_bus.publish(event=RelayerConnectedEvent())
 
-    subscriber.assert_awaited_once()
-    event = subscriber.await_args.args[0]
-    assert event.type == CloudEventType.RELAYER_CONNECTED
-    assert event.timestamp is not None
+    assert len(subscriber.call_args_list) == 1
 
     unsubscribe()
 
+    assert subscriber.call_args_list == snapshot
     assert extract_log_messages(caplog) == snapshot
 
 
