@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator, AsyncIterable
+from contextlib import aclosing
 from datetime import datetime
 from enum import StrEnum
 import io
@@ -670,16 +671,21 @@ class Voice:
             if resp.status == 429 and not force_token_renewal:
                 # By checking the force_token_renewal argument, we limit retries to 1.
                 _LOGGER.info("Retrying with new token")
-                async for chunk in self._async_tts_chunks(
-                    text=text,
-                    language=language,
-                    output=output,
-                    voice=voice,
-                    gender=gender,
-                    force_token_renewal=True,
-                    style=style,
-                ):
-                    yield chunk
+                # Free the connection so the retry does not hold a second one
+                resp.release()
+                async with aclosing(
+                    self._async_tts_chunks(
+                        text=text,
+                        language=language,
+                        output=output,
+                        voice=voice,
+                        gender=gender,
+                        force_token_renewal=True,
+                        style=style,
+                    )
+                ) as chunks:
+                    async for chunk in chunks:
+                        yield chunk
                 return
             if resp.status not in (200, 201):
                 raise VoiceReturnError(
@@ -774,34 +780,40 @@ class Voice:
                 wav_buffer = bytearray()
                 frame_size: int | None = None
                 audio_remaining = 0
-                async for chunk in self._async_tts_chunks(
-                    text=text,
-                    language=language,
-                    output=AudioOutput.WAV,
-                    voice=voice,
-                    gender=gender,
-                    force_token_renewal=False,
-                    style=style,
-                ):
-                    wav_buffer.extend(chunk)
-                    if frame_size is None:
-                        if (header := _try_parse_wav_header(wav_buffer)) is None:
-                            continue
-                        header_bytes, audio_offset, frame_size, audio_remaining = header
-                        del wav_buffer[:audio_offset]
-                        if not wav_header_sent:
-                            # Send WAV header once, then stream audio
-                            yield header_bytes
-                            wav_header_sent = True
+                # Close the response at once when the consumer stops early
+                async with aclosing(
+                    self._async_tts_chunks(
+                        text=text,
+                        language=language,
+                        output=AudioOutput.WAV,
+                        voice=voice,
+                        gender=gender,
+                        force_token_renewal=False,
+                        style=style,
+                    )
+                ) as chunks:
+                    async for chunk in chunks:
+                        wav_buffer.extend(chunk)
+                        if frame_size is None:
+                            if (header := _try_parse_wav_header(wav_buffer)) is None:
+                                continue
+                            header_bytes, audio_offset, frame_size, audio_remaining = (
+                                header
+                            )
+                            del wav_buffer[:audio_offset]
+                            if not wav_header_sent:
+                                # Send WAV header once, then stream audio
+                                yield header_bytes
+                                wav_header_sent = True
 
-                    # Only send whole frames of the data chunk, so no sample is
-                    # split and trailing chunks are not played as audio
-                    whole = min(len(wav_buffer), audio_remaining)
-                    whole -= whole % frame_size
-                    if whole:
-                        yield bytes(wav_buffer[:whole])
-                        del wav_buffer[:whole]
-                        audio_remaining -= whole
+                        # Only send whole frames of the data chunk, so no sample is
+                        # split and trailing chunks are not played as audio
+                        whole = min(len(wav_buffer), audio_remaining)
+                        whole -= whole % frame_size
+                        if whole:
+                            yield bytes(wav_buffer[:whole])
+                            del wav_buffer[:whole]
+                            audio_remaining -= whole
 
                 if frame_size is None:
                     raise VoiceReturnError("Invalid WAV data received from TTS")
