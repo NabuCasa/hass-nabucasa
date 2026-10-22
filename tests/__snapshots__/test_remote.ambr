@@ -68,7 +68,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for acme_directory: https://acme.example.com/directory
-  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't connect to ACME server: urn:ietf:params:acme:error:malformed :: The request message was malformed :: Some other malformed reason
+  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa,*.test.dui.nabu.casa: Can't connect to ACME server: urn:ietf:params:acme:error:malformed :: The request message was malformed :: Some other malformed reason
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
@@ -87,7 +87,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for acme_directory: https://acme.example.com/directory
-  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't connect to ACME server: about:blank :: Boom
+  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa,*.test.dui.nabu.casa: Can't connect to ACME server: about:blank :: Boom
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
@@ -160,7 +160,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
   [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
-  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't order a new ACME challenge: urn:ietf:params:acme:error:malformed :: The request message was malformed :: Some other malformed reason
+  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa,*.test.dui.nabu.casa: Can't order a new ACME challenge: urn:ietf:params:acme:error:malformed :: The request message was malformed :: Some other malformed reason
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
@@ -179,7 +179,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: expired
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
   [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
-  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't order a new ACME challenge: about:blank :: Boom
+  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa,*.test.dui.nabu.casa: Can't order a new ACME challenge: about:blank :: Boom
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
@@ -199,7 +199,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: no_certificate
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
   [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
-  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't order a new ACME challenge: Connection timeout
+  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa,*.test.dui.nabu.casa: Can't order a new ACME challenge: Connection timeout
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
@@ -219,7 +219,7 @@
   [DEBUG] hass_nabucasa.remote: Certificate status: no_certificate
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_generating
   [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
-  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't order a new ACME challenge: DNS resolution failed
+  [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa,*.test.dui.nabu.casa: Can't order a new ACME challenge: DNS resolution failed
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
   '''
 # ---
