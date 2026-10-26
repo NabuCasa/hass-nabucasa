@@ -1,6 +1,7 @@
 """Tests for hass_nabucasa utils."""
 
 import asyncio
+import math
 from unittest.mock import MagicMock, patch
 
 from icmplib import Host, ICMPLibError, SocketPermissionError
@@ -71,7 +72,7 @@ def test_expiration_from_token():
             "iat": 1234567890,
             "sub": "user_id",
         },
-        "secret",
+        "secret-secret-secret-secret-secret",
         algorithm="HS256",
     )
     assert utils.expiration_from_token(encoded) == 1234567890
@@ -84,7 +85,7 @@ def test_expiration_from_token_no_exp():
             "iat": 1234567890,
             "sub": "user_id",
         },
-        "secret",
+        "secret-secret-secret-secret-secret",
         algorithm="HS256",
     )
     assert utils.expiration_from_token(encoded) is None
@@ -229,61 +230,75 @@ async def test_async_check_latency_partial_unreachable(snapshot: SnapshotAsserti
     assert result == snapshot
 
 
-async def test_async_check_latency_socket_permission_error_retries():
-    """Test async_check_latency.
+async def test_async_resolve_ping_privileges_privileged():
+    """Test async_resolve_ping_privileges keeps privileged mode when available."""
+    with patch("hass_nabucasa.utils.async_ping") as mock_ping:
+        assert await utils.async_resolve_ping_privileges() is True
 
-    retries with privileged=False on SocketPermissionError.
+    assert mock_ping.call_count == 1
+    assert mock_ping.call_args[1]["privileged"] is True
+
+
+async def test_async_resolve_ping_privileges_falls_back():
+    """Test async_resolve_ping_privileges.
+
+    falls back to unprivileged mode on SocketPermissionError.
     """
-    mock_host = MagicMock(
-        address="999.999.999.999",
-        is_alive=True,
-        avg_rtt=10.5,
-        max_rtt=15.0,
-        min_rtt=5.0,
-        spec=Host,
-    )
-
     with patch(
-        "hass_nabucasa.utils.async_multiping",
-        side_effect=[SocketPermissionError(privileged=True), [mock_host]],
-    ) as mock_multiping:
-        result = await utils.async_check_latency(["999.999.999.999"])
+        "hass_nabucasa.utils.async_ping",
+        side_effect=[SocketPermissionError(privileged=True), None],
+    ) as mock_ping:
+        assert await utils.async_resolve_ping_privileges() is False
 
-    assert mock_multiping.call_count == 2
-    assert mock_multiping.call_args_list[0][1]["privileged"] is True
-    assert mock_multiping.call_args_list[1][1]["privileged"] is False
-    assert len(result) == 1
-    assert result[0]["address"] == "999.999.999.999"
+    assert mock_ping.call_count == 2
+    assert mock_ping.call_args_list[0][1]["privileged"] is True
+    assert mock_ping.call_args_list[1][1]["privileged"] is False
 
 
-async def test_async_check_latency_socket_permission_error_unprivileged():
-    """Test async_check_latency.
+async def test_async_resolve_ping_privileges_unprivileged():
+    """Test async_resolve_ping_privileges.
 
     raises CheckLatencyInsufficientPrivileges when privileged=False.
     """
     with (
         patch(
-            "hass_nabucasa.utils.async_multiping",
+            "hass_nabucasa.utils.async_ping",
             side_effect=SocketPermissionError(privileged=True),
-        ),
+        ) as mock_ping,
         pytest.raises(utils.CheckLatencyInsufficientPrivileges),
     ):
-        await utils.async_check_latency(["999.999.999.999"], privileged=False)
+        await utils.async_resolve_ping_privileges(privileged=False)
+
+    assert mock_ping.call_count == 1
 
 
-async def test_async_check_latency_socket_permission_error_retry_also_fails():
-    """Test async_check_latency.
+async def test_async_resolve_ping_privileges_fallback_also_fails():
+    """Test async_resolve_ping_privileges.
 
-    raises CheckLatencyInsufficientPrivileges when retry also fails.
+    raises CheckLatencyInsufficientPrivileges when the fallback also fails.
     """
     with (
         patch(
-            "hass_nabucasa.utils.async_multiping",
+            "hass_nabucasa.utils.async_ping",
             side_effect=SocketPermissionError(privileged=True),
-        ),
+        ) as mock_ping,
         pytest.raises(utils.CheckLatencyInsufficientPrivileges),
     ):
-        await utils.async_check_latency(["999.999.999.999"])
+        await utils.async_resolve_ping_privileges()
+
+    assert mock_ping.call_count == 2
+
+
+async def test_async_resolve_ping_privileges_icmp_error():
+    """Test async_resolve_ping_privileges raises CheckLatencyError on ICMP errors."""
+    with (
+        patch(
+            "hass_nabucasa.utils.async_ping",
+            side_effect=ICMPLibError("ICMP error"),
+        ),
+        pytest.raises(utils.CheckLatencyError, match="ICMP ping failed"),
+    ):
+        await utils.async_resolve_ping_privileges()
 
 
 async def test_async_check_latency_icmp_error():
@@ -340,3 +355,122 @@ async def test_wait_for_event():
     assert not event.is_set()
 
     assert await utils.wait_for_event(event, 0) is False
+
+
+def test_backoff_interval_grows_until_maximum() -> None:
+    """Test that the interval grows until it hits the maximum."""
+    backoff = utils.Backoff(initial=1, maximum=8, multiplier=2, jitter_fraction=0)
+
+    assert [backoff.time_to_next_attempt() for _ in range(6)] == [1, 2, 4, 8, 8, 8]
+    assert backoff.attempts == 6
+    assert backoff.elapsed == 31
+
+
+def test_backoff_multiplier() -> None:
+    """Test that the multiplier controls the growth."""
+    fixed = utils.Backoff(initial=10, maximum=100, multiplier=1, jitter_fraction=0)
+    assert [fixed.time_to_next_attempt() for _ in range(2)] == [10, 10]
+
+    tripled = utils.Backoff(initial=10, maximum=1000, multiplier=3, jitter_fraction=0)
+    assert [tripled.time_to_next_attempt() for _ in range(3)] == [10, 30, 90]
+
+
+def test_backoff_default_multiplier() -> None:
+    """Test the growth of a backoff that does not pick a multiplier."""
+    backoff = utils.Backoff(initial=100, maximum=1000, jitter_fraction=0)
+
+    assert [backoff.time_to_next_attempt() for _ in range(3)] == [
+        100,
+        100 * utils.DEFAULT_BACKOFF_MULTIPLIER,
+        100 * utils.DEFAULT_BACKOFF_MULTIPLIER**2,
+    ]
+
+
+def test_backoff_jitter_is_shaved_off_the_interval() -> None:
+    """Test that jitter spreads the interval out without passing the maximum."""
+    backoff = utils.Backoff(initial=10, maximum=10, jitter_fraction=0.5)
+
+    with patch(
+        "hass_nabucasa.utils.jitter", side_effect=[0.0, 2.5, 5.0]
+    ) as jitter_mock:
+        intervals = [backoff.time_to_next_attempt() for _ in range(3)]
+
+    assert intervals == [10, 7.5, 5]
+    assert [call.args for call in jitter_mock.call_args_list] == [(0, 5.0)] * 3
+
+
+def test_backoff_never_passes_the_maximum() -> None:
+    """Test that the maximum holds once the growth has settled there."""
+    backoff = utils.Backoff(initial=1, maximum=10, jitter_fraction=0.999)
+
+    assert all(backoff.time_to_next_attempt() <= 10 for _ in range(50))
+
+
+def test_backoff_default_jitter_is_applied() -> None:
+    """Test that jitter is enabled by default."""
+    with patch("hass_nabucasa.utils.jitter", return_value=1.0) as jitter_mock:
+        assert utils.Backoff(initial=10, maximum=10).time_to_next_attempt() == 9.0
+
+    assert jitter_mock.call_args[0] == (0, 10 * utils.DEFAULT_BACKOFF_JITTER)
+
+
+def test_backoff_retries_forever() -> None:
+    """Test that a backoff keeps handing out intervals."""
+    backoff = utils.Backoff(initial=1, maximum=2, multiplier=2, jitter_fraction=0)
+
+    assert all(backoff.time_to_next_attempt() for _ in range(100_000))
+    assert backoff.elapsed == 199_999
+
+
+def test_backoff_reset() -> None:
+    """Test that a reset starts over from the initial interval."""
+    backoff = utils.Backoff(initial=10, maximum=100, multiplier=2, jitter_fraction=0)
+
+    assert [backoff.time_to_next_attempt() for _ in range(3)] == [10, 20, 40]
+
+    backoff.reset()
+
+    assert backoff.attempts == 0
+    assert backoff.elapsed == 0
+    assert backoff.time_to_next_attempt() == 10
+
+
+@pytest.mark.parametrize(
+    ("options", "message"),
+    [
+        ({"initial": math.nan, "maximum": 10}, "initial must be a finite number"),
+        ({"initial": 1, "maximum": math.inf}, "maximum must be a finite number"),
+        (
+            {"initial": 1, "maximum": 10, "multiplier": math.nan},
+            "multiplier must be a finite number",
+        ),
+        (
+            {"initial": 1, "maximum": 10, "jitter_fraction": math.nan},
+            "jitter_fraction must be at least 0 and below 1",
+        ),
+        ({"initial": 0, "maximum": 10}, "initial must be greater than 0"),
+        ({"initial": -1, "maximum": 10}, "initial must be greater than 0"),
+        ({"initial": 10, "maximum": 9}, "maximum must not be smaller than initial"),
+        (
+            {"initial": 1, "maximum": 10, "multiplier": 0.5},
+            "multiplier must not be smaller than 1",
+        ),
+        (
+            {"initial": 1, "maximum": 10, "jitter_fraction": 1.5},
+            "jitter_fraction must be at least 0 and below 1",
+        ),
+        (
+            # A full fraction can shave the whole interval off
+            {"initial": 1, "maximum": 10, "jitter_fraction": 1},
+            "jitter_fraction must be at least 0 and below 1",
+        ),
+        (
+            {"initial": 1, "maximum": 10, "jitter_fraction": -0.1},
+            "jitter_fraction must be at least 0 and below 1",
+        ),
+    ],
+)
+def test_backoff_invalid_options(options: dict[str, float], message: str) -> None:
+    """Test that invalid options are rejected."""
+    with pytest.raises(ValueError, match=message):
+        utils.Backoff(**options)

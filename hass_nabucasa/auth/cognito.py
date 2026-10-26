@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 import boto3
 import botocore
-from botocore.exceptions import BotoCoreError, ClientError, EndpointConnectionError
+from botocore.exceptions import BotoCoreError, ClientError
 import pycognito
 from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
@@ -28,6 +28,10 @@ if TYPE_CHECKING:
     from .. import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
+
+# One shared object, so _cached_cognito sees equal arguments: Config objects
+# only compare equal to themselves.
+_BOTOCORE_CONFIG = botocore.config.Config(signature_version=botocore.UNSIGNED)
 
 
 class Unauthenticated(CloudError):
@@ -107,7 +111,11 @@ AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
     "UsernameExistsException": UserExists,
     "NotAuthorizedException": Unauthenticated,
     "PasswordResetRequiredException": PasswordChangeRequired,
+    "ConnectionClosedError": CloudConnectionError,
+    "ConnectTimeoutError": CloudConnectionError,
     "EndpointConnectionError": CloudConnectionError,
+    "ProxyConnectionError": CloudConnectionError,
+    "ReadTimeoutError": AuthTimeoutError,
 }
 
 
@@ -184,10 +192,8 @@ class CognitoAuth:
                     ),
                 )
 
-        except (ClientError, EndpointConnectionError) as err:
+        except (ClientError, BotoCoreError) as err:
             raise _map_aws_exception(err) from err
-        except BotoCoreError as err:
-            raise UnknownError from err
 
     async def async_resend_email_confirm(self, email: str) -> None:
         """Resend email confirmation."""
@@ -203,10 +209,8 @@ class CognitoAuth:
                         ClientId=cognito.client_id,
                     ),
                 )
-        except (ClientError, EndpointConnectionError) as err:
+        except (ClientError, BotoCoreError) as err:
             raise _map_aws_exception(err) from err
-        except BotoCoreError as err:
-            raise UnknownError from err
 
     async def async_forgot_password(self, email: str) -> None:
         """Initialize forgotten password flow."""
@@ -217,10 +221,8 @@ class CognitoAuth:
                 )
                 await self.cloud.run_executor(cognito.initiate_forgot_password)
 
-        except (ClientError, EndpointConnectionError) as err:
+        except (ClientError, BotoCoreError) as err:
             raise _map_aws_exception(err) from err
-        except BotoCoreError as err:
-            raise UnknownError from err
 
     async def async_login(
         self,
@@ -267,11 +269,8 @@ class CognitoAuth:
         except TimeoutError as err:
             raise AuthTimeoutError("Timeout while logging in") from err
 
-        except (ClientError, EndpointConnectionError) as err:
+        except (ClientError, BotoCoreError) as err:
             raise _map_aws_exception(err) from err
-
-        except BotoCoreError as err:
-            raise UnknownError from err
 
     async def async_login_verify_totp(
         self,
@@ -317,11 +316,8 @@ class CognitoAuth:
         except TimeoutError as err:
             raise AuthTimeoutError("Timeout while verifying TOTP code") from err
 
-        except (ClientError, EndpointConnectionError) as err:
+        except (ClientError, BotoCoreError) as err:
             raise _map_aws_exception(err) from err
-
-        except BotoCoreError as err:
-            raise UnknownError from err
 
     async def async_check_token(self) -> None:
         """Check that the token is valid and renew if necessary."""
@@ -365,11 +361,8 @@ class CognitoAuth:
         except TimeoutError as err:
             raise AuthTimeoutError("Timeout while renewing access token") from err
 
-        except (ClientError, EndpointConnectionError) as err:
+        except (ClientError, BotoCoreError) as err:
             raise _map_aws_exception(err) from err
-
-        except BotoCoreError as err:
-            raise UnknownError from err
 
     async def _async_authenticated_cognito(self) -> pycognito.Cognito:
         """Return an authenticated cognito instance."""
@@ -396,7 +389,7 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=botocore.config.Config(signature_version=botocore.UNSIGNED),
+            botocore_config=_BOTOCORE_CONFIG,
             session=self._session,
             **kwargs,
         )
