@@ -56,7 +56,10 @@
   _CallList([
     _Call(
       tuple(
-        RelayerConnectedEvent(type=<CloudEventType.RELAYER_CONNECTED: 'relayer_connected'>, timestamp=1537185600),
+        RelayerConnectedEvent(
+          timestamp=1537185600,
+          type=<CloudEventType.RELAYER_CONNECTED: 'relayer_connected'>,
+        ),
       ),
       dict({
       }),
