@@ -447,8 +447,8 @@ async def test_signing_keys_not_downloaded_when_present(
 
 @pytest.mark.parametrize(
     "response",
-    [{"status": 500}, {"exc": aiohttp.ClientError("boom")}],
-    ids=["server_error", "connection_error"],
+    [{"status": 500}, {"exc": aiohttp.ClientError("boom")}, {"text": "not json"}],
+    ids=["server_error", "connection_error", "invalid_json"],
 )
 async def test_signing_keys_download_error(
     mock_cognito,

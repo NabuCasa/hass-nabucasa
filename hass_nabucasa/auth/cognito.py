@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from functools import lru_cache, partial
+from json import JSONDecodeError
 import logging
 import random
 from typing import TYPE_CHECKING, Any
@@ -391,7 +392,7 @@ class CognitoAuth:
             ) as resp:
                 resp.raise_for_status()
                 cognito.pool_jwk = await resp.json()
-        except aiohttp.ClientError as err:
+        except (aiohttp.ClientError, JSONDecodeError) as err:
             raise CloudConnectionError(
                 f"Unable to download signing keys: {err}"
             ) from err
