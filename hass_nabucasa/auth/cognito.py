@@ -8,6 +8,7 @@ import logging
 import random
 from typing import TYPE_CHECKING, Any
 
+import aiohttp
 import boto3
 import botocore
 from botocore.exceptions import BotoCoreError, ClientError
@@ -242,6 +243,7 @@ class CognitoAuth:
                 )
 
                 async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+                    await self._async_load_signing_keys(cognito)
                     await self.cloud.run_executor(
                         partial(cognito.authenticate, password=password),
                     )
@@ -291,6 +293,7 @@ class CognitoAuth:
                 )
 
                 async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+                    await self._async_load_signing_keys(cognito)
                     await self.cloud.run_executor(
                         partial(
                             cognito.respond_to_software_token_mfa_challenge,
@@ -355,6 +358,7 @@ class CognitoAuth:
 
         try:
             async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+                await self._async_load_signing_keys(cognito)
                 await self.cloud.run_executor(cognito.renew_access_token)
             await self.cloud.update_token(cognito.id_token, cognito.access_token)
 
@@ -376,6 +380,25 @@ class CognitoAuth:
                 refresh_token=self.cloud.refresh_token,
             ),
         )
+
+    async def _async_load_signing_keys(self, cognito: pycognito.Cognito) -> None:
+        """Download the user pool signing keys unless the client has them.
+
+        pycognito downloads them with requests, which has no Happy Eyeballs
+        fallback and stalls on broken IPv6.
+        """
+        if cognito.pool_jwk is not None:
+            return
+        try:
+            async with self.cloud.websession.get(
+                f"{cognito.user_pool_url}/.well-known/jwks.json"
+            ) as resp:
+                resp.raise_for_status()
+                cognito.pool_jwk = await resp.json()
+        except aiohttp.ClientError as err:
+            raise CloudConnectionError(
+                f"Unable to download signing keys: {err}"
+            ) from err
 
     def _create_cognito_client(self, **kwargs: Any) -> pycognito.Cognito:
         """Create a new cognito client.

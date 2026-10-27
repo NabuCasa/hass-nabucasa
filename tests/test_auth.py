@@ -4,6 +4,7 @@ import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiohttp
 from botocore.exceptions import (
     ClientError,
     ConnectionClosedError,
@@ -386,6 +387,88 @@ async def test_renew_access_token_read_timeout(mock_cognito, cloud_mock):
         await auth.async_renew_access_token()
 
     assert len(cloud_mock.update_token.mock_calls) == 0
+
+
+USER_POOL_URL = "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test"
+SIGNING_KEYS = {"keys": [{"kid": "test-kid", "kty": "RSA"}]}
+
+
+@pytest.mark.parametrize(
+    ("method", "flow"),
+    [
+        ("authenticate", lambda auth: auth.async_login("user", "pass")),
+        (
+            "respond_to_software_token_mfa_challenge",
+            lambda auth: auth.async_login_verify_totp(
+                "user", "123456", {"session": "session"}
+            ),
+        ),
+        ("renew_access_token", lambda auth: auth.async_renew_access_token()),
+    ],
+    ids=["login", "verify_totp", "renew"],
+)
+async def test_signing_keys_downloaded_through_websession(
+    mock_cognito,
+    mock_cloud,
+    aioclient_mock,
+    method,
+    flow,
+):
+    """Test the signing keys are on the client before pycognito verifies tokens."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    mock_cognito.pool_jwk = None
+    mock_cognito.user_pool_url = USER_POOL_URL
+    aioclient_mock.get(f"{USER_POOL_URL}/.well-known/jwks.json", json=SIGNING_KEYS)
+    keys_at_call = []
+    getattr(mock_cognito, method).side_effect = lambda *_, **__: keys_at_call.append(
+        mock_cognito.pool_jwk
+    )
+
+    await flow(auth)
+
+    assert aioclient_mock.call_count == 1
+    assert keys_at_call == [SIGNING_KEYS]
+
+
+async def test_signing_keys_not_downloaded_when_present(
+    mock_cognito,
+    mock_cloud,
+    aioclient_mock,
+):
+    """Test a client that already has the signing keys doesn't download them."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    mock_cognito.pool_jwk = SIGNING_KEYS
+
+    await auth.async_login("user", "pass")
+
+    assert aioclient_mock.call_count == 0
+    assert len(mock_cognito.authenticate.mock_calls) == 1
+
+
+@pytest.mark.parametrize(
+    "response",
+    [{"status": 500}, {"exc": aiohttp.ClientError("boom")}],
+    ids=["server_error", "connection_error"],
+)
+async def test_signing_keys_download_error(
+    mock_cognito,
+    mock_cloud,
+    aioclient_mock,
+    response,
+):
+    """Test a failed signing key download raises CloudConnectionError."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    mock_cognito.pool_jwk = None
+    mock_cognito.user_pool_url = USER_POOL_URL
+    aioclient_mock.get(f"{USER_POOL_URL}/.well-known/jwks.json", **response)
+
+    with pytest.raises(
+        auth_api.CloudConnectionError, match="Unable to download signing keys"
+    ):
+        await auth.async_login("user", "pass")
+
+    assert len(mock_cognito.authenticate.mock_calls) == 0
+    assert len(mock_cloud.update_token.mock_calls) == 0
 
 
 async def test_async_setup(cloud_mock):
