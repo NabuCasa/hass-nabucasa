@@ -382,11 +382,7 @@ class CognitoAuth:
         )
 
     async def _async_load_signing_keys(self, cognito: pycognito.Cognito) -> None:
-        """Download the user pool signing keys unless the client has them.
-
-        pycognito downloads them with requests, which has no Happy Eyeballs
-        fallback and stalls on broken IPv6.
-        """
+        """Download the user pool signing keys unless the client has them."""
         if cognito.pool_jwk is not None:
             return
         try:
