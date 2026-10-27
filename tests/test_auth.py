@@ -1,7 +1,6 @@
 """Tests for the tools to communicate with the cloud."""
 
 import asyncio
-from functools import partial
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -15,12 +14,15 @@ from botocore.exceptions import (
     ProxyConnectionError,
     ReadTimeoutError,
 )
-from botocore.stub import Stubber
 from pycognito.exceptions import MFAChallengeException
 import pytest
 
 from hass_nabucasa import CloudError, auth as auth_api
 from tests.common import FROZEN_NOW_AS_TIMESTAMP
+
+USER_POOL_URL = "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test"
+SIGNING_KEYS_URL = f"{USER_POOL_URL}/.well-known/jwks.json"
+SIGNING_KEYS = {"keys": [{"kid": "test-kid", "kty": "RSA"}]}
 
 
 @pytest.fixture
@@ -28,6 +30,14 @@ def mock_cloud(cloud_mock):
     """Mock cloud."""
     cloud_mock.is_logged_in = False
     return cloud_mock
+
+
+@pytest.fixture
+def mock_cognito(mock_cognito, aioclient_mock):
+    """Mock a Cognito client whose signing keys can be downloaded."""
+    mock_cognito.user_pool_url = USER_POOL_URL
+    aioclient_mock.get(SIGNING_KEYS_URL, json=SIGNING_KEYS)
+    return mock_cognito
 
 
 def aws_error(code, message="Unknown", operation_name="fake_operation_name"):
@@ -391,36 +401,58 @@ async def test_renew_access_token_read_timeout(mock_cognito, cloud_mock):
     assert len(cloud_mock.update_token.mock_calls) == 0
 
 
-USER_POOL_URL = "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test"
-SIGNING_KEYS_URL = f"{USER_POOL_URL}/.well-known/jwks.json"
-SIGNING_KEYS = {"keys": [{"kid": "test-kid", "kty": "RSA"}]}
+async def test_signing_keys_downloaded_once(mock_cognito, mock_cloud, aioclient_mock):
+    """Test the signing keys are downloaded once and given to every Cognito call."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    keys_at_call = []
+
+    def record_keys(*_, **__):
+        keys_at_call.append(mock_cognito.pool_jwk)
+
+    mock_cognito.authenticate.side_effect = record_keys
+    mock_cognito.respond_to_software_token_mfa_challenge.side_effect = record_keys
+    mock_cognito.renew_access_token.side_effect = record_keys
+
+    await auth.async_login("user", "pass")
+    await auth.async_login_verify_totp("user", "123456", {"session": "session"})
+    await auth.async_renew_access_token()
+
+    assert keys_at_call == [SIGNING_KEYS] * 3
+    assert aioclient_mock.call_count == 1
 
 
-@pytest.fixture
-def real_cognito_cloud(mock_cloud):
-    """Return a cloud mock that creates real Cognito clients."""
-    mock_cloud.region = "us-east-1"
-    mock_cloud.user_pool_id = "us-east-1_test"
-    mock_cloud.cognito_client_id = "test-client-id"
-    auth_api.cognito._cached_cognito.cache_clear()
-    yield mock_cloud
-    auth_api.cognito._cached_cognito.cache_clear()
-
-
-async def test_signing_keys_downloaded_through_websession(
-    real_cognito_cloud,
+async def test_signing_keys_refreshed_on_unknown_key(
+    mock_cognito,
+    mock_cloud,
     aioclient_mock,
 ):
-    """Test the signing keys are downloaded once through the websession."""
-    auth = auth_api.CognitoAuth(real_cognito_cloud)
-    aioclient_mock.get(SIGNING_KEYS_URL, json=SIGNING_KEYS)
-    cognito = await real_cognito_cloud.run_executor(
-        partial(auth._create_cognito_client, username="user")
+    """Test an unknown signing key refreshes the keys and repeats the call."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    mock_cognito.authenticate.side_effect = [
+        auth_api.cognito.UnknownSigningKey("new-kid"),
+        None,
+    ]
+
+    await auth.async_login("user", "pass")
+
+    assert aioclient_mock.call_count == 2
+    assert len(mock_cognito.authenticate.mock_calls) == 2
+    assert len(mock_cloud.update_token.mock_calls) == 1
+
+
+async def test_signing_keys_refresh_fails(mock_cognito, mock_cloud, aioclient_mock):
+    """Test an unknown signing key after a refresh raises UnknownSigningKey."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    mock_cognito.authenticate.side_effect = auth_api.cognito.UnknownSigningKey(
+        "new-kid"
     )
 
-    assert await real_cognito_cloud.run_executor(cognito.get_keys) == SIGNING_KEYS
-    assert await real_cognito_cloud.run_executor(cognito.get_keys) == SIGNING_KEYS
-    assert aioclient_mock.call_count == 1
+    with pytest.raises(auth_api.cognito.UnknownSigningKey):
+        await auth.async_login("user", "pass")
+
+    assert aioclient_mock.call_count == 2
+    assert len(mock_cognito.authenticate.mock_calls) == 2
+    assert len(mock_cloud.update_token.mock_calls) == 0
 
 
 @pytest.mark.parametrize(
@@ -429,43 +461,41 @@ async def test_signing_keys_downloaded_through_websession(
     ids=["server_error", "connection_error", "invalid_json"],
 )
 async def test_signing_keys_download_error(
-    real_cognito_cloud,
+    mock_cognito,
+    mock_cloud,
     aioclient_mock,
     response,
 ):
     """Test a failed signing key download raises CloudConnectionError."""
-    auth = auth_api.CognitoAuth(real_cognito_cloud)
+    auth = auth_api.CognitoAuth(mock_cloud)
+    aioclient_mock.clear_requests()
     aioclient_mock.get(SIGNING_KEYS_URL, **response)
-    cognito = await real_cognito_cloud.run_executor(
-        partial(auth._create_cognito_client, username="user")
-    )
 
     with pytest.raises(
         auth_api.CloudConnectionError, match="Unable to download signing keys"
     ):
-        await real_cognito_cloud.run_executor(cognito.get_keys)
+        await auth.async_login("user", "pass")
+
+    assert len(mock_cognito.authenticate.mock_calls) == 0
+    assert len(mock_cloud.update_token.mock_calls) == 0
 
 
-async def test_signing_keys_not_downloaded_on_wrong_credentials(
-    real_cognito_cloud,
-    aioclient_mock,
-):
-    """Test a rejected login doesn't download the signing keys."""
-    auth = auth_api.CognitoAuth(real_cognito_cloud)
-    cognito = await real_cognito_cloud.run_executor(
-        partial(auth._create_cognito_client, username="user")
+def test_get_key():
+    """Test the Cognito client reports tokens signed with an unknown key."""
+    cognito = auth_api.cognito._Cognito(
+        user_pool_id="us-east-1_test",
+        client_id="test-client-id",
+        botocore_config=auth_api.cognito._BOTOCORE_CONFIG,
     )
+    cognito.pool_jwk = SIGNING_KEYS
 
-    with Stubber(cognito.client) as stubber:
-        stubber.add_client_error(
-            "initiate_auth",
-            service_error_code="NotAuthorizedException",
-            service_message="Incorrect username or password.",
-        )
-        with pytest.raises(auth_api.Unauthenticated):
-            await auth.async_login("user", "pass")
+    assert cognito.get_key("test-kid") == SIGNING_KEYS["keys"][0]
+    with pytest.raises(auth_api.cognito.UnknownSigningKey):
+        cognito.get_key("other-kid")
 
-    assert aioclient_mock.call_count == 0
+    cognito.pool_jwk = {"unexpected": "shape"}
+    with pytest.raises(auth_api.cognito.UnknownSigningKey):
+        cognito.get_key("test-kid")
 
 
 async def test_async_setup(cloud_mock):
