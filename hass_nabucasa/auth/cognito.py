@@ -35,6 +35,18 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+# One shared object, so _cached_cognito sees equal arguments: Config objects
+# only compare equal to themselves.
+_BOTOCORE_CONFIG = botocore.config.Config(
+    signature_version=botocore.UNSIGNED,
+    connect_timeout=AUTH_CONNECT_TIMEOUT,
+    read_timeout=AUTH_READ_TIMEOUT,
+    retries={
+        "total_max_attempts": AUTH_MAX_ATTEMPTS,
+        "mode": "standard",
+    },
+)
+
 
 class Unauthenticated(CloudError):
     """Raised when authentication failed."""
@@ -391,15 +403,7 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=botocore.config.Config(
-                signature_version=botocore.UNSIGNED,
-                connect_timeout=AUTH_CONNECT_TIMEOUT,
-                read_timeout=AUTH_READ_TIMEOUT,
-                retries={
-                    "total_max_attempts": AUTH_MAX_ATTEMPTS,
-                    "mode": "standard",
-                },
-            ),
+            botocore_config=_BOTOCORE_CONFIG,
             session=self._session,
             **kwargs,
         )

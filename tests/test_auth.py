@@ -539,3 +539,21 @@ def test_auth_timeout_budget_covers_botocore_retries():
     assert worst_case_call <= AUTH_CALL_TIMEOUT
     # Logging in performs two sequential Cognito calls.
     assert 2 * worst_case_call <= AUTH_LOGIN_TIMEOUT
+
+
+async def test_create_cognito_client_is_cached(mock_cloud):
+    """Test identical Cognito client requests reuse one client."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    auth_api.cognito._cached_cognito.cache_clear()
+
+    try:
+        with patch("pycognito.Cognito", side_effect=lambda **_: MagicMock()) as cls:
+            first = auth._create_cognito_client(access_token="one")  # noqa: S106
+            again = auth._create_cognito_client(access_token="one")  # noqa: S106
+            other = auth._create_cognito_client(access_token="two")  # noqa: S106
+    finally:
+        auth_api.cognito._cached_cognito.cache_clear()
+
+    assert again is first
+    assert other is not first
+    assert cls.call_count == 2
