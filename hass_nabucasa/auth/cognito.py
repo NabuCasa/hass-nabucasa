@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from functools import lru_cache, partial
 from json import JSONDecodeError
 import logging
@@ -119,6 +120,21 @@ AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
     "ProxyConnectionError": CloudConnectionError,
     "ReadTimeoutError": AuthTimeoutError,
 }
+
+
+class _Cognito(pycognito.Cognito):  # type: ignore[misc]
+    """Cognito client that downloads the signing keys through Home Assistant."""
+
+    pool_jwk: dict[str, Any] | None
+    download_keys: Callable[[str], dict[str, Any]]
+
+    def get_keys(self) -> dict[str, Any]:
+        """Return the user pool signing keys, downloading them on first use."""
+        if self.pool_jwk is None:
+            self.pool_jwk = self.download_keys(
+                f"{self.user_pool_url}/.well-known/jwks.json"
+            )
+        return self.pool_jwk
 
 
 class CognitoAuth:
@@ -244,7 +260,6 @@ class CognitoAuth:
                 )
 
                 async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
-                    await self._async_load_signing_keys(cognito)
                     await self.cloud.run_executor(
                         partial(cognito.authenticate, password=password),
                     )
@@ -294,7 +309,6 @@ class CognitoAuth:
                 )
 
                 async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
-                    await self._async_load_signing_keys(cognito)
                     await self.cloud.run_executor(
                         partial(
                             cognito.respond_to_software_token_mfa_challenge,
@@ -359,7 +373,6 @@ class CognitoAuth:
 
         try:
             async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
-                await self._async_load_signing_keys(cognito)
                 await self.cloud.run_executor(cognito.renew_access_token)
             await self.cloud.update_token(cognito.id_token, cognito.access_token)
 
@@ -382,20 +395,25 @@ class CognitoAuth:
             ),
         )
 
-    async def _async_load_signing_keys(self, cognito: pycognito.Cognito) -> None:
-        """Download the user pool signing keys unless the client has them."""
-        if cognito.pool_jwk is not None:
-            return
+    def _download_signing_keys(self, url: str) -> dict[str, Any]:
+        """Download the signing keys on the event loop from an executor thread."""
+        return asyncio.run_coroutine_threadsafe(
+            self._async_download_signing_keys(url), self.cloud.client.loop
+        ).result()
+
+    async def _async_download_signing_keys(self, url: str) -> dict[str, Any]:
+        """Download the user pool signing keys."""
         try:
             async with self.cloud.websession.get(
-                f"{cognito.user_pool_url}/.well-known/jwks.json"
+                url, timeout=aiohttp.ClientTimeout(total=DEFAULT_AUTH_TIMEOUT)
             ) as resp:
                 resp.raise_for_status()
-                cognito.pool_jwk = await resp.json()
+                keys: dict[str, Any] = await resp.json()
         except (aiohttp.ClientError, JSONDecodeError) as err:
             raise CloudConnectionError(
                 f"Unable to download signing keys: {err}"
             ) from err
+        return keys
 
     def _create_cognito_client(self, **kwargs: Any) -> pycognito.Cognito:
         """Create a new cognito client.
@@ -405,7 +423,7 @@ class CognitoAuth:
         if self._session is None:
             self._session = boto3.session.Session()
 
-        return _cached_cognito(
+        cognito = _cached_cognito(
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
@@ -413,6 +431,8 @@ class CognitoAuth:
             session=self._session,
             **kwargs,
         )
+        cognito.download_keys = self._download_signing_keys
+        return cognito
 
 
 def _map_aws_exception(err: ClientError | BotoCoreError) -> CloudError:
@@ -452,7 +472,7 @@ def _cached_cognito(
 
     NOTE: This will do I/O
     """
-    return pycognito.Cognito(
+    return _Cognito(
         user_pool_id=user_pool_id,
         client_id=client_id,
         user_pool_region=user_pool_region,
