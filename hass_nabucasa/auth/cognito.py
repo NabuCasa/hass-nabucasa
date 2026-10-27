@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from functools import lru_cache, partial
 from json import JSONDecodeError
 import logging
@@ -119,6 +120,21 @@ AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
     "ProxyConnectionError": CloudConnectionError,
     "ReadTimeoutError": AuthTimeoutError,
 }
+
+
+class _Cognito(pycognito.Cognito):  # type: ignore[misc]
+    """Cognito client that downloads the signing keys through Home Assistant."""
+
+    pool_jwk: dict[str, Any] | None
+    download_keys: Callable[[str], dict[str, Any]]
+
+    def get_keys(self) -> dict[str, Any]:
+        """Return the user pool signing keys, downloading them on first use."""
+        if self.pool_jwk is None:
+            self.pool_jwk = self.download_keys(
+                f"{self.user_pool_url}/.well-known/jwks.json"
+            )
+        return self.pool_jwk
 
 
 class CognitoAuth:
@@ -379,17 +395,11 @@ class CognitoAuth:
             ),
         )
 
-    def _get_signing_keys(self, cognito: pycognito.Cognito) -> dict[str, Any]:
-        """Return the signing keys, downloading them on the event loop on first use."""
-        if cognito.pool_jwk is None:
-            cognito.pool_jwk = asyncio.run_coroutine_threadsafe(
-                self._async_download_signing_keys(
-                    f"{cognito.user_pool_url}/.well-known/jwks.json"
-                ),
-                self.cloud.client.loop,
-            ).result()
-        keys: dict[str, Any] = cognito.pool_jwk
-        return keys
+    def _download_signing_keys(self, url: str) -> dict[str, Any]:
+        """Download the signing keys on the event loop from an executor thread."""
+        return asyncio.run_coroutine_threadsafe(
+            self._async_download_signing_keys(url), self.cloud.client.loop
+        ).result()
 
     async def _async_download_signing_keys(self, url: str) -> dict[str, Any]:
         """Download the user pool signing keys."""
@@ -421,7 +431,7 @@ class CognitoAuth:
             session=self._session,
             **kwargs,
         )
-        cognito.get_keys = partial(self._get_signing_keys, cognito)
+        cognito.download_keys = self._download_signing_keys
         return cognito
 
 
@@ -462,7 +472,7 @@ def _cached_cognito(
 
     NOTE: This will do I/O
     """
-    return pycognito.Cognito(
+    return _Cognito(
         user_pool_id=user_pool_id,
         client_id=client_id,
         user_pool_region=user_pool_region,
