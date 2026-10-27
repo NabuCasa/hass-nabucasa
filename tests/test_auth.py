@@ -556,9 +556,7 @@ async def test_create_cognito_client_is_cached(mock_cloud):
     auth_api.cognito._cached_cognito.cache_clear()
 
     try:
-        with patch(
-            "hass_nabucasa.auth.cognito._Cognito", side_effect=lambda **_: MagicMock()
-        ) as cls:
+        with patch("pycognito.Cognito", side_effect=lambda **_: MagicMock()) as cls:
             first = auth._create_cognito_client(access_token="one")  # noqa: S106
             again = auth._create_cognito_client(access_token="one")  # noqa: S106
             other = auth._create_cognito_client(access_token="two")  # noqa: S106
