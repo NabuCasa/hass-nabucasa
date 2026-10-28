@@ -537,8 +537,24 @@ async def test_unknown_signing_key_not_repeated(
 
 @pytest.mark.parametrize(
     "response",
-    [{"status": 500}, {"exc": aiohttp.ClientError("boom")}, {"text": "not json"}],
-    ids=["server_error", "connection_error", "invalid_json"],
+    [
+        {"status": 500},
+        {"exc": aiohttp.ClientError("boom")},
+        {"text": "not json"},
+        {"json": []},
+        {"json": {}},
+        {"json": {"keys": None}},
+        {"json": {"keys": ["not an object"]}},
+    ],
+    ids=[
+        "server_error",
+        "connection_error",
+        "invalid_json",
+        "not_an_object",
+        "no_keys",
+        "keys_null",
+        "key_not_an_object",
+    ],
 )
 async def test_signing_keys_download_error(
     mock_cognito,
@@ -558,6 +574,28 @@ async def test_signing_keys_download_error(
 
     assert len(mock_cognito.authenticate.mock_calls) == 0
     assert len(mock_cloud.update_token.mock_calls) == 0
+
+
+async def test_signing_keys_not_cached_when_malformed(
+    mock_cognito,
+    mock_cloud,
+    aioclient_mock,
+):
+    """Test a malformed key download isn't cached, so a later attempt recovers."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(SIGNING_KEYS_URL, json={"keys": None})
+
+    with pytest.raises(auth_api.CloudConnectionError):
+        await auth.async_login("user", "pass")
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(SIGNING_KEYS_URL, json=SIGNING_KEYS)
+
+    await auth.async_login("user", "pass")
+
+    assert len(mock_cognito.authenticate.mock_calls) == 1
+    assert mock_cognito.pool_jwk == SIGNING_KEYS
 
 
 def test_get_key():

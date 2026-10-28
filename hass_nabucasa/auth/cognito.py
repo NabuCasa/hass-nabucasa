@@ -432,11 +432,19 @@ class CognitoAuth:
                     f"{cognito.user_pool_url}/.well-known/jwks.json"
                 ) as resp:
                     resp.raise_for_status()
-                    keys: dict[str, Any] = await resp.json()
+                    keys = await resp.json()
             except (aiohttp.ClientError, JSONDecodeError) as err:
                 raise CloudConnectionError(
                     f"Unable to download signing keys: {err}"
                 ) from err
+            if not (
+                isinstance(keys, dict)
+                and isinstance(keys.get("keys"), list)
+                and all(isinstance(key, dict) for key in keys["keys"])
+            ):
+                raise CloudConnectionError(
+                    "Unable to download signing keys: unexpected response"
+                )
             self._signing_keys = keys
         return self._signing_keys
 
