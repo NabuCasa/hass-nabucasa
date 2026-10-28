@@ -107,6 +107,16 @@ def mock_ping_targets(
     )
 
 
+@pytest.fixture(autouse=True)
+def mock_resolve_ping_privileges() -> Generator[Mock]:
+    """Resolve ping privileges without touching the socket layer."""
+    with patch(
+        "hass_nabucasa.remote.utils.async_resolve_ping_privileges",
+        side_effect=lambda *, privileged: privileged,
+    ) as resolve:
+        yield resolve
+
+
 async def test_load_backend_exists_cert(
     cloud: Cloud,
     valid_acme_mock: MockAcme,
@@ -145,7 +155,8 @@ async def test_load_backend_exists_cert(
     assert not valid_acme_mock.call_issue
     assert valid_acme_mock.init_args == (
         cloud,
-        ["test.dui.nabu.casa"],
+        "test.dui.nabu.casa",
+        [],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
@@ -268,7 +279,8 @@ async def test_load_backend_not_exists_cert(
     assert acme_mock.call_issue
     assert acme_mock.init_args == (
         cloud,
-        ["test.dui.nabu.casa"],
+        "test.dui.nabu.casa",
+        [],
         "test@nabucasa.inc",
     )
     assert acme_mock.call_hardening
@@ -327,7 +339,8 @@ async def test_load_and_unload_backend(
     assert not valid_acme_mock.call_issue
     assert valid_acme_mock.init_args == (
         cloud,
-        ["test.dui.nabu.casa"],
+        "test.dui.nabu.casa",
+        [],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
@@ -399,7 +412,8 @@ async def test_load_backend_exists_wrong_cert(
     assert valid_acme_mock.call_reset
     assert valid_acme_mock.init_args == (
         cloud,
-        ["test.dui.nabu.casa", "example.com"],
+        "test.dui.nabu.casa",
+        ["example.com"],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
@@ -876,7 +890,8 @@ async def test_recreating_old_certificate_with_bad_dns_config(
     assert valid_acme_mock.call_reset
     assert valid_acme_mock.init_args == (
         cloud,
-        ["test.dui.nabu.casa"],
+        "test.dui.nabu.casa",
+        [],
         "test@nabucasa.inc",
     )
     assert valid_acme_mock.call_hardening
@@ -1126,7 +1141,9 @@ async def test_acme_client_new_order_errors(
 
     with patch(
         "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(cloud, [], "test@nabucasa.inc", Mock()),
+        return_value=_MockAcme(
+            cloud, "test.dui.nabu.casa", [], "test@nabucasa.inc", Mock()
+        ),
     ):
         assert cloud.remote._certificate_status is None
         await cloud.remote.load_backend()
@@ -1233,7 +1250,9 @@ async def test_acme_client_create_client_jws_errors(
 
     with patch(
         "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(cloud, [], "test@nabucasa.inc", Mock()),
+        return_value=_MockAcme(
+            cloud, "test.dui.nabu.casa", [], "test@nabucasa.inc", Mock()
+        ),
     ):
         assert cloud.remote._certificate_status is None
         await cloud.remote.load_backend()
@@ -1330,7 +1349,7 @@ async def test_recreate_acme_calls_reset_when_acme_exists(cloud: Cloud) -> None:
     mock_acme = MockAcme()
     cloud.remote._acme = mock_acme
 
-    await cloud.remote._recreate_acme(["new.example.com"], "new@example.com")
+    await cloud.remote._recreate_acme("new.example.com", [], "new@example.com")
 
     assert mock_acme.call_reset is True
     assert cloud.remote._acme is not mock_acme
@@ -1341,7 +1360,7 @@ async def test_recreate_acme_with_certificate_available(cloud: Cloud) -> None:
     mock_acme = MockAcme()
     cloud.remote._acme = mock_acme
 
-    await cloud.remote._recreate_acme(["new.example.com"], "new@example.com")
+    await cloud.remote._recreate_acme("new.example.com", [], "new@example.com")
 
     assert mock_acme.call_reset is True
     assert cloud.remote._acme is not mock_acme
@@ -1353,7 +1372,7 @@ async def test_recreate_acme_without_certificate_available(cloud: Cloud) -> None
     mock_acme.common_name = None
     cloud.remote._acme = mock_acme
 
-    await cloud.remote._recreate_acme(["new.example.com"], "new@example.com")
+    await cloud.remote._recreate_acme("new.example.com", [], "new@example.com")
 
     assert mock_acme.call_reset is True
     assert cloud.remote._acme is not mock_acme
@@ -1365,7 +1384,7 @@ async def test_recreate_acme_with_error_status(cloud: Cloud) -> None:
     cloud.remote._acme = mock_acme
     cloud.remote._certificate_status = CertificateStatus.ERROR
 
-    await cloud.remote._recreate_acme(["new.example.com"], "new@example.com")
+    await cloud.remote._recreate_acme("new.example.com", [], "new@example.com")
 
     assert mock_acme.call_reset is True
     assert cloud.remote._acme is not mock_acme
@@ -1375,7 +1394,7 @@ async def test_recreate_acme_when_no_acme_exists(cloud: Cloud) -> None:
     """Test _recreate_acme behavior when no ACME handler exists."""
     cloud.remote._acme = None
 
-    await cloud.remote._recreate_acme(["test.example.com"], "test@example.com")
+    await cloud.remote._recreate_acme("test.example.com", [], "test@example.com")
 
     assert cloud.remote._acme is not None
 
@@ -1411,10 +1430,10 @@ async def test_recreate_acme_integration_during_load_backend(
 
     assert valid_acme_mock.call_reset is True
 
-    expected_domains = ["test.dui.nabu.casa", "new-alias.com"]
     assert valid_acme_mock.init_args == (
         cloud,
-        expected_domains,
+        "test.dui.nabu.casa",
+        ["new-alias.com"],
         "test@nabucasa.inc",
     )
 
@@ -1482,7 +1501,9 @@ async def test_certificate_network_error_handling(
     with (
         patch(
             "hass_nabucasa.remote.AcmeHandler",
-            return_value=_MockAcme(cloud, [], "test@nabucasa.inc", Mock()),
+            return_value=_MockAcme(
+                cloud, "test.dui.nabu.casa", [], "test@nabucasa.inc", Mock()
+            ),
         ),
         # Keep the logged retry interval free of random jitter
         patch("hass_nabucasa.utils.jitter", return_value=0),
@@ -1948,3 +1969,116 @@ async def test_load_backend_ping_unprivileged_passed(
     assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     await cloud.remote.stop()
     await asyncio.sleep(0.1)
+
+
+async def test_ping_privileges_resolved_once(
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+    mock_resolve_ping_privileges: Mock,
+) -> None:
+    """Test that ping privileges are only resolved once."""
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        json={
+            "targets": [{"ip": "192.0.2.1", "location": "Hogwarts"}],
+            "timeout": 5000,
+            "count": 1,
+        },
+    )
+
+    with patch(
+        "hass_nabucasa.remote.utils.async_check_latency",
+        return_value=[
+            {
+                "address": "192.0.2.1",
+                "is_alive": True,
+                "avg_rtt": 15.0,
+                "max_rtt": 20.0,
+                "min_rtt": 10.0,
+            },
+        ],
+    ) as mock_latency:
+        await cloud.remote._fetch_ping_results()
+        await cloud.remote._fetch_ping_results()
+
+    mock_resolve_ping_privileges.assert_called_once_with(privileged=True)
+    assert mock_latency.call_count == 2
+    assert all(call[1]["privileged"] is True for call in mock_latency.call_args_list)
+
+
+async def test_ping_privileges_fallback_passed_to_latency_check(
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+    mock_resolve_ping_privileges: Mock,
+) -> None:
+    """Test that a resolved unprivileged mode is used for the latency check."""
+    mock_resolve_ping_privileges.side_effect = None
+    mock_resolve_ping_privileges.return_value = False
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        json={
+            "targets": [{"ip": "192.0.2.1", "location": "Hogwarts"}],
+            "timeout": 5000,
+            "count": 1,
+        },
+    )
+
+    with patch(
+        "hass_nabucasa.remote.utils.async_check_latency",
+        return_value=[
+            {
+                "address": "192.0.2.1",
+                "is_alive": True,
+                "avg_rtt": 15.0,
+                "max_rtt": 20.0,
+                "min_rtt": 10.0,
+            },
+        ],
+    ) as mock_latency:
+        await cloud.remote._fetch_ping_results()
+
+    mock_resolve_ping_privileges.assert_called_once_with(privileged=True)
+    mock_latency.assert_called_once_with(
+        ["192.0.2.1"],
+        count=1,
+        ping_timeout=5,
+        privileged=False,
+    )
+    assert cloud.remote._ping_privileged is False
+
+
+async def test_ping_privileges_resolution_failure_retried(
+    cloud: Cloud,
+    aioclient_mock: AiohttpClientMocker,
+    caplog: pytest.LogCaptureFixture,
+    mock_resolve_ping_privileges: Mock,
+) -> None:
+    """Test that a failed privilege resolution is not cached."""
+    mock_resolve_ping_privileges.side_effect = utils.CheckLatencyInsufficientPrivileges(
+        "Insufficient privileges to perform ICMP ping.",
+    )
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(
+        f"https://{cloud.api_server}/instance/remote_ping_targets",
+        json={
+            "targets": [{"ip": "192.0.2.1", "location": "Hogwarts"}],
+            "timeout": 5000,
+            "count": 1,
+        },
+    )
+
+    with patch("hass_nabucasa.remote.utils.async_check_latency") as mock_latency:
+        assert await cloud.remote._fetch_ping_results() is None
+        assert cloud.remote._ping_privileged is None
+        assert await cloud.remote._fetch_ping_results() is None
+
+    assert mock_latency.call_count == 0
+    assert mock_resolve_ping_privileges.call_count == 2
+    assert (
+        "Ping latency check failed: Insufficient privileges to perform ICMP ping."
+        in extract_log_messages(caplog)
+    )

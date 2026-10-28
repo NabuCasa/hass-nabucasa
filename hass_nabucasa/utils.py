@@ -7,12 +7,19 @@ from collections.abc import Awaitable, Callable, Mapping
 import datetime as dt
 import logging
 from logging import Logger
+import math
 import random
 import ssl
 from typing import Any, TypedDict, TypeVar
 
 import ciso8601
-from icmplib import Host, ICMPLibError, SocketPermissionError, async_multiping
+from icmplib import (
+    Host,
+    ICMPLibError,
+    SocketPermissionError,
+    async_multiping,
+    async_ping,
+)
 import jwt
 
 from .exceptions import NabuCasaBaseError
@@ -137,6 +144,36 @@ def next_midnight() -> float:
     return (midnight - dt.datetime.now()).total_seconds()
 
 
+async def _icmp_socket_available(*, privileged: bool) -> bool:
+    """Check if an ICMP socket can be created."""
+    try:
+        await async_ping("127.0.0.1", count=0, timeout=0, privileged=privileged)
+    except SocketPermissionError:
+        return False
+    except ICMPLibError as err:
+        raise CheckLatencyError("ICMP ping failed") from err
+
+    return True
+
+
+async def async_resolve_ping_privileges(*, privileged: bool = True) -> bool:
+    """Resolve the ICMP privilege mode usable on this system."""
+    if await _icmp_socket_available(privileged=privileged):
+        return privileged
+
+    if privileged:
+        _LOGGER.info(
+            "Insufficient privileges for privileged ping, "
+            "falling back to unprivileged mode"
+        )
+        if await _icmp_socket_available(privileged=False):
+            return False
+
+    raise CheckLatencyInsufficientPrivileges(
+        "Insufficient privileges to perform ICMP ping."
+    )
+
+
 async def async_check_latency(
     addresses: list[str],
     *,
@@ -166,21 +203,6 @@ async def async_check_latency(
             count=count,
             timeout=ping_timeout,
             privileged=privileged,
-        )
-    except SocketPermissionError as err:
-        if not privileged:
-            raise CheckLatencyInsufficientPrivileges(
-                "Insufficient privileges to perform ICMP ping."
-            ) from err
-        _LOGGER.info(
-            "Ping failed due to insufficient privileges, "
-            "retrying without privileged mode"
-        )
-        return await async_check_latency(
-            addresses,
-            count=count,
-            ping_timeout=ping_timeout,
-            privileged=False,
         )
     except ICMPLibError as err:
         raise CheckLatencyError("ICMP ping failed") from err
@@ -239,9 +261,12 @@ class Backoff:
             initial: Seconds to wait before the first retry. Keep it short so
                 a transient failure recovers quickly, the growth handles the
                 failures that are not transient.
-            maximum: Upper bound in seconds for a single interval. The interval
-                grows until it reaches this value and then stays there, so this
-                is the slowest the loop will ever retry.
+            maximum: Upper bound in seconds for a single interval. The base
+                interval grows until it reaches this value and then stays
+                there, so this is the slowest the loop will ever retry. Jitter
+                is still shaved off every returned interval, so with jitter
+                enabled the delays vary below the maximum instead of staying
+                constant.
             multiplier: What the interval is multiplied by for every attempt.
                 The default of 1.5 grows the interval by half each time (10s,
                 15s, 22.5s, ...), which stays responsive for a while before it
@@ -261,6 +286,13 @@ class Backoff:
             ValueError: If an option is outside of its valid range.
 
         """
+        for name, value in (
+            ("initial", initial),
+            ("maximum", maximum),
+            ("multiplier", multiplier),
+        ):
+            if not math.isfinite(value):
+                raise ValueError(f"{name} must be a finite number")
         if initial <= 0:
             raise ValueError("initial must be greater than 0")
         if maximum < initial:
@@ -297,9 +329,9 @@ class Backoff:
 
     def time_to_next_attempt(self) -> float:
         """Return the seconds to wait before the next attempt."""
-        time_to_wait = self._base_time
-        if self._jitter_fraction:
-            time_to_wait -= jitter(0, time_to_wait * self._jitter_fraction)
+        time_to_wait = self._base_time - jitter(
+            0, self._base_time * self._jitter_fraction
+        )
 
         self._attempts += 1
         self._elapsed += time_to_wait

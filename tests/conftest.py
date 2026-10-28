@@ -167,7 +167,7 @@ async def cloud(
             remotestate_server="remotestate.example.com",
         )
 
-        fake_secret = "fake-test-secret"
+        fake_secret = "fake-test-secret-fake-test-secret"
 
         id_token_claims = {
             "cognito:username": "test@example.com",
