@@ -15,7 +15,11 @@ from botocore.exceptions import (
     ProxyConnectionError,
     ReadTimeoutError,
 )
-from pycognito.exceptions import MFAChallengeException
+from botocore.stub import Stubber
+from cryptography.hazmat.primitives.asymmetric import rsa
+import jwt
+from jwt.algorithms import RSAAlgorithm
+from pycognito.exceptions import MFAChallengeException, TokenVerificationException
 import pytest
 
 from hass_nabucasa import CloudError, auth as auth_api
@@ -694,6 +698,112 @@ async def test_authenticated_cognito_client_botocore_config(cognito_cloud):
     assert config.read_timeout == AUTH_RENEW_READ_TIMEOUT
     assert config.retries["total_max_attempts"] == AUTH_RENEW_MAX_ATTEMPTS
     assert config.retries["mode"] == "standard"
+
+
+def _rsa_key():
+    """Return a new RSA private key."""
+    return rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+
+def _jwks(key, kid):
+    """Return a JWKS with the public part of an RSA key."""
+    jwk = RSAAlgorithm.to_jwk(key.public_key(), as_dict=True)
+    return {"keys": [{**jwk, "kid": kid, "alg": "RS256", "use": "sig"}]}
+
+
+def _authentication_result(key, kid, cognito):
+    """Return a Cognito authentication result with tokens signed by a key."""
+    claims = {"iss": cognito.user_pool_url, "exp": FROZEN_NOW_AS_TIMESTAMP + 3600}
+    headers = {"kid": kid}
+    return {
+        "AuthenticationResult": {
+            "AccessToken": jwt.encode(
+                {**claims, "token_use": "access"},
+                key,
+                algorithm="RS256",
+                headers=headers,
+            ),
+            "IdToken": jwt.encode(
+                {**claims, "token_use": "id", "aud": cognito.client_id},
+                key,
+                algorithm="RS256",
+                headers=headers,
+            ),
+            "TokenType": "Bearer",
+        }
+    }
+
+
+async def _renewal_cognito(auth, cloud):
+    """Return the real Cognito client a token renewal uses."""
+    cloud.access_token = "access-token"
+    cloud.refresh_token = "refresh-token"
+    return await auth._async_authenticated_cognito()
+
+
+async def test_renew_verifies_signed_tokens(cognito_cloud, aioclient_mock):
+    """Test a renewal verifies the tokens with the downloaded signing keys."""
+    auth = auth_api.CognitoAuth(cognito_cloud)
+    cognito = await _renewal_cognito(auth, cognito_cloud)
+    key = _rsa_key()
+    aioclient_mock.get(
+        f"{cognito.user_pool_url}/.well-known/jwks.json", json=_jwks(key, "kid-a")
+    )
+    result = _authentication_result(key, "kid-a", cognito)
+
+    with Stubber(cognito.client) as stubber:
+        stubber.add_response("initiate_auth", result)
+        await auth.async_renew_access_token()
+
+    assert aioclient_mock.call_count == 1
+    cognito_cloud.update_token.assert_called_once_with(
+        result["AuthenticationResult"]["IdToken"],
+        result["AuthenticationResult"]["AccessToken"],
+    )
+
+
+async def test_renew_rejects_invalid_signature(cognito_cloud, aioclient_mock):
+    """Test a renewal rejects tokens that the signing key didn't sign."""
+    auth = auth_api.CognitoAuth(cognito_cloud)
+    cognito = await _renewal_cognito(auth, cognito_cloud)
+    aioclient_mock.get(
+        f"{cognito.user_pool_url}/.well-known/jwks.json",
+        json=_jwks(_rsa_key(), "kid-a"),
+    )
+
+    with Stubber(cognito.client) as stubber:
+        stubber.add_response(
+            "initiate_auth", _authentication_result(_rsa_key(), "kid-a", cognito)
+        )
+        with pytest.raises(TokenVerificationException):
+            await auth.async_renew_access_token()
+
+    assert len(cognito_cloud.update_token.mock_calls) == 0
+
+
+async def test_renew_after_key_rotation(cognito_cloud, aioclient_mock):
+    """Test a renewal downloads new signing keys after Cognito replaced them."""
+    auth = auth_api.CognitoAuth(cognito_cloud)
+    cognito = await _renewal_cognito(auth, cognito_cloud)
+    auth._signing_keys = _jwks(_rsa_key(), "kid-old")
+    new_key = _rsa_key()
+    aioclient_mock.get(
+        f"{cognito.user_pool_url}/.well-known/jwks.json",
+        json=_jwks(new_key, "kid-new"),
+    )
+    result = _authentication_result(new_key, "kid-new", cognito)
+
+    with Stubber(cognito.client) as stubber:
+        stubber.add_response("initiate_auth", result)
+        stubber.add_response("initiate_auth", result)
+        await auth.async_renew_access_token()
+        stubber.assert_no_pending_responses()
+
+    assert aioclient_mock.call_count == 1
+    cognito_cloud.update_token.assert_called_once_with(
+        result["AuthenticationResult"]["IdToken"],
+        result["AuthenticationResult"]["AccessToken"],
+    )
 
 
 async def test_create_cognito_client_is_cached(mock_cloud):
