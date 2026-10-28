@@ -398,7 +398,10 @@ class CognitoAuth:
 
         try:
             async with asyncio.timeout(AUTH_RENEW_TIMEOUT):
-                await self._async_run_verified(cognito, cognito.renew_access_token)
+                try:
+                    await self._async_run_verified(cognito, cognito.renew_access_token)
+                except UnknownSigningKey:
+                    await self._async_run_verified(cognito, cognito.renew_access_token)
             await self.cloud.update_token(cognito.id_token, cognito.access_token)
 
         except TimeoutError as err:
@@ -440,14 +443,13 @@ class CognitoAuth:
     async def _async_run_verified(
         self, cognito: pycognito.Cognito, call: Callable[[], Any]
     ) -> None:
-        """Run a Cognito call that verifies tokens, refreshing the keys once."""
+        """Run a Cognito call that verifies tokens, dropping the keys if unknown."""
         cognito.pool_jwk = await self._async_signing_keys(cognito)
         try:
             await self.cloud.run_executor(call)
         except UnknownSigningKey:
             self._signing_keys = None
-            cognito.pool_jwk = await self._async_signing_keys(cognito)
-            await self.cloud.run_executor(call)
+            raise
 
     def _create_cognito_client(
         self,

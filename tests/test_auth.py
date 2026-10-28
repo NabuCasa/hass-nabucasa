@@ -464,33 +464,71 @@ async def test_signing_keys_refreshed_on_unknown_key(
     mock_cloud,
     aioclient_mock,
 ):
-    """Test an unknown signing key refreshes the keys and repeats the call."""
+    """Test an unknown signing key refreshes the keys and repeats the renewal."""
     auth = auth_api.CognitoAuth(mock_cloud)
-    mock_cognito.authenticate.side_effect = [
+    mock_cognito.renew_access_token.side_effect = [
         auth_api.cognito.UnknownSigningKey("new-kid"),
         None,
     ]
 
-    await auth.async_login("user", "pass")
+    await auth.async_renew_access_token()
 
     assert aioclient_mock.call_count == 2
-    assert len(mock_cognito.authenticate.mock_calls) == 2
+    assert len(mock_cognito.renew_access_token.mock_calls) == 2
     assert len(mock_cloud.update_token.mock_calls) == 1
 
 
 async def test_signing_keys_refresh_fails(mock_cognito, mock_cloud, aioclient_mock):
     """Test an unknown signing key after a refresh raises UnknownSigningKey."""
     auth = auth_api.CognitoAuth(mock_cloud)
-    mock_cognito.authenticate.side_effect = auth_api.cognito.UnknownSigningKey(
+    mock_cognito.renew_access_token.side_effect = auth_api.cognito.UnknownSigningKey(
         "new-kid"
     )
 
     with pytest.raises(auth_api.cognito.UnknownSigningKey):
-        await auth.async_login("user", "pass")
+        await auth.async_renew_access_token()
 
     assert aioclient_mock.call_count == 2
-    assert len(mock_cognito.authenticate.mock_calls) == 2
+    assert len(mock_cognito.renew_access_token.mock_calls) == 2
     assert len(mock_cloud.update_token.mock_calls) == 0
+
+
+@pytest.mark.parametrize(
+    ("method", "flow"),
+    [
+        ("authenticate", lambda auth: auth.async_login("user", "pass")),
+        (
+            "respond_to_software_token_mfa_challenge",
+            lambda auth: auth.async_login_verify_totp(
+                "user", "123456", {"session": "session"}
+            ),
+        ),
+    ],
+    ids=["login", "verify_totp"],
+)
+async def test_unknown_signing_key_not_repeated(
+    mock_cognito,
+    mock_cloud,
+    aioclient_mock,
+    method,
+    flow,
+):
+    """Test login and TOTP aren't repeated, but the next attempt gets new keys."""
+    auth = auth_api.CognitoAuth(mock_cloud)
+    getattr(mock_cognito, method).side_effect = [
+        auth_api.cognito.UnknownSigningKey("new-kid"),
+        None,
+    ]
+
+    with pytest.raises(auth_api.cognito.UnknownSigningKey):
+        await flow(auth)
+
+    assert len(getattr(mock_cognito, method).mock_calls) == 1
+    assert aioclient_mock.call_count == 1
+
+    await flow(auth)
+
+    assert aioclient_mock.call_count == 2
 
 
 @pytest.mark.parametrize(
