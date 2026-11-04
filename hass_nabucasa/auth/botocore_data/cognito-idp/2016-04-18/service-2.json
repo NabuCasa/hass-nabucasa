@@ -142,6 +142,9 @@
      "shape": "OperationNotEnabledException"
     },
     {
+     "shape": "FeatureUnavailableInTierException"
+    },
+    {
      "shape": "ForbiddenException"
     }
    ],
@@ -600,6 +603,15 @@
    },
    "type": "structure"
   },
+  "FeatureUnavailableInTierException": {
+   "exception": true,
+   "members": {
+    "message": {
+     "shape": "MessageType"
+    }
+   },
+   "type": "structure"
+  },
   "ForbiddenException": {
    "exception": true,
    "members": {
@@ -929,6 +941,9 @@
     "AuthenticationResult": {
      "shape": "AuthenticationResultType"
     },
+    "AvailableChallenges": {
+     "shape": "AvailableChallengeListType"
+    },
     "ChallengeName": {
      "shape": "ChallengeNameType"
     },
@@ -949,7 +964,7 @@
    "type": "string"
   },
   "SessionType": {
-   "max": 2048,
+   "max": 4096,
    "min": 20,
    "sensitive": true,
    "type": "string"
