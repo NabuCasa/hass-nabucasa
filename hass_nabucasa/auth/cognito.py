@@ -18,7 +18,14 @@ from ..exceptions import (
     NabuCasaConnectionError,
 )
 from ..utils import expiration_from_token, seconds_as_dhms, utcnow
-from .const import DEFAULT_AUTH_TIMEOUT
+from .const import (
+    AUTH_CONNECT_TIMEOUT,
+    AUTH_RENEW_MAX_ATTEMPTS,
+    AUTH_RENEW_READ_TIMEOUT,
+    AUTH_RENEW_TIMEOUT,
+    AUTH_USER_READ_TIMEOUT,
+    AUTH_USER_TIMEOUT,
+)
 
 if TYPE_CHECKING:
     # boto3 and pycognito are imported when the first Cognito client is
@@ -240,7 +247,7 @@ class CognitoAuth:
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+                async with asyncio.timeout(AUTH_USER_TIMEOUT):
                     await self.cloud.run_executor(
                         partial(_authenticate, cognito, password),
                     )
@@ -283,7 +290,7 @@ class CognitoAuth:
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+                async with asyncio.timeout(AUTH_USER_TIMEOUT):
                     await self.cloud.run_executor(
                         partial(
                             cognito.respond_to_software_token_mfa_challenge,
@@ -347,7 +354,7 @@ class CognitoAuth:
         cognito = await self._async_authenticated_cognito()
 
         try:
-            async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+            async with asyncio.timeout(AUTH_RENEW_TIMEOUT):
                 await self.cloud.run_executor(cognito.renew_access_token)
             await self.cloud.update_token(cognito.id_token, cognito.access_token)
 
@@ -365,13 +372,21 @@ class CognitoAuth:
         return await self.cloud.run_executor(
             partial(
                 self._create_cognito_client,
+                renew=True,
                 access_token=self.cloud.access_token,
                 refresh_token=self.cloud.refresh_token,
             ),
         )
 
-    def _create_cognito_client(self, **kwargs: Any) -> pycognito.Cognito:
+    def _create_cognito_client(
+        self,
+        *,
+        renew: bool = False,
+        **kwargs: Any,
+    ) -> pycognito.Cognito:
         """Create a new cognito client.
+
+        renew selects the botocore config that retries token renewals.
 
         NOTE: This will do I/O
         """
@@ -385,24 +400,49 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=_botocore_config(),
+            botocore_config=(
+                _renew_botocore_config() if renew else _user_botocore_config()
+            ),
             session=self._session,
             **kwargs,
         )
 
 
-@cache
-def _botocore_config() -> botocore.config.Config:
-    """Return one shared botocore Config.
+# The botocore configs are built on first use, in the executor, because
+# importing botocore.config loads most of botocore. @cache returns the same
+# object on every call, so _cached_cognito sees equal arguments: Config objects
+# only compare equal to themselves.
 
-    _cached_cognito needs the same object on every call, since Config objects
-    only compare equal to themselves. It is built on first use because
-    importing botocore.config loads most of botocore.
-    """
+
+@cache
+def _user_botocore_config() -> botocore.config.Config:
+    """Return the config for requests the user starts: sent once."""
     # pylint: disable-next=import-outside-toplevel
     import botocore.config  # noqa: PLC0415
 
-    return botocore.config.Config(signature_version=botocore.UNSIGNED)
+    return botocore.config.Config(
+        signature_version=botocore.UNSIGNED,
+        connect_timeout=AUTH_CONNECT_TIMEOUT,
+        read_timeout=AUTH_USER_READ_TIMEOUT,
+        retries={"total_max_attempts": 1},
+    )
+
+
+@cache
+def _renew_botocore_config() -> botocore.config.Config:
+    """Return the config for token renewal, which is safe to retry."""
+    # pylint: disable-next=import-outside-toplevel
+    import botocore.config  # noqa: PLC0415
+
+    return botocore.config.Config(
+        signature_version=botocore.UNSIGNED,
+        connect_timeout=AUTH_CONNECT_TIMEOUT,
+        read_timeout=AUTH_RENEW_READ_TIMEOUT,
+        retries={
+            "total_max_attempts": AUTH_RENEW_MAX_ATTEMPTS,
+            "mode": "standard",
+        },
+    )
 
 
 def _authenticate(cognito: pycognito.Cognito, password: str) -> None:
