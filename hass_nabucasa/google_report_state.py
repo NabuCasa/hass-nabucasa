@@ -7,7 +7,7 @@ from asyncio.queues import Queue
 from typing import TYPE_CHECKING, Any
 import uuid
 
-from aiohttp import ClientResponse, ClientTimeout
+from aiohttp import ClientError, ClientResponse, ClientTimeout
 
 from . import iot_base
 from .api import ApiBase, CloudApiError, CloudApiRawResponse, api_exception_handler
@@ -16,9 +16,14 @@ if TYPE_CHECKING:
     from . import Cloud, _ClientT
 
 MAX_PENDING = 100
+MESSAGE_TIMEOUT = 15
 
 ERR_DISCARD_CODE = "message_discarded"
 ERR_DISCARD_MSG = "Message discarded because max messages reachced"
+ERR_DISCONNECTED_CODE = "disconnected"
+ERR_DISCONNECTED_MSG = "Connection lost before a response was received"
+ERR_TIMEOUT_CODE = "timeout"
+ERR_TIMEOUT_MSG = "No response received in time"
 
 
 class GoogleReportStateError(CloudApiError):
@@ -52,6 +57,8 @@ class GoogleReportState(iot_base.BaseIoT, ApiBase):
         self._message_sender_task: asyncio.Task | None = None
         # Local code waiting for a response
         self._response_handler: dict[str, asyncio.Future[None]] = {}
+        # Messages written to the websocket that are waiting for a response
+        self._in_flight: set[str] = set()
         self.register_on_connect(self._async_on_connect)
         self.register_on_disconnect(self._async_on_disconnect)
 
@@ -81,21 +88,30 @@ class GoogleReportState(iot_base.BaseIoT, ApiBase):
 
         if self._to_send.full():
             discard_msg = self._to_send.get_nowait()
-            self._response_handler.pop(discard_msg["msgid"]).set_exception(
-                ErrorResponse(ERR_DISCARD_CODE, ERR_DISCARD_MSG),
-            )
+            self._fail_message(discard_msg["msgid"], ERR_DISCARD_CODE, ERR_DISCARD_MSG)
 
         fut = self._response_handler[msgid] = asyncio.Future()
 
         self._to_send.put_nowait({"msgid": msgid, "payload": msg})
 
         try:
-            return await fut
+            async with asyncio.timeout(MESSAGE_TIMEOUT):
+                return await fut
+        except TimeoutError:
+            raise ErrorResponse(ERR_TIMEOUT_CODE, ERR_TIMEOUT_MSG) from None
         finally:
             self._response_handler.pop(msgid, None)
+            self._in_flight.discard(msgid)
+
+    def _fail_message(self, msgid: str, code: str, message: str) -> None:
+        """Fail the future of a message if its caller is still waiting."""
+        fut = self._response_handler.get(msgid)
+        if fut is not None and not fut.done():
+            fut.set_exception(ErrorResponse(code, message))
 
     def async_handle_message(self, msg: dict[str, Any]) -> None:
         """Handle a message."""
+        self._in_flight.discard(msg["msgid"])
         response_handler = self._response_handler.get(msg["msgid"])
 
         if response_handler is not None:
@@ -119,12 +135,34 @@ class GoogleReportState(iot_base.BaseIoT, ApiBase):
             self._message_sender_task.cancel()
             self._message_sender_task = None
 
+        for msgid in self._in_flight:
+            self._fail_message(msgid, ERR_DISCONNECTED_CODE, ERR_DISCONNECTED_MSG)
+        self._in_flight.clear()
+
     async def _async_message_sender(self) -> None:
         """Start sending messages."""
         self._logger.debug("Message sender task activated")
         try:
             while True:
-                await self.async_send_json_message(await self._to_send.get())
+                message = await self._to_send.get()
+                msgid = message["msgid"]
+                if msgid not in self._response_handler:
+                    continue
+
+                self._in_flight.add(msgid)
+                try:
+                    await self.async_send_json_message(message)
+                except (
+                    iot_base.NotConnected,
+                    ClientError,
+                    ConnectionResetError,
+                ) as err:
+                    self._logger.debug("Unable to send message: %r", err)
+                    self._in_flight.discard(msgid)
+                    self._fail_message(
+                        msgid, ERR_DISCONNECTED_CODE, ERR_DISCONNECTED_MSG
+                    )
+                    break
         except asyncio.CancelledError:
             pass
         self._logger.debug("Message sender task shut down")
