@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator, AsyncIterable
+from contextlib import aclosing
 from datetime import datetime
 from enum import StrEnum
 import io
 import logging
+import struct
 from typing import TYPE_CHECKING
 import wave
 from xml.etree import ElementTree as ET
@@ -563,6 +565,33 @@ class Voice:
         style: str | None = None,
     ) -> bytes:
         """Get Speech from text over Azure."""
+        return b"".join(
+            [
+                chunk
+                async for chunk in self._async_tts_chunks(
+                    text=text,
+                    language=language,
+                    output=output,
+                    voice=voice,
+                    gender=gender,
+                    force_token_renewal=force_token_renewal,
+                    style=style,
+                )
+            ]
+        )
+
+    async def _async_tts_chunks(
+        self,
+        *,
+        text: str,
+        language: str,
+        output: AudioOutput,
+        voice: str | None,
+        gender: Gender | None,
+        force_token_renewal: bool,
+        style: str | None,
+    ) -> AsyncGenerator[bytes]:
+        """Get Speech from text over Azure, as the response arrives."""
         if (language_info := TTS_VOICES.get(language)) is None:
             raise VoiceError(f"Unsupported language {language}")
 
@@ -572,7 +601,7 @@ class Voice:
 
         # If no voice picked, pick first one.
         if voice is None:
-            voice = next(iter(language_info))
+            voice = next(iter(language_info), "")
 
         if (voice_info := language_info.get(voice)) is None:
             raise VoiceError(f"Unsupported voice {voice} for language {language}")
@@ -642,20 +671,29 @@ class Voice:
             if resp.status == 429 and not force_token_renewal:
                 # By checking the force_token_renewal argument, we limit retries to 1.
                 _LOGGER.info("Retrying with new token")
-                return await self.process_tts(
-                    text=text,
-                    language=language,
-                    output=output,
-                    voice=voice,
-                    gender=gender,
-                    force_token_renewal=True,
-                )
+                # Free the connection so the retry does not hold a second one
+                resp.release()
+                async with aclosing(
+                    self._async_tts_chunks(
+                        text=text,
+                        language=language,
+                        output=output,
+                        voice=voice,
+                        gender=gender,
+                        force_token_renewal=True,
+                        style=style,
+                    )
+                ) as chunks:
+                    async for chunk in chunks:
+                        yield chunk
+                return
             if resp.status not in (200, 201):
                 raise VoiceReturnError(
                     f"Error receiving TTS with {language}/{voice}: "
                     f"{resp.status} {await resp.text()}",
                 )
-            return await resp.read()
+            async for chunk in resp.content.iter_any():
+                yield chunk
 
     async def process_tts_stream(
         self,
@@ -739,21 +777,46 @@ class Voice:
                     continue
 
                 # Synthesize audio while text chunks are still being accumulated
-                wav_bytes = await self.process_tts(
-                    text=text,
-                    language=language,
-                    output=AudioOutput.WAV,
-                    voice=voice,
-                    gender=gender,
-                    style=style,
-                )
-                header_bytes, audio_bytes = _split_wav_header(wav_bytes)
-                if not wav_header_sent:
-                    # Send WAV header once, then stream audio
-                    yield header_bytes
-                    wav_header_sent = True
+                wav_buffer = bytearray()
+                frame_size: int | None = None
+                audio_remaining = 0
+                # Close the response at once when the consumer stops early
+                async with aclosing(
+                    self._async_tts_chunks(
+                        text=text,
+                        language=language,
+                        output=AudioOutput.WAV,
+                        voice=voice,
+                        gender=gender,
+                        force_token_renewal=False,
+                        style=style,
+                    )
+                ) as chunks:
+                    async for chunk in chunks:
+                        wav_buffer.extend(chunk)
+                        if frame_size is None:
+                            if (header := _try_parse_wav_header(wav_buffer)) is None:
+                                continue
+                            header_bytes, audio_offset, frame_size, audio_remaining = (
+                                header
+                            )
+                            del wav_buffer[:audio_offset]
+                            if not wav_header_sent:
+                                # Send WAV header once, then stream audio
+                                yield header_bytes
+                                wav_header_sent = True
 
-                yield audio_bytes
+                        # Only send whole frames of the data chunk, so no sample is
+                        # split and trailing chunks are not played as audio
+                        whole = min(len(wav_buffer), audio_remaining)
+                        whole -= whole % frame_size
+                        if whole:
+                            yield bytes(wav_buffer[:whole])
+                            del wav_buffer[:whole]
+                            audio_remaining -= whole
+
+                if frame_size is None:
+                    raise VoiceReturnError("Invalid WAV data received from TTS")
 
         if not wav_header_sent:
             # Send empty WAV header if no audio data was received.
@@ -761,19 +824,48 @@ class Voice:
             yield _make_wav_header(rate=24000, width=2, channels=1)
 
 
-def _split_wav_header(wav_bytes: bytes) -> tuple[bytes, bytes]:
-    """Split WAV into (header, audio) tuple."""
-    with io.BytesIO(wav_bytes) as wav_io:
-        wav_reader: wave.Wave_read = wave.open(wav_io, "rb")  # noqa: SIM115
-        with wav_reader:
-            return (
-                _make_wav_header(
-                    rate=wav_reader.getframerate(),
-                    width=wav_reader.getsampwidth(),
-                    channels=wav_reader.getnchannels(),
-                ),
-                wav_reader.readframes(wav_reader.getnframes()),
+def _try_parse_wav_header(
+    wav_bytes: bytes | bytearray,
+) -> tuple[bytes, int, int, int] | None:
+    """Parse the start of a WAV file.
+
+    Return (streaming header, audio offset, frame size, audio size), or None
+    while the header is still incomplete.
+    """
+    if len(wav_bytes) < 12:
+        return None
+
+    if wav_bytes[:4] != b"RIFF" or wav_bytes[8:12] != b"WAVE":
+        raise VoiceReturnError("Invalid WAV data received from TTS")
+
+    streaming_header: bytes | None = None
+    frame_size = 0
+    position = 12
+    while position + 8 <= len(wav_bytes):
+        chunk_id = wav_bytes[position : position + 4]
+        (chunk_size,) = struct.unpack_from("<I", wav_bytes, position + 4)
+
+        if chunk_id == b"data":
+            if streaming_header is None:
+                raise VoiceReturnError("Invalid WAV data received from TTS")
+            return streaming_header, position + 8, frame_size, chunk_size
+
+        if chunk_id == b"fmt ":
+            if position + 24 > len(wav_bytes):
+                return None
+            _, channels, rate, _, _, bits_per_sample = struct.unpack_from(
+                "<HHIIHH", wav_bytes, position + 8
             )
+            width = bits_per_sample // 8
+            streaming_header = _make_wav_header(
+                rate=rate, width=width, channels=channels
+            )
+            frame_size = width * channels
+
+        # Chunks are padded to an even size
+        position += 8 + chunk_size + (chunk_size & 1)
+
+    return None
 
 
 def _make_wav_header(rate: int, width: int, channels: int) -> bytes:

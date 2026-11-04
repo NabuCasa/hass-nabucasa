@@ -23,7 +23,14 @@ from ..exceptions import (
     NabuCasaConnectionError,
 )
 from ..utils import expiration_from_token, seconds_as_dhms, utcnow
-from .const import DEFAULT_AUTH_TIMEOUT
+from .const import (
+    AUTH_CONNECT_TIMEOUT,
+    AUTH_RENEW_MAX_ATTEMPTS,
+    AUTH_RENEW_READ_TIMEOUT,
+    AUTH_RENEW_TIMEOUT,
+    AUTH_USER_READ_TIMEOUT,
+    AUTH_USER_TIMEOUT,
+)
 
 if TYPE_CHECKING:
     from .. import Cloud, _ClientT
@@ -35,9 +42,23 @@ _LOGGER = logging.getLogger(__name__)
 # Regenerate with scripts/update_botocore_data.py.
 BOTOCORE_DATA_PATH = Path(__file__).parent / "botocore_data"
 
-# One shared object, so _cached_cognito sees equal arguments: Config objects
+# Shared objects, so _cached_cognito sees equal arguments: Config objects
 # only compare equal to themselves.
-_BOTOCORE_CONFIG = botocore.config.Config(signature_version=botocore.UNSIGNED)
+_USER_BOTOCORE_CONFIG = botocore.config.Config(
+    signature_version=botocore.UNSIGNED,
+    connect_timeout=AUTH_CONNECT_TIMEOUT,
+    read_timeout=AUTH_USER_READ_TIMEOUT,
+    retries={"total_max_attempts": 1},
+)
+_RENEW_BOTOCORE_CONFIG = botocore.config.Config(
+    signature_version=botocore.UNSIGNED,
+    connect_timeout=AUTH_CONNECT_TIMEOUT,
+    read_timeout=AUTH_RENEW_READ_TIMEOUT,
+    retries={
+        "total_max_attempts": AUTH_RENEW_MAX_ATTEMPTS,
+        "mode": "standard",
+    },
+)
 
 
 class Unauthenticated(CloudError):
@@ -247,7 +268,7 @@ class CognitoAuth:
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+                async with asyncio.timeout(AUTH_USER_TIMEOUT):
                     await self.cloud.run_executor(
                         partial(cognito.authenticate, password=password),
                     )
@@ -296,7 +317,7 @@ class CognitoAuth:
                     partial(self._create_cognito_client, username=email),
                 )
 
-                async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+                async with asyncio.timeout(AUTH_USER_TIMEOUT):
                     await self.cloud.run_executor(
                         partial(
                             cognito.respond_to_software_token_mfa_challenge,
@@ -360,7 +381,7 @@ class CognitoAuth:
         cognito = await self._async_authenticated_cognito()
 
         try:
-            async with asyncio.timeout(DEFAULT_AUTH_TIMEOUT):
+            async with asyncio.timeout(AUTH_RENEW_TIMEOUT):
                 await self.cloud.run_executor(cognito.renew_access_token)
             await self.cloud.update_token(cognito.id_token, cognito.access_token)
 
@@ -378,12 +399,17 @@ class CognitoAuth:
         return await self.cloud.run_executor(
             partial(
                 self._create_cognito_client,
+                botocore_config=_RENEW_BOTOCORE_CONFIG,
                 access_token=self.cloud.access_token,
                 refresh_token=self.cloud.refresh_token,
             ),
         )
 
-    def _create_cognito_client(self, **kwargs: Any) -> pycognito.Cognito:
+    def _create_cognito_client(
+        self,
+        botocore_config: botocore.config.Config = _USER_BOTOCORE_CONFIG,
+        **kwargs: Any,
+    ) -> pycognito.Cognito:
         """Create a new cognito client.
 
         NOTE: This will do I/O
@@ -402,7 +428,7 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=_BOTOCORE_CONFIG,
+            botocore_config=botocore_config,
             session=self._session,
             **kwargs,
         )
