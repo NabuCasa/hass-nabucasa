@@ -162,6 +162,8 @@ class GoogleReportState(iot_base.BaseIoT, ApiBase):
                     self._fail_message(
                         msgid, ERR_DISCONNECTED_CODE, ERR_DISCONNECTED_MSG
                     )
+                    if self.client is not None:
+                        await self.client.close()
                     break
         except asyncio.CancelledError:
             pass

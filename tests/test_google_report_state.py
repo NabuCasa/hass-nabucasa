@@ -26,7 +26,9 @@ def create_connected_grs(send_json: AsyncMock | None) -> GoogleReportState:
     """Create a grs instance that is marked connected with a mock client."""
     grs = GoogleReportState(Mock())
     grs.state = iot_base.STATE_CONNECTED
-    grs.client = None if send_json is None else Mock(send_json=send_json)
+    grs.client = (
+        None if send_json is None else Mock(send_json=send_json, close=AsyncMock())
+    )
     return grs
 
 
@@ -222,7 +224,7 @@ async def test_send_error_fails_message_and_keeps_queue(send_json):
 
     sent = asyncio.Event()
     reconnected_send_json = AsyncMock(side_effect=lambda _msg: sent.set())
-    grs.client = Mock(send_json=reconnected_send_json)
+    grs.client = Mock(send_json=reconnected_send_json, close=AsyncMock())
     await grs._async_on_connect()
     await wait_bounded(sent.wait())
 
@@ -236,6 +238,26 @@ async def test_send_error_fails_message_and_keeps_queue(send_json):
     assert grs._in_flight == set()
 
     await grs._async_on_disconnect()
+
+
+async def test_send_error_closes_client():
+    """Test a send error on a closing transport closes the client."""
+    grs = create_connected_grs(
+        AsyncMock(
+            side_effect=ClientConnectionResetError("Cannot write to closing transport")
+        )
+    )
+    client = grs.client
+    assert client is not None
+    await grs._async_on_connect()
+
+    with pytest.raises(ErrorResponse):
+        await wait_bounded(grs.async_send_message({"hello": 0}))
+
+    sender_task = grs._message_sender_task
+    assert sender_task is not None
+    await wait_bounded(asyncio.wait({sender_task}))
+    client.close.assert_awaited_once()
 
 
 async def test_message_timeout():
