@@ -672,6 +672,28 @@ async def test_acme_handler_suggested_renewal_time_creates_client(
 @pytest.mark.parametrize(
     "exception",
     [
+        jose.DeserializationError("bad registration"),
+        ValueError("bad account key"),
+    ],
+)
+async def test_acme_handler_suggested_renewal_time_client_errors(
+    cloud: Cloud,
+    exception: Exception,
+) -> None:
+    """Test suggested_renewal_time wraps errors creating the ACME client."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._x509 = Mock(public_bytes=Mock(return_value=b"cert"))
+
+    with (
+        patch.object(handler, "_create_client", side_effect=exception),
+        pytest.raises(AcmeClientError, match="Can't fetch ACME renewal info"),
+    ):
+        await handler.suggested_renewal_time()
+
+
+@pytest.mark.parametrize(
+    "exception",
+    [
         errors.ARIError("failed", datetime(2018, 10, 1, tzinfo=UTC)),
         RequestException("Network error"),
         gaierror("DNS resolution failed"),

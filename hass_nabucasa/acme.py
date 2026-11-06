@@ -453,15 +453,15 @@ class AcmeHandler:
         if self._x509 is None:
             return None
 
-        if self._acme_client is None:
-            self._create_client()
-        if TYPE_CHECKING:
-            assert self._acme_client is not None
-
-        cert_pem = self._x509.public_bytes(serialization.Encoding.PEM)
         try:
+            if self._acme_client is None:
+                self._create_client()
+            if TYPE_CHECKING:
+                assert self._acme_client is not None
+
+            cert_pem = self._x509.public_bytes(serialization.Encoding.PEM)
             renewal_time, _ = self._acme_client.renewal_time(cert_pem)
-        except (*_ACME_CLIENT_EXCEPTIONS, jose.DeserializationError) as err:
+        except (*_ACME_CLIENT_EXCEPTIONS, jose.DeserializationError, ValueError) as err:
             _raise_if_jws_verification_failed(err)
             raise AcmeClientError(f"Can't fetch ACME renewal info: {err}") from err
         return renewal_time
