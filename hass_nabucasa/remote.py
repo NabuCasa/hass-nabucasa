@@ -714,20 +714,26 @@ class RemoteUI:
         """Return when the certificate should be renewed.
 
         Prefer the renewal window suggested by the ACME server and fall back to
-        a share of the certificate lifetime, similar to certbot.
+        a share of the certificate lifetime, similar to certbot. Never renew later
+        than the minimum escalation days before expiry.
         """
         if TYPE_CHECKING:
             assert self._acme is not None
             assert self._acme.expire_date is not None
             assert self._acme.not_before is not None
 
+        latest = self._acme.expire_date - timedelta(days=RENEWAL_ESCALATION_MIN_DAYS)
+
         try:
             if renewal_time := await self._acme.suggested_renewal_time():
-                return renewal_time
+                return min(renewal_time, latest)
         except AcmeClientError as err:
             _LOGGER.debug("Unable to fetch ACME renewal info: %s", err)
 
-        return default_renewal_time(self._acme.not_before, self._acme.expire_date)
+        return min(
+            default_renewal_time(self._acme.not_before, self._acme.expire_date),
+            latest,
+        )
 
     async def _should_renew_certificates_before(self) -> datetime | None:
         """Check if certificates should be renewed.

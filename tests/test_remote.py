@@ -2050,6 +2050,7 @@ async def test_ping_privileges_resolution_failure_retried(
     [
         (timedelta(days=60), timedelta(days=-1), True),
         (timedelta(days=24), timedelta(days=1), False),
+        (timedelta(days=6), timedelta(days=1), True),
         (timedelta(days=60), None, False),
         (timedelta(days=24), None, True),
         (timedelta(days=60), AcmeClientError("boom"), False),
@@ -2058,6 +2059,7 @@ async def test_ping_privileges_resolution_failure_retried(
     ids=[
         "ari_due",
         "ari_not_due",
+        "ari_capped",
         "no_ari_not_due",
         "no_ari_due",
         "ari_error_not_due",
