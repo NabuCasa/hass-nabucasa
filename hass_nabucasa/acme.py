@@ -184,6 +184,13 @@ class AcmeHandler:
         return self._x509.not_valid_after_utc
 
     @property
+    def not_before(self) -> datetime | None:
+        """Return datetime from which the certificate is valid."""
+        if not self._x509:
+            return None
+        return self._x509.not_valid_before_utc
+
+    @property
     def common_name(self) -> str | None:
         """Return CommonName of certificate."""
         if not self._x509:
@@ -440,6 +447,35 @@ class AcmeHandler:
         with atomic_write(self.path_fullchain, overwrite=True) as fp:
             fp.write(order.fullchain_pem)
         self.path_fullchain.chmod(0o600)
+
+    def _fetch_renewal_time(self) -> datetime | None:
+        """Fetch the renewal time suggested by the ACME server (RFC 9773)."""
+        if self._x509 is None:
+            return None
+
+        if self._acme_client is None:
+            self._create_client()
+        if TYPE_CHECKING:
+            assert self._acme_client is not None
+
+        cert_pem = self._x509.public_bytes(serialization.Encoding.PEM)
+        try:
+            renewal_time, _ = self._acme_client.renewal_time(cert_pem)
+        except (*_ACME_CLIENT_EXCEPTIONS, jose.DeserializationError) as err:
+            _raise_if_jws_verification_failed(err)
+            raise AcmeClientError(f"Can't fetch ACME renewal info: {err}") from err
+        return renewal_time
+
+    async def suggested_renewal_time(self) -> datetime | None:
+        """Return the renewal time suggested by the ACME server.
+
+        Returns None if no certificate is loaded or the ACME server does not
+        provide renewal information.
+        """
+        renewal_time: datetime | None = await self.cloud.run_executor(
+            self._fetch_renewal_time
+        )
+        return renewal_time
 
     async def load_certificate(self) -> None:
         """Get x509 Cert-Object."""
