@@ -20,9 +20,12 @@ from requests.exceptions import RequestException
 from snitun.utils import DEFAULT_PROTOCOL_VERSION
 from syrupy import SnapshotAssertion
 
-from hass_nabucasa import Cloud, utils
+from hass_nabucasa import Cloud, const, utils
 from hass_nabucasa.accounts_api import AccountsApiError
-from hass_nabucasa.acme import AcmeHandler
+from hass_nabucasa.acme import (
+    AcmeHandler,
+    AcmeJWSVerificationError,
+)
 from hass_nabucasa.const import (
     DISPATCH_CERTIFICATE_STATUS,
     DISPATCH_REMOTE_BACKEND_DOWN,
@@ -34,6 +37,7 @@ from hass_nabucasa.const import (
 from hass_nabucasa.remote import (
     RENEW_IF_EXPIRES_DAYS,
     WARN_RENEW_FAILED_DAYS,
+    RemoteCertificateError,
     RemoteClientCertificateError,
     RemoteUI,
     SubscriptionExpired,
@@ -1123,7 +1127,8 @@ async def test_acme_client_new_order_errors(
         ),
     ):
         assert cloud.remote._certificate_status is None
-        await cloud.remote.load_backend()
+        with pytest.raises(RemoteCertificateError):
+            await cloud.remote.load_backend()
 
     await asyncio.sleep(0.1)
     assert cloud.remote._acme.call_reset == should_reset
@@ -1232,7 +1237,8 @@ async def test_acme_client_create_client_jws_errors(
         ),
     ):
         assert cloud.remote._certificate_status is None
-        await cloud.remote.load_backend()
+        with pytest.raises(RemoteCertificateError):
+            await cloud.remote.load_backend()
 
     await asyncio.sleep(0.1)
     assert cloud.remote._acme.call_reset == should_reset
@@ -1475,11 +1481,14 @@ async def test_certificate_network_error_handling(
         },
     )
 
-    with patch(
-        "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(
-            cloud, "test.dui.nabu.casa", [], "test@nabucasa.inc", Mock()
+    with (
+        patch(
+            "hass_nabucasa.remote.AcmeHandler",
+            return_value=_MockAcme(
+                cloud, "test.dui.nabu.casa", [], "test@nabucasa.inc", Mock()
+            ),
         ),
+        patch("hass_nabucasa.utils.jitter", return_value=0),
     ):
         cloud.client.prop_remote_autostart = True
         await cloud.remote.start()
@@ -2055,6 +2064,142 @@ async def test_ping_privileges_resolution_failure_retried(
         "Ping latency check failed: Insufficient privileges to perform ICMP ping."
         in extract_log_messages(caplog)
     )
+
+
+def _register_instance(cloud: Cloud, aioclient_mock: AiohttpClientMocker) -> None:
+    """Mock the instance registration and SniTun token endpoints."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": (utcnow() + timedelta(days=1)).timestamp(),
+            "throttling": 400,
+        },
+    )
+
+
+async def test_load_backend_recreates_valid_certificate_on_jws_error(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+) -> None:
+    """Test a JWS error still recreates ACME even with a valid certificate."""
+    _register_instance(cloud, aioclient_mock)
+    valid_acme_mock.expire_date = utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS - 1)
+
+    async def _issue() -> None:
+        raise AcmeJWSVerificationError("boom")
+
+    valid_acme_mock.issue_certificate = _issue
+
+    with pytest.raises(RemoteCertificateError):
+        await cloud.remote.load_backend()
+
+    assert not snitun_mock.call_start
+    assert valid_acme_mock.call_reset
+    assert cloud.remote.certificate_status is CertificateStatus.INITIAL_CERT_ERROR
+    assert [message for *_, message in cloud.client.mock_user] == [
+        const.MESSAGE_REMOTE_SETUP
+    ]
+
+
+async def test_certificate_handler_backs_off_certificate_retries(
+    cloud: Cloud,
+) -> None:
+    """Test certificate failures back off while other failures retry quickly."""
+    sleeps: list[float] = []
+
+    async def _sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+
+    with (
+        patch.object(
+            cloud.remote,
+            "load_backend",
+            side_effect=[
+                RemoteCertificateError,
+                RemoteCertificateError,
+                False,
+                True,
+                RemoteCertificateError,
+                asyncio.CancelledError,
+            ],
+        ),
+        patch.object(cloud.remote, "close_backend"),
+        patch("hass_nabucasa.remote.asyncio.sleep", side_effect=_sleep),
+        patch("hass_nabucasa.utils.jitter", return_value=0),
+    ):
+        await cloud.remote._certificate_handler()
+
+    assert sleeps == [300, 600, 10, 300]
+
+
+@pytest.mark.parametrize(
+    ("load_result", "expected"),
+    [(True, True), (False, False), (RemoteCertificateError, False)],
+)
+async def test_recreate_backend_reports_load_result(
+    cloud: Cloud,
+    mock_timing: None,
+    load_result: bool | type[Exception],
+    expected: bool,
+) -> None:
+    """Test recreating the backend reports if it loaded, without raising."""
+    with (
+        patch.object(
+            cloud.remote,
+            "load_backend",
+            **(
+                {"side_effect": load_result}
+                if isinstance(load_result, type)
+                else {"return_value": load_result}
+            ),
+        ) as mock_load,
+        patch.object(cloud.remote, "close_backend") as mock_close,
+    ):
+        assert await cloud.remote._recreate_backend() is expected
+
+    mock_close.assert_called_once()
+    mock_load.assert_called_once()
+
+
+async def test_certificate_handler_keeps_error_status_when_reload_fails(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    mock_timing: None,
+) -> None:
+    """Test a failed reload after renewal does not report the certificate ready."""
+    cloud.remote._acme = valid_acme_mock
+    cloud.remote._snitun = Mock()
+    reloaded = asyncio.Event()
+
+    async def _recreate_backend() -> bool:
+        cloud.remote._update_certificate_status(CertificateStatus.INITIAL_CERT_ERROR)
+        reloaded.set()
+        return False
+
+    with (
+        patch.object(cloud.remote, "_should_renew_certificates", return_value=True),
+        patch.object(cloud.remote, "_recreate_backend", side_effect=_recreate_backend),
+        patch.object(cloud.remote, "close_backend"),
+    ):
+        task = asyncio.create_task(cloud.remote._certificate_handler())
+        await asyncio.wait_for(reloaded.wait(), timeout=1)
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+    assert valid_acme_mock.call_issue
+    assert cloud.remote.certificate_status is CertificateStatus.INITIAL_CERT_ERROR
 
 
 def _write_self_signed_cert(path: Path) -> tuple[Path, Path]:

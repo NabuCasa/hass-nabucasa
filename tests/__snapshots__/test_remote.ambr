@@ -201,6 +201,7 @@
   [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
   [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't order a new ACME challenge: Connection timeout
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
+  [DEBUG] hass_nabucasa.remote: Unable to prepare certificate, trying again in 5m: Can't order a new ACME challenge: Connection timeout
   '''
 # ---
 # name: test_certificate_network_error_handling[gaierror-DNS resolution failed]
@@ -221,6 +222,7 @@
   [INFO] hass_nabucasa.acme: Initialize challenge for a new ACME certificate
   [WARNING] hass_nabucasa.remote: Failed to issue certificate for test.dui.nabu.casa: Can't order a new ACME challenge: DNS resolution failed
   [DEBUG] hass_nabucasa.remote: Certificate status: initial_cert_error
+  [DEBUG] hass_nabucasa.remote: Unable to prepare certificate, trying again in 5m: Can't order a new ACME challenge: DNS resolution failed
   '''
 # ---
 # name: test_context_error_handling[file_not_found]
