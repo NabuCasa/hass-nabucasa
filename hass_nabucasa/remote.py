@@ -240,6 +240,7 @@ class RemoteUI:
 
         await self.disconnect()
         self._reconnect_task = None
+        await self._snitun.stop()
 
         self._snitun = SniTunClientAioHttp(
             self.cloud.client.aiohttp_runner,
