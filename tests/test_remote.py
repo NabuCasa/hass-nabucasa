@@ -2330,6 +2330,7 @@ async def test_reload_client_certificates(
         await asyncio.sleep(0)
 
     assert old_snitun.call_disconnect
+    assert old_snitun.call_stop
     assert cloud.remote._snitun is snitun_mock
     assert snitun_mock.init_args[1] is context
     assert snitun_mock.call_start
