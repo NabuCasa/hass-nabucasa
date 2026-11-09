@@ -34,7 +34,6 @@ from hass_nabucasa.const import (
 from hass_nabucasa.remote import (
     RENEW_IF_EXPIRES_DAYS,
     WARN_RENEW_FAILED_DAYS,
-    RemoteClientCertificateError,
     RemoteUI,
     SubscriptionExpired,
 )
@@ -2103,132 +2102,65 @@ async def test_create_context_without_peer_certificate(
     assert context.get_ca_certs() == []
 
 
-@pytest.mark.parametrize(
-    ("required", "verify_mode"), [(False, CERT_NONE), (True, CERT_REQUIRED)]
-)
 async def test_create_context_with_peer_certificate(
     cloud: Cloud,
     tmp_path: Path,
-    required: bool,
-    verify_mode: int,
 ) -> None:
-    """Test the client CA is always loaded and only required when enabled."""
+    """Test the remote context requires client certificates when configured."""
     cert_path, key_path = _write_self_signed_cert(tmp_path)
     cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
     cloud.client.prop_remote_ssl_peer_certificate = str(cert_path)
-    cloud.remote.require_client_certificate = required
 
     context = await CREATE_CONTEXT(cloud.remote)
 
-    assert context.verify_mode == verify_mode
+    assert context.verify_mode == CERT_REQUIRED
     assert len(context.get_ca_certs()) == 1
 
 
-@pytest.mark.parametrize("ca_content", [None, "not a certificate"])
 async def test_create_context_with_invalid_peer_certificate(
     cloud: Cloud,
     tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
-    ca_content: str | None,
 ) -> None:
-    """Test a missing or invalid client CA only fails when certificates are required."""
+    """Test an unreadable client CA file fails context creation."""
     cert_path, key_path = _write_self_signed_cert(tmp_path)
     cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
-    ca_path = tmp_path / "client_ca.pem"
-    if ca_content is not None:
-        # The cloud fixture patches Path.write_text, so write with open().
-        with ca_path.open("w") as file:
-            file.write(ca_content)
-    cloud.client.prop_remote_ssl_peer_certificate = str(ca_path)
+    invalid_ca = tmp_path / "invalid.pem"
+    with invalid_ca.open("w") as file:
+        file.write("not a certificate")
+    cloud.client.prop_remote_ssl_peer_certificate = str(invalid_ca)
 
-    context = await CREATE_CONTEXT(cloud.remote)
-
-    assert context.verify_mode == CERT_NONE
-    assert "Can't load client certificate authority" in caplog.text
-
-    cloud.remote.require_client_certificate = True
-
-    with pytest.raises(RemoteClientCertificateError):
+    with pytest.raises(SSLError):
         await CREATE_CONTEXT(cloud.remote)
 
 
-async def test_require_client_certificate_updates_context(
+async def test_reload_client_certificates(
     cloud: Cloud,
     tmp_path: Path,
 ) -> None:
-    """Test toggling the requirement updates the live context but not its CAs."""
+    """Test toggling client certificates updates the active context in place."""
     cert_path, key_path = _write_self_signed_cert(tmp_path)
     cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
-    cloud.client.prop_remote_ssl_peer_certificate = str(cert_path)
     context = await CREATE_CONTEXT(cloud.remote)
     cloud.remote._context = context
 
-    cloud.remote.require_client_certificate = True
-
-    assert context.verify_mode == CERT_REQUIRED
-
-    cloud.remote.require_client_certificate = False
-    cloud.remote.require_client_certificate = True
+    cloud.client.prop_remote_ssl_peer_certificate = str(cert_path)
+    await cloud.remote.reload_client_certificates()
 
     assert context.verify_mode == CERT_REQUIRED
     assert len(context.get_ca_certs()) == 1
 
-    cloud.remote.require_client_certificate = False
+    cloud.client.prop_remote_ssl_peer_certificate = None
+    await cloud.remote.reload_client_certificates()
 
     assert context.verify_mode == CERT_NONE
 
 
-async def test_require_client_certificate_without_ca(
+async def test_reload_client_certificates_without_backend(
     cloud: Cloud,
-    tmp_path: Path,
 ) -> None:
-    """Test requiring client certificates fails if no client CA was loaded."""
-    cert_path, key_path = _write_self_signed_cert(tmp_path)
-    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
-    context = await CREATE_CONTEXT(cloud.remote)
-    cloud.remote._context = context
+    """Test updating client certificates without a loaded backend is a no-op."""
+    cloud.client.prop_remote_ssl_peer_certificate = "/ssl/client_ca.pem"
 
-    with pytest.raises(RemoteClientCertificateError):
-        cloud.remote.require_client_certificate = True
+    await cloud.remote.reload_client_certificates()
 
-    assert cloud.remote.require_client_certificate is False
-    assert context.verify_mode == CERT_NONE
-
-
-async def test_require_client_certificate_without_backend(cloud: Cloud) -> None:
-    """Test the requirement is stored until the backend loads."""
-    cloud.remote.require_client_certificate = True
-
-    assert cloud.remote.require_client_certificate is True
     assert cloud.remote._context is None
-
-
-async def test_load_backend_client_certificate_error(
-    cloud: Cloud,
-    valid_acme_mock: MockAcme,
-    aioclient_mock: AiohttpClientMocker,
-    snitun_mock: MockSnitun,
-    mock_timing: None,
-) -> None:
-    """Test a client CA error fails the backend without resetting ACME."""
-    aioclient_mock.post(
-        f"https://{cloud.api_server}/instance/register",
-        json={
-            "domain": "test.dui.nabu.casa",
-            "email": "test@nabucasa.inc",
-            "server": "rest-remote.nabu.casa",
-        },
-    )
-
-    with patch.object(
-        cloud.remote,
-        "_create_context",
-        side_effect=RemoteClientCertificateError("No client CA"),
-    ):
-        assert not await cloud.remote.load_backend()
-
-    assert not cloud.remote._acme.call_reset
-    assert cloud.remote._certificate_status is not CertificateStatus.SSL_CONTEXT_ERROR
-    assert cloud.remote._snitun is None
-
-    await cloud.remote.stop()

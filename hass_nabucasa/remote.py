@@ -63,10 +63,6 @@ class SubscriptionExpired(RemoteError):
     """Raise if we cannot connect because subscription expired."""
 
 
-class RemoteClientCertificateError(RemoteError):
-    """Raise if client certificates are required but can't be verified."""
-
-
 class RemoteLatencyLocationResult(TypedDict):
     """Latency results for a location."""
 
@@ -104,8 +100,6 @@ class RemoteUI:
         self._acme: AcmeHandler | None = None
         self._snitun: SniTunClientAioHttp | None = None
         self._context: SSLContext | None = None
-        self._client_ca_loaded = False
-        self._require_client_certificate = False
         self._snitun_server: str | None = None
         self._instance_domain: str | None = None
         self._alias: list[str] | None = None
@@ -215,49 +209,24 @@ class RemoteUI:
             self._acme.path_private_key,
         )
 
-        self._client_ca_loaded = False
-        if ca_file := self.cloud.client.remote_ssl_peer_certificate:
-            try:
-                await self.cloud.run_executor(context.load_verify_locations, ca_file)
-            except (OSError, SSLError) as err:
-                if self._require_client_certificate:
-                    raise RemoteClientCertificateError(
-                        f"Can't load client certificate authority {ca_file}: {err}"
-                    ) from err
-                _LOGGER.warning(
-                    "Can't load client certificate authority %s: %s", ca_file, err
-                )
-            else:
-                self._client_ca_loaded = True
-
-        self._apply_client_certificate_requirement(
-            context, self._require_client_certificate
-        )
+        await self._configure_client_certificates(context)
 
         return context
 
-    def _apply_client_certificate_requirement(
-        self, context: SSLContext, required: bool
-    ) -> None:
-        """Set whether the context requires client certificates."""
-        if required and not self._client_ca_loaded:
-            raise RemoteClientCertificateError("No client certificate authority loaded")
-        context.verify_mode = CERT_REQUIRED if required else CERT_NONE
+    async def _configure_client_certificates(self, context: SSLContext) -> None:
+        """Require client certificates on the context if the client asks for it."""
+        if ca_file := self.cloud.client.remote_ssl_peer_certificate:
+            await self.cloud.run_executor(context.load_verify_locations, ca_file)
+            context.verify_mode = CERT_REQUIRED
+        else:
+            context.verify_mode = CERT_NONE
 
-    @property
-    def require_client_certificate(self) -> bool:
-        """Return if remote connections require client certificates."""
-        return self._require_client_certificate
+    async def reload_client_certificates(self) -> None:
+        """Apply the client certificate requirement to new remote connections."""
+        if self._context is None:
+            return
 
-    @require_client_certificate.setter
-    def require_client_certificate(self, required: bool) -> None:
-        """Set if remote connections require client certificates.
-
-        Applies to new connections immediately if the backend is loaded.
-        """
-        if self._context is not None:
-            self._apply_client_certificate_requirement(self._context, required)
-        self._require_client_certificate = required
+        await self._configure_client_certificates(self._context)
 
     async def _recreate_backend(self) -> None:
         """There was a connection error, recreate the backend."""
@@ -451,9 +420,6 @@ class RemoteUI:
 
         try:
             context = await self._create_context()
-        except RemoteClientCertificateError as err:
-            _LOGGER.error("Can't require client certificates for remote: %s", err)
-            return False
         except (SSLError, FileNotFoundError) as err:
             should_reset = isinstance(err, FileNotFoundError) or (
                 err.reason == "KEY_VALUES_MISMATCH"
