@@ -3,13 +3,18 @@
 import asyncio
 from collections.abc import AsyncGenerator, Generator
 from datetime import timedelta
+from pathlib import Path
 from socket import gaierror
-from ssl import SSLError
+from ssl import CERT_NONE, CERT_REQUIRED, SSLError
 from typing import Any
 from unittest.mock import Mock, patch
 
 from acme import client, messages
 import aiohttp
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
 import pytest
 from requests.exceptions import RequestException
 from snitun.utils import DEFAULT_PROTOCOL_VERSION
@@ -29,6 +34,7 @@ from hass_nabucasa.const import (
 from hass_nabucasa.remote import (
     RENEW_IF_EXPIRES_DAYS,
     WARN_RENEW_FAILED_DAYS,
+    RemoteUI,
     SubscriptionExpired,
 )
 from hass_nabucasa.utils import utcnow
@@ -38,6 +44,9 @@ from tests.utils.aiohttp import AiohttpClientMocker
 from .common import MockAcme, MockSnitun
 
 # pylint: disable=protected-access
+
+# Captured before the autouse ignore_context fixture patches it.
+CREATE_CONTEXT = RemoteUI._create_context
 
 
 @pytest.fixture
@@ -2045,3 +2054,80 @@ async def test_ping_privileges_resolution_failure_retried(
         "Ping latency check failed: Insufficient privileges to perform ICMP ping."
         in extract_log_messages(caplog)
     )
+
+
+def _write_self_signed_cert(path: Path) -> tuple[Path, Path]:
+    """Write a self-signed certificate and its private key."""
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "test.dui.nabu.casa")])
+    now = utcnow()
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - timedelta(days=1))
+        .not_valid_after(now + timedelta(days=1))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .sign(key, hashes.SHA256())
+    )
+    cert_path = path / "cert.pem"
+    key_path = path / "key.pem"
+    # The cloud fixture patches Path.write_bytes, so write with open().
+    with cert_path.open("wb") as file:
+        file.write(cert.public_bytes(serialization.Encoding.PEM))
+    with key_path.open("wb") as file:
+        file.write(
+            key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+            )
+        )
+    return cert_path, key_path
+
+
+async def test_create_context_without_peer_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test the remote context does not request client certificates by default."""
+    cert_path, key_path = _write_self_signed_cert(tmp_path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+
+    context = await CREATE_CONTEXT(cloud.remote)
+
+    assert context.verify_mode == CERT_NONE
+    assert context.get_ca_certs() == []
+
+
+async def test_create_context_with_peer_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test the remote context requires client certificates when configured."""
+    cert_path, key_path = _write_self_signed_cert(tmp_path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+    cloud.client.prop_remote_ssl_peer_certificate = str(cert_path)
+
+    context = await CREATE_CONTEXT(cloud.remote)
+
+    assert context.verify_mode == CERT_REQUIRED
+    assert len(context.get_ca_certs()) == 1
+
+
+async def test_create_context_with_invalid_peer_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test an unreadable client CA file fails context creation."""
+    cert_path, key_path = _write_self_signed_cert(tmp_path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+    invalid_ca = tmp_path / "invalid.pem"
+    with invalid_ca.open("w") as file:
+        file.write("not a certificate")
+    cloud.client.prop_remote_ssl_peer_certificate = str(invalid_ca)
+
+    with pytest.raises(SSLError):
+        await CREATE_CONTEXT(cloud.remote)

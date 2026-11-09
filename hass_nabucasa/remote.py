@@ -7,7 +7,7 @@ from contextvars import ContextVar
 from datetime import datetime, timedelta
 import logging
 import random
-from ssl import SSLContext, SSLError
+from ssl import CERT_REQUIRED, SSLContext, SSLError
 from typing import TYPE_CHECKING, TypedDict
 
 import aiohttp
@@ -207,6 +207,10 @@ class RemoteUI:
             self._acme.path_fullchain,
             self._acme.path_private_key,
         )
+
+        if ca_file := self.cloud.client.remote_ssl_peer_certificate:
+            context.verify_mode = CERT_REQUIRED
+            await self.cloud.run_executor(context.load_verify_locations, ca_file)
 
         return context
 
