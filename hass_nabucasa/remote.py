@@ -7,7 +7,7 @@ from contextvars import ContextVar
 from datetime import datetime, timedelta
 import logging
 import random
-from ssl import CERT_REQUIRED, SSLContext, SSLError
+from ssl import CERT_NONE, CERT_REQUIRED, SSLContext, SSLError
 from typing import TYPE_CHECKING, TypedDict
 
 import aiohttp
@@ -99,6 +99,7 @@ class RemoteUI:
         self.cloud = cloud
         self._acme: AcmeHandler | None = None
         self._snitun: SniTunClientAioHttp | None = None
+        self._context: SSLContext | None = None
         self._snitun_server: str | None = None
         self._instance_domain: str | None = None
         self._alias: list[str] | None = None
@@ -208,11 +209,24 @@ class RemoteUI:
             self._acme.path_private_key,
         )
 
-        if ca_file := self.cloud.client.remote_ssl_peer_certificate:
-            context.verify_mode = CERT_REQUIRED
-            await self.cloud.run_executor(context.load_verify_locations, ca_file)
+        await self._configure_client_certificates(context)
 
         return context
+
+    async def _configure_client_certificates(self, context: SSLContext) -> None:
+        """Require client certificates on the context if the client asks for it."""
+        if ca_file := self.cloud.client.remote_ssl_peer_certificate:
+            await self.cloud.run_executor(context.load_verify_locations, ca_file)
+            context.verify_mode = CERT_REQUIRED
+        else:
+            context.verify_mode = CERT_NONE
+
+    async def reload_client_certificates(self) -> None:
+        """Apply the client certificate requirement to new remote connections."""
+        if self._context is None:
+            return
+
+        await self._configure_client_certificates(self._context)
 
     async def _recreate_backend(self) -> None:
         """There was a connection error, recreate the backend."""
@@ -420,6 +434,8 @@ class RemoteUI:
             self._update_certificate_status(CertificateStatus.SSL_CONTEXT_ERROR)
             return False
 
+        self._context = context
+
         # Setup snitun / aiohttp wrapper
         _LOGGER.debug("Initializing SniTun")
         self._snitun = SniTunClientAioHttp(
@@ -459,6 +475,7 @@ class RemoteUI:
 
         # Cleanup
         self._snitun = None
+        self._context = None
         self._acme = None
         self._token = None
         self._instance_domain = None

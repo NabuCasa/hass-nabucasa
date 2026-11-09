@@ -2131,3 +2131,36 @@ async def test_create_context_with_invalid_peer_certificate(
 
     with pytest.raises(SSLError):
         await CREATE_CONTEXT(cloud.remote)
+
+
+async def test_reload_client_certificates(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test toggling client certificates updates the active context in place."""
+    cert_path, key_path = _write_self_signed_cert(tmp_path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+    context = await CREATE_CONTEXT(cloud.remote)
+    cloud.remote._context = context
+
+    cloud.client.prop_remote_ssl_peer_certificate = str(cert_path)
+    await cloud.remote.reload_client_certificates()
+
+    assert context.verify_mode == CERT_REQUIRED
+    assert len(context.get_ca_certs()) == 1
+
+    cloud.client.prop_remote_ssl_peer_certificate = None
+    await cloud.remote.reload_client_certificates()
+
+    assert context.verify_mode == CERT_NONE
+
+
+async def test_reload_client_certificates_without_backend(
+    cloud: Cloud,
+) -> None:
+    """Test updating client certificates without a loaded backend is a no-op."""
+    cloud.client.prop_remote_ssl_peer_certificate = "/ssl/client_ca.pem"
+
+    await cloud.remote.reload_client_certificates()
+
+    assert cloud.remote._context is None
