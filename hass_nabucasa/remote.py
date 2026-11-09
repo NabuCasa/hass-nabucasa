@@ -7,7 +7,7 @@ from contextvars import ContextVar
 from datetime import datetime, timedelta
 import logging
 import random
-from ssl import CERT_NONE, CERT_REQUIRED, SSLContext, SSLError
+from ssl import CERT_REQUIRED, SSLContext, SSLError
 from typing import TYPE_CHECKING, TypedDict
 
 import aiohttp
@@ -63,6 +63,10 @@ class SubscriptionExpired(RemoteError):
     """Raise if we cannot connect because subscription expired."""
 
 
+class RemoteClientCertificateError(RemoteError):
+    """Raise if the client certificate authority can't be loaded."""
+
+
 class RemoteLatencyLocationResult(TypedDict):
     """Latency results for a location."""
 
@@ -99,7 +103,6 @@ class RemoteUI:
         self.cloud = cloud
         self._acme: AcmeHandler | None = None
         self._snitun: SniTunClientAioHttp | None = None
-        self._context: SSLContext | None = None
         self._snitun_server: str | None = None
         self._instance_domain: str | None = None
         self._alias: list[str] | None = None
@@ -209,24 +212,46 @@ class RemoteUI:
             self._acme.path_private_key,
         )
 
-        await self._configure_client_certificates(context)
+        if ca_file := self.cloud.client.remote_ssl_peer_certificate:
+            try:
+                await self.cloud.run_executor(context.load_verify_locations, ca_file)
+            except (OSError, SSLError) as err:
+                raise RemoteClientCertificateError(
+                    f"Can't load client certificate authority {ca_file}: {err}"
+                ) from err
+            context.verify_mode = CERT_REQUIRED
 
         return context
 
-    async def _configure_client_certificates(self, context: SSLContext) -> None:
-        """Require client certificates on the context if the client asks for it."""
-        if ca_file := self.cloud.client.remote_ssl_peer_certificate:
-            await self.cloud.run_executor(context.load_verify_locations, ca_file)
-            context.verify_mode = CERT_REQUIRED
-        else:
-            context.verify_mode = CERT_NONE
-
     async def reload_client_certificates(self) -> None:
-        """Apply the client certificate requirement to new remote connections."""
-        if self._context is None:
+        """Apply the client certificate requirement to the remote connection.
+
+        Installs a fresh SSL context, so TLS sessions established before the
+        change can't be resumed to skip a now required client certificate.
+        """
+        if self._snitun is None:
             return
 
-        await self._configure_client_certificates(self._context)
+        # We can not get here without these being set, but mypy does not know that.
+        assert self._snitun_server is not None
+        assert self.cloud.client.aiohttp_runner is not None
+
+        context = await self._create_context()
+
+        await self.disconnect()
+        self._reconnect_task = None
+
+        self._snitun = SniTunClientAioHttp(
+            self.cloud.client.aiohttp_runner,
+            context,
+            snitun_server=self._snitun_server,
+            snitun_port=443,
+        )
+        is_cloud_request.set(True)
+        await self._snitun.start()
+
+        if self.cloud.client.remote_autostart:
+            asyncio.create_task(self.connect())
 
     async def _recreate_backend(self) -> None:
         """There was a connection error, recreate the backend."""
@@ -420,6 +445,9 @@ class RemoteUI:
 
         try:
             context = await self._create_context()
+        except RemoteClientCertificateError as err:
+            _LOGGER.error("Can't require client certificates for remote: %s", err)
+            return False
         except (SSLError, FileNotFoundError) as err:
             should_reset = isinstance(err, FileNotFoundError) or (
                 err.reason == "KEY_VALUES_MISMATCH"
@@ -433,8 +461,6 @@ class RemoteUI:
                 await self._recreate_acme(instance_domain, aliases, email)
             self._update_certificate_status(CertificateStatus.SSL_CONTEXT_ERROR)
             return False
-
-        self._context = context
 
         # Setup snitun / aiohttp wrapper
         _LOGGER.debug("Initializing SniTun")
@@ -475,7 +501,6 @@ class RemoteUI:
 
         # Cleanup
         self._snitun = None
-        self._context = None
         self._acme = None
         self._token = None
         self._instance_domain = None

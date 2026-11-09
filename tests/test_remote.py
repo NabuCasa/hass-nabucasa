@@ -34,6 +34,7 @@ from hass_nabucasa.const import (
 from hass_nabucasa.remote import (
     RENEW_IF_EXPIRES_DAYS,
     WARN_RENEW_FAILED_DAYS,
+    RemoteClientCertificateError,
     RemoteUI,
     SubscriptionExpired,
 )
@@ -2129,38 +2130,97 @@ async def test_create_context_with_invalid_peer_certificate(
         file.write("not a certificate")
     cloud.client.prop_remote_ssl_peer_certificate = str(invalid_ca)
 
-    with pytest.raises(SSLError):
+    with pytest.raises(RemoteClientCertificateError):
         await CREATE_CONTEXT(cloud.remote)
+
+
+async def test_load_backend_client_certificate_error(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test a client CA error fails the backend without resetting ACME."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+
+    with patch.object(
+        cloud.remote,
+        "_create_context",
+        side_effect=RemoteClientCertificateError("No client CA"),
+    ):
+        assert not await cloud.remote.load_backend()
+
+    assert not cloud.remote._acme.call_reset
+    assert cloud.remote._certificate_status is not CertificateStatus.SSL_CONTEXT_ERROR
+    assert cloud.remote._snitun is None
+
+    await cloud.remote.stop()
 
 
 async def test_reload_client_certificates(
     cloud: Cloud,
-    tmp_path: Path,
+    snitun_mock: MockSnitun,
 ) -> None:
-    """Test toggling client certificates updates the active context in place."""
-    cert_path, key_path = _write_self_signed_cert(tmp_path)
-    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
-    context = await CREATE_CONTEXT(cloud.remote)
-    cloud.remote._context = context
+    """Test reloading installs a fresh context on a new snitun client."""
+    old_snitun = MockSnitun()
+    old_snitun.call_connect = True
+    cloud.remote._snitun = old_snitun
+    cloud.remote._snitun_server = "rest-remote.nabu.casa"
+    cloud.client._aiohttp_runner = Mock()
+    context = Mock()
 
-    cloud.client.prop_remote_ssl_peer_certificate = str(cert_path)
-    await cloud.remote.reload_client_certificates()
+    with (
+        patch.object(cloud.remote, "_create_context", return_value=context),
+        patch.object(cloud.remote, "connect") as connect,
+    ):
+        await cloud.remote.reload_client_certificates()
+        await asyncio.sleep(0)
 
-    assert context.verify_mode == CERT_REQUIRED
-    assert len(context.get_ca_certs()) == 1
-
-    cloud.client.prop_remote_ssl_peer_certificate = None
-    await cloud.remote.reload_client_certificates()
-
-    assert context.verify_mode == CERT_NONE
+    assert old_snitun.call_disconnect
+    assert cloud.remote._snitun is snitun_mock
+    assert snitun_mock.init_args[1] is context
+    assert snitun_mock.call_start
+    connect.assert_called_once()
 
 
-async def test_reload_client_certificates_without_backend(
+async def test_reload_client_certificates_error(
     cloud: Cloud,
+    snitun_mock: MockSnitun,
 ) -> None:
-    """Test updating client certificates without a loaded backend is a no-op."""
-    cloud.client.prop_remote_ssl_peer_certificate = "/ssl/client_ca.pem"
+    """Test a failed reload keeps the current snitun client."""
+    old_snitun = MockSnitun()
+    old_snitun.call_connect = True
+    cloud.remote._snitun = old_snitun
+    cloud.remote._snitun_server = "rest-remote.nabu.casa"
+    cloud.client._aiohttp_runner = Mock()
 
-    await cloud.remote.reload_client_certificates()
+    with (
+        patch.object(
+            cloud.remote,
+            "_create_context",
+            side_effect=RemoteClientCertificateError("No client CA"),
+        ),
+        pytest.raises(RemoteClientCertificateError),
+    ):
+        await cloud.remote.reload_client_certificates()
 
-    assert cloud.remote._context is None
+    assert cloud.remote._snitun is old_snitun
+    assert not old_snitun.call_disconnect
+    assert not snitun_mock.call_start
+
+
+async def test_reload_client_certificates_without_backend(cloud: Cloud) -> None:
+    """Test reloading client certificates without a loaded backend is a no-op."""
+    with patch.object(cloud.remote, "_create_context") as create_context:
+        await cloud.remote.reload_client_certificates()
+
+    create_context.assert_not_called()
+    assert cloud.remote._snitun is None
