@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
-from datetime import timedelta
+from datetime import datetime, timedelta
 from socket import gaierror
 from ssl import SSLError
 from typing import Any
@@ -18,6 +18,7 @@ from syrupy import SnapshotAssertion
 from hass_nabucasa import Cloud, const, utils
 from hass_nabucasa.accounts_api import AccountsApiError
 from hass_nabucasa.acme import (
+    AcmeClientError,
     AcmeHandler,
     AcmeJWSVerificationError,
 )
@@ -30,10 +31,10 @@ from hass_nabucasa.const import (
     CertificateStatus,
 )
 from hass_nabucasa.remote import (
-    RENEW_IF_EXPIRES_DAYS,
-    WARN_RENEW_FAILED_DAYS,
     RemoteCertificateError,
     SubscriptionExpired,
+    default_renewal_time,
+    renewal_escalation_time,
 )
 from hass_nabucasa.utils import utcnow
 from tests.common import extract_log_messages
@@ -851,9 +852,7 @@ async def test_recreating_old_certificate_with_bad_dns_config(
 
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "example.com"]
-    valid_acme_mock.expire_date = utils.utcnow() + timedelta(
-        days=WARN_RENEW_FAILED_DAYS,
-    )
+    valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=17)
     await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
@@ -931,7 +930,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
 
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "example.com"]
-    valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS)
+    valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=25)
     await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
@@ -995,7 +994,7 @@ async def test_regeneration_without_warning_for_good_dns_config(
 
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "example.com"]
-    valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS)
+    valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=25)
     await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
@@ -2056,6 +2055,193 @@ async def test_ping_privileges_resolution_failure_retried(
     )
 
 
+@pytest.mark.parametrize(
+    ("expire_in", "renewal_in", "should_renew"),
+    [
+        (timedelta(days=60), timedelta(days=-1), True),
+        (timedelta(days=24), timedelta(days=1), False),
+        (timedelta(days=6), timedelta(days=1), True),
+        (timedelta(days=60), None, False),
+        (timedelta(days=24), None, True),
+        (timedelta(days=60), AcmeClientError("boom"), False),
+        (timedelta(days=24), AcmeClientError("boom"), True),
+    ],
+    ids=[
+        "ari_due",
+        "ari_not_due",
+        "ari_capped",
+        "no_ari_not_due",
+        "no_ari_due",
+        "ari_error_not_due",
+        "ari_error_due",
+    ],
+)
+async def test_should_renew_certificates_uses_suggested_renewal_time(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    expire_in: timedelta,
+    renewal_in: timedelta | Exception | None,
+    should_renew: bool,
+) -> None:
+    """Test renewal follows the ACME suggested time with a lifetime fallback."""
+    now = utcnow()
+    valid_acme_mock.expire_date = now + expire_in
+    valid_acme_mock.renewal_time = (
+        now + renewal_in if isinstance(renewal_in, timedelta) else renewal_in
+    )
+    cloud.remote._acme = valid_acme_mock
+    cloud.remote._instance_domain = "test.dui.nabu.casa"
+
+    renew_before = await cloud.remote._should_renew_certificates_before()
+    assert (renew_before is not None) is should_renew
+
+
+@pytest.mark.parametrize(
+    ("expire_in", "renewal_in", "should_renew", "repair"),
+    [
+        (timedelta(days=14), timedelta(days=-1), False, "warn"),
+        (timedelta(days=10), timedelta(days=-5), True, "reset"),
+        (timedelta(days=22), None, False, "warn"),
+        (timedelta(days=20), None, True, "reset"),
+        (timedelta(days=8), timedelta(days=-1), False, "warn"),
+        (timedelta(days=6.5), timedelta(days=-2.5), True, "reset"),
+    ],
+    ids=[
+        "ari_grace",
+        "ari_grace_expired",
+        "no_ari_grace",
+        "no_ari_grace_expired",
+        "min_days_grace",
+        "min_days_grace_expired",
+    ],
+)
+async def test_bad_custom_domain_grace_follows_renewal_time(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    expire_in: timedelta,
+    renewal_in: timedelta | None,
+    should_renew: bool,
+    repair: str,
+) -> None:
+    """Test the custom domain grace period is relative to the renewal time."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/account/instance/resolve_dns_cname",
+        json=["test.dui.nabu.casa"],
+    )
+    now = utcnow()
+    valid_acme_mock.aliases = ["example.com"]
+    valid_acme_mock.expire_date = now + expire_in
+    valid_acme_mock.renewal_time = now + renewal_in if renewal_in else None
+    cloud.remote._acme = valid_acme_mock
+    cloud.remote._instance_domain = "test.dui.nabu.casa"
+
+    with patch.object(cloud.remote, "_recreate_acme") as mock_recreate:
+        renew_before = await cloud.remote._should_renew_certificates_before()
+
+    assert (renew_before is not None) is should_renew
+    assert mock_recreate.called is should_renew
+    assert [issue["translation_key"] for issue in cloud.client.mock_repairs] == [
+        f"{repair}_bad_custom_domain_configuration"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("renew_before_in", "level"),
+    [
+        (timedelta(0), "WARNING"),
+        (timedelta(days=1), "DEBUG"),
+        (timedelta(days=-1), "WARNING"),
+    ],
+)
+async def test_renewal_failure_log_level_follows_grace(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    caplog: pytest.LogCaptureFixture,
+    mock_timing: None,
+    renew_before_in: timedelta,
+    level: str,
+) -> None:
+    """Test renewal failures are only logged as warning after the grace period."""
+    caplog.set_level("DEBUG")
+    cloud.remote._acme = valid_acme_mock
+    cloud.remote._snitun = Mock()
+
+    second_check = asyncio.Event()
+    checks = 0
+
+    async def _should_renew_before() -> datetime:
+        nonlocal checks
+        checks += 1
+        if checks > 1:
+            second_check.set()
+        return utcnow() + renew_before_in
+
+    async def _issue() -> None:
+        raise AcmeClientError("boom")
+
+    valid_acme_mock.issue_certificate = _issue
+
+    with patch.object(
+        cloud.remote,
+        "_should_renew_certificates_before",
+        side_effect=_should_renew_before,
+    ):
+        task = asyncio.create_task(cloud.remote._certificate_handler())
+        await asyncio.wait_for(second_check.wait(), timeout=1)
+        task.cancel()
+        with patch.object(cloud.remote, "close_backend"):
+            await asyncio.gather(task, return_exceptions=True)
+
+    records = [
+        record
+        for record in caplog.records
+        if record.getMessage().startswith("Renewal of ACME certificate failed")
+    ]
+    assert records
+    assert {record.levelname for record in records} == {level}
+
+
+@pytest.mark.parametrize(
+    ("renewal_before_expiry", "escalation_before_expiry"),
+    [
+        (timedelta(days=25), timedelta(days=17.5)),
+        (timedelta(days=15), timedelta(days=10.5)),
+        (timedelta(days=10), timedelta(days=7)),
+        (timedelta(days=5), timedelta(days=7)),
+    ],
+)
+def test_renewal_escalation_time(
+    renewal_before_expiry: timedelta,
+    escalation_before_expiry: timedelta,
+) -> None:
+    """Test escalation is relative to renewal with a minimum before expiry."""
+    expire_date = utcnow()
+    assert (
+        renewal_escalation_time(expire_date - renewal_before_expiry, expire_date)
+        == expire_date - escalation_before_expiry
+    )
+
+
+@pytest.mark.parametrize(
+    ("lifetime", "renewal_before_expiry"),
+    [
+        (timedelta(days=90), timedelta(days=30)),
+        (timedelta(days=45), timedelta(days=15)),
+    ],
+)
+def test_default_renewal_time(
+    lifetime: timedelta,
+    renewal_before_expiry: timedelta,
+) -> None:
+    """Test the fallback renewal time is a share of the certificate lifetime."""
+    expire_date = utcnow()
+    assert (
+        default_renewal_time(expire_date - lifetime, expire_date)
+        == expire_date - renewal_before_expiry
+    )
+
+
 def _register_instance(cloud: Cloud, aioclient_mock: AiohttpClientMocker) -> None:
     """Mock the instance registration and SniTun token endpoints."""
     aioclient_mock.post(
@@ -2085,7 +2271,7 @@ async def test_load_backend_recreates_valid_certificate_on_jws_error(
 ) -> None:
     """Test a JWS error still recreates ACME even with a valid certificate."""
     _register_instance(cloud, aioclient_mock)
-    valid_acme_mock.expire_date = utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS - 1)
+    valid_acme_mock.expire_date = utcnow() + timedelta(days=24)
 
     async def _issue() -> None:
         raise AcmeJWSVerificationError("boom")
@@ -2179,7 +2365,11 @@ async def test_certificate_handler_keeps_error_status_when_reload_fails(
         return False
 
     with (
-        patch.object(cloud.remote, "_should_renew_certificates", return_value=True),
+        patch.object(
+            cloud.remote,
+            "_should_renew_certificates_before",
+            side_effect=utcnow,
+        ),
         patch.object(cloud.remote, "_recreate_backend", side_effect=_recreate_backend),
         patch.object(cloud.remote, "close_backend"),
     ):

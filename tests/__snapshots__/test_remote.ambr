@@ -326,7 +326,7 @@
 # name: test_recreating_old_certificate_with_bad_dns_config
   list([
     dict({
-      'identifier': 'reset_bad_custom_domain_configuration_1538740800',
+      'identifier': 'reset_bad_custom_domain_configuration_1538654400',
       'placeholders': dict({
         'custom_domains': 'example.com',
       }),

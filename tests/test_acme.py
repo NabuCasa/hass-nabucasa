@@ -1,10 +1,12 @@
 """Test ACME handler functionality."""
 
 from contextlib import AbstractContextManager, nullcontext
+from datetime import UTC, datetime
 from socket import gaierror
 from unittest.mock import AsyncMock, Mock, call, patch
 
 from acme import challenges, errors, messages
+import josepy as jose
 import pytest
 from requests.exceptions import RequestException
 
@@ -622,3 +624,91 @@ def test_acme_handler_deactivate_account_network_errors(
 
         with pytest.raises(AcmeClientError, match="Can't deactivate account"):
             handler._deactivate_account()
+
+
+async def test_acme_handler_suggested_renewal_time_no_certificate(
+    cloud: Cloud,
+) -> None:
+    """Test suggested_renewal_time returns None without a certificate."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._acme_client = Mock()
+
+    assert await handler.suggested_renewal_time() is None
+    handler._acme_client.renewal_time.assert_not_called()
+
+
+async def test_acme_handler_suggested_renewal_time(cloud: Cloud) -> None:
+    """Test suggested_renewal_time returns the time from the ACME server."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._x509 = Mock(public_bytes=Mock(return_value=b"cert"))
+    handler._acme_client = Mock()
+    renewal_time = datetime(2018, 10, 1, tzinfo=UTC)
+    handler._acme_client.renewal_time.return_value = (renewal_time, Mock())
+
+    assert await handler.suggested_renewal_time() == renewal_time
+    handler._acme_client.renewal_time.assert_called_once_with(b"cert")
+
+
+async def test_acme_handler_suggested_renewal_time_creates_client(
+    cloud: Cloud,
+) -> None:
+    """Test suggested_renewal_time creates the ACME client when needed."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._x509 = Mock(public_bytes=Mock(return_value=b"cert"))
+    mock_client = Mock()
+    mock_client.renewal_time.return_value = (None, Mock())
+
+    def _create_client() -> None:
+        handler._acme_client = mock_client
+
+    with patch.object(
+        handler, "_create_client", side_effect=_create_client
+    ) as mock_create:
+        assert await handler.suggested_renewal_time() is None
+
+    mock_create.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "exception",
+    [
+        jose.DeserializationError("bad registration"),
+        ValueError("bad account key"),
+    ],
+)
+async def test_acme_handler_suggested_renewal_time_client_errors(
+    cloud: Cloud,
+    exception: Exception,
+) -> None:
+    """Test suggested_renewal_time wraps errors creating the ACME client."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._x509 = Mock(public_bytes=Mock(return_value=b"cert"))
+
+    with (
+        patch.object(handler, "_create_client", side_effect=exception),
+        pytest.raises(AcmeClientError, match="Can't fetch ACME renewal info"),
+    ):
+        await handler.suggested_renewal_time()
+
+
+@pytest.mark.parametrize(
+    "exception",
+    [
+        errors.ARIError("failed", datetime(2018, 10, 1, tzinfo=UTC)),
+        RequestException("Network error"),
+        gaierror("DNS resolution failed"),
+        jose.DeserializationError("bad json"),
+    ],
+)
+async def test_acme_handler_suggested_renewal_time_errors(
+    cloud: Cloud,
+    exception: Exception,
+) -> None:
+    """Test suggested_renewal_time wraps ACME errors."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._x509 = Mock(public_bytes=Mock(return_value=b"cert"))
+    handler._acme_client = Mock()
+    handler._acme_client.renewal_time.side_effect = exception
+
+    with pytest.raises(AcmeClientError, match="Can't fetch ACME renewal info"):
+        await handler.suggested_renewal_time()
