@@ -67,6 +67,10 @@ class RemoteBackendError(RemoteError):
     """Backend problem with nabucasa API."""
 
 
+class RemoteCertificateError(RemoteError):
+    """Raise if no usable certificate could be prepared."""
+
+
 class RemoteInsecureVersion(RemoteError):
     """Raise if you try to connect with an insecure Core version."""
 
@@ -230,13 +234,20 @@ class RemoteUI:
 
         return context
 
-    async def _recreate_backend(self) -> None:
-        """There was a connection error, recreate the backend."""
+    async def _recreate_backend(self) -> bool:
+        """There was a connection error, recreate the backend.
+
+        Return True if the backend was loaded again.
+        """
         _LOGGER.info("Recreating backend")
         await self.close_backend()
         # Wait until backend is cleaned
         await asyncio.sleep(5)
-        await self.load_backend()
+        try:
+            return await self.load_backend()
+        except RemoteCertificateError as err:
+            _LOGGER.debug("Unable to prepare a certificate for the backend: %s", err)
+            return False
 
     def _generate_acme_handler(
         self,
@@ -316,7 +327,10 @@ class RemoteUI:
         ]
 
     async def load_backend(self) -> bool:
-        """Load backend details."""
+        """Load backend details.
+
+        Raise RemoteCertificateError if no usable certificate is available.
+        """
         ping_result = await self._fetch_ping_results()
 
         try:
@@ -345,6 +359,13 @@ class RemoteUI:
 
         aliases: list[str] = [*self._alias]
 
+        await self._prepare_certificate(instance_domain, aliases, email)
+        return await self._start_tunnel()
+
+    async def _prepare_certificate(
+        self, instance_domain: str, aliases: list[str], email: str
+    ) -> None:
+        """Load the certificate and issue a new one if needed."""
         # Set instance details for certificate
         self._acme = self._generate_acme_handler(
             domain=instance_domain,
@@ -399,7 +420,7 @@ class RemoteUI:
                     const.MESSAGE_REMOTE_SETUP,
                 )
                 self._update_certificate_status(CertificateStatus.INITIAL_CERT_ERROR)
-                return False
+                raise RemoteCertificateError(str(err)) from err
 
             self.cloud.client.user_message(
                 "cloud_remote_acme",
@@ -410,6 +431,11 @@ class RemoteUI:
         self._update_certificate_status(CertificateStatus.INITIAL_LOADED)
         await self._acme.hardening_files()
         self._update_certificate_status(CertificateStatus.READY)
+
+    async def _start_tunnel(self) -> bool:
+        """Start the SniTun tunnel with the current certificate."""
+        if TYPE_CHECKING:
+            assert self._acme is not None
 
         if self.cloud.client.aiohttp_runner is None:
             _LOGGER.debug("Waiting for aiohttp runner to come available")
@@ -430,7 +456,9 @@ class RemoteUI:
                     "Home Assistant Cloud",
                     const.MESSAGE_LOAD_CERTIFICATE_FAILURE,
                 )
-                await self._recreate_acme(instance_domain, aliases, email)
+                await self._recreate_acme(
+                    self._acme.domain, self._acme.aliases, self._acme.email
+                )
             self._update_certificate_status(CertificateStatus.SSL_CONTEXT_ERROR)
             return False
 
@@ -629,6 +657,11 @@ class RemoteUI:
 
     async def _certificate_handler(self) -> None:
         """Handle certification ACME Tasks."""
+        certificate_backoff = utils.Backoff(
+            initial=const.FIVE_MINUTES_IN_SECONDS,
+            maximum=6 * const.ONE_HOUR_IN_SECONDS,
+            multiplier=2,
+        )
         while True:
             try:
                 if self._snitun:
@@ -637,8 +670,25 @@ class RemoteUI:
 
                 else:
                     _LOGGER.debug("Initializing backend")
-                    if not await self.load_backend():
+                    try:
+                        loaded = await self.load_backend()
+                    except RemoteCertificateError as err:
+                        # Certificate issue error, retry with backoffs
+                        interval = certificate_backoff.time_to_next_attempt()
+                        _LOGGER.debug(
+                            "Unable to prepare certificate, trying again in %s: %s",
+                            utils.seconds_as_dhms(interval),
+                            err,
+                        )
+                        await asyncio.sleep(interval)
+                        continue
+
+                    if loaded:
+                        certificate_backoff.reset()
+                    else:
+                        # Registration or tunnel error, retry every 10 seconds
                         await asyncio.sleep(10)
+
                     continue
 
                 if TYPE_CHECKING:
@@ -658,8 +708,8 @@ class RemoteUI:
                     )
                     await self._acme.issue_certificate()
                     self._update_certificate_status(CertificateStatus.RENEWAL_LOADED)
-                    await self._recreate_backend()
-                    self._update_certificate_status(CertificateStatus.READY)
+                    if await self._recreate_backend():
+                        self._update_certificate_status(CertificateStatus.READY)
                 except AcmeClientError as err:
                     # Only log as warning if we have few days left
                     meth = (
