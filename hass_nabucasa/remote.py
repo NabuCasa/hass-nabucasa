@@ -361,8 +361,8 @@ class RemoteUI:
         ca_domains = set(self._acme.alternative_names or [])
         if self._acme.common_name:
             ca_domains.add(self._acme.common_name)
-        # The wildcard is only added to new orders, its absence must not force one
-        ca_domains.discard(f"*.{instance_domain}")
+        # Wildcards are only added to new orders, their absence must not force one
+        ca_domains -= {f"*.{name}" for name in (instance_domain, *aliases)}
 
         if not self._acme.certificate_available or (
             ca_domains and ca_domains != {instance_domain, *aliases}
