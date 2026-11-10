@@ -227,37 +227,6 @@ class RemoteUI:
 
         return context
 
-    async def reload_client_certificates(self) -> None:
-        """Apply the client certificate requirement to the remote connection.
-
-        Installs a fresh SSL context, so TLS sessions established before the
-        change can't be resumed to skip a now required client certificate.
-        """
-        if self._snitun is None:
-            return
-
-        # We can not get here without these being set, but mypy does not know that.
-        assert self._snitun_server is not None
-        assert self.cloud.client.aiohttp_runner is not None
-
-        context = await self._create_context()
-
-        await self.disconnect()
-        self._reconnect_task = None
-        await self._snitun.stop()
-
-        self._snitun = SniTunClientAioHttp(
-            self.cloud.client.aiohttp_runner,
-            context,
-            snitun_server=self._snitun_server,
-            snitun_port=443,
-        )
-        is_cloud_request.set(True)
-        await self._snitun.start()
-
-        if self.cloud.client.remote_autostart:
-            asyncio.create_task(self.connect())
-
     async def _recreate_backend(self) -> bool:
         """There was a connection error, recreate the backend.
 
