@@ -2,14 +2,20 @@
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
-from datetime import timedelta
+from contextlib import suppress
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from socket import gaierror
-from ssl import SSLError
+from ssl import CERT_NONE, CERT_REQUIRED, PROTOCOL_TLS_CLIENT, SSLContext, SSLError
 from typing import Any
 from unittest.mock import Mock, patch
 
 from acme import client, messages
 import aiohttp
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
 import pytest
 from requests.exceptions import RequestException
 from snitun.utils import DEFAULT_PROTOCOL_VERSION
@@ -33,6 +39,8 @@ from hass_nabucasa.remote import (
     RENEW_IF_EXPIRES_DAYS,
     WARN_RENEW_FAILED_DAYS,
     RemoteCertificateError,
+    RemoteClientCertificateError,
+    RemoteUI,
     SubscriptionExpired,
 )
 from hass_nabucasa.utils import utcnow
@@ -42,6 +50,9 @@ from tests.utils.aiohttp import AiohttpClientMocker
 from .common import MockAcme, MockSnitun
 
 # pylint: disable=protected-access
+
+# Captured before the autouse ignore_context fixture patches it.
+CREATE_CONTEXT = RemoteUI._create_context
 
 
 @pytest.fixture
@@ -2190,3 +2201,255 @@ async def test_certificate_handler_keeps_error_status_when_reload_fails(
 
     assert valid_acme_mock.call_issue
     assert cloud.remote.certificate_status is CertificateStatus.INITIAL_CERT_ERROR
+
+
+def _make_cert(
+    common_name: str,
+    issuer: tuple[x509.Certificate, ec.EllipticCurvePrivateKey] | None = None,
+) -> tuple[x509.Certificate, ec.EllipticCurvePrivateKey]:
+    """Create a certificate and its private key, self-signed CA if no issuer."""
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
+    issuer_name, issuer_key = (issuer[0].subject, issuer[1]) if issuer else (name, key)
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(issuer_name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        # OpenSSL checks validity against the real clock, not the frozen test time
+        .not_valid_before(datetime(2000, 1, 1, tzinfo=UTC))
+        .not_valid_after(datetime(2100, 1, 1, tzinfo=UTC))
+        .add_extension(
+            x509.BasicConstraints(ca=issuer is None, path_length=None), critical=True
+        )
+        .sign(issuer_key, hashes.SHA256())
+    )
+    return cert, key
+
+
+def _write_self_signed_cert(path: Path) -> tuple[Path, Path]:
+    """Write a self-signed certificate and its private key."""
+    return _write_cert(path, "cert", *_make_cert("test.dui.nabu.casa"))
+
+
+def _write_cert(
+    path: Path, name: str, cert: x509.Certificate, key: ec.EllipticCurvePrivateKey
+) -> tuple[Path, Path]:
+    """Write a certificate and its private key."""
+    cert_path = path / f"{name}.pem"
+    key_path = path / f"{name}.key"
+    # The cloud fixture patches Path.write_bytes, so write with open().
+    with cert_path.open("wb") as file:
+        file.write(cert.public_bytes(serialization.Encoding.PEM))
+    with key_path.open("wb") as file:
+        file.write(
+            key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+            )
+        )
+    return cert_path, key_path
+
+
+async def test_create_context_without_peer_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test the remote context does not request client certificates by default."""
+    cert_path, key_path = _write_self_signed_cert(tmp_path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+
+    context = await CREATE_CONTEXT(cloud.remote)
+
+    assert context.verify_mode == CERT_NONE
+    assert context.get_ca_certs() == []
+
+
+async def test_create_context_with_peer_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test the remote context requires client certificates when configured."""
+    cert_path, key_path = _write_self_signed_cert(tmp_path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+    cloud.client.prop_remote_ssl_peer_certificate = str(cert_path)
+
+    context = await CREATE_CONTEXT(cloud.remote)
+
+    assert context.verify_mode == CERT_REQUIRED
+    assert len(context.get_ca_certs()) == 1
+
+
+async def test_create_context_with_invalid_peer_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test an unreadable client CA file fails context creation."""
+    cert_path, key_path = _write_self_signed_cert(tmp_path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+    invalid_ca = tmp_path / "invalid.pem"
+    with invalid_ca.open("w") as file:
+        file.write("not a certificate")
+    cloud.client.prop_remote_ssl_peer_certificate = str(invalid_ca)
+
+    with pytest.raises(RemoteClientCertificateError):
+        await CREATE_CONTEXT(cloud.remote)
+
+
+async def _remote_handshake(
+    context: SSLContext, client_cert: tuple[Path, Path] | None
+) -> None:
+    """Upgrade a connection to TLS with the remote context the way SniTun does.
+
+    Raise the server side handshake error, if any.
+    """
+    loop = asyncio.get_running_loop()
+    handshake: asyncio.Future[None] = loop.create_future()
+
+    async def _handle(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        try:
+            await loop.start_tls(
+                writer.transport,
+                writer.transport.get_protocol(),
+                context,
+                server_side=True,
+            )
+        except (OSError, SSLError) as err:
+            handshake.set_exception(err)
+        else:
+            handshake.set_result(None)
+        writer.close()
+
+    client_context = SSLContext(PROTOCOL_TLS_CLIENT)
+    client_context.check_hostname = False
+    client_context.verify_mode = CERT_NONE
+    if client_cert:
+        client_context.load_cert_chain(*client_cert)
+
+    async with await asyncio.start_server(_handle, "127.0.0.1", 0) as server:
+        port = server.sockets[0].getsockname()[1]
+        client_writer = None
+        # With TLS 1.2 a rejected client fails its own handshake as well
+        with suppress(OSError, SSLError):
+            _, client_writer = await asyncio.open_connection(
+                "127.0.0.1", port, ssl=client_context
+            )
+        try:
+            await asyncio.wait_for(handshake, 5)
+        finally:
+            if client_writer:
+                client_writer.close()
+                with suppress(OSError, SSLError):
+                    await client_writer.wait_closed()
+
+
+async def test_remote_handshake_without_peer_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test remote clients connect without a certificate by default."""
+    cert_path, key_path = _write_self_signed_cert(tmp_path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+
+    context = await CREATE_CONTEXT(cloud.remote)
+
+    await _remote_handshake(context, None)
+
+
+async def _peer_certificate_context(
+    cloud: Cloud, path: Path
+) -> tuple[SSLContext, tuple[x509.Certificate, ec.EllipticCurvePrivateKey]]:
+    """Create the remote context requiring certificates issued by a new client CA."""
+    cert_path, key_path = _write_self_signed_cert(path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+    client_ca = _make_cert("Client CA")
+    ca_path, _ = _write_cert(path, "client_ca", *client_ca)
+    cloud.client.prop_remote_ssl_peer_certificate = str(ca_path)
+    return await CREATE_CONTEXT(cloud.remote), client_ca
+
+
+async def test_remote_handshake_trusted_client_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test remote clients connect with a certificate issued by the configured CA."""
+    context, client_ca = await _peer_certificate_context(cloud, tmp_path)
+    client_cert = _write_cert(
+        tmp_path, "client", *_make_cert("client", issuer=client_ca)
+    )
+
+    await _remote_handshake(context, client_cert)
+
+
+@pytest.mark.parametrize(
+    ("issuer", "error"),
+    [
+        pytest.param(None, "PEER_DID_NOT_RETURN_A_CERTIFICATE", id="missing"),
+        pytest.param("Other CA", "CERTIFICATE_VERIFY_FAILED", id="untrusted"),
+    ],
+)
+async def test_remote_handshake_rejects_client_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+    issuer: str | None,
+    error: str,
+) -> None:
+    """Test remote clients without a trusted certificate are rejected."""
+    context, _ = await _peer_certificate_context(cloud, tmp_path)
+    client_cert = issuer and _write_cert(
+        tmp_path, "client", *_make_cert("client", issuer=_make_cert(issuer))
+    )
+
+    with pytest.raises(SSLError, match=error):
+        await _remote_handshake(context, client_cert)
+
+
+async def test_load_backend_client_certificate_error(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test a client CA error fails the backend without resetting ACME."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+
+    with patch.object(
+        cloud.remote,
+        "_create_context",
+        side_effect=RemoteClientCertificateError("No client CA"),
+    ):
+        assert not await cloud.remote.load_backend()
+
+    assert not cloud.remote._acme.call_reset
+    assert cloud.remote._certificate_status is not CertificateStatus.SSL_CONTEXT_ERROR
+    assert cloud.remote._snitun is None
+
+    await cloud.remote.stop()
+
+
+async def test_stop_waits_for_backend_close(cloud: Cloud) -> None:
+    """Test stop returns only after the remote loop closed the backend."""
+    cloud.remote._snitun = Mock()
+
+    with patch.object(cloud.remote, "close_backend") as close_backend:
+        cloud.remote._acme_task = asyncio.create_task(
+            cloud.remote._certificate_handler()
+        )
+        await asyncio.sleep(0)
+        await cloud.remote.stop()
+
+        close_backend.assert_awaited_once()
+
+    assert cloud.remote._acme_task is None

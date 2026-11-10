@@ -64,6 +64,11 @@ class CloudClient(ABC):
     def remote_autostart(self) -> bool:
         """Return true if we want start a remote connection."""
 
+    @property
+    def remote_ssl_peer_certificate(self) -> str | None:
+        """Return CA file to verify remote client certificates against, if any."""
+        return None
+
     @abstractmethod
     async def cloud_connected(self) -> None:
         """Cloud connected."""

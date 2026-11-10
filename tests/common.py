@@ -70,6 +70,7 @@ class MockClient(CloudClient):
         self._cloudhooks = {}
         self._aiohttp_runner = Mock()
         self.prop_remote_autostart = True
+        self.prop_remote_ssl_peer_certificate = None
 
         self.mock_user = []
         self.mock_dispatcher = []
@@ -119,6 +120,11 @@ class MockClient(CloudClient):
     def remote_autostart(self) -> bool:
         """Return true if we want start a remote connection."""
         return self.prop_remote_autostart
+
+    @property
+    def remote_ssl_peer_certificate(self) -> str | None:
+        """Return CA file to verify remote client certificates against, if any."""
+        return self.prop_remote_ssl_peer_certificate
 
     async def cloud_connected(self):
         """Handle cloud connected."""

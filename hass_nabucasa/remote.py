@@ -7,7 +7,7 @@ from contextvars import ContextVar
 from datetime import datetime, timedelta
 import logging
 import random
-from ssl import SSLContext, SSLError
+from ssl import CERT_REQUIRED, SSLContext, SSLError
 from typing import TYPE_CHECKING, TypedDict
 
 import aiohttp
@@ -65,6 +65,10 @@ class RemoteNotConnected(RemoteError):
 
 class SubscriptionExpired(RemoteError):
     """Raise if we cannot connect because subscription expired."""
+
+
+class RemoteClientCertificateError(RemoteError):
+    """Raise if the client certificate authority can't be loaded."""
 
 
 class RemoteLatencyLocationResult(TypedDict):
@@ -135,8 +139,11 @@ class RemoteUI:
         if self._acme_task is None:
             return
 
-        self._acme_task.cancel()
+        acme_task = self._acme_task
         self._acme_task = None
+        acme_task.cancel()
+        # Wait for the loop to close the backend, so a following start can't race it
+        await asyncio.wait([acme_task])
 
     @property
     def snitun_server(self) -> str | None:
@@ -211,6 +218,15 @@ class RemoteUI:
             self._acme.path_fullchain,
             self._acme.path_private_key,
         )
+
+        if ca_file := self.cloud.client.remote_ssl_peer_certificate:
+            try:
+                await self.cloud.run_executor(context.load_verify_locations, ca_file)
+            except (OSError, SSLError) as err:
+                raise RemoteClientCertificateError(
+                    f"Can't load client certificate authority {ca_file}: {err}"
+                ) from err
+            context.verify_mode = CERT_REQUIRED
 
         return context
 
@@ -428,6 +444,9 @@ class RemoteUI:
 
         try:
             context = await self._create_context()
+        except RemoteClientCertificateError as err:
+            _LOGGER.error("Can't require client certificates for remote: %s", err)
+            return False
         except (SSLError, FileNotFoundError) as err:
             should_reset = isinstance(err, FileNotFoundError) or (
                 err.reason == "KEY_VALUES_MISMATCH"
