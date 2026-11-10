@@ -2437,3 +2437,19 @@ async def test_load_backend_client_certificate_error(
     assert cloud.remote._snitun is None
 
     await cloud.remote.stop()
+
+
+async def test_stop_waits_for_backend_close(cloud: Cloud) -> None:
+    """Test stop returns only after the remote loop closed the backend."""
+    cloud.remote._snitun = Mock()
+
+    with patch.object(cloud.remote, "close_backend") as close_backend:
+        cloud.remote._acme_task = asyncio.create_task(
+            cloud.remote._certificate_handler()
+        )
+        await asyncio.sleep(0)
+        await cloud.remote.stop()
+
+        close_backend.assert_awaited_once()
+
+    assert cloud.remote._acme_task is None

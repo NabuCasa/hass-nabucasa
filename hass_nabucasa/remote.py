@@ -139,8 +139,11 @@ class RemoteUI:
         if self._acme_task is None:
             return
 
-        self._acme_task.cancel()
+        acme_task = self._acme_task
         self._acme_task = None
+        acme_task.cancel()
+        # Wait for the loop to close the backend, so a following start can't race it
+        await asyncio.wait([acme_task])
 
     @property
     def snitun_server(self) -> str | None:
