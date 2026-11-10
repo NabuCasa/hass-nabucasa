@@ -206,6 +206,7 @@ async def cloud(
         mock_cognito.id_token = renewed_id_token
         mock_cognito.access_token = renewed_access_token
         cloud.auth._create_cognito_client = MagicMock(return_value=mock_cognito)
+        cloud.auth._signing_keys = {"keys": []}
 
         cloud.auth.async_check_token = AsyncMock()
 

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from functools import lru_cache, partial
+from json import JSONDecodeError
 import logging
 import random
 from typing import TYPE_CHECKING, Any
 
+import aiohttp
 import boto3
 import botocore
 from botocore.exceptions import BotoCoreError, ClientError
@@ -125,6 +128,10 @@ class UnknownError(CloudError):
     """Raised when an unknown error occurs."""
 
 
+class UnknownSigningKey(UnknownError):
+    """Raised when a token is signed with a key that isn't in the signing keys."""
+
+
 AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
     "CodeMismatchException": InvalidTotpCode,
     "UserNotFoundException": UserNotFound,
@@ -140,6 +147,18 @@ AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
 }
 
 
+class _Cognito(pycognito.Cognito):  # type: ignore[misc]
+    """Cognito client that reports tokens signed with an unknown key."""
+
+    def get_key(self, kid: str) -> dict[str, Any]:
+        """Return the signing key with this key ID."""
+        keys: list[dict[str, Any]] = self.get_keys().get("keys", [])
+        for key in keys:
+            if key.get("kid") == kid:
+                return key
+        raise UnknownSigningKey(kid)
+
+
 class CognitoAuth:
     """Handle cloud auth."""
 
@@ -148,6 +167,7 @@ class CognitoAuth:
         self.cloud = cloud
         self._refresh_task: asyncio.Task | None = None
         self._session: boto3.Session | None = None
+        self._signing_keys: dict[str, Any] | None = None
         self._request_lock = asyncio.Lock()
 
         cloud.iot.register_on_connect(self.on_connect)
@@ -263,7 +283,8 @@ class CognitoAuth:
                 )
 
                 async with asyncio.timeout(AUTH_USER_TIMEOUT):
-                    await self.cloud.run_executor(
+                    await self._async_run_verified(
+                        cognito,
                         partial(cognito.authenticate, password=password),
                     )
 
@@ -312,7 +333,8 @@ class CognitoAuth:
                 )
 
                 async with asyncio.timeout(AUTH_USER_TIMEOUT):
-                    await self.cloud.run_executor(
+                    await self._async_run_verified(
+                        cognito,
                         partial(
                             cognito.respond_to_software_token_mfa_challenge,
                             code=code,
@@ -376,7 +398,10 @@ class CognitoAuth:
 
         try:
             async with asyncio.timeout(AUTH_RENEW_TIMEOUT):
-                await self.cloud.run_executor(cognito.renew_access_token)
+                try:
+                    await self._async_run_verified(cognito, cognito.renew_access_token)
+                except UnknownSigningKey:
+                    await self._async_run_verified(cognito, cognito.renew_access_token)
             await self.cloud.update_token(cognito.id_token, cognito.access_token)
 
         except TimeoutError as err:
@@ -398,6 +423,41 @@ class CognitoAuth:
                 refresh_token=self.cloud.refresh_token,
             ),
         )
+
+    async def _async_signing_keys(self, cognito: pycognito.Cognito) -> dict[str, Any]:
+        """Return the user pool signing keys, downloading them on first use."""
+        if self._signing_keys is None:
+            try:
+                async with self.cloud.websession.get(
+                    f"{cognito.user_pool_url}/.well-known/jwks.json"
+                ) as resp:
+                    resp.raise_for_status()
+                    keys = await resp.json()
+            except (aiohttp.ClientError, JSONDecodeError) as err:
+                raise CloudConnectionError(
+                    f"Unable to download signing keys: {err}"
+                ) from err
+            if not (
+                isinstance(keys, dict)
+                and isinstance(keys.get("keys"), list)
+                and all(isinstance(key, dict) for key in keys["keys"])
+            ):
+                raise CloudConnectionError(
+                    "Unable to download signing keys: unexpected response"
+                )
+            self._signing_keys = keys
+        return self._signing_keys
+
+    async def _async_run_verified(
+        self, cognito: pycognito.Cognito, call: Callable[[], Any]
+    ) -> None:
+        """Run a Cognito call that verifies tokens, dropping the keys if unknown."""
+        cognito.pool_jwk = await self._async_signing_keys(cognito)
+        try:
+            await self.cloud.run_executor(call)
+        except UnknownSigningKey:
+            self._signing_keys = None
+            raise
 
     def _create_cognito_client(
         self,
@@ -458,7 +518,7 @@ def _cached_cognito(
 
     NOTE: This will do I/O
     """
-    return pycognito.Cognito(
+    return _Cognito(
         user_pool_id=user_pool_id,
         client_id=client_id,
         user_pool_region=user_pool_region,
