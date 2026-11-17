@@ -2380,3 +2380,45 @@ async def test_certificate_handler_keeps_error_status_when_reload_fails(
 
     assert valid_acme_mock.call_issue
     assert cloud.remote.certificate_status is CertificateStatus.INITIAL_CERT_ERROR
+
+
+async def test_load_backend_skips_ari(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+) -> None:
+    """Test loading the backend uses the lifetime fallback without ARI."""
+    _register_instance(cloud, aioclient_mock)
+    valid_acme_mock.renewal_time = utcnow() - timedelta(days=1)
+
+    with patch.object(valid_acme_mock, "suggested_renewal_time") as mock_ari:
+        assert await cloud.remote.load_backend()
+
+    mock_ari.assert_not_called()
+    assert not valid_acme_mock.call_issue
+    assert snitun_mock.call_start
+
+
+@pytest.mark.parametrize(
+    ("expire_in", "should_renew"),
+    [(timedelta(days=60), False), (timedelta(days=24), True)],
+)
+async def test_should_renew_certificates_without_ari(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    expire_in: timedelta,
+    should_renew: bool,
+) -> None:
+    """Test the renewal check uses only the lifetime fallback without ARI."""
+    valid_acme_mock.expire_date = utcnow() + expire_in
+    cloud.remote._acme = valid_acme_mock
+    cloud.remote._instance_domain = "test.dui.nabu.casa"
+
+    with patch.object(valid_acme_mock, "suggested_renewal_time") as mock_ari:
+        renew_before = await cloud.remote._should_renew_certificates_before(
+            use_ari=False
+        )
+
+    mock_ari.assert_not_called()
+    assert (renew_before is not None) is should_renew

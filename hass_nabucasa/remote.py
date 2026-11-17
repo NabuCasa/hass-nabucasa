@@ -401,7 +401,7 @@ class RemoteUI:
 
         self._info_loaded.set()
 
-        if await self._should_renew_certificates_before() is not None:
+        if await self._should_renew_certificates_before(use_ari=False) is not None:
             try:
                 self._update_certificate_status(CertificateStatus.INITIAL_GENERATING)
                 await self._acme.issue_certificate()
@@ -760,12 +760,12 @@ class RemoteUI:
             f"_acme-challenge.{custom_domain}",
         )
 
-    async def _renewal_time(self) -> datetime:
+    async def _renewal_time(self, *, use_ari: bool) -> datetime:
         """Return when the certificate should be renewed.
 
-        Prefer the renewal window suggested by the ACME server and fall back to
-        a share of the certificate lifetime, similar to certbot. Never renew later
-        than the minimum escalation days before expiry.
+        Prefer the renewal window suggested by the ACME server, if use_ari is set,
+        and fall back to a share of the certificate lifetime, similar to certbot.
+        Never renew later than the minimum escalation days before expiry.
         """
         if TYPE_CHECKING:
             assert self._acme is not None
@@ -774,22 +774,26 @@ class RemoteUI:
 
         latest = self._acme.expire_date - timedelta(days=RENEWAL_ESCALATION_MIN_DAYS)
 
-        try:
-            if renewal_time := await self._acme.suggested_renewal_time():
-                return min(renewal_time, latest)
-        except AcmeClientError as err:
-            _LOGGER.debug("Unable to fetch ACME renewal info: %s", err)
+        if use_ari:
+            try:
+                if renewal_time := await self._acme.suggested_renewal_time():
+                    return min(renewal_time, latest)
+            except AcmeClientError as err:
+                _LOGGER.debug("Unable to fetch ACME renewal info: %s", err)
 
         return min(
             default_renewal_time(self._acme.not_before, self._acme.expire_date),
             latest,
         )
 
-    async def _should_renew_certificates_before(self) -> datetime | None:
+    async def _should_renew_certificates_before(
+        self, *, use_ari: bool = True
+    ) -> datetime | None:
         """Check if certificates should be renewed.
 
         Return None if no renewal is needed, otherwise the time after which
-        renewal problems are escalated to the user.
+        renewal problems are escalated to the user. Set use_ari to False to skip
+        asking the ACME server for its suggested renewal time.
         """
         self._update_certificate_status(CertificateStatus.VALIDATING)
 
@@ -807,7 +811,7 @@ class RemoteUI:
             self._update_certificate_status(CertificateStatus.EXPIRED)
             return utcnow
 
-        renewal_time = await self._renewal_time()
+        renewal_time = await self._renewal_time(use_ari=use_ari)
         if renewal_time > utcnow:
             return None
 
