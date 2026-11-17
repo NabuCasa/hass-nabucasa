@@ -461,8 +461,13 @@ class AcmeHandler:
 
             cert_pem = self._x509.public_bytes(serialization.Encoding.PEM)
             renewal_time, _ = self._acme_client.renewal_time(cert_pem)
+        except AcmeClientError:
+            raise
         except (*_ACME_CLIENT_EXCEPTIONS, jose.DeserializationError, ValueError) as err:
             _raise_if_jws_verification_failed(err)
+            raise AcmeClientError(f"Can't fetch ACME renewal info: {err}") from err
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.exception("Unexpected error fetching ACME renewal info")
             raise AcmeClientError(f"Can't fetch ACME renewal info: {err}") from err
         return renewal_time
 

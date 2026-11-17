@@ -679,6 +679,7 @@ async def test_acme_handler_suggested_renewal_time_creates_client(
 async def test_acme_handler_suggested_renewal_time_client_errors(
     cloud: Cloud,
     exception: Exception,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test suggested_renewal_time wraps errors creating the ACME client."""
     handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
@@ -689,6 +690,53 @@ async def test_acme_handler_suggested_renewal_time_client_errors(
         pytest.raises(AcmeClientError, match="Can't fetch ACME renewal info"),
     ):
         await handler.suggested_renewal_time()
+
+    assert "Unexpected error" not in caplog.text
+
+
+async def test_acme_handler_suggested_renewal_time_client_error_passthrough(
+    cloud: Cloud,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test ACME client errors from creating the client are raised unchanged."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._x509 = Mock(public_bytes=Mock(return_value=b"cert"))
+    error = AcmeClientError("Can't connect to ACME server")
+
+    with (
+        patch.object(handler, "_create_client", side_effect=error),
+        pytest.raises(AcmeClientError) as exc_info,
+    ):
+        await handler.suggested_renewal_time()
+
+    assert exc_info.value is error
+    assert "Unexpected error" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "exception",
+    [
+        OSError("permission denied"),
+        TypeError("password required"),
+        RuntimeError("boom"),
+    ],
+)
+async def test_acme_handler_suggested_renewal_time_unexpected_errors(
+    cloud: Cloud,
+    exception: Exception,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test unexpected errors are logged and wrapped."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._x509 = Mock(public_bytes=Mock(return_value=b"cert"))
+
+    with (
+        patch.object(handler, "_create_client", side_effect=exception),
+        pytest.raises(AcmeClientError, match="Can't fetch ACME renewal info"),
+    ):
+        await handler.suggested_renewal_time()
+
+    assert "Unexpected error fetching ACME renewal info" in caplog.text
 
 
 @pytest.mark.parametrize(
