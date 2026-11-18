@@ -3,16 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-from functools import lru_cache, partial
+from functools import cache, lru_cache, partial
 import logging
 import random
 from typing import TYPE_CHECKING, Any
 
-import boto3
-import botocore
 from botocore.exceptions import BotoCoreError, ClientError
-import pycognito
-from pycognito.exceptions import ForceChangePasswordException, MFAChallengeException
 
 from ..const import MESSAGE_AUTH_FAIL
 from ..exceptions import (
@@ -32,27 +28,16 @@ from .const import (
 )
 
 if TYPE_CHECKING:
+    # boto3 and pycognito are imported when the first Cognito client is
+    # created, in the executor. Most instances never log in to the cloud,
+    # and importing them costs about 15 MiB.
+    import boto3
+    import botocore.config
+    import pycognito
+
     from .. import Cloud, _ClientT
 
 _LOGGER = logging.getLogger(__name__)
-
-# Shared objects, so _cached_cognito sees equal arguments: Config objects
-# only compare equal to themselves.
-_USER_BOTOCORE_CONFIG = botocore.config.Config(
-    signature_version=botocore.UNSIGNED,
-    connect_timeout=AUTH_CONNECT_TIMEOUT,
-    read_timeout=AUTH_USER_READ_TIMEOUT,
-    retries={"total_max_attempts": 1},
-)
-_RENEW_BOTOCORE_CONFIG = botocore.config.Config(
-    signature_version=botocore.UNSIGNED,
-    connect_timeout=AUTH_CONNECT_TIMEOUT,
-    read_timeout=AUTH_RENEW_READ_TIMEOUT,
-    retries={
-        "total_max_attempts": AUTH_RENEW_MAX_ATTEMPTS,
-        "mode": "standard",
-    },
-)
 
 
 class Unauthenticated(CloudError):
@@ -264,7 +249,7 @@ class CognitoAuth:
 
                 async with asyncio.timeout(AUTH_USER_TIMEOUT):
                     await self.cloud.run_executor(
-                        partial(cognito.authenticate, password=password),
+                        partial(_authenticate, cognito, password),
                     )
 
                 if check_connection:
@@ -280,12 +265,6 @@ class CognitoAuth:
 
             if task:
                 await task
-
-        except MFAChallengeException as err:
-            raise MFARequired(err.get_tokens()) from err
-
-        except ForceChangePasswordException as err:
-            raise PasswordChangeRequired from err
 
         except TimeoutError as err:
             raise AuthTimeoutError("Timeout while logging in") from err
@@ -393,7 +372,7 @@ class CognitoAuth:
         return await self.cloud.run_executor(
             partial(
                 self._create_cognito_client,
-                botocore_config=_RENEW_BOTOCORE_CONFIG,
+                renew=True,
                 access_token=self.cloud.access_token,
                 refresh_token=self.cloud.refresh_token,
             ),
@@ -401,13 +380,19 @@ class CognitoAuth:
 
     def _create_cognito_client(
         self,
-        botocore_config: botocore.config.Config = _USER_BOTOCORE_CONFIG,
+        *,
+        renew: bool = False,
         **kwargs: Any,
     ) -> pycognito.Cognito:
         """Create a new cognito client.
 
+        renew selects the botocore config that retries token renewals.
+
         NOTE: This will do I/O
         """
+        # pylint: disable=import-outside-toplevel
+        import boto3  # noqa: PLC0415
+
         if self._session is None:
             self._session = boto3.session.Session()
 
@@ -415,10 +400,68 @@ class CognitoAuth:
             user_pool_id=self.cloud.user_pool_id,
             client_id=self.cloud.cognito_client_id,
             user_pool_region=self.cloud.region,
-            botocore_config=botocore_config,
+            botocore_config=(
+                _renew_botocore_config() if renew else _user_botocore_config()
+            ),
             session=self._session,
             **kwargs,
         )
+
+
+# The botocore configs are built on first use, in the executor, because
+# importing botocore.config loads most of botocore. @cache returns the same
+# object on every call, so _cached_cognito sees equal arguments: Config objects
+# only compare equal to themselves.
+
+
+@cache
+def _user_botocore_config() -> botocore.config.Config:
+    """Return the config for requests the user starts: sent once."""
+    # pylint: disable-next=import-outside-toplevel
+    import botocore.config  # noqa: PLC0415
+
+    return botocore.config.Config(
+        signature_version=botocore.UNSIGNED,
+        connect_timeout=AUTH_CONNECT_TIMEOUT,
+        read_timeout=AUTH_USER_READ_TIMEOUT,
+        retries={"total_max_attempts": 1},
+    )
+
+
+@cache
+def _renew_botocore_config() -> botocore.config.Config:
+    """Return the config for token renewal, which is safe to retry."""
+    # pylint: disable-next=import-outside-toplevel
+    import botocore.config  # noqa: PLC0415
+
+    return botocore.config.Config(
+        signature_version=botocore.UNSIGNED,
+        connect_timeout=AUTH_CONNECT_TIMEOUT,
+        read_timeout=AUTH_RENEW_READ_TIMEOUT,
+        retries={
+            "total_max_attempts": AUTH_RENEW_MAX_ATTEMPTS,
+            "mode": "standard",
+        },
+    )
+
+
+def _authenticate(cognito: pycognito.Cognito, password: str) -> None:
+    """Authenticate with a password, mapping pycognito challenges.
+
+    NOTE: This will do I/O
+    """
+    # pylint: disable-next=import-outside-toplevel
+    from pycognito.exceptions import (  # noqa: PLC0415
+        ForceChangePasswordException,
+        MFAChallengeException,
+    )
+
+    try:
+        cognito.authenticate(password=password)
+    except MFAChallengeException as err:
+        raise MFARequired(err.get_tokens()) from err
+    except ForceChangePasswordException as err:
+        raise PasswordChangeRequired from err
 
 
 def _map_aws_exception(err: ClientError | BotoCoreError) -> CloudError:
@@ -458,6 +501,9 @@ def _cached_cognito(
 
     NOTE: This will do I/O
     """
+    # pylint: disable-next=import-outside-toplevel
+    import pycognito  # noqa: PLC0415
+
     return pycognito.Cognito(
         user_pool_id=user_pool_id,
         client_id=client_id,
