@@ -28,6 +28,8 @@ from .const import (
 from .instance_api import InstanceApiError, PingResult
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from . import Cloud, _ClientT
 
 
@@ -69,6 +71,25 @@ class SubscriptionExpired(RemoteError):
 
 class RemoteClientCertificateError(RemoteError):
     """Raise if the client certificate authority can't be loaded."""
+
+
+def _load_context_certificates(
+    context: SSLContext,
+    certfile: Path,
+    keyfile: Path,
+    ca_file: str | None,
+) -> None:
+    """Load the server certificate and the client certificate authority, if any."""
+    context.load_cert_chain(certfile, keyfile)
+
+    if ca_file:
+        try:
+            context.load_verify_locations(ca_file)
+        except (OSError, SSLError) as err:
+            raise RemoteClientCertificateError(
+                f"Can't load client certificate authority {ca_file}: {err}"
+            ) from err
+        context.verify_mode = CERT_REQUIRED
 
 
 class RemoteLatencyLocationResult(TypedDict):
@@ -214,19 +235,12 @@ class RemoteUI:
         assert self._acme is not None
 
         await self.cloud.run_executor(
-            context.load_cert_chain,
+            _load_context_certificates,
+            context,
             self._acme.path_fullchain,
             self._acme.path_private_key,
+            self.cloud.client.remote_ssl_peer_certificate,
         )
-
-        if ca_file := self.cloud.client.remote_ssl_peer_certificate:
-            try:
-                await self.cloud.run_executor(context.load_verify_locations, ca_file)
-            except (OSError, SSLError) as err:
-                raise RemoteClientCertificateError(
-                    f"Can't load client certificate authority {ca_file}: {err}"
-                ) from err
-            context.verify_mode = CERT_REQUIRED
 
         return context
 
