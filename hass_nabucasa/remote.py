@@ -454,7 +454,6 @@ class RemoteUI:
         )
 
         _LOGGER.debug("Starting SniTun")
-        is_cloud_request.set(True)
         await self._snitun.start()
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_UP)
 
@@ -553,14 +552,17 @@ class RemoteUI:
             assert self._token is not None
 
             _LOGGER.debug("Attempting connection to %s", self._snitun_server)
-            async with asyncio.timeout(30):
-                await self._snitun.connect(
-                    self._token.fernet,
-                    self._token.aes_key,
-                    self._token.aes_iv,
-                    throttling=self._token.throttling,
-                    protocol_version=self._token.protocol_version,
-                )
+            # snitun.connect spawns the multiplexer task, which spawns a task per
+            # connection. Those tasks inherit this context, so handlers see the flag.
+            with is_cloud_request.set(True):
+                async with asyncio.timeout(30):
+                    await self._snitun.connect(
+                        self._token.fernet,
+                        self._token.aes_key,
+                        self._token.aes_iv,
+                        throttling=self._token.throttling,
+                        protocol_version=self._token.protocol_version,
+                    )
             _LOGGER.debug("Connected")
 
             self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
