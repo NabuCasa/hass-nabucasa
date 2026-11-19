@@ -38,6 +38,8 @@ _LOGGER = logging.getLogger(__name__)
 RENEW_IF_EXPIRES_DAYS = 25
 WARN_RENEW_FAILED_DAYS = 18
 
+REPAIR_CLIENT_CERTIFICATE_ERROR = "remote_client_certificate_error"
+
 is_cloud_request = ContextVar("IS_CLOUD_REQUEST", default=False)
 
 
@@ -340,6 +342,8 @@ class RemoteUI:
         """Load backend details.
 
         Raise RemoteCertificateError if no usable certificate is available.
+        Raise RemoteClientCertificateError if the client certificate authority
+        can't be loaded.
         """
         ping_result = await self._fetch_ping_results()
 
@@ -458,9 +462,17 @@ class RemoteUI:
 
         try:
             context = await self._create_context()
-        except RemoteClientCertificateError as err:
-            _LOGGER.error("Can't require client certificates for remote: %s", err)
-            return False
+        except RemoteClientCertificateError:
+            self._update_certificate_status(CertificateStatus.SSL_CLIENT_CONTEXT_ERROR)
+            await self.cloud.client.async_create_repair_issue(
+                identifier=REPAIR_CLIENT_CERTIFICATE_ERROR,
+                translation_key=REPAIR_CLIENT_CERTIFICATE_ERROR,
+                placeholders={
+                    "ca_file": str(self.cloud.client.remote_ssl_peer_certificate)
+                },
+                severity="error",
+            )
+            raise
         except (SSLError, FileNotFoundError) as err:
             should_reset = isinstance(err, FileNotFoundError) or (
                 err.reason == "KEY_VALUES_MISMATCH"
@@ -476,6 +488,10 @@ class RemoteUI:
                 )
             self._update_certificate_status(CertificateStatus.SSL_CONTEXT_ERROR)
             return False
+
+        await self.cloud.client.async_delete_repair_issue(
+            identifier=REPAIR_CLIENT_CERTIFICATE_ERROR
+        )
 
         # Setup snitun / aiohttp wrapper
         _LOGGER.debug("Initializing SniTun")
@@ -743,6 +759,12 @@ class RemoteUI:
                     )
 
             except asyncio.CancelledError:
+                break
+
+            except RemoteClientCertificateError as err:
+                # Retrying can't help until the client CA configuration changes,
+                # and applying a change restarts the remote loop
+                _LOGGER.error("Unable to start Remote UI: %s", err)
                 break
 
             except Exception:  # pylint: disable=broad-except

@@ -2415,7 +2415,7 @@ async def test_load_backend_client_certificate_error(
     snitun_mock: MockSnitun,
     mock_timing: None,
 ) -> None:
-    """Test a client CA error fails the backend without resetting ACME."""
+    """Test a client CA error creates a repair issue without resetting ACME."""
     aioclient_mock.post(
         f"https://{cloud.api_server}/instance/register",
         json={
@@ -2424,19 +2424,83 @@ async def test_load_backend_client_certificate_error(
             "server": "rest-remote.nabu.casa",
         },
     )
+    cloud.client.prop_remote_ssl_peer_certificate = "/ssl/client_ca.pem"
 
-    with patch.object(
-        cloud.remote,
-        "_create_context",
-        side_effect=RemoteClientCertificateError("No client CA"),
+    with (
+        patch.object(
+            cloud.remote,
+            "_create_context",
+            side_effect=RemoteClientCertificateError("No client CA"),
+        ),
+        pytest.raises(RemoteClientCertificateError),
     ):
-        assert not await cloud.remote.load_backend()
+        await cloud.remote.load_backend()
 
     assert not cloud.remote._acme.call_reset
-    assert cloud.remote._certificate_status is not CertificateStatus.SSL_CONTEXT_ERROR
+    assert cloud.remote.certificate_status is CertificateStatus.SSL_CLIENT_CONTEXT_ERROR
     assert cloud.remote._snitun is None
+    assert cloud.client.mock_repairs == [
+        {
+            "identifier": "remote_client_certificate_error",
+            "translation_key": "remote_client_certificate_error",
+            "placeholders": {"ca_file": "/ssl/client_ca.pem"},
+            "severity": "error",
+        }
+    ]
 
     await cloud.remote.stop()
+
+
+async def test_load_backend_clears_client_certificate_repair(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test loading the backend clears a previous client CA repair issue."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    cloud.client.mock_repairs.append({"identifier": "remote_client_certificate_error"})
+
+    assert await cloud.remote.load_backend()
+
+    assert cloud.client.mock_repairs == []
+
+    await cloud.remote.stop()
+
+
+@pytest.mark.parametrize("renewal", [False, True])
+async def test_certificate_handler_stops_on_client_certificate_error(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    mock_timing: None,
+    caplog: pytest.LogCaptureFixture,
+    renewal: bool,
+) -> None:
+    """Test the remote loop stops on a client CA error."""
+    error = RemoteClientCertificateError("No client CA")
+    if renewal:
+        cloud.remote._acme = valid_acme_mock
+        cloud.remote._snitun = Mock()
+
+    with (
+        patch.object(cloud.remote, "_should_renew_certificates", return_value=True),
+        patch.object(cloud.remote, "load_backend", side_effect=error),
+        patch.object(cloud.remote, "_recreate_backend", side_effect=error),
+        patch.object(cloud.remote, "close_backend") as close_backend,
+    ):
+        await asyncio.wait_for(cloud.remote._certificate_handler(), timeout=1)
+
+    close_backend.assert_awaited_once()
+    assert "Unable to start Remote UI: No client CA" in caplog.text
+    assert "Unexpected error" not in caplog.text
 
 
 async def test_stop_waits_for_backend_close(cloud: Cloud) -> None:
