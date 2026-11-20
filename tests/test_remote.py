@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
-from datetime import datetime, timedelta
+from datetime import timedelta
 from socket import gaierror
 from ssl import SSLError
 from typing import Any
@@ -31,6 +31,7 @@ from hass_nabucasa.const import (
     CertificateStatus,
 )
 from hass_nabucasa.remote import (
+    CertificateRenewalStatus,
     RemoteCertificateError,
     SubscriptionExpired,
     default_renewal_time,
@@ -2149,8 +2150,8 @@ async def test_should_renew_certificates_uses_suggested_renewal_time(
     cloud.remote._acme = valid_acme_mock
     cloud.remote._instance_domain = "test.dui.nabu.casa"
 
-    renew_before = await cloud.remote._should_renew_certificates_before()
-    assert (renew_before is not None) is should_renew
+    status = await cloud.remote._certificate_renewal_status()
+    assert (status is not CertificateRenewalStatus.VALID) is should_renew
 
 
 @pytest.mark.parametrize(
@@ -2194,9 +2195,9 @@ async def test_bad_custom_domain_grace_follows_renewal_time(
     cloud.remote._instance_domain = "test.dui.nabu.casa"
 
     with patch.object(cloud.remote, "_recreate_acme") as mock_recreate:
-        renew_before = await cloud.remote._should_renew_certificates_before()
+        status = await cloud.remote._certificate_renewal_status()
 
-    assert (renew_before is not None) is should_renew
+    assert (status is not CertificateRenewalStatus.VALID) is should_renew
     assert mock_recreate.called is should_renew
     assert [issue["translation_key"] for issue in cloud.client.mock_repairs] == [
         f"{repair}_bad_custom_domain_configuration"
@@ -2204,11 +2205,10 @@ async def test_bad_custom_domain_grace_follows_renewal_time(
 
 
 @pytest.mark.parametrize(
-    ("renew_before_in", "level"),
+    ("renewal_status", "level"),
     [
-        (timedelta(0), "WARNING"),
-        (timedelta(days=1), "DEBUG"),
-        (timedelta(days=-1), "WARNING"),
+        (CertificateRenewalStatus.PENDING_RENEWAL, "DEBUG"),
+        (CertificateRenewalStatus.RENEWAL_OVERDUE, "WARNING"),
     ],
 )
 async def test_renewal_failure_log_level_follows_grace(
@@ -2216,7 +2216,7 @@ async def test_renewal_failure_log_level_follows_grace(
     valid_acme_mock: MockAcme,
     caplog: pytest.LogCaptureFixture,
     mock_timing: None,
-    renew_before_in: timedelta,
+    renewal_status: CertificateRenewalStatus,
     level: str,
 ) -> None:
     """Test renewal failures are only logged as warning after the grace period."""
@@ -2227,12 +2227,12 @@ async def test_renewal_failure_log_level_follows_grace(
     second_check = asyncio.Event()
     checks = 0
 
-    async def _should_renew_before() -> datetime:
+    async def _renewal_status() -> CertificateRenewalStatus:
         nonlocal checks
         checks += 1
         if checks > 1:
             second_check.set()
-        return utcnow() + renew_before_in
+        return renewal_status
 
     async def _issue() -> None:
         raise AcmeClientError("boom")
@@ -2241,8 +2241,8 @@ async def test_renewal_failure_log_level_follows_grace(
 
     with patch.object(
         cloud.remote,
-        "_should_renew_certificates_before",
-        side_effect=_should_renew_before,
+        "_certificate_renewal_status",
+        side_effect=_renewal_status,
     ):
         task = asyncio.create_task(cloud.remote._certificate_handler())
         await asyncio.wait_for(second_check.wait(), timeout=1)
@@ -2424,8 +2424,8 @@ async def test_certificate_handler_keeps_error_status_when_reload_fails(
     with (
         patch.object(
             cloud.remote,
-            "_should_renew_certificates_before",
-            side_effect=utcnow,
+            "_certificate_renewal_status",
+            return_value=CertificateRenewalStatus.RENEWAL_OVERDUE,
         ),
         patch.object(cloud.remote, "_recreate_backend", side_effect=_recreate_backend),
         patch.object(cloud.remote, "close_backend"),
@@ -2473,9 +2473,7 @@ async def test_should_renew_certificates_without_ari(
     cloud.remote._instance_domain = "test.dui.nabu.casa"
 
     with patch.object(valid_acme_mock, "suggested_renewal_time") as mock_ari:
-        renew_before = await cloud.remote._should_renew_certificates_before(
-            use_ari=False
-        )
+        status = await cloud.remote._certificate_renewal_status(use_ari=False)
 
     mock_ari.assert_not_called()
-    assert (renew_before is not None) is should_renew
+    assert (status is not CertificateRenewalStatus.VALID) is should_renew

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from contextvars import ContextVar
 from datetime import datetime, timedelta
+from enum import Enum
 import logging
 import random
 from ssl import SSLContext, SSLError
@@ -57,6 +58,19 @@ def renewal_escalation_time(renewal_time: datetime, expire_date: datetime) -> da
         renewal_time + (expire_date - renewal_time) * RENEWAL_GRACE_RATIO,
         expire_date - timedelta(days=RENEWAL_ESCALATION_MIN_DAYS),
     )
+
+
+class CertificateRenewalStatus(Enum):
+    """Whether the certificate needs to be renewed."""
+
+    VALID = "valid"
+    """No renewal needed yet."""
+
+    PENDING_RENEWAL = "pending_renewal"
+    """Renewal is due, but failures are not escalated to the user yet."""
+
+    RENEWAL_OVERDUE = "renewal_overdue"
+    """Renewal is due and failures should be escalated to the user."""
 
 
 class RemoteError(Exception):
@@ -401,7 +415,10 @@ class RemoteUI:
 
         self._info_loaded.set()
 
-        if await self._should_renew_certificates_before(use_ari=False) is not None:
+        if (
+            await self._certificate_renewal_status(use_ari=False)
+            is not CertificateRenewalStatus.VALID
+        ):
             try:
                 self._update_certificate_status(CertificateStatus.INITIAL_GENERATING)
                 await self._acme.issue_certificate()
@@ -697,8 +714,8 @@ class RemoteUI:
                     assert self._acme is not None
 
                 # Renew certificate?
-                renew_before = await self._should_renew_certificates_before()
-                if renew_before is None:
+                renewal_status = await self._certificate_renewal_status()
+                if renewal_status is CertificateRenewalStatus.VALID:
                     self._update_certificate_status(CertificateStatus.READY)
                     continue
 
@@ -713,10 +730,9 @@ class RemoteUI:
                     if await self._recreate_backend():
                         self._update_certificate_status(CertificateStatus.READY)
                 except AcmeClientError as err:
-                    # Only log as warning if we have few days left
                     meth = (
                         _LOGGER.warning
-                        if utils.utcnow() >= renew_before
+                        if renewal_status is CertificateRenewalStatus.RENEWAL_OVERDUE
                         else _LOGGER.debug
                     )
 
@@ -788,14 +804,13 @@ class RemoteUI:
             latest,
         )
 
-    async def _should_renew_certificates_before(
+    async def _certificate_renewal_status(
         self, *, use_ari: bool = True
-    ) -> datetime | None:
-        """Check if certificates should be renewed.
+    ) -> CertificateRenewalStatus:
+        """Check whether the certificate should be renewed.
 
-        Return None if no renewal is needed, otherwise the time after which
-        renewal problems are escalated to the user. Set use_ari to False to skip
-        asking the ACME server for its suggested renewal time.
+        Set use_ari to False to skip asking the ACME server for its suggested
+        renewal time.
         """
         self._update_certificate_status(CertificateStatus.VALIDATING)
 
@@ -807,22 +822,25 @@ class RemoteUI:
 
         if not self._acme.certificate_available:
             self._update_certificate_status(CertificateStatus.NO_CERTIFICATE)
-            return utcnow
+            return CertificateRenewalStatus.RENEWAL_OVERDUE
 
         if self._acme.expire_date is None or self._acme.expire_date <= utcnow:
             self._update_certificate_status(CertificateStatus.EXPIRED)
-            return utcnow
+            return CertificateRenewalStatus.RENEWAL_OVERDUE
 
         renewal_time = await self._renewal_time(use_ari=use_ari)
         if renewal_time > utcnow:
-            return None
+            return CertificateRenewalStatus.VALID
 
-        renew_before = renewal_escalation_time(renewal_time, self._acme.expire_date)
+        if utcnow >= renewal_escalation_time(renewal_time, self._acme.expire_date):
+            renewal_status = CertificateRenewalStatus.RENEWAL_OVERDUE
+        else:
+            renewal_status = CertificateRenewalStatus.PENDING_RENEWAL
 
         self._update_certificate_status(CertificateStatus.EXPIRING_SOON)
 
         if not self._acme.aliases:
-            return renew_before
+            return renewal_status
 
         # Check if defined alias is still valid:
         bad_alias = []
@@ -835,19 +853,20 @@ class RemoteUI:
 
         if not bad_alias:
             # No bad configuration detected
-            return renew_before
+            return renewal_status
 
         # Domain validation failed for some aliases
         self._update_certificate_status(CertificateStatus.DOMAIN_VALIDATION_FAILED)
 
-        if utcnow < renew_before:
+        if renewal_status is CertificateRenewalStatus.PENDING_RENEWAL:
+            # Give the user time to fix the aliases before dropping them
             await self.cloud.client.async_create_repair_issue(
                 identifier=f"warn_bad_custom_domain_configuration_{self._acme.expire_date.timestamp()}",
                 translation_key="warn_bad_custom_domain_configuration",
                 placeholders={"custom_domains": ",".join(bad_alias)},
                 severity="warning",
             )
-            return None
+            return CertificateRenewalStatus.VALID
 
         # Recreate the acme client with working domains
         await self.cloud.client.async_create_repair_issue(
@@ -862,7 +881,7 @@ class RemoteUI:
             [alias for alias in self._acme.aliases if alias not in bad_alias],
             self._acme.email,
         )
-        return renew_before
+        return CertificateRenewalStatus.RENEWAL_OVERDUE
 
     async def reset_acme(self) -> None:
         """Reset the ACME client."""
