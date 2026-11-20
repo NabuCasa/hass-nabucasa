@@ -37,6 +37,7 @@ _LOGGER = logging.getLogger(__name__)
 
 RENEW_IF_EXPIRES_DAYS = 25
 WARN_RENEW_FAILED_DAYS = 18
+STOP_TIMEOUT = 10
 
 REPAIR_CLIENT_CERTIFICATE_ERROR = "remote_client_certificate_error"
 
@@ -166,7 +167,9 @@ class RemoteUI:
         self._acme_task = None
         acme_task.cancel()
         # Wait for the loop to close the backend, so a following start can't race it
-        await asyncio.wait([acme_task])
+        _, pending = await asyncio.wait([acme_task], timeout=STOP_TIMEOUT)
+        if pending:
+            _LOGGER.warning("Timeout waiting for the Remote UI loop to stop")
 
     @property
     def snitun_server(self) -> str | None:
@@ -526,11 +529,8 @@ class RemoteUI:
             self._reconnect_task.cancel()
             self._reconnect_task = None
 
-        # Disconnect snitun
-        if self._snitun:
-            await self._snitun.stop()
-
-        # Cleanup
+        # Cleanup before stopping, in case stopping snitun times out RemoteUI.stop()
+        snitun = self._snitun
         self._snitun = None
         self._acme = None
         self._token = None
@@ -539,6 +539,10 @@ class RemoteUI:
         self._snitun_server = None
 
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_DOWN)
+
+        # Disconnect snitun
+        if snitun:
+            await snitun.stop()
 
     async def handle_connection_requests(self, caller_ip: str) -> None:  # noqa: ARG002
         """Handle connection requests."""
