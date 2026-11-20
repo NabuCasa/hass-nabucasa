@@ -42,6 +42,7 @@ from hass_nabucasa.remote import (
     RemoteClientCertificateError,
     RemoteUI,
     SubscriptionExpired,
+    is_cloud_request,
 )
 from hass_nabucasa.utils import utcnow
 from tests.common import extract_log_messages
@@ -535,6 +536,62 @@ async def test_load_backend_no_autostart(
     await asyncio.sleep(0.1)
 
     assert snitun_mock.call_disconnect
+
+
+async def test_connect_marks_tunnel_tasks_as_cloud_requests(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test tunnel tasks are cloud requests when connecting outside the backend."""
+    valid = utcnow() + timedelta(days=1)
+
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+            "throttling": 400,
+        },
+    )
+
+    cloud.client.prop_remote_autostart = False
+    await asyncio.create_task(cloud.remote.load_backend())
+    await asyncio.sleep(0.1)
+    assert not snitun_mock.call_connect
+
+    tunnel_task_flags: list[bool] = []
+    original_connect = snitun_mock.connect
+
+    async def connect_spawning_tunnel_task(*args: Any, **kwargs: Any) -> None:
+        async def tunnel_task() -> None:
+            tunnel_task_flags.append(is_cloud_request.get())
+
+        await asyncio.create_task(tunnel_task())
+        await original_connect(*args, **kwargs)
+
+    snitun_mock.connect = connect_spawning_tunnel_task
+
+    assert not is_cloud_request.get()
+    await cloud.remote.connect()
+
+    assert snitun_mock.call_connect
+    assert tunnel_task_flags == [True]
+    assert not is_cloud_request.get()
+
+    await cloud.remote.disconnect()
+    await asyncio.sleep(0.1)
 
 
 async def test_get_certificate_details(
