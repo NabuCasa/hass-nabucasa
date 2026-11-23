@@ -23,7 +23,7 @@ dependencies = [
     "atomicwrites-homeassistant==1.4.1",
     "attrs>=19.3",
     "ciso8601>=2.3.0",
-    "cryptography>=42.0.0",
+    "cryptography>=47.0.0",
     "grpcio>=1.75.1,<2",
     "icmplib>=3,<4",
     "josepy>=2,<3",
