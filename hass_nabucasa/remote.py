@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 import logging
 import random
-from ssl import SSLContext, SSLError
+from ssl import CERT_REQUIRED, SSLContext, SSLError
 from typing import TYPE_CHECKING, TypedDict
 
 import aiohttp
@@ -29,6 +29,8 @@ from .const import (
 from .instance_api import InstanceApiError, PingResult
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from . import Cloud, _ClientT
 
 
@@ -39,6 +41,9 @@ RENEW_AFTER_LIFETIME_RATIO = 2 / 3
 # When to escalate renewal problems (share of renewal window with a minimum)
 RENEWAL_GRACE_RATIO = 0.3
 RENEWAL_ESCALATION_MIN_DAYS = 7
+STOP_TIMEOUT = 10
+
+REPAIR_CLIENT_CERTIFICATE_ERROR = "remote_client_certificate_error"
 
 is_cloud_request = ContextVar("IS_CLOUD_REQUEST", default=False)
 
@@ -99,6 +104,29 @@ class RemoteNotConnected(RemoteError):
 
 class SubscriptionExpired(RemoteError):
     """Raise if we cannot connect because subscription expired."""
+
+
+class RemoteClientCertificateError(RemoteError):
+    """Raise if the client certificate authority can't be loaded."""
+
+
+def _load_context_certificates(
+    context: SSLContext,
+    certfile: Path,
+    keyfile: Path,
+    ca_file: str | None,
+) -> None:
+    """Load the server certificate and the client certificate authority, if any."""
+    context.load_cert_chain(certfile, keyfile)
+
+    if ca_file:
+        try:
+            context.load_verify_locations(ca_file)
+        except (OSError, SSLError) as err:
+            raise RemoteClientCertificateError(
+                f"Can't load client certificate authority {ca_file}: {err}"
+            ) from err
+        context.verify_mode = CERT_REQUIRED
 
 
 class RemoteLatencyLocationResult(TypedDict):
@@ -169,8 +197,13 @@ class RemoteUI:
         if self._acme_task is None:
             return
 
-        self._acme_task.cancel()
+        acme_task = self._acme_task
         self._acme_task = None
+        acme_task.cancel()
+        # Wait for the loop to close the backend, so a following start can't race it
+        _, pending = await asyncio.wait([acme_task], timeout=STOP_TIMEOUT)
+        if pending:
+            _LOGGER.warning("Timeout waiting for the Remote UI loop to stop")
 
     @property
     def snitun_server(self) -> str | None:
@@ -241,9 +274,11 @@ class RemoteUI:
         assert self._acme is not None
 
         await self.cloud.run_executor(
-            context.load_cert_chain,
+            _load_context_certificates,
+            context,
             self._acme.path_fullchain,
             self._acme.path_private_key,
+            self.cloud.client.remote_ssl_peer_certificate,
         )
 
         return context
@@ -344,6 +379,8 @@ class RemoteUI:
         """Load backend details.
 
         Raise RemoteCertificateError if no usable certificate is available.
+        Raise RemoteClientCertificateError if the client certificate authority
+        can't be loaded.
         """
         ping_result = await self._fetch_ping_results()
 
@@ -463,6 +500,17 @@ class RemoteUI:
 
         try:
             context = await self._create_context()
+        except RemoteClientCertificateError:
+            self._update_certificate_status(CertificateStatus.SSL_CLIENT_CONTEXT_ERROR)
+            await self.cloud.client.async_create_repair_issue(
+                identifier=REPAIR_CLIENT_CERTIFICATE_ERROR,
+                translation_key=REPAIR_CLIENT_CERTIFICATE_ERROR,
+                placeholders={
+                    "ca_file": str(self.cloud.client.remote_ssl_peer_certificate)
+                },
+                severity="error",
+            )
+            raise
         except (SSLError, FileNotFoundError) as err:
             should_reset = isinstance(err, FileNotFoundError) or (
                 err.reason == "KEY_VALUES_MISMATCH"
@@ -478,6 +526,10 @@ class RemoteUI:
                 )
             self._update_certificate_status(CertificateStatus.SSL_CONTEXT_ERROR)
             return False
+
+        await self.cloud.client.async_delete_repair_issue(
+            identifier=REPAIR_CLIENT_CERTIFICATE_ERROR
+        )
 
         # Setup snitun / aiohttp wrapper
         _LOGGER.debug("Initializing SniTun")
@@ -511,11 +563,8 @@ class RemoteUI:
             self._reconnect_task.cancel()
             self._reconnect_task = None
 
-        # Disconnect snitun
-        if self._snitun:
-            await self._snitun.stop()
-
-        # Cleanup
+        # Cleanup before stopping, in case stopping snitun times out RemoteUI.stop()
+        snitun = self._snitun
         self._snitun = None
         self._acme = None
         self._token = None
@@ -524,6 +573,10 @@ class RemoteUI:
         self._snitun_server = None
 
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_DOWN)
+
+        # Disconnect snitun
+        if snitun:
+            await snitun.stop()
 
     async def handle_connection_requests(self, caller_ip: str) -> None:  # noqa: ARG002
         """Handle connection requests."""
@@ -744,6 +797,12 @@ class RemoteUI:
                     )
 
             except asyncio.CancelledError:
+                break
+
+            except RemoteClientCertificateError as err:
+                # Retrying can't help until the client CA configuration changes,
+                # and applying a change restarts the remote loop
+                _LOGGER.error("Unable to start Remote UI: %s", err)
                 break
 
             except Exception:  # pylint: disable=broad-except
