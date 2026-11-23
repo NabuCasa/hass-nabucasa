@@ -1478,16 +1478,14 @@ async def test_load_backend_wildcard_does_not_force_new_order(
                 "test.dui.nabu.casa",
                 "*.test.dui.nabu.casa",
                 "example.com",
-                "*.example.com",
             ],
             False,
         ),
-        (["test.dui.nabu.casa", "example.com", "*.example.com"], False),
-        (["test.dui.nabu.casa", "example.com", "*.old.example.com"], True),
+        (["test.dui.nabu.casa", "example.com", "*.example.com"], True),
         (["test.dui.nabu.casa", "*.example.com"], True),
     ],
 )
-async def test_load_backend_custom_domain_wildcard_does_not_force_new_order(
+async def test_load_backend_custom_domain_wildcard_forces_new_order(
     cloud: Cloud,
     valid_acme_mock: MockAcme,
     aioclient_mock: AiohttpClientMocker,
@@ -1495,7 +1493,7 @@ async def test_load_backend_custom_domain_wildcard_does_not_force_new_order(
     alternative_names: list[str],
     recreated: bool,
 ) -> None:
-    """Test custom domain wildcards are ignored when validating the certificate."""
+    """Test only the primary domain wildcard is ignored for custom domains."""
     aioclient_mock.post(
         f"https://{cloud.api_server}/instance/register",
         json={
