@@ -37,6 +37,9 @@ PRIVATE_KEY_SIZE = 2048
 USER_AGENT = "home-assistant-cloud"
 AUTHORIZATION_TIMEOUT = 60
 
+ARI_MAX_RETRY_AFTER = timedelta(hours=12)
+ARI_DEFAULT_RETRY_AFTER = timedelta(hours=6)
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -109,6 +112,9 @@ class AcmeHandler:
         self._account_jwk: jose.JWKRSA | None = None
         self._acme_client: client.ClientV2 | None = None
         self._x509: x509.Certificate | None = None
+        self._ari_renewal_time: datetime | None = None
+        # Naive local time, like the Retry-After from the acme library
+        self._ari_next_check: datetime | None = None
 
         self._domain = domain
         self._aliases = aliases
@@ -182,6 +188,13 @@ class AcmeHandler:
         if not self._x509:
             return None
         return self._x509.not_valid_after_utc
+
+    @property
+    def not_before(self) -> datetime | None:
+        """Return datetime from which the certificate is valid."""
+        if not self._x509:
+            return None
+        return self._x509.not_valid_before_utc
 
     @property
     def common_name(self) -> str | None:
@@ -440,6 +453,53 @@ class AcmeHandler:
         with atomic_write(self.path_fullchain, overwrite=True) as fp:
             fp.write(order.fullchain_pem)
         self.path_fullchain.chmod(0o600)
+
+    def _fetch_renewal_time(self) -> tuple[datetime | None, datetime]:
+        """Fetch the renewal time suggested by the ACME server (RFC 9773)."""
+        if self._x509 is None:
+            return None, datetime.now()
+
+        try:
+            if self._acme_client is None:
+                self._create_client()
+            if TYPE_CHECKING:
+                assert self._acme_client is not None
+
+            cert_pem = self._x509.public_bytes(serialization.Encoding.PEM)
+            renewal_time, retry_after = self._acme_client.renewal_time(cert_pem)
+        except AcmeClientError:
+            raise
+        except (*_ACME_CLIENT_EXCEPTIONS, jose.DeserializationError, ValueError) as err:
+            _raise_if_jws_verification_failed(err)
+            raise AcmeClientError(f"Can't fetch ACME renewal info: {err}") from err
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.exception("Unexpected error fetching ACME renewal info")
+            raise AcmeClientError(f"Can't fetch ACME renewal info: {err}") from err
+        return renewal_time, retry_after
+
+    async def suggested_renewal_time(self) -> datetime | None:
+        """Return the renewal time suggested by the ACME server.
+
+        The answer is reused until the Retry-After of the server has passed.
+        Returns None if no certificate is loaded or the ACME server does not
+        provide renewal information.
+        """
+        if self._ari_next_check is not None and datetime.now() < self._ari_next_check:
+            return self._ari_renewal_time
+
+        try:
+            self._ari_renewal_time, check_after = await self.cloud.run_executor(
+                self._fetch_renewal_time
+            )
+            self._ari_next_check = min(
+                check_after, datetime.now() + ARI_MAX_RETRY_AFTER
+            )
+        except Exception:
+            self._ari_renewal_time = None
+            self._ari_next_check = datetime.now() + ARI_DEFAULT_RETRY_AFTER
+            raise
+
+        return self._ari_renewal_time
 
     async def load_certificate(self) -> None:
         """Get x509 Cert-Object."""
