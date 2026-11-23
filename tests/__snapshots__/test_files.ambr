@@ -223,7 +223,7 @@
   [DEBUG] hass_nabucasa.api: Response for put from files.api.fakeurl?X-Amz-Algorithm=*** (400) 
   '''
 # ---
-# name: test_upload_exceptions_while_uploading[putmockargs7-Failed to upload: (400) aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]
+# name: test_upload_exceptions_while_uploading[putmockargs7-msg7]
   '''
   [DEBUG] hass_nabucasa.files: Uploading test file with name lorem.ipsum
   [INFO] hass_nabucasa.service_discovery: Using fallback action URL for storage_files_upload: https://api.example.com/files/upload_details
