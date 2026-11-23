@@ -119,6 +119,7 @@ class CertificateStatus(StrEnum):
     RENEWAL_FAILED = "renewal_failed"
     RENEWAL_GENERATING = "renewal_generating"
     RENEWAL_LOADED = "renewal_loaded"
+    SSL_CLIENT_CONTEXT_ERROR = "ssl_client_context_error"
     SSL_CONTEXT_ERROR = "ssl_context_error"
     VALIDATING = "validating"
 
