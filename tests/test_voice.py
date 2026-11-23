@@ -211,7 +211,7 @@ async def test_process_tts_stream_with_voice_final_sentence(
     tts_event = asyncio.Event()
     first_chunk = True
 
-    async def process_tts(*args, **kwargs):
+    async def tts_chunks(*args, **kwargs):
         nonlocal first_chunk
 
         if first_chunk:
@@ -221,7 +221,7 @@ async def test_process_tts_stream_with_voice_final_sentence(
             tts_event.set()
             await chunk_event.wait()
 
-        return wav_bytes
+        yield wav_bytes
 
     async def text_gen():
         yield "Test 1. \n\nTest"
@@ -232,7 +232,7 @@ async def test_process_tts_stream_with_voice_final_sentence(
         chunk_event.set()
 
     result = bytearray()
-    with patch.object(cloud.voice, "process_tts", process_tts):
+    with patch.object(cloud.voice, "_async_tts_chunks", tts_chunks):
         async for data_chunk in cloud.voice.process_tts_stream(
             text_stream=text_gen(),
             language="nl-NL",
@@ -251,6 +251,99 @@ async def test_process_tts_stream_with_voice_final_sentence(
             audio_bytes = result[44:]  # skip header
 
             assert audio_bytes == b"My soundMy sound"
+
+
+async def test_process_tts_stream_sends_audio_as_it_arrives(cloud: Cloud):
+    """Test tts streaming sends whole frames before the response is complete."""
+    with io.BytesIO() as wav_io:
+        wav_writer: wave.Wave_write = wave.open(wav_io, "wb")
+        with wav_writer:
+            wav_writer.setframerate(24000)
+            wav_writer.setsampwidth(2)
+            wav_writer.setnchannels(1)
+            wav_writer.writeframes(b"\x01\x02\x03\x04\x05\x06")
+
+        wav_bytes = wav_io.getvalue()
+
+    events = []
+
+    async def tts_chunks(*args, **kwargs):
+        yield wav_bytes[:10]
+        # Rest of the header, one whole frame and half of the next
+        yield wav_bytes[10:47]
+        events.append("rest of response")
+        yield wav_bytes[47:]
+
+    async def text_gen():
+        yield "Text for saying."
+
+    with patch.object(cloud.voice, "_async_tts_chunks", tts_chunks):
+        async for data_chunk in cloud.voice.process_tts_stream(
+            text_stream=text_gen(),
+            language="nl-NL",
+            voice="FennaNeural",
+        ):
+            # Appended one by one, so the order shows when each chunk arrived
+            events.append(data_chunk)  # noqa: PERF401
+
+    assert len(events) == 4
+    assert len(events[0]) == 44  # header
+    # The first frame arrives before the rest of the response
+    assert events[1:] == [b"\x01\x02", "rest of response", b"\x03\x04\x05\x06"]
+
+
+async def test_process_tts_stream_skips_trailing_chunks(
+    cloud: Cloud, aioclient_mock, mock_voice_connection_details
+):
+    """Test tts streaming only sends the audio of the data chunk."""
+    with io.BytesIO() as wav_io:
+        wav_writer: wave.Wave_write = wave.open(wav_io, "wb")
+        with wav_writer:
+            wav_writer.setframerate(24000)
+            wav_writer.setsampwidth(2)
+            wav_writer.setnchannels(1)
+            wav_writer.writeframes(b"My sound")
+
+        wav_bytes = wav_io.getvalue()
+
+    aioclient_mock.post(
+        "tts-url",
+        content=wav_bytes + b"LIST\x04\x00\x00\x00INFO",
+    )
+
+    async def text_gen():
+        yield "Text for saying."
+
+    result = bytearray()
+    async for data_chunk in cloud.voice.process_tts_stream(
+        text_stream=text_gen(),
+        language="nl-NL",
+        voice="FennaNeural",
+    ):
+        result.extend(data_chunk)
+
+    assert result[44:] == b"My sound"
+
+
+async def test_process_tts_stream_invalid_response(
+    cloud: Cloud, aioclient_mock, mock_voice_connection_details
+):
+    """Test tts streaming fails when a response has no WAV header."""
+    aioclient_mock.post(
+        "tts-url",
+        content=b"",
+    )
+
+    async def text_gen():
+        yield "Text for saying."
+
+    with pytest.raises(voice.VoiceReturnError, match="Invalid WAV data"):
+        async for _ in cloud.voice.process_tts_stream(
+            text_stream=text_gen(),
+            language="nl-NL",
+            voice="FennaNeural",
+        ):
+            pass
 
 
 async def test_process_tts_stream_no_text(cloud: Cloud, aioclient_mock):
@@ -404,6 +497,33 @@ async def test_process_tss_429(
     assert len(aioclient_mock.mock_calls) == 4
 
     assert "Retrying with new token" in caplog.text
+
+
+async def test_process_tts_429_keeps_style(
+    cloud: Cloud,
+    mock_voice_connection_details,
+    aioclient_mock,
+):
+    """Test the retry with a new token keeps the requested style."""
+    aioclient_mock.post(
+        "tts-url",
+        status=429,
+    )
+
+    with pytest.raises(voice.VoiceError):
+        await cloud.voice.process_tts(
+            text="Text for Saying",
+            language="de-DE",
+            voice="ConradNeural",
+            style="cheerful",
+            output=voice.AudioOutput.RAW,
+        )
+
+    assert len(aioclient_mock.mock_calls) == 4
+    retried_request = xmltodict.parse(aioclient_mock.mock_calls[3][2])
+    assert retried_request["speak"]["voice"]["mstts:express-as"]["@style"] == (
+        "cheerful"
+    )
 
 
 async def test_process_stt_429(

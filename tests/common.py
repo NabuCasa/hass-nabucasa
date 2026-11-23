@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import timedelta
 import json
 from pathlib import Path
 import threading
@@ -70,6 +71,7 @@ class MockClient(CloudClient):
         self._cloudhooks = {}
         self._aiohttp_runner = Mock()
         self.prop_remote_autostart = True
+        self.prop_remote_ssl_peer_certificate = None
 
         self.mock_user = []
         self.mock_dispatcher = []
@@ -119,6 +121,11 @@ class MockClient(CloudClient):
     def remote_autostart(self) -> bool:
         """Return true if we want start a remote connection."""
         return self.prop_remote_autostart
+
+    @property
+    def remote_ssl_peer_certificate(self) -> str | None:
+        """Return CA file to verify remote client certificates against, if any."""
+        return self.prop_remote_ssl_peer_certificate
 
     async def cloud_connected(self):
         """Handle cloud connected."""
@@ -223,6 +230,8 @@ class MockAcme:
         self.common_name = None
         self.alternative_names = None
         self.expire_date = None
+        self._not_before = None
+        self.renewal_time = None
         self.fingerprint = None
 
         self.domain = None
@@ -247,6 +256,24 @@ class MockAcme:
     def is_valid_certificate(self) -> bool:
         """Return valid certificate."""
         return self.is_valid
+
+    @property
+    def not_before(self):
+        """Return start of validity, defaulting to a 90 day certificate."""
+        if self._not_before is None and self.expire_date is not None:
+            return self.expire_date - timedelta(days=90)
+        return self._not_before
+
+    @not_before.setter
+    def not_before(self, value):
+        """Set start of validity."""
+        self._not_before = value
+
+    async def suggested_renewal_time(self):
+        """Return the suggested renewal time."""
+        if isinstance(self.renewal_time, Exception):
+            raise self.renewal_time
+        return self.renewal_time
 
     async def issue_certificate(self):
         """Issue a certificate."""

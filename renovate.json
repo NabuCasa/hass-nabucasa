@@ -3,10 +3,21 @@
   "extends": ["config:best-practices"],
   "minimumReleaseAge": "2 days",
   "osvVulnerabilityAlerts": true,
-  "dependencyDashboardOSVVulnerabilitySummary": "all",
+  "dependencyDashboard": {
+    "osvVulnerabilitySummary": "all"
+  },
   "timezone": "Europe/Amsterdam",
   "labels": [
     "dependencies"
   ],
-  "prConcurrentLimit": 10
+  "prConcurrentLimit": 10,
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "actions/download-artifact",
+        "actions/upload-artifact"
+      ],
+      "groupName": "actions artifact"
+    }
+  ]
 }

@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 from contextvars import ContextVar
 from datetime import datetime, timedelta
+from enum import Enum
 import logging
 import random
-from ssl import SSLContext, SSLError
+from ssl import CERT_REQUIRED, SSLContext, SSLError
 from typing import TYPE_CHECKING, TypedDict
 
 import aiohttp
@@ -28,15 +29,53 @@ from .const import (
 from .instance_api import InstanceApiError, PingResult
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from . import Cloud, _ClientT
 
 
 _LOGGER = logging.getLogger(__name__)
 
-RENEW_IF_EXPIRES_DAYS = 25
-WARN_RENEW_FAILED_DAYS = 18
+# Share of the cert lifetime after which to renew (when not using ARI)
+RENEW_AFTER_LIFETIME_RATIO = 2 / 3
+# When to escalate renewal problems (share of renewal window with a minimum)
+RENEWAL_GRACE_RATIO = 0.3
+RENEWAL_ESCALATION_MIN_DAYS = 7
+STOP_TIMEOUT = 10
+
+REPAIR_CLIENT_CERTIFICATE_ERROR = "remote_client_certificate_error"
 
 is_cloud_request = ContextVar("IS_CLOUD_REQUEST", default=False)
+
+
+def default_renewal_time(not_before: datetime, expire_date: datetime) -> datetime:
+    """Return when to renew a certificate based on its lifetime."""
+    return not_before + (expire_date - not_before) * RENEW_AFTER_LIFETIME_RATIO
+
+
+def renewal_escalation_time(renewal_time: datetime, expire_date: datetime) -> datetime:
+    """Return when failed renewals should be escalated to the user.
+
+    Escalate once part of the time between renewal and expiry has passed, but
+    always at least a minimum number of days before expiry.
+    """
+    return min(
+        renewal_time + (expire_date - renewal_time) * RENEWAL_GRACE_RATIO,
+        expire_date - timedelta(days=RENEWAL_ESCALATION_MIN_DAYS),
+    )
+
+
+class CertificateRenewalStatus(Enum):
+    """Whether the certificate needs to be renewed."""
+
+    VALID = "valid"
+    """No renewal needed yet."""
+
+    PENDING_RENEWAL = "pending_renewal"
+    """Renewal is due, but failures are not escalated to the user yet."""
+
+    RENEWAL_OVERDUE = "renewal_overdue"
+    """Renewal is due and failures should be escalated to the user."""
 
 
 class RemoteError(Exception):
@@ -45,6 +84,10 @@ class RemoteError(Exception):
 
 class RemoteBackendError(RemoteError):
     """Backend problem with nabucasa API."""
+
+
+class RemoteCertificateError(RemoteError):
+    """Raise if no usable certificate could be prepared."""
 
 
 class RemoteInsecureVersion(RemoteError):
@@ -61,6 +104,29 @@ class RemoteNotConnected(RemoteError):
 
 class SubscriptionExpired(RemoteError):
     """Raise if we cannot connect because subscription expired."""
+
+
+class RemoteClientCertificateError(RemoteError):
+    """Raise if the client certificate authority can't be loaded."""
+
+
+def _load_context_certificates(
+    context: SSLContext,
+    certfile: Path,
+    keyfile: Path,
+    ca_file: str | None,
+) -> None:
+    """Load the server certificate and the client certificate authority, if any."""
+    context.load_cert_chain(certfile, keyfile)
+
+    if ca_file:
+        try:
+            context.load_verify_locations(ca_file)
+        except (OSError, SSLError) as err:
+            raise RemoteClientCertificateError(
+                f"Can't load client certificate authority {ca_file}: {err}"
+            ) from err
+        context.verify_mode = CERT_REQUIRED
 
 
 class RemoteLatencyLocationResult(TypedDict):
@@ -131,8 +197,13 @@ class RemoteUI:
         if self._acme_task is None:
             return
 
-        self._acme_task.cancel()
+        acme_task = self._acme_task
         self._acme_task = None
+        acme_task.cancel()
+        # Wait for the loop to close the backend, so a following start can't race it
+        _, pending = await asyncio.wait([acme_task], timeout=STOP_TIMEOUT)
+        if pending:
+            _LOGGER.warning("Timeout waiting for the Remote UI loop to stop")
 
     @property
     def snitun_server(self) -> str | None:
@@ -203,20 +274,29 @@ class RemoteUI:
         assert self._acme is not None
 
         await self.cloud.run_executor(
-            context.load_cert_chain,
+            _load_context_certificates,
+            context,
             self._acme.path_fullchain,
             self._acme.path_private_key,
+            self.cloud.client.remote_ssl_peer_certificate,
         )
 
         return context
 
-    async def _recreate_backend(self) -> None:
-        """There was a connection error, recreate the backend."""
+    async def _recreate_backend(self) -> bool:
+        """There was a connection error, recreate the backend.
+
+        Return True if the backend was loaded again.
+        """
         _LOGGER.info("Recreating backend")
         await self.close_backend()
         # Wait until backend is cleaned
         await asyncio.sleep(5)
-        await self.load_backend()
+        try:
+            return await self.load_backend()
+        except RemoteCertificateError as err:
+            _LOGGER.debug("Unable to prepare a certificate for the backend: %s", err)
+            return False
 
     def _generate_acme_handler(
         self,
@@ -296,7 +376,12 @@ class RemoteUI:
         ]
 
     async def load_backend(self) -> bool:
-        """Load backend details."""
+        """Load backend details.
+
+        Raise RemoteCertificateError if no usable certificate is available.
+        Raise RemoteClientCertificateError if the client certificate authority
+        can't be loaded.
+        """
         ping_result = await self._fetch_ping_results()
 
         try:
@@ -325,6 +410,13 @@ class RemoteUI:
 
         aliases: list[str] = [*self._alias]
 
+        await self._prepare_certificate(instance_domain, aliases, email)
+        return await self._start_tunnel()
+
+    async def _prepare_certificate(
+        self, instance_domain: str, aliases: list[str], email: str
+    ) -> None:
+        """Load the certificate and issue a new one if needed."""
         # Set instance details for certificate
         self._acme = self._generate_acme_handler(
             domain=instance_domain,
@@ -340,6 +432,8 @@ class RemoteUI:
         ca_domains = set(self._acme.alternative_names or [])
         if self._acme.common_name:
             ca_domains.add(self._acme.common_name)
+        # The wildcard is only added to new orders, its absence must not force one
+        ca_domains.discard(f"*.{instance_domain}")
 
         if not self._acme.certificate_available or (
             ca_domains and ca_domains != {instance_domain, *aliases}
@@ -360,9 +454,10 @@ class RemoteUI:
 
         self._info_loaded.set()
 
-        should_create_cert = await self._should_renew_certificates()
-
-        if should_create_cert:
+        if (
+            await self._certificate_renewal_status(use_ari=False)
+            is not CertificateRenewalStatus.VALID
+        ):
             try:
                 self._update_certificate_status(CertificateStatus.INITIAL_GENERATING)
                 await self._acme.issue_certificate()
@@ -381,7 +476,7 @@ class RemoteUI:
                     const.MESSAGE_REMOTE_SETUP,
                 )
                 self._update_certificate_status(CertificateStatus.INITIAL_CERT_ERROR)
-                return False
+                raise RemoteCertificateError(str(err)) from err
 
             self.cloud.client.user_message(
                 "cloud_remote_acme",
@@ -393,6 +488,11 @@ class RemoteUI:
         await self._acme.hardening_files()
         self._update_certificate_status(CertificateStatus.READY)
 
+    async def _start_tunnel(self) -> bool:
+        """Start the SniTun tunnel with the current certificate."""
+        if TYPE_CHECKING:
+            assert self._acme is not None
+
         if self.cloud.client.aiohttp_runner is None:
             _LOGGER.debug("Waiting for aiohttp runner to come available")
 
@@ -402,6 +502,17 @@ class RemoteUI:
 
         try:
             context = await self._create_context()
+        except RemoteClientCertificateError:
+            self._update_certificate_status(CertificateStatus.SSL_CLIENT_CONTEXT_ERROR)
+            await self.cloud.client.async_create_repair_issue(
+                identifier=REPAIR_CLIENT_CERTIFICATE_ERROR,
+                translation_key=REPAIR_CLIENT_CERTIFICATE_ERROR,
+                placeholders={
+                    "ca_file": str(self.cloud.client.remote_ssl_peer_certificate)
+                },
+                severity="error",
+            )
+            raise
         except (SSLError, FileNotFoundError) as err:
             should_reset = isinstance(err, FileNotFoundError) or (
                 err.reason == "KEY_VALUES_MISMATCH"
@@ -412,9 +523,15 @@ class RemoteUI:
                     "Home Assistant Cloud",
                     const.MESSAGE_LOAD_CERTIFICATE_FAILURE,
                 )
-                await self._recreate_acme(instance_domain, aliases, email)
+                await self._recreate_acme(
+                    self._acme.domain, self._acme.aliases, self._acme.email
+                )
             self._update_certificate_status(CertificateStatus.SSL_CONTEXT_ERROR)
             return False
+
+        await self.cloud.client.async_delete_repair_issue(
+            identifier=REPAIR_CLIENT_CERTIFICATE_ERROR
+        )
 
         # Setup snitun / aiohttp wrapper
         _LOGGER.debug("Initializing SniTun")
@@ -426,7 +543,6 @@ class RemoteUI:
         )
 
         _LOGGER.debug("Starting SniTun")
-        is_cloud_request.set(True)
         await self._snitun.start()
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_UP)
 
@@ -449,11 +565,8 @@ class RemoteUI:
             self._reconnect_task.cancel()
             self._reconnect_task = None
 
-        # Disconnect snitun
-        if self._snitun:
-            await self._snitun.stop()
-
-        # Cleanup
+        # Cleanup before stopping, in case stopping snitun times out RemoteUI.stop()
+        snitun = self._snitun
         self._snitun = None
         self._acme = None
         self._token = None
@@ -462,6 +575,10 @@ class RemoteUI:
         self._snitun_server = None
 
         self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_BACKEND_DOWN)
+
+        # Disconnect snitun
+        if snitun:
+            await snitun.stop()
 
     async def handle_connection_requests(self, caller_ip: str) -> None:  # noqa: ARG002
         """Handle connection requests."""
@@ -525,14 +642,17 @@ class RemoteUI:
             assert self._token is not None
 
             _LOGGER.debug("Attempting connection to %s", self._snitun_server)
-            async with asyncio.timeout(30):
-                await self._snitun.connect(
-                    self._token.fernet,
-                    self._token.aes_key,
-                    self._token.aes_iv,
-                    throttling=self._token.throttling,
-                    protocol_version=self._token.protocol_version,
-                )
+            # snitun.connect spawns the multiplexer task, which spawns a task per
+            # connection. Those tasks inherit this context, so handlers see the flag.
+            with is_cloud_request.set(True):
+                async with asyncio.timeout(30):
+                    await self._snitun.connect(
+                        self._token.fernet,
+                        self._token.aes_key,
+                        self._token.aes_iv,
+                        throttling=self._token.throttling,
+                        protocol_version=self._token.protocol_version,
+                    )
             _LOGGER.debug("Connected")
 
             self.cloud.client.dispatcher_message(const.DISPATCH_REMOTE_CONNECT)
@@ -611,6 +731,11 @@ class RemoteUI:
 
     async def _certificate_handler(self) -> None:
         """Handle certification ACME Tasks."""
+        certificate_backoff = utils.Backoff(
+            initial=const.FIVE_MINUTES_IN_SECONDS,
+            maximum=6 * const.ONE_HOUR_IN_SECONDS,
+            multiplier=2,
+        )
         while True:
             try:
                 if self._snitun:
@@ -619,15 +744,33 @@ class RemoteUI:
 
                 else:
                     _LOGGER.debug("Initializing backend")
-                    if not await self.load_backend():
+                    try:
+                        loaded = await self.load_backend()
+                    except RemoteCertificateError as err:
+                        # Certificate issue error, retry with backoffs
+                        interval = certificate_backoff.time_to_next_attempt()
+                        _LOGGER.debug(
+                            "Unable to prepare certificate, trying again in %s: %s",
+                            utils.seconds_as_dhms(interval),
+                            err,
+                        )
+                        await asyncio.sleep(interval)
+                        continue
+
+                    if loaded:
+                        certificate_backoff.reset()
+                    else:
+                        # Registration or tunnel error, retry every 10 seconds
                         await asyncio.sleep(10)
+
                     continue
 
                 if TYPE_CHECKING:
                     assert self._acme is not None
 
                 # Renew certificate?
-                if not await self._should_renew_certificates():
+                renewal_status = await self._certificate_renewal_status()
+                if renewal_status is CertificateRenewalStatus.VALID:
                     self._update_certificate_status(CertificateStatus.READY)
                     continue
 
@@ -639,18 +782,14 @@ class RemoteUI:
                     )
                     await self._acme.issue_certificate()
                     self._update_certificate_status(CertificateStatus.RENEWAL_LOADED)
-                    await self._recreate_backend()
-                    self._update_certificate_status(CertificateStatus.READY)
+                    if await self._recreate_backend():
+                        self._update_certificate_status(CertificateStatus.READY)
                 except AcmeClientError as err:
-                    # Only log as warning if we have a certain amount of days left
-                    if self._acme.expire_date is None or (
-                        self._acme.expire_date
-                        > utils.utcnow()
-                        < (utils.utcnow() + timedelta(days=WARN_RENEW_FAILED_DAYS))
-                    ):
-                        meth = _LOGGER.warning
-                    else:
-                        meth = _LOGGER.debug
+                    meth = (
+                        _LOGGER.warning
+                        if renewal_status is CertificateRenewalStatus.RENEWAL_OVERDUE
+                        else _LOGGER.debug
+                    )
 
                     self._update_certificate_status(CertificateStatus.RENEWAL_FAILED)
 
@@ -660,6 +799,12 @@ class RemoteUI:
                     )
 
             except asyncio.CancelledError:
+                break
+
+            except RemoteClientCertificateError as err:
+                # Retrying can't help until the client CA configuration changes,
+                # and applying a change restarts the remote loop
+                _LOGGER.error("Unable to start Remote UI: %s", err)
                 break
 
             except Exception:  # pylint: disable=broad-except
@@ -694,32 +839,69 @@ class RemoteUI:
             f"_acme-challenge.{custom_domain}",
         )
 
-    async def _should_renew_certificates(self) -> bool:
-        """Check if certificates should be renewed."""
+    async def _renewal_time(self, *, use_ari: bool) -> datetime:
+        """Return when the certificate should be renewed.
+
+        Prefer the renewal window suggested by the ACME server, if use_ari is set,
+        and fall back to a share of the certificate lifetime, similar to certbot.
+        Never renew later than the minimum escalation days before expiry.
+        """
+        if TYPE_CHECKING:
+            assert self._acme is not None
+            assert self._acme.expire_date is not None
+            assert self._acme.not_before is not None
+
+        latest = self._acme.expire_date - timedelta(days=RENEWAL_ESCALATION_MIN_DAYS)
+
+        if use_ari:
+            try:
+                if renewal_time := await self._acme.suggested_renewal_time():
+                    return min(renewal_time, latest)
+            except AcmeClientError as err:
+                _LOGGER.debug("Unable to fetch ACME renewal info: %s", err)
+
+        return min(
+            default_renewal_time(self._acme.not_before, self._acme.expire_date),
+            latest,
+        )
+
+    async def _certificate_renewal_status(
+        self, *, use_ari: bool = True
+    ) -> CertificateRenewalStatus:
+        """Check whether the certificate should be renewed.
+
+        Set use_ari to False to skip asking the ACME server for its suggested
+        renewal time.
+        """
         self._update_certificate_status(CertificateStatus.VALIDATING)
 
         if TYPE_CHECKING:
             assert self._acme is not None
             assert self.instance_domain is not None
 
+        utcnow = utils.utcnow()
+
         if not self._acme.certificate_available:
             self._update_certificate_status(CertificateStatus.NO_CERTIFICATE)
-            return True
-
-        utcnow = utils.utcnow()
+            return CertificateRenewalStatus.RENEWAL_OVERDUE
 
         if self._acme.expire_date is None or self._acme.expire_date <= utcnow:
             self._update_certificate_status(CertificateStatus.EXPIRED)
-            return True
+            return CertificateRenewalStatus.RENEWAL_OVERDUE
 
-        # Check if certificate is expiring soon
-        if self._acme.expire_date > (utcnow + timedelta(days=RENEW_IF_EXPIRES_DAYS)):
-            return False
+        renewal_time = await self._renewal_time(use_ari=use_ari)
+        if renewal_time > utcnow:
+            return CertificateRenewalStatus.VALID
+
+        if utcnow >= renewal_escalation_time(renewal_time, self._acme.expire_date):
+            renewal_status = CertificateRenewalStatus.RENEWAL_OVERDUE
+        else:
+            renewal_status = CertificateRenewalStatus.PENDING_RENEWAL
 
         self._update_certificate_status(CertificateStatus.EXPIRING_SOON)
 
         if not self._acme.aliases:
-            return True
+            return renewal_status
 
         # Check if defined alias is still valid:
         bad_alias = []
@@ -732,21 +914,20 @@ class RemoteUI:
 
         if not bad_alias:
             # No bad configuration detected
-            return True
+            return renewal_status
 
         # Domain validation failed for some aliases
         self._update_certificate_status(CertificateStatus.DOMAIN_VALIDATION_FAILED)
 
-        if self._acme.expire_date > (
-            utils.utcnow() + timedelta(days=WARN_RENEW_FAILED_DAYS)
-        ):
+        if renewal_status is CertificateRenewalStatus.PENDING_RENEWAL:
+            # Give the user time to fix the aliases before dropping them
             await self.cloud.client.async_create_repair_issue(
                 identifier=f"warn_bad_custom_domain_configuration_{self._acme.expire_date.timestamp()}",
                 translation_key="warn_bad_custom_domain_configuration",
                 placeholders={"custom_domains": ",".join(bad_alias)},
                 severity="warning",
             )
-            return False
+            return CertificateRenewalStatus.VALID
 
         # Recreate the acme client with working domains
         await self.cloud.client.async_create_repair_issue(
@@ -761,7 +942,7 @@ class RemoteUI:
             [alias for alias in self._acme.aliases if alias not in bad_alias],
             self._acme.email,
         )
-        return True
+        return CertificateRenewalStatus.RENEWAL_OVERDUE
 
     async def reset_acme(self) -> None:
         """Reset the ACME client."""

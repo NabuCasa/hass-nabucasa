@@ -15,6 +15,3 @@ contact_links:
   - name: I have an issue with payments
     url: https://nabucasa.com/support/
     about: For issues related to payments create a ticket on the Nabu Casa website.
-  - name: I want to request a feature to be added
-    url: https://community.home-assistant.io/tags/c/feature-requests/13/cloud
-    about: Please use the forums for feature requests

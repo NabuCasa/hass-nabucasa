@@ -2,22 +2,32 @@
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
-from datetime import timedelta
+from contextlib import suppress
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from socket import gaierror
-from ssl import SSLError
+from ssl import CERT_NONE, CERT_REQUIRED, PROTOCOL_TLS_CLIENT, SSLContext, SSLError
 from typing import Any
 from unittest.mock import Mock, patch
 
 from acme import client, messages
 import aiohttp
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
 import pytest
 from requests.exceptions import RequestException
 from snitun.utils import DEFAULT_PROTOCOL_VERSION
 from syrupy import SnapshotAssertion
 
-from hass_nabucasa import Cloud, utils
+from hass_nabucasa import Cloud, const, utils
 from hass_nabucasa.accounts_api import AccountsApiError
-from hass_nabucasa.acme import AcmeHandler
+from hass_nabucasa.acme import (
+    AcmeClientError,
+    AcmeHandler,
+    AcmeJWSVerificationError,
+)
 from hass_nabucasa.const import (
     DISPATCH_CERTIFICATE_STATUS,
     DISPATCH_REMOTE_BACKEND_DOWN,
@@ -27,9 +37,14 @@ from hass_nabucasa.const import (
     CertificateStatus,
 )
 from hass_nabucasa.remote import (
-    RENEW_IF_EXPIRES_DAYS,
-    WARN_RENEW_FAILED_DAYS,
+    CertificateRenewalStatus,
+    RemoteCertificateError,
+    RemoteClientCertificateError,
+    RemoteUI,
     SubscriptionExpired,
+    default_renewal_time,
+    is_cloud_request,
+    renewal_escalation_time,
 )
 from hass_nabucasa.utils import utcnow
 from tests.common import extract_log_messages
@@ -38,6 +53,9 @@ from tests.utils.aiohttp import AiohttpClientMocker
 from .common import MockAcme, MockSnitun
 
 # pylint: disable=protected-access
+
+# Captured before the autouse ignore_context fixture patches it.
+CREATE_CONTEXT = RemoteUI._create_context
 
 
 @pytest.fixture
@@ -522,6 +540,62 @@ async def test_load_backend_no_autostart(
     assert snitun_mock.call_disconnect
 
 
+async def test_connect_marks_tunnel_tasks_as_cloud_requests(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test tunnel tasks are cloud requests when connecting outside the backend."""
+    valid = utcnow() + timedelta(days=1)
+
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": valid.timestamp(),
+            "throttling": 400,
+        },
+    )
+
+    cloud.client.prop_remote_autostart = False
+    await asyncio.create_task(cloud.remote.load_backend())
+    await asyncio.sleep(0.1)
+    assert not snitun_mock.call_connect
+
+    tunnel_task_flags: list[bool] = []
+    original_connect = snitun_mock.connect
+
+    async def connect_spawning_tunnel_task(*args: Any, **kwargs: Any) -> None:
+        async def tunnel_task() -> None:
+            tunnel_task_flags.append(is_cloud_request.get())
+
+        await asyncio.create_task(tunnel_task())
+        await original_connect(*args, **kwargs)
+
+    snitun_mock.connect = connect_spawning_tunnel_task
+
+    assert not is_cloud_request.get()
+    await cloud.remote.connect()
+
+    assert snitun_mock.call_connect
+    assert tunnel_task_flags == [True]
+    assert not is_cloud_request.get()
+
+    await cloud.remote.disconnect()
+    await asyncio.sleep(0.1)
+
+
 async def test_get_certificate_details(
     cloud: Cloud,
     acme_mock: MockAcme,
@@ -847,9 +921,7 @@ async def test_recreating_old_certificate_with_bad_dns_config(
 
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "example.com"]
-    valid_acme_mock.expire_date = utils.utcnow() + timedelta(
-        days=WARN_RENEW_FAILED_DAYS,
-    )
+    valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=17)
     await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
@@ -927,7 +999,7 @@ async def test_warn_about_bad_dns_config_for_old_certificate(
 
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "example.com"]
-    valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS)
+    valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=25)
     await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
@@ -991,7 +1063,7 @@ async def test_regeneration_without_warning_for_good_dns_config(
 
     valid_acme_mock.common_name = "test.dui.nabu.casa"
     valid_acme_mock.alternative_names = ["test.dui.nabu.casa", "example.com"]
-    valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=RENEW_IF_EXPIRES_DAYS)
+    valid_acme_mock.expire_date = utils.utcnow() + timedelta(days=25)
     await cloud.remote.load_backend()
     await asyncio.sleep(0.1)
 
@@ -1113,7 +1185,8 @@ async def test_acme_client_new_order_errors(
         ),
     ):
         assert cloud.remote._certificate_status is None
-        await cloud.remote.load_backend()
+        with pytest.raises(RemoteCertificateError):
+            await cloud.remote.load_backend()
 
     await asyncio.sleep(0.1)
     assert cloud.remote._acme.call_reset == should_reset
@@ -1222,7 +1295,8 @@ async def test_acme_client_create_client_jws_errors(
         ),
     ):
         assert cloud.remote._certificate_status is None
-        await cloud.remote.load_backend()
+        with pytest.raises(RemoteCertificateError):
+            await cloud.remote.load_backend()
 
     await asyncio.sleep(0.1)
     assert cloud.remote._acme.call_reset == should_reset
@@ -1406,6 +1480,124 @@ async def test_recreate_acme_integration_during_load_backend(
 
 
 @pytest.mark.parametrize(
+    ("common_name", "alternative_names", "recreated"),
+    [
+        ("test.dui.nabu.casa", ["test.dui.nabu.casa"], False),
+        (
+            "test.dui.nabu.casa",
+            ["test.dui.nabu.casa", "*.test.dui.nabu.casa"],
+            False,
+        ),
+        (
+            "*.test.dui.nabu.casa",
+            ["test.dui.nabu.casa", "*.test.dui.nabu.casa"],
+            False,
+        ),
+        (
+            "test.dui.nabu.casa",
+            ["test.dui.nabu.casa", "*.old.dui.nabu.casa"],
+            True,
+        ),
+    ],
+)
+async def test_load_backend_wildcard_does_not_force_new_order(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    common_name: str,
+    alternative_names: list[str],
+    recreated: bool,
+) -> None:
+    """Test the primary domain wildcard is ignored when validating the certificate."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": (utcnow() + timedelta(days=1)).timestamp(),
+            "throttling": 400,
+        },
+    )
+
+    valid_acme_mock.common_name = common_name
+    valid_acme_mock.alternative_names = alternative_names
+
+    await cloud.remote.load_backend()
+    await asyncio.sleep(0.1)
+
+    assert valid_acme_mock.call_reset is recreated
+
+
+@pytest.mark.parametrize(
+    ("alternative_names", "recreated"),
+    [
+        (["test.dui.nabu.casa", "example.com"], False),
+        (
+            [
+                "test.dui.nabu.casa",
+                "*.test.dui.nabu.casa",
+                "example.com",
+            ],
+            False,
+        ),
+        (["test.dui.nabu.casa", "example.com", "*.example.com"], True),
+        (["test.dui.nabu.casa", "*.example.com"], True),
+    ],
+)
+async def test_load_backend_custom_domain_wildcard_forces_new_order(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    alternative_names: list[str],
+    recreated: bool,
+) -> None:
+    """Test only the primary domain wildcard is ignored for custom domains."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+            "alias": ["example.com"],
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": (utcnow() + timedelta(days=1)).timestamp(),
+            "throttling": 400,
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/account/instance/resolve_dns_cname",
+        json=[
+            "test.dui.nabu.casa",
+            "_acme-challenge.test.dui.nabu.casa",
+        ],
+    )
+
+    valid_acme_mock.common_name = "test.dui.nabu.casa"
+    valid_acme_mock.alternative_names = alternative_names
+
+    await cloud.remote.load_backend()
+    await asyncio.sleep(0.1)
+
+    assert valid_acme_mock.call_reset is recreated
+
+
+@pytest.mark.parametrize(
     ("exception_type", "exception_message"),
     [
         (gaierror, "DNS resolution failed"),
@@ -1465,11 +1657,14 @@ async def test_certificate_network_error_handling(
         },
     )
 
-    with patch(
-        "hass_nabucasa.remote.AcmeHandler",
-        return_value=_MockAcme(
-            cloud, "test.dui.nabu.casa", [], "test@nabucasa.inc", Mock()
+    with (
+        patch(
+            "hass_nabucasa.remote.AcmeHandler",
+            return_value=_MockAcme(
+                cloud, "test.dui.nabu.casa", [], "test@nabucasa.inc", Mock()
+            ),
         ),
+        patch("hass_nabucasa.utils.jitter", return_value=0),
     ):
         cloud.client.prop_remote_autostart = True
         await cloud.remote.start()
@@ -2045,3 +2240,689 @@ async def test_ping_privileges_resolution_failure_retried(
         "Ping latency check failed: Insufficient privileges to perform ICMP ping."
         in extract_log_messages(caplog)
     )
+
+
+@pytest.mark.parametrize(
+    ("expire_in", "renewal_in", "should_renew"),
+    [
+        (timedelta(days=60), timedelta(days=-1), True),
+        (timedelta(days=24), timedelta(days=1), False),
+        (timedelta(days=6), timedelta(days=1), True),
+        (timedelta(days=60), None, False),
+        (timedelta(days=24), None, True),
+        (timedelta(days=60), AcmeClientError("boom"), False),
+        (timedelta(days=24), AcmeClientError("boom"), True),
+    ],
+    ids=[
+        "ari_due",
+        "ari_not_due",
+        "ari_capped",
+        "no_ari_not_due",
+        "no_ari_due",
+        "ari_error_not_due",
+        "ari_error_due",
+    ],
+)
+async def test_should_renew_certificates_uses_suggested_renewal_time(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    expire_in: timedelta,
+    renewal_in: timedelta | Exception | None,
+    should_renew: bool,
+) -> None:
+    """Test renewal follows the ACME suggested time with a lifetime fallback."""
+    now = utcnow()
+    valid_acme_mock.expire_date = now + expire_in
+    valid_acme_mock.renewal_time = (
+        now + renewal_in if isinstance(renewal_in, timedelta) else renewal_in
+    )
+    cloud.remote._acme = valid_acme_mock
+    cloud.remote._instance_domain = "test.dui.nabu.casa"
+
+    status = await cloud.remote._certificate_renewal_status()
+    assert (status is not CertificateRenewalStatus.VALID) is should_renew
+
+
+@pytest.mark.parametrize(
+    ("expire_in", "renewal_in", "should_renew", "repair"),
+    [
+        (timedelta(days=14), timedelta(days=-1), False, "warn"),
+        (timedelta(days=10), timedelta(days=-5), True, "reset"),
+        (timedelta(days=22), None, False, "warn"),
+        (timedelta(days=20), None, True, "reset"),
+        (timedelta(days=8), timedelta(days=-1), False, "warn"),
+        (timedelta(days=6.5), timedelta(days=-2.5), True, "reset"),
+    ],
+    ids=[
+        "ari_grace",
+        "ari_grace_expired",
+        "no_ari_grace",
+        "no_ari_grace_expired",
+        "min_days_grace",
+        "min_days_grace_expired",
+    ],
+)
+async def test_bad_custom_domain_grace_follows_renewal_time(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    expire_in: timedelta,
+    renewal_in: timedelta | None,
+    should_renew: bool,
+    repair: str,
+) -> None:
+    """Test the custom domain grace period is relative to the renewal time."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/account/instance/resolve_dns_cname",
+        json=["test.dui.nabu.casa"],
+    )
+    now = utcnow()
+    valid_acme_mock.aliases = ["example.com"]
+    valid_acme_mock.expire_date = now + expire_in
+    valid_acme_mock.renewal_time = now + renewal_in if renewal_in else None
+    cloud.remote._acme = valid_acme_mock
+    cloud.remote._instance_domain = "test.dui.nabu.casa"
+
+    with patch.object(cloud.remote, "_recreate_acme") as mock_recreate:
+        status = await cloud.remote._certificate_renewal_status()
+
+    assert (status is not CertificateRenewalStatus.VALID) is should_renew
+    assert mock_recreate.called is should_renew
+    assert [issue["translation_key"] for issue in cloud.client.mock_repairs] == [
+        f"{repair}_bad_custom_domain_configuration"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("renewal_status", "level"),
+    [
+        (CertificateRenewalStatus.PENDING_RENEWAL, "DEBUG"),
+        (CertificateRenewalStatus.RENEWAL_OVERDUE, "WARNING"),
+    ],
+)
+async def test_renewal_failure_log_level_follows_grace(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    caplog: pytest.LogCaptureFixture,
+    mock_timing: None,
+    renewal_status: CertificateRenewalStatus,
+    level: str,
+) -> None:
+    """Test renewal failures are only logged as warning after the grace period."""
+    caplog.set_level("DEBUG")
+    cloud.remote._acme = valid_acme_mock
+    cloud.remote._snitun = Mock()
+
+    second_check = asyncio.Event()
+    checks = 0
+
+    async def _renewal_status() -> CertificateRenewalStatus:
+        nonlocal checks
+        checks += 1
+        if checks > 1:
+            second_check.set()
+        return renewal_status
+
+    async def _issue() -> None:
+        raise AcmeClientError("boom")
+
+    valid_acme_mock.issue_certificate = _issue
+
+    with patch.object(
+        cloud.remote,
+        "_certificate_renewal_status",
+        side_effect=_renewal_status,
+    ):
+        task = asyncio.create_task(cloud.remote._certificate_handler())
+        await asyncio.wait_for(second_check.wait(), timeout=1)
+        task.cancel()
+        with patch.object(cloud.remote, "close_backend"):
+            await asyncio.gather(task, return_exceptions=True)
+
+    records = [
+        record
+        for record in caplog.records
+        if record.getMessage().startswith("Renewal of ACME certificate failed")
+    ]
+    assert records
+    assert {record.levelname for record in records} == {level}
+
+
+@pytest.mark.parametrize(
+    ("renewal_before_expiry", "escalation_before_expiry"),
+    [
+        (timedelta(days=25), timedelta(days=17.5)),
+        (timedelta(days=15), timedelta(days=10.5)),
+        (timedelta(days=10), timedelta(days=7)),
+        (timedelta(days=5), timedelta(days=7)),
+    ],
+)
+def test_renewal_escalation_time(
+    renewal_before_expiry: timedelta,
+    escalation_before_expiry: timedelta,
+) -> None:
+    """Test escalation is relative to renewal with a minimum before expiry."""
+    expire_date = utcnow()
+    assert (
+        renewal_escalation_time(expire_date - renewal_before_expiry, expire_date)
+        == expire_date - escalation_before_expiry
+    )
+
+
+@pytest.mark.parametrize(
+    ("lifetime", "renewal_before_expiry"),
+    [
+        (timedelta(days=90), timedelta(days=30)),
+        (timedelta(days=45), timedelta(days=15)),
+    ],
+)
+def test_default_renewal_time(
+    lifetime: timedelta,
+    renewal_before_expiry: timedelta,
+) -> None:
+    """Test the fallback renewal time is a share of the certificate lifetime."""
+    expire_date = utcnow()
+    assert (
+        default_renewal_time(expire_date - lifetime, expire_date)
+        == expire_date - renewal_before_expiry
+    )
+
+
+def _register_instance(cloud: Cloud, aioclient_mock: AiohttpClientMocker) -> None:
+    """Mock the instance registration and SniTun token endpoints."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/snitun_token",
+        json={
+            "token": "test-token",
+            "server": "rest-remote.nabu.casa",
+            "valid": (utcnow() + timedelta(days=1)).timestamp(),
+            "throttling": 400,
+        },
+    )
+
+
+async def test_load_backend_recreates_valid_certificate_on_jws_error(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+) -> None:
+    """Test a JWS error still recreates ACME even with a valid certificate."""
+    _register_instance(cloud, aioclient_mock)
+    valid_acme_mock.expire_date = utcnow() + timedelta(days=24)
+
+    async def _issue() -> None:
+        raise AcmeJWSVerificationError("boom")
+
+    valid_acme_mock.issue_certificate = _issue
+
+    with pytest.raises(RemoteCertificateError):
+        await cloud.remote.load_backend()
+
+    assert not snitun_mock.call_start
+    assert valid_acme_mock.call_reset
+    assert cloud.remote.certificate_status is CertificateStatus.INITIAL_CERT_ERROR
+    assert [message for *_, message in cloud.client.mock_user] == [
+        const.MESSAGE_REMOTE_SETUP
+    ]
+
+
+async def test_certificate_handler_backs_off_certificate_retries(
+    cloud: Cloud,
+) -> None:
+    """Test certificate failures back off while other failures retry quickly."""
+    sleeps: list[float] = []
+
+    async def _sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+
+    with (
+        patch.object(
+            cloud.remote,
+            "load_backend",
+            side_effect=[
+                RemoteCertificateError,
+                RemoteCertificateError,
+                False,
+                True,
+                RemoteCertificateError,
+                asyncio.CancelledError,
+            ],
+        ),
+        patch.object(cloud.remote, "close_backend"),
+        patch("hass_nabucasa.remote.asyncio.sleep", side_effect=_sleep),
+        patch("hass_nabucasa.utils.jitter", return_value=0),
+    ):
+        await cloud.remote._certificate_handler()
+
+    assert sleeps == [300, 600, 10, 300]
+
+
+@pytest.mark.parametrize(
+    ("load_result", "expected"),
+    [(True, True), (False, False), (RemoteCertificateError, False)],
+)
+async def test_recreate_backend_reports_load_result(
+    cloud: Cloud,
+    mock_timing: None,
+    load_result: bool | type[Exception],
+    expected: bool,
+) -> None:
+    """Test recreating the backend reports if it loaded, without raising."""
+    with (
+        patch.object(
+            cloud.remote,
+            "load_backend",
+            **(
+                {"side_effect": load_result}
+                if isinstance(load_result, type)
+                else {"return_value": load_result}
+            ),
+        ) as mock_load,
+        patch.object(cloud.remote, "close_backend") as mock_close,
+    ):
+        assert await cloud.remote._recreate_backend() is expected
+
+    mock_close.assert_called_once()
+    mock_load.assert_called_once()
+
+
+async def test_certificate_handler_keeps_error_status_when_reload_fails(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    mock_timing: None,
+) -> None:
+    """Test a failed reload after renewal does not report the certificate ready."""
+    cloud.remote._acme = valid_acme_mock
+    cloud.remote._snitun = Mock()
+    reloaded = asyncio.Event()
+
+    async def _recreate_backend() -> bool:
+        cloud.remote._update_certificate_status(CertificateStatus.INITIAL_CERT_ERROR)
+        reloaded.set()
+        return False
+
+    with (
+        patch.object(
+            cloud.remote,
+            "_certificate_renewal_status",
+            return_value=CertificateRenewalStatus.RENEWAL_OVERDUE,
+        ),
+        patch.object(cloud.remote, "_recreate_backend", side_effect=_recreate_backend),
+        patch.object(cloud.remote, "close_backend"),
+    ):
+        task = asyncio.create_task(cloud.remote._certificate_handler())
+        await asyncio.wait_for(reloaded.wait(), timeout=1)
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+    assert valid_acme_mock.call_issue
+    assert cloud.remote.certificate_status is CertificateStatus.INITIAL_CERT_ERROR
+
+
+def _make_cert(
+    common_name: str,
+    issuer: tuple[x509.Certificate, ec.EllipticCurvePrivateKey] | None = None,
+) -> tuple[x509.Certificate, ec.EllipticCurvePrivateKey]:
+    """Create a certificate and its private key, self-signed CA if no issuer."""
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
+    issuer_name, issuer_key = (issuer[0].subject, issuer[1]) if issuer else (name, key)
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(issuer_name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        # OpenSSL checks validity against the real clock, not the frozen test time
+        .not_valid_before(datetime(2000, 1, 1, tzinfo=UTC))
+        .not_valid_after(datetime(2100, 1, 1, tzinfo=UTC))
+        .add_extension(
+            x509.BasicConstraints(ca=issuer is None, path_length=None), critical=True
+        )
+        .sign(issuer_key, hashes.SHA256())
+    )
+    return cert, key
+
+
+def _write_self_signed_cert(path: Path) -> tuple[Path, Path]:
+    """Write a self-signed certificate and its private key."""
+    return _write_cert(path, "cert", *_make_cert("test.dui.nabu.casa"))
+
+
+def _write_cert(
+    path: Path, name: str, cert: x509.Certificate, key: ec.EllipticCurvePrivateKey
+) -> tuple[Path, Path]:
+    """Write a certificate and its private key."""
+    cert_path = path / f"{name}.pem"
+    key_path = path / f"{name}.key"
+    # The cloud fixture patches Path.write_bytes, so write with open().
+    with cert_path.open("wb") as file:
+        file.write(cert.public_bytes(serialization.Encoding.PEM))
+    with key_path.open("wb") as file:
+        file.write(
+            key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+            )
+        )
+    return cert_path, key_path
+
+
+async def test_create_context_without_peer_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test the remote context does not request client certificates by default."""
+    cert_path, key_path = _write_self_signed_cert(tmp_path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+
+    context = await CREATE_CONTEXT(cloud.remote)
+
+    assert context.verify_mode == CERT_NONE
+    assert context.get_ca_certs() == []
+
+
+async def test_create_context_with_peer_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test the remote context requires client certificates when configured."""
+    cert_path, key_path = _write_self_signed_cert(tmp_path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+    cloud.client.prop_remote_ssl_peer_certificate = str(cert_path)
+
+    context = await CREATE_CONTEXT(cloud.remote)
+
+    assert context.verify_mode == CERT_REQUIRED
+    assert len(context.get_ca_certs()) == 1
+
+
+async def test_create_context_with_invalid_peer_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test an unreadable client CA file fails context creation."""
+    cert_path, key_path = _write_self_signed_cert(tmp_path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+    invalid_ca = tmp_path / "invalid.pem"
+    with invalid_ca.open("w") as file:
+        file.write("not a certificate")
+    cloud.client.prop_remote_ssl_peer_certificate = str(invalid_ca)
+
+    with pytest.raises(RemoteClientCertificateError):
+        await CREATE_CONTEXT(cloud.remote)
+
+
+async def _remote_handshake(
+    context: SSLContext, client_cert: tuple[Path, Path] | None
+) -> None:
+    """Upgrade a connection to TLS with the remote context the way SniTun does.
+
+    Raise the server side handshake error, if any.
+    """
+    loop = asyncio.get_running_loop()
+    handshake: asyncio.Future[None] = loop.create_future()
+
+    async def _handle(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        try:
+            await loop.start_tls(
+                writer.transport,
+                writer.transport.get_protocol(),
+                context,
+                server_side=True,
+            )
+        except (OSError, SSLError) as err:
+            handshake.set_exception(err)
+        else:
+            handshake.set_result(None)
+        writer.close()
+
+    client_context = SSLContext(PROTOCOL_TLS_CLIENT)
+    client_context.check_hostname = False
+    client_context.verify_mode = CERT_NONE
+    if client_cert:
+        client_context.load_cert_chain(*client_cert)
+
+    async with await asyncio.start_server(_handle, "127.0.0.1", 0) as server:
+        port = server.sockets[0].getsockname()[1]
+        client_writer = None
+        # With TLS 1.2 a rejected client fails its own handshake as well
+        with suppress(OSError, SSLError):
+            _, client_writer = await asyncio.open_connection(
+                "127.0.0.1", port, ssl=client_context
+            )
+        try:
+            await asyncio.wait_for(handshake, 5)
+        finally:
+            if client_writer:
+                client_writer.close()
+                with suppress(OSError, SSLError):
+                    await client_writer.wait_closed()
+
+
+async def test_remote_handshake_without_peer_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test remote clients connect without a certificate by default."""
+    cert_path, key_path = _write_self_signed_cert(tmp_path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+
+    context = await CREATE_CONTEXT(cloud.remote)
+
+    await _remote_handshake(context, None)
+
+
+async def _peer_certificate_context(
+    cloud: Cloud, path: Path
+) -> tuple[SSLContext, tuple[x509.Certificate, ec.EllipticCurvePrivateKey]]:
+    """Create the remote context requiring certificates issued by a new client CA."""
+    cert_path, key_path = _write_self_signed_cert(path)
+    cloud.remote._acme = Mock(path_fullchain=cert_path, path_private_key=key_path)
+    client_ca = _make_cert("Client CA")
+    ca_path, _ = _write_cert(path, "client_ca", *client_ca)
+    cloud.client.prop_remote_ssl_peer_certificate = str(ca_path)
+    return await CREATE_CONTEXT(cloud.remote), client_ca
+
+
+async def test_remote_handshake_trusted_client_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+) -> None:
+    """Test remote clients connect with a certificate issued by the configured CA."""
+    context, client_ca = await _peer_certificate_context(cloud, tmp_path)
+    client_cert = _write_cert(
+        tmp_path, "client", *_make_cert("client", issuer=client_ca)
+    )
+
+    await _remote_handshake(context, client_cert)
+
+
+@pytest.mark.parametrize(
+    ("issuer", "error"),
+    [
+        pytest.param(None, "PEER_DID_NOT_RETURN_A_CERTIFICATE", id="missing"),
+        pytest.param("Other CA", "CERTIFICATE_VERIFY_FAILED", id="untrusted"),
+    ],
+)
+async def test_remote_handshake_rejects_client_certificate(
+    cloud: Cloud,
+    tmp_path: Path,
+    issuer: str | None,
+    error: str,
+) -> None:
+    """Test remote clients without a trusted certificate are rejected."""
+    context, _ = await _peer_certificate_context(cloud, tmp_path)
+    client_cert = issuer and _write_cert(
+        tmp_path, "client", *_make_cert("client", issuer=_make_cert(issuer))
+    )
+
+    with pytest.raises(SSLError, match=error):
+        await _remote_handshake(context, client_cert)
+
+
+async def test_load_backend_client_certificate_error(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test a client CA error creates a repair issue without resetting ACME."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    cloud.client.prop_remote_ssl_peer_certificate = "/ssl/client_ca.pem"
+
+    with (
+        patch.object(
+            cloud.remote,
+            "_create_context",
+            side_effect=RemoteClientCertificateError("No client CA"),
+        ),
+        pytest.raises(RemoteClientCertificateError),
+    ):
+        await cloud.remote.load_backend()
+
+    assert not cloud.remote._acme.call_reset
+    assert cloud.remote.certificate_status is CertificateStatus.SSL_CLIENT_CONTEXT_ERROR
+    assert cloud.remote._snitun is None
+    assert cloud.client.mock_repairs == [
+        {
+            "identifier": "remote_client_certificate_error",
+            "translation_key": "remote_client_certificate_error",
+            "placeholders": {"ca_file": "/ssl/client_ca.pem"},
+            "severity": "error",
+        }
+    ]
+
+    await cloud.remote.stop()
+
+
+async def test_load_backend_clears_client_certificate_repair(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+    mock_timing: None,
+) -> None:
+    """Test loading the backend clears a previous client CA repair issue."""
+    aioclient_mock.post(
+        f"https://{cloud.api_server}/instance/register",
+        json={
+            "domain": "test.dui.nabu.casa",
+            "email": "test@nabucasa.inc",
+            "server": "rest-remote.nabu.casa",
+        },
+    )
+    cloud.client.mock_repairs.append({"identifier": "remote_client_certificate_error"})
+
+    assert await cloud.remote.load_backend()
+
+    assert cloud.client.mock_repairs == []
+
+    await cloud.remote.stop()
+
+
+@pytest.mark.parametrize("renewal", [False, True])
+async def test_certificate_handler_stops_on_client_certificate_error(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    mock_timing: None,
+    caplog: pytest.LogCaptureFixture,
+    renewal: bool,
+) -> None:
+    """Test the remote loop stops on a client CA error."""
+    error = RemoteClientCertificateError("No client CA")
+    if renewal:
+        cloud.remote._acme = valid_acme_mock
+        cloud.remote._snitun = Mock()
+
+    with (
+        patch.object(
+            cloud.remote,
+            "_certificate_renewal_status",
+            return_value=CertificateRenewalStatus.RENEWAL_OVERDUE,
+        ),
+        patch.object(cloud.remote, "load_backend", side_effect=error),
+        patch.object(cloud.remote, "_recreate_backend", side_effect=error),
+        patch.object(cloud.remote, "close_backend") as close_backend,
+    ):
+        await asyncio.wait_for(cloud.remote._certificate_handler(), timeout=1)
+
+    close_backend.assert_awaited_once()
+    assert "Unable to start Remote UI: No client CA" in caplog.text
+    assert "Unexpected error" not in caplog.text
+
+
+async def test_stop_waits_for_backend_close(cloud: Cloud) -> None:
+    """Test stop returns only after the remote loop closed the backend."""
+    cloud.remote._snitun = Mock()
+
+    with patch.object(cloud.remote, "close_backend") as close_backend:
+        cloud.remote._acme_task = asyncio.create_task(
+            cloud.remote._certificate_handler()
+        )
+        await asyncio.sleep(0)
+        await cloud.remote.stop()
+
+        close_backend.assert_awaited_once()
+
+    assert cloud.remote._acme_task is None
+
+
+async def test_load_backend_skips_ari(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+) -> None:
+    """Test loading the backend uses the lifetime fallback without ARI."""
+    _register_instance(cloud, aioclient_mock)
+    valid_acme_mock.renewal_time = utcnow() - timedelta(days=1)
+
+    with patch.object(valid_acme_mock, "suggested_renewal_time") as mock_ari:
+        assert await cloud.remote.load_backend()
+
+    mock_ari.assert_not_called()
+    assert not valid_acme_mock.call_issue
+    assert snitun_mock.call_start
+
+
+@pytest.mark.parametrize(
+    ("expire_in", "should_renew"),
+    [(timedelta(days=60), False), (timedelta(days=24), True)],
+)
+async def test_should_renew_certificates_without_ari(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    expire_in: timedelta,
+    should_renew: bool,
+) -> None:
+    """Test the renewal check uses only the lifetime fallback without ARI."""
+    valid_acme_mock.expire_date = utcnow() + expire_in
+    cloud.remote._acme = valid_acme_mock
+    cloud.remote._instance_domain = "test.dui.nabu.casa"
+
+    with patch.object(valid_acme_mock, "suggested_renewal_time") as mock_ari:
+        status = await cloud.remote._certificate_renewal_status(use_ari=False)
+
+    mock_ari.assert_not_called()
+    assert (status is not CertificateRenewalStatus.VALID) is should_renew
