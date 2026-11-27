@@ -689,10 +689,16 @@ class AcmeHandler:
             _LOGGER.info("ACME user/certificates already cleaned up")
             return
 
-        if not self._acme_client:
-            await self.cloud.run_executor(self._create_client)
-
         try:
+            if not self._acme_client:
+                try:
+                    await self.cloud.run_executor(self._create_client)
+                except AcmeClientError as err:
+                    _LOGGER.warning(
+                        "Unable to revoke and deactivate ACME user/certificate: %s",
+                        err,
+                    )
+                    return
             with contextlib.suppress(AcmeClientError):
                 await self.cloud.run_executor(self._revoke_certificate)
             with contextlib.suppress(AcmeClientError):

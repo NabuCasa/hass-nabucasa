@@ -633,6 +633,31 @@ def test_acme_handler_deactivate_account_network_errors(
             handler._deactivate_account()
 
 
+@pytest.mark.parametrize(
+    "error", [AcmeClientError("boom"), AcmeJWSVerificationError("boom")]
+)
+async def test_acme_handler_reset_acme_cleans_up_without_client(
+    cloud: Cloud,
+    error: AcmeClientError,
+) -> None:
+    """Test reset removes the local ACME data when the client can't be created."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._account_jwk = Mock()
+
+    with (
+        patch.object(handler, "_create_client", side_effect=error),
+        patch.object(handler, "_revoke_certificate") as mock_revoke,
+        patch.object(handler, "_deactivate_account") as mock_deactivate,
+        patch.object(handler, "_remove_files") as mock_remove_files,
+    ):
+        await handler.reset_acme()
+
+    mock_revoke.assert_not_called()
+    mock_deactivate.assert_not_called()
+    mock_remove_files.assert_called_once()
+    assert handler._account_jwk is None
+
+
 async def test_acme_handler_suggested_renewal_time_no_certificate(
     cloud: Cloud,
 ) -> None:
