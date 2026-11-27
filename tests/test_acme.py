@@ -566,6 +566,36 @@ async def test_acme_handler_issue_certificate_cleans_up_published_record(
     mock_cleanup.assert_awaited_once_with(value=expected_cleanup)
 
 
+async def test_acme_handler_issue_certificate_replaces_loaded_certificate(
+    cloud: Cloud,
+) -> None:
+    """Test issue_certificate loads the new certificate over the previous one."""
+    handler = AcmeHandler(cloud, "test.example.com", [], "test@example.com", Mock())
+    handler._acme_client = Mock()
+    handler._x509 = Mock()
+    handler._ari_renewal_time = Mock()
+    handler._ari_next_check = Mock()
+    new_cert = Mock()
+
+    with (
+        patch.object(handler, "_generate_csr"),
+        patch.object(handler, "_create_order"),
+        patch.object(handler, "_start_challenge", return_value=[]),
+        patch.object(handler, "_finish_challenge"),
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes"),
+        patch(
+            "hass_nabucasa.acme.x509.load_pem_x509_certificate",
+            return_value=new_cert,
+        ),
+    ):
+        await handler.issue_certificate()
+
+    assert handler._x509 is new_cert
+    assert handler._ari_renewal_time is None
+    assert handler._ari_next_check is None
+
+
 async def test_acme_handler_issue_certificate_skips_cleanup_without_record(
     cloud: Cloud,
 ) -> None:

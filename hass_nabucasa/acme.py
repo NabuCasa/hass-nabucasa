@@ -675,6 +675,11 @@ class AcmeHandler:
         except AcmeChallengeError as err:
             self._update_status(CertificateStatus.CERTIFICATE_FINALIZATION_FAILED)
             raise AcmeNabuCasaError(f"Could not finish challenge - {err}") from err
+
+        # Replace the previous certificate and its renewal info
+        self._x509 = None
+        self._ari_renewal_time = None
+        self._ari_next_check = None
         await self.load_certificate()
 
     async def reset_acme(self) -> None:
