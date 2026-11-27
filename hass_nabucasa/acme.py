@@ -696,18 +696,16 @@ class AcmeHandler:
 
         try:
             if not self._acme_client:
-                try:
-                    await self.cloud.run_executor(self._create_client)
-                except AcmeClientError as err:
-                    _LOGGER.warning(
-                        "Unable to revoke and deactivate ACME user/certificate: %s",
-                        err,
-                    )
-                    return
+                await self.cloud.run_executor(self._create_client)
             with contextlib.suppress(AcmeClientError):
                 await self.cloud.run_executor(self._revoke_certificate)
             with contextlib.suppress(AcmeClientError):
                 await self.cloud.run_executor(self._deactivate_account)
+        except AcmeClientError as err:
+            _LOGGER.warning(
+                "Unable to revoke and deactivate ACME user/certificate: %s",
+                err,
+            )
         finally:
             self._acme_client = None
             self._account_jwk = None
