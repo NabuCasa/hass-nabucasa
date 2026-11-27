@@ -281,8 +281,12 @@ class MockAcme:
         return self.renewal_time
 
     async def issue_certificate(self):
-        """Issue a certificate."""
+        """Issue a 90 day certificate for the domains."""
         self.call_issue = True
+        self.common_name = self.domain
+        self.alternative_names = self.domains
+        self._not_before = None
+        self.expire_date = utcnow() + timedelta(days=90)
 
     async def reset_acme(self):
         """Reset the account and remove the certificate."""

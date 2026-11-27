@@ -2458,6 +2458,7 @@ async def test_load_backend_recreates_valid_certificate_on_jws_error(
 ) -> None:
     """Test a JWS error renewing a valid certificate recreates ACME after starting."""
     _register_instance(cloud, aioclient_mock)
+    cloud.client.prop_remote_autostart = False
     valid_acme_mock.expire_date = utcnow() + timedelta(days=24)
 
     async def _issue() -> None:
@@ -2646,6 +2647,7 @@ async def test_certificate_handler_renews_due_certificate_after_start(
 ) -> None:
     """Test a certificate due at startup renews after the tunnel starts."""
     _register_instance(cloud, aioclient_mock)
+    cloud.client.prop_remote_autostart = False
     valid_acme_mock.expire_date = utcnow() + timedelta(days=25)
     tunnel_started_before_issue: list[bool] = []
     sleeps: list[float] = []
