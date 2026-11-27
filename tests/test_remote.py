@@ -1069,7 +1069,7 @@ async def test_regeneration_without_warning_for_good_dns_config(
 
     assert cloud.remote.snitun_server == "rest-remote.nabu.casa"
     assert not valid_acme_mock.call_reset
-    assert valid_acme_mock.call_issue
+    assert not valid_acme_mock.call_issue
     assert snitun_mock.call_start
     assert snitun_mock.init_args == (cloud.client.aiohttp_runner, None)
     assert snitun_mock.init_kwarg == {
@@ -2454,10 +2454,44 @@ async def test_load_backend_recreates_valid_certificate_on_jws_error(
     valid_acme_mock: MockAcme,
     aioclient_mock: AiohttpClientMocker,
     snitun_mock: MockSnitun,
+    mock_timing: None,
 ) -> None:
-    """Test a JWS error still recreates ACME even with a valid certificate."""
+    """Test a JWS error renewing a valid certificate recreates ACME after starting."""
     _register_instance(cloud, aioclient_mock)
     valid_acme_mock.expire_date = utcnow() + timedelta(days=24)
+
+    async def _issue() -> None:
+        raise AcmeJWSVerificationError("boom")
+
+    valid_acme_mock.issue_certificate = _issue
+    recreate_backend = cloud.remote._recreate_backend
+
+    async def _recreate_backend_and_stop() -> bool:
+        await recreate_backend()
+        raise asyncio.CancelledError
+
+    with patch.object(
+        cloud.remote, "_recreate_backend", side_effect=_recreate_backend_and_stop
+    ):
+        await cloud.remote._certificate_handler()
+
+    assert snitun_mock.call_start
+    assert valid_acme_mock.call_reset
+    assert cloud.remote.certificate_status is CertificateStatus.INITIAL_CERT_ERROR
+    assert [message for *_, message in cloud.client.mock_user] == [
+        const.MESSAGE_REMOTE_SETUP
+    ]
+
+
+async def test_load_backend_recreates_expired_certificate_on_jws_error(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+) -> None:
+    """Test a JWS error recreates ACME when the loaded certificate has expired."""
+    _register_instance(cloud, aioclient_mock)
+    valid_acme_mock.expire_date = utcnow() - timedelta(days=1)
 
     async def _issue() -> None:
         raise AcmeJWSVerificationError("boom")
@@ -2477,8 +2511,10 @@ async def test_load_backend_recreates_valid_certificate_on_jws_error(
 
 async def test_certificate_handler_backs_off_certificate_retries(
     cloud: Cloud,
+    valid_acme_mock: MockAcme,
 ) -> None:
     """Test certificate failures back off while other failures retry quickly."""
+    cloud.remote._acme = valid_acme_mock
     sleeps: list[float] = []
 
     async def _sleep(seconds: float) -> None:
@@ -2566,6 +2602,73 @@ async def test_certificate_handler_keeps_error_status_when_reload_fails(
 
     assert valid_acme_mock.call_issue
     assert cloud.remote.certificate_status is CertificateStatus.INITIAL_CERT_ERROR
+
+
+async def test_load_backend_starts_tunnel_with_certificate_due_for_renewal(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+) -> None:
+    """Test a valid certificate due for renewal does not block the tunnel."""
+    _register_instance(cloud, aioclient_mock)
+    valid_acme_mock.expire_date = utcnow() + timedelta(days=25)
+
+    assert await cloud.remote.load_backend()
+
+    assert snitun_mock.call_start
+    assert not valid_acme_mock.call_issue
+    assert cloud.remote.certificate_status is CertificateStatus.READY
+    assert cloud.client.mock_user == []
+
+
+async def test_load_backend_does_not_mark_valid_certificate_due(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+) -> None:
+    """Test a certificate that isn't due for renewal is used as is."""
+    _register_instance(cloud, aioclient_mock)
+
+    assert await cloud.remote.load_backend()
+
+    assert snitun_mock.call_start
+    assert not valid_acme_mock.call_issue
+    assert cloud.client.mock_user == []
+
+
+async def test_certificate_handler_renews_due_certificate_after_start(
+    cloud: Cloud,
+    valid_acme_mock: MockAcme,
+    aioclient_mock: AiohttpClientMocker,
+    snitun_mock: MockSnitun,
+) -> None:
+    """Test a certificate due at startup renews after the tunnel starts."""
+    _register_instance(cloud, aioclient_mock)
+    valid_acme_mock.expire_date = utcnow() + timedelta(days=25)
+    tunnel_started_before_issue: list[bool] = []
+    sleeps: list[float] = []
+
+    async def _issue() -> None:
+        tunnel_started_before_issue.append(snitun_mock.call_start)
+
+    async def _sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+
+    valid_acme_mock.issue_certificate = _issue
+
+    with (
+        patch.object(
+            cloud.remote, "_recreate_backend", side_effect=asyncio.CancelledError
+        ),
+        patch("hass_nabucasa.remote.asyncio.sleep", side_effect=_sleep),
+    ):
+        await cloud.remote._certificate_handler()
+
+    assert tunnel_started_before_issue == [True]
+    assert sleeps == []
+    assert cloud.client.mock_user == []
 
 
 def _make_cert(

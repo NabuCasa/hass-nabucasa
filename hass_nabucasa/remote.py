@@ -416,7 +416,11 @@ class RemoteUI:
     async def _prepare_certificate(
         self, instance_domain: str, aliases: list[str], email: str
     ) -> None:
-        """Load the certificate and issue a new one if needed."""
+        """Load the certificate and issue a new one if there is no valid one.
+
+        A valid certificate that is due for renewal is kept, so the tunnel can
+        start with it, and renewed by the certificate handler loop.
+        """
         # Set instance details for certificate
         self._acme = self._generate_acme_handler(
             domain=instance_domain,
@@ -454,10 +458,9 @@ class RemoteUI:
 
         self._info_loaded.set()
 
-        if (
-            await self._certificate_renewal_status(use_ari=False)
-            is not CertificateRenewalStatus.VALID
-        ):
+        await self._certificate_renewal_status(use_ari=False)
+
+        if not self._acme.is_valid_certificate:
             try:
                 self._update_certificate_status(CertificateStatus.INITIAL_GENERATING)
                 await self._acme.issue_certificate()
@@ -762,8 +765,11 @@ class RemoteUI:
                     else:
                         # Registration or tunnel error, retry every 10 seconds
                         await asyncio.sleep(10)
+                        continue
 
-                    continue
+                    if await self._renewal_time(use_ari=False) > utils.utcnow():
+                        continue
+                    _LOGGER.debug("Certificate is due for renewal after loading")
 
                 if TYPE_CHECKING:
                     assert self._acme is not None
@@ -784,6 +790,16 @@ class RemoteUI:
                     self._update_certificate_status(CertificateStatus.RENEWAL_LOADED)
                     if await self._recreate_backend():
                         self._update_certificate_status(CertificateStatus.READY)
+                except AcmeJWSVerificationError as err:
+                    _LOGGER.warning(
+                        "Renewal of ACME certificate failed, recreating account: %s",
+                        err,
+                    )
+                    self._update_certificate_status(CertificateStatus.RENEWAL_FAILED)
+                    await self._recreate_acme(
+                        self._acme.domain, self._acme.aliases, self._acme.email
+                    )
+                    await self._recreate_backend()
                 except AcmeClientError as err:
                     meth = (
                         _LOGGER.warning

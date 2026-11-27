@@ -254,8 +254,13 @@ class MockAcme:
 
     @property
     def is_valid_certificate(self) -> bool:
-        """Return valid certificate."""
-        return self.is_valid
+        """Return True if the certificate is loaded and not expired."""
+        return (
+            self.is_valid
+            and self.certificate_available
+            and self.expire_date is not None
+            and self.expire_date > utcnow()
+        )
 
     @property
     def not_before(self):
@@ -280,8 +285,11 @@ class MockAcme:
         self.call_issue = True
 
     async def reset_acme(self):
-        """Issue a certificate."""
+        """Reset the account and remove the certificate."""
         self.call_reset = True
+        self.common_name = None
+        self.alternative_names = None
+        self.expire_date = None
 
     async def load_certificate(self):
         """Load certificate."""
